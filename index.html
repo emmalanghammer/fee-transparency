@@ -294,6 +294,7 @@ class Component extends DCLogic {
     const source = (this.q('#m-source') || {}).value || 'Flat';
     const ctype = ((this.q('#m-ctype') || {}).value || '').trim();
     const req = (this.q('#m-req') || {}).value || '';
+    const cond = req === 'Required' ? '' : ((this.q('#m-cond') || {}).value || '').trim();
     const level = (this.q('#m-level') || {}).value || 'Property';
     const ils = ('modalIls' in this.state.toggles) ? this.state.toggles.modalIls : true;
     let group = m.group;
@@ -305,7 +306,7 @@ class Component extends DCLogic {
     }
     this.setState(s => ({
       nextFeeId: s.nextFeeId + 1, modal: null,
-      propFees: [...s.propFees, { id: s.nextFeeId, group, name, desc, amount, source, mits: ctype ? ctype.toUpperCase() : 'CUSTOM', level, origin:'property', ils, excluded:false, overrides: [], expanded: false }]
+      propFees: [...s.propFees, { id: s.nextFeeId, group, name, desc, amount, source, mits: ctype ? ctype.toUpperCase() : 'CUSTOM', level, origin:'property', ils, excluded:false, overrides: [], expanded: false, cond: cond || undefined }]
     }));
     this.flash('Fee added');
   }
@@ -1139,8 +1140,12 @@ class Component extends DCLogic {
       <div style="padding-left:24px"><input id="m-amount" class="fld" placeholder="00.00" style="height:36px;box-sizing:border-box"></div>
       ${isRec?`<div style="border-top:1px solid #cedbe7;width:100%"></div>
       <div style="display:flex;flex-direction:column;gap:4px">${lab('Frequency')}${dd('m-freq',['Monthly','Weekly','Every 2 weeks','Quarterly','Annually'],'Monthly')}</div>`:''}`;
+    const condVisible = reqDefault !== 'Required';
     const reqs = `
-      <div style="display:flex;flex-direction:column;gap:4px">${lab('Charge Requirement')}${dd('m-req',['Required','Optional — tenant selects','Situational'],reqDefault)}</div>
+      <div style="display:flex;gap:8px">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Requirement')}<select id="m-req" class="fld" style="height:36px" onchange="document.getElementById('m-cond-wrap').style.display=this.value==='Required'?'none':'flex'">${['Required','Optional — tenant selects','Situational'].map(o=>`<option${o===reqDefault?' selected':''}>${o}</option>`).join('')}</select></div>
+        <div id="m-cond-wrap" style="flex:1;min-width:0;display:${condVisible?'flex':'none'};flex-direction:column;gap:4px">${lab('Charge Condition')}<input id="m-cond" class="fld" placeholder="If resident rents a parking spot" style="height:36px;box-sizing:border-box"></div>
+      </div>
       <div style="display:flex;gap:8px">
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('What lease term(s) does this charge apply to?')}${dd('m-terms',['All Selected','12 month','6 month','Month-to-month'],'All Selected')}</div>
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Fee Due')}${dd('m-due',['Move In','First of month','At posting'],'Move In')}</div>
