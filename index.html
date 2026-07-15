@@ -49,7 +49,7 @@
     .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#13314c; color:#fff; padding:12px 20px; border-radius:6px; font-size:14px; box-shadow:0 3px 12px rgba(0,0,0,0.25); z-index:200; display:flex; align-items:center; gap:10px; }
   </style>
 </helmet>
-<div class="rmx" onClick="{{ onClick }}" ref="{{ rootRef }}" style="min-height:100vh;display:flex;flex-direction:column;background:#f5f8fa">
+<div class="rmx" onClick="{{ onClick }}" ref="{{ rootRef }}" style="height:100vh;overflow:hidden;display:flex;flex-direction:column;background:#f5f8fa">
   {{ screen }}
 </div>
 </x-dc>
@@ -504,7 +504,7 @@ class Component extends DCLogic {
     h += `<div style="padding:16px"><div class="eyebrow" style="margin-bottom:8px">Lease terms &amp; pricing</div><div style="display:flex;gap:16px;flex-wrap:wrap">${cards}</div><div style="font-size:12px;color:#8a9aa8;margin-top:10px">Rent offsets adjust market rent per term (e.g. loyalty discount on longer terms, short-term premium on 6 months). Toggle per term to compare. Monthly fees reflect the required charges plus any optional items checked above.</div></div>`;
 
     // sync the toggle state ids with qOffsets so the switch reflects reality
-    return `<div style="flex:1;display:flex;align-items:stretch"><div style="flex:1;min-width:0;max-width:1100px;width:100%;margin:0 auto;padding-bottom:16px">${h}</div>${this.rail()}</div>`;
+    return `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden"><div style="flex:1;min-width:0;overflow-y:auto;display:flex;flex-direction:column"><div style="flex:1;min-width:0;max-width:1100px;width:100%;margin:0 auto;padding-bottom:16px">${h}</div></div>${this.rail()}</div>`;
   }
 
   // ================= RENEWAL =================
@@ -556,7 +556,7 @@ class Component extends DCLogic {
     }).join('');
     h += `<div style="padding:16px"><div class="eyebrow" style="margin-bottom:8px">Offered renewal terms</div><div style="display:flex;gap:16px;flex-wrap:wrap">${cards}</div></div>`;
 
-    return `<div style="flex:1;display:flex;align-items:stretch"><div style="flex:1;min-width:0;max-width:1100px;width:100%;margin:0 auto;padding-bottom:16px">${h}</div>${this.rail()}</div>`;
+    return `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden"><div style="flex:1;min-width:0;overflow-y:auto;display:flex;flex-direction:column"><div style="flex:1;min-width:0;max-width:1100px;width:100%;margin:0 auto;padding-bottom:16px">${h}</div></div>${this.rail()}</div>`;
   }
 
   // ================= AMENITIES STANDARDIZATION =================
@@ -603,7 +603,7 @@ class Component extends DCLogic {
     h += this.banner('Standardize your amenities against the MITS list so they syndicate correctly. Property-level amenities describe the community; <b>asset-level</b> amenities (new) attach to specific units and appliances. Unmapped items still send as custom MITS but <b>will not list on MH Village</b>.','');
     h += `<div class="tile"><div style="display:flex;flex-wrap:wrap;gap:0"><div style="flex:1;min-width:160px;padding:14px 18px;border-right:1px solid #ebf1f5"><div style="font-size:12px;color:#8a9aa8">Mapped to standard</div><div style="font-size:22px;font-weight:700;color:#3a7d2c">${mapped.length}<span style="font-size:14px;color:#8a9aa8;font-weight:400"> / ${list.length}</span></div></div><div style="flex:1;min-width:160px;padding:14px 18px;border-right:1px solid #ebf1f5"><div style="font-size:12px;color:#8a9aa8">Will send as custom</div><div style="font-size:22px;font-weight:700;color:#b35a00">${unmapped.length}</div></div><div style="flex:2;min-width:220px;padding:14px 18px;display:flex;align-items:center"><span style="font-size:12px;color:#8a9aa8;line-height:1.45"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px;color:#b35a00">warning</span> Custom amenities send to partners as free-text (MITS) and are skipped by MH Village until mapped.</span></div></div></div>`;
     h += `<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">${left}${right}</div>`;
-    return `<div style="flex:1;display:flex;align-items:stretch"><div style="flex:1;min-width:0;padding:16px;display:flex;flex-direction:column;gap:16px;max-width:1200px;width:100%;box-sizing:border-box;margin:0 auto">${h}</div>${this.rail()}</div>`;
+    return `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden"><div style="flex:1;min-width:0;overflow-y:auto;display:flex;flex-direction:column"><div style="flex:1;min-width:0;padding:16px;display:flex;flex-direction:column;gap:16px;max-width:1200px;width:100%;box-sizing:border-box;margin:0 auto">${h}</div></div>${this.rail()}</div>`;
   }
 
   profileScoreboard(){
@@ -953,7 +953,7 @@ class Component extends DCLogic {
     else if (t === 'Unit Fees') return `<div style="flex:1">${this.ufBody()}</div>`;
     else if (t === 'Assigned Properties') inner = this.apBody();
     else inner = this.chBody();
-    return `<div style="flex:1;display:flex;align-items:stretch"><div style="flex:1;min-width:0;padding:16px;display:flex;flex-direction:column;gap:16px;max-width:1500px;width:100%;box-sizing:border-box;margin:0 auto">${inner}</div>${this.rail()}</div>`;
+    return `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden"><div style="flex:1;min-width:0;overflow-y:auto;display:flex;flex-direction:column"><div style="flex:1;min-width:0;padding:16px;display:flex;flex-direction:column;gap:16px;max-width:1500px;width:100%;box-sizing:border-box;margin:0 auto">${inner}</div></div>${this.rail()}</div>`;
   }
 
   // ================= UNIT DETAIL =================
@@ -1006,7 +1006,7 @@ class Component extends DCLogic {
       `<div class="card">${cardHead('Occupancy','',true)}${emptyGrid(['Resident','Move-in','Lease end','Status','Balance','Contact'])}</div>`
     ];
     h += `<div style="padding:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:start">${cards.join('')}</div>`;
-    return `<div style="flex:1;display:flex;align-items:stretch"><div style="flex:1;min-width:0;display:flex;flex-direction:column">${h}</div>${this.rail()}</div>`;
+    return `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden"><div style="flex:1;min-width:0;overflow-y:auto;display:flex;flex-direction:column"><div style="flex:1;min-width:0;display:flex;flex-direction:column">${h}</div></div>${this.rail()}</div>`;
   }
 
   // ================= MODAL / TOAST =================
@@ -1044,7 +1044,7 @@ class Component extends DCLogic {
       out += this.ctx('Property', [{ label:'Standard Conventional', act:'navProfile' }, { label: s.property }], '2 of 42');
       out += this.tabRow(['General','Images','Fees','Units','Leasing','Utilities','Documents','Marketing'], s.propTab, 'proptab');
       const body = s.propTab === 'Units' ? this.propUnitsBody() : this.propFeesBody();
-      out += `<div style="flex:1;display:flex;align-items:stretch"><div style="flex:1;min-width:0;padding:16px;display:flex;flex-direction:column;gap:16px;max-width:1500px;width:100%;box-sizing:border-box;margin:0 auto">${body}</div>${this.rail()}</div>`;
+      out += `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden"><div style="flex:1;min-width:0;overflow-y:auto;display:flex;flex-direction:column"><div style="flex:1;min-width:0;padding:16px;display:flex;flex-direction:column;gap:16px;max-width:1500px;width:100%;box-sizing:border-box;margin:0 auto">${body}</div></div>${this.rail()}</div>`;
       out += this.footer(s.propTab === 'Units' ? 'Save units' : 'Save fees');
     } else if (s.view === 'quote') {
       out += this.ctx('Rent Quote', [{ label: s.property, act:'navProperty', arg: s.property }, { label:'Unit ' + s.unit, act:'navUnit', arg: s.unit }, { label:'New quote' }], 'Draft');
@@ -1070,7 +1070,7 @@ class Component extends DCLogic {
     return {
       rootRef: this.setRoot,
       onClick: this.onClick,
-      screen: React.createElement('div', { style: { display:'flex', flexDirection:'column', flex:1, minHeight:'100vh' }, dangerouslySetInnerHTML: { __html: this.screenHTML() } })
+      screen: React.createElement('div', { style: { display:'flex', flexDirection:'column', flex:1, minHeight:0 }, dangerouslySetInnerHTML: { __html: this.screenHTML() } })
     };
   }
 }
