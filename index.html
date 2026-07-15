@@ -288,15 +288,24 @@ class Component extends DCLogic {
   saveFee(){
     const m = this.state.modal; if (!m) return;
     const name = ((this.q('#m-name') || {}).value || '').trim();
-    if (!name) { this.flash('Charge type is required'); return; }
+    if (!name) { this.flash('Name is required'); return; }
     const amount = ((this.q('#m-amount') || {}).value || '').trim() || '$0.00';
     const desc = ((this.q('#m-desc') || {}).value || '').trim();
     const source = (this.q('#m-source') || {}).value || 'Flat';
+    const ctype = ((this.q('#m-ctype') || {}).value || '').trim();
+    const req = (this.q('#m-req') || {}).value || '';
     const level = (this.q('#m-level') || {}).value || 'Property';
     const ils = ('modalIls' in this.state.toggles) ? this.state.toggles.modalIls : true;
+    let group = m.group;
+    if (/^(req|opt|sit)-/.test(group)) {
+      const suffix = group === 'sit-rec' ? 'rec' : group.split('-')[1];
+      if (req.startsWith('Required')) group = 'req-' + suffix;
+      else if (req.startsWith('Optional')) group = 'opt-' + suffix;
+      else if (req.startsWith('Situational')) group = 'sit-rec';
+    }
     this.setState(s => ({
       nextFeeId: s.nextFeeId + 1, modal: null,
-      propFees: [...s.propFees, { id: s.nextFeeId, group: m.group, name, desc, amount, source, mits:'CUSTOM', level, origin:'property', ils, excluded:false, overrides: [], expanded: false }]
+      propFees: [...s.propFees, { id: s.nextFeeId, group, name, desc, amount, source, mits: ctype ? ctype.toUpperCase() : 'CUSTOM', level, origin:'property', ils, excluded:false, overrides: [], expanded: false }]
     }));
     this.flash('Fee added');
   }
@@ -1109,19 +1118,51 @@ class Component extends DCLogic {
   // ================= MODAL / TOAST =================
   modalHTML(){
     const m = this.state.modal; if (!m) return '';
-    const label = { 'req-rec':'Required · Recurring', 'req-one':'Required · One-time', 'opt-rec':'Optional · Recurring', 'opt-one':'Optional · One-time', 'sit-rec':'Situational', 'deposit':'Deposit', 'ori':'ORI item' }[m.group] || 'Fee';
+    const title = { 'req-rec':'Add Recurring Charge', 'opt-rec':'Add Recurring Charge', 'sit-rec':'Add Situational Charge', 'req-one':'Add One-time Charge', 'opt-one':'Add One-time Charge', 'deposit':'Add Deposit', 'ori':'Add Rentable Item' }[m.group] || 'Add Charge';
+    const isRec = /rec$/.test(m.group) || m.group==='ori';
+    const reqDefault = /^opt-/.test(m.group) ? 'Optional — tenant selects' : (m.group==='sit-rec' ? 'Situational' : 'Required');
+    const sect=(t,inner)=>`<div style="display:flex;flex-direction:column;gap:12px"><span style="font-size:16px;font-weight:600;color:#13314c">${t}</span><div style="border:1px solid #cedbe7;border-radius:4px;padding:16px;display:flex;flex-direction:column;gap:12px">${inner}</div></div>`;
+    const lab=(t,info)=>`<span style="display:inline-flex;align-items:center;gap:4px;font-size:14px;color:#666">${t}${info?`<span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5)">info</span>`:''}</span>`;
+    const dd=(id,opts,selVal)=>`<select id="${id}" class="fld" style="height:36px">${opts.map(o=>`<option${o===selVal?' selected':''}>${o}</option>`).join('')}</select>`;
+    const radio=(label,value,checked,extra)=>`<label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#666;cursor:pointer"><input type="radio" name="m-amt-r" value="${value}" ${checked?'checked':''} onchange="document.getElementById('m-source').value=this.value" style="accent-color:var(--ac,#008dd5);width:16px;height:16px;margin:0">${label}</label>${extra||''}`;
+    const general = `
+      <div style="display:flex;gap:8px">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Name *')}<input id="m-name" class="fld" style="height:36px;box-sizing:border-box"></div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Type *',true)}<div style="display:flex;align-items:center;gap:4px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">search</span><input id="m-ctype" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:#13314c"></div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px">${lab('Description')}<textarea id="m-desc" class="fld" style="height:56px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif"></textarea></div>`;
+    const amount = `
+      <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+        ${radio('Flat Amount','Flat',true)}${radio('Range','Range')}${radio('Reference Amount','Reference')}${radio('Calculation','Calculation',false,`<span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5);margin-left:-8px">edit</span>`)}
+      </div>
+      <input type="hidden" id="m-source" value="Flat">
+      <div style="padding-left:24px"><input id="m-amount" class="fld" placeholder="00.00" style="height:36px;box-sizing:border-box"></div>
+      ${isRec?`<div style="border-top:1px solid #cedbe7;width:100%"></div>
+      <div style="display:flex;flex-direction:column;gap:4px">${lab('Frequency')}${dd('m-freq',['Monthly','Weekly','Every 2 weeks','Quarterly','Annually'],'Monthly')}</div>`:''}`;
+    const reqs = `
+      <div style="display:flex;flex-direction:column;gap:4px">${lab('Charge Requirement')}${dd('m-req',['Required','Optional — tenant selects','Situational'],reqDefault)}</div>
+      <div style="display:flex;gap:8px">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('What lease term(s) does this charge apply to?')}${dd('m-terms',['All Selected','12 month','6 month','Month-to-month'],'All Selected')}</div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Fee Due')}${dd('m-due',['Move In','First of month','At posting'],'Move In')}</div>
+      </div>`;
     return `<div style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:100">
-      <div style="width:560px;background:#fff;border-radius:5px;box-shadow:0 3px 12px rgba(0,0,0,0.2);overflow:hidden">
-        <div style="display:flex;align-items:center;padding:14px 20px;border-bottom:1px solid #cedbe7"><span style="font-size:16px;font-weight:500;color:#13314c">Add Fee — ${label}</span><div style="flex:1"></div><span data-act="addclose" class="material-symbols-outlined" style="font-size:20px;color:#666;cursor:pointer">close</span></div>
-        <div style="padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:14px 16px">
-          <div style="display:flex;flex-direction:column;gap:4px"><span class="flabel">Charge type <span style="color:#eb343c">*</span></span><input id="m-name" class="fld" placeholder="e.g. Valet trash"></div>
-          <div style="display:flex;flex-direction:column;gap:4px"><span class="flabel">Amount <span style="color:#eb343c">*</span></span><input id="m-amount" class="fld" placeholder="$0.00"></div>
-          <div style="display:flex;flex-direction:column;gap:4px;grid-column:1 / -1"><span class="flabel">Description</span><input id="m-desc" class="fld" placeholder="Shown on lease and ILS"></div>
-          <div style="display:flex;flex-direction:column;gap:4px"><span class="flabel">Source</span><select id="m-source" class="fld"><option>Flat</option><option>Unit market rent</option><option>Pet type</option><option>ORI range</option></select></div>
-          <div style="display:flex;flex-direction:column;gap:6px;grid-column:1 / -1"><span class="flabel">Charge level</span><div style="display:flex;gap:8px">${[['Property','apartment'],['Unit type','category'],['Unit','door_front']].map(([lv,ic],i)=>`<label style="flex:1;display:flex;align-items:center;gap:8px;border:1px solid #cedbe7;border-radius:5px;padding:9px 12px;cursor:pointer"><input type="radio" name="m-level-r" value="${lv}" ${i===0?'checked':''} onchange="document.getElementById('m-level').value=this.value" style="accent-color:var(--ac,#008dd5)"><span class="material-symbols-outlined" style="font-size:16px;color:#666">${ic}</span><span style="font-size:13px;color:#13314c">${lv}</span></label>`).join('')}</div><input type="hidden" id="m-level" value="Property"><span style="font-size:11px;color:#8a9aa8">Property applies to all units · Unit type / Unit stack on top for that scope.</span></div>
-          <div style="display:flex;align-items:center;gap:10px;grid-column:1 / -1;border-top:1px solid #ebf1f5;padding-top:12px">${this.tog(true,'modalIls')}<span style="font-size:13px;color:#424e5b">Display on ILS <span style="color:#8a9aa8">— prospect sees this fee on the listing</span></span></div>
+      <div style="width:759px;max-width:94vw;max-height:92vh;background:#fff;border:1px solid #cedbe7;border-radius:4px;box-shadow:0 3px 12px rgba(0,0,0,0.2);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;height:48px;box-sizing:border-box;padding:8px 16px;border-bottom:1px solid #cedbe7;flex:none">
+          <span style="font-size:20px;line-height:28px;color:#13314c">${title}</span>
+          <span style="display:inline-flex;align-items:center;gap:8px">
+            <span data-act="toast" data-arg="Help" class="material-symbols-outlined" style="font-size:24px;color:var(--ac,#008dd5);cursor:pointer">help</span>
+            <span data-act="addclose" class="material-symbols-outlined" style="font-size:24px;color:var(--ac,#008dd5);cursor:pointer">close</span>
+          </span>
         </div>
-        <div style="display:flex;justify-content:flex-end;gap:8px;padding:14px 20px;border-top:1px solid #cedbe7;background:#f5f8fa"><button data-act="addclose" class="btn-out" style="padding:8px 20px;font-size:14px">Cancel</button><button data-act="addsave" class="btn-pri" style="padding:8px 20px;font-size:14px">Add Fee</button></div>
+        <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:20px">
+          ${sect('General Details',general)}
+          ${sect('Fee Amount & Schedule',amount)}
+          ${sect('Requirements',reqs)}
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:16px;padding:8px 16px;border-top:1px solid #cedbe7;background:#f5f8fa;flex:none">
+          <button data-act="addsave" class="btn-pri" style="height:36px;padding:8px 16px;font-size:14px;border-radius:4px">Save</button>
+          <button data-act="addclose" class="btn-out" style="height:36px;padding:8px 16px;font-size:14px;border-radius:4px;box-sizing:border-box">Cancel</button>
+        </div>
       </div></div>`;
   }
   toastHTML(){ return this.state.toast ? `<div class="toast"><span class="material-symbols-outlined" style="font-size:18px">check_circle</span>${this.state.toast}</div>` : ''; }
