@@ -848,19 +848,29 @@ class Component extends DCLogic {
     return h;
   }
 
-  sidebar(title, search, items){
-    return `<div style="width:220px;flex:none;background:#fff;border-right:1px solid #cedbe7;padding:16px 0;align-self:stretch">
-      <div class="eyebrow" style="padding:0 16px">${title}</div>
-      <div style="padding:8px 12px 4px"><div style="display:flex;align-items:center;gap:6px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;padding:6px 8px"><span class="material-symbols-outlined" style="font-size:15px;color:#b3b3b3">search</span><span style="font-style:italic;color:#b3b3b3;font-size:13px">${search}</span></div></div>
+  sidebar(title, search, items, addLabel){
+    return `<div style="width:240px;flex:none;background:#fff;border-right:1px solid #cedbe7;align-self:stretch;min-height:100%;box-sizing:border-box">
+      <div style="padding:12px 8px;border-bottom:1px solid #cedbe7;display:flex;flex-direction:column;gap:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <span style="font-size:18px;font-weight:500;line-height:24px;color:#13314c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${title}</span>
+          ${addLabel?`<a data-act="toast" data-arg="${addLabel}" style="display:inline-flex;align-items:center;gap:4px;font-size:14px;color:var(--ac,#008dd5);white-space:nowrap;flex:none"><span class="material-symbols-outlined" style="font-size:20px">add</span>${addLabel}</a>`:''}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;height:32px;box-sizing:border-box;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;padding:0 8px">
+          <span style="flex:1;min-width:0;font-style:italic;color:#b3b3b3;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${search}</span>
+          <span class="material-symbols-outlined" style="font-size:20px;color:#666;flex:none">search</span>
+        </div>
+      </div>
       <div style="display:flex;flex-direction:column">${items}</div></div>`;
   }
   sideItem(name, sub, badge, active, act, arg){
-    const bg=active?'background:#f0f6fb;border-left:3px solid var(--ac,#008dd5);':'border-left:3px solid transparent;';
-    const dot=active?'<span style="width:6px;height:6px;border-radius:50%;background:var(--ac,#008dd5);flex:none"></span>':'';
+    const bg=active?'background:#e8f6fa;border-left:4px solid var(--ac,#008dd5);':'border-left:4px solid transparent;';
     let b='';
-    if(badge&&badge!=='none') b=`<span style="background:#e5f3fb;color:#0071aa;border-radius:999px;font-size:11px;padding:1px 8px;font-weight:500;white-space:nowrap">${badge}</span>`;
-    else if(badge==='none') b=`<span style="background:#f2f2f2;color:#8a9aa8;border-radius:999px;font-size:11px;padding:1px 8px;white-space:nowrap">No fees</span>`;
-    return `<div${act?` data-act="${act}" data-arg="${arg}"`:''} style="padding:9px 12px;${bg}cursor:pointer;display:flex;flex-direction:column;gap:3px"><div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:${active?500:400};color:${active?'var(--ac,#008dd5)':'#13314c'}">${dot}<span>${name}</span></div><div style="display:flex;align-items:center;gap:8px;padding-left:${active?'14px':'0'}"><span style="font-size:12px;color:#8a9aa8">${sub}</span>${b}</div></div>`;
+    if(badge) b=`<span style="background:#e5e5e5;color:#13314c;border-radius:4px;font-size:13px;padding:3px 8px;white-space:nowrap;flex:none">${badge==='none'?'No fees':badge}</span>`;
+    return `<div${act?` data-act="${act}" data-arg="${arg}"`:''} style="display:flex;align-items:center;gap:8px;padding:8px 8px 8px 12px;${bg}cursor:pointer">
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
+        <span style="font-size:14px;color:#13314c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</span>
+        <span style="font-size:12px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sub}</span>
+      </div>${b}</div>`;
   }
   emptyFees(text, group){ return `<div style="padding:20px 16px;display:flex;flex-direction:column;gap:12px;align-items:flex-start"><span style="font-style:italic;color:#b3b3b3;font-size:14px">${text}</span><a data-act="addopen" data-arg="${group}" style="display:inline-block;border:1px dashed #cedbe7;border-radius:4px;padding:8px 16px;font-size:13px">+ Add fee</a></div>`; }
 
@@ -871,7 +881,8 @@ class Component extends DCLogic {
       { name:'2BR/2BA', units:18,
         req:[['Trash surcharge','Additional valet trash for 2BR/2BA','$4.00','Flat',true,'Unit type · 2BR/2BA','UTILITY']],
         opt:[['Amenity fee','Pool & fitness access','$45.00','Flat',true,'Unit type · 2BR/2BA','AMENITY']] },
-      { name:'3BR/2BA', units:11, req:[], opt:[] },
+      { name:'3BR/2BA', units:11, req:[],
+        opt:[['Amenity fee','Pool & fitness access','$45.00','Flat',true,'Unit type · 3BR/2BA','AMENITY']] },
       { name:'4BR/2BA', units:6, req:[], opt:[] },
     ];
   }
@@ -880,9 +891,9 @@ class Component extends DCLogic {
     const sel=this.state.utSel;
     const total=data.reduce((n,t)=>n+t.units,0);
     const feeCount=(t)=>t.req.length+t.opt.length;
-    const items=[this.sideItem('All unit types', total+' units total','', sel==='All','utsel','All')]
-      .concat(data.map(t=>this.sideItem(t.name, t.units+' units', feeCount(t)?feeCount(t)+' fees':'none', sel===t.name,'utsel',t.name))).join('');
-    const sb=this.sidebar('Unit types','Search unit types...',items);
+    const items=[this.sideItem('All unit types', total+' units','', sel==='All','utsel','All')]
+      .concat(data.map(t=>this.sideItem(t.name, t.units+' units', feeCount(t)?feeCount(t)+(feeCount(t)>1?' fees':' fee'):'none', sel===t.name,'utsel',t.name))).join('');
+    const sb=this.sidebar('Unit Types','Search unit types',items,'Add Unit Type');
     let m='';
     if(sel==='All'){
       m+=this.banner('Unit type fees are additive — they stack on top of property-level fees for all units of this type. Select a unit type to manage its fees.','');
@@ -903,17 +914,16 @@ class Component extends DCLogic {
       m+= t.opt.length ? this.profTile('Recurring','Tenant selects','loz-opt',t.opt,'opt-rec')
         : `<div class="tile"><div class="thead2"><span class="ttl">Recurring</span><span class="loz loz-opt">Tenant selects</span><div style="flex:1"></div><button data-act="addopen" data-arg="opt-rec" class="btn-out">Add fee</button></div>${this.emptyFees(`No optional fees defined for ${t.name}`,'opt-rec')}</div>`;
     }
-    return `<div style="display:flex;align-items:stretch"><div>${sb}</div><div style="flex:1;min-width:0;padding:16px;display:flex;flex-direction:column;gap:16px">${m}</div></div>`;
+    return `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden"><div style="flex:none;overflow-y:auto">${sb}</div><div style="flex:1;min-width:0;overflow-y:auto"><div style="padding:16px;display:flex;flex-direction:column;gap:16px">${m}</div></div></div>`;
   }
 
   ufItem(name, custom, active){
-    const bg=active?'background:#f0f6fb;border-left:3px solid var(--ac,#008dd5);':'border-left:3px solid transparent;';
-    const dot=active?'<span style="width:6px;height:6px;border-radius:50%;background:var(--ac,#008dd5);flex:none"></span>':'';
-    const b=custom?`<span style="background:#e5f3fb;color:#0071aa;border-radius:999px;font-size:11px;padding:1px 8px;font-weight:500;white-space:nowrap">Custom</span>`:`<span style="font-size:12px;color:#b3b3b3">Inherited</span>`;
-    return `<div data-act="navUnit" data-arg="${name}" style="padding:8px 12px;${bg}cursor:pointer;display:flex;align-items:center;gap:8px;justify-content:space-between"><span style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:${active?500:400};color:${active?'var(--ac,#008dd5)':'#13314c'}">${dot}Unit ${name}</span>${b}</div>`;
+    const bg=active?'background:#e8f6fa;border-left:4px solid var(--ac,#008dd5);':'border-left:4px solid transparent;';
+    const b=custom?`<span style="background:#e5e5e5;color:#13314c;border-radius:4px;font-size:13px;padding:3px 8px;white-space:nowrap;flex:none">Custom</span>`:`<span style="font-size:12px;color:#b3b3b3;flex:none">Inherited</span>`;
+    return `<div data-act="navUnit" data-arg="${name}" style="padding:8px 8px 8px 12px;${bg}cursor:pointer;display:flex;align-items:center;gap:8px;justify-content:space-between"><span style="font-size:14px;color:#13314c">Unit ${name}</span>${b}</div>`;
   }
   ufBody(){
-    const sb=this.sidebar('Units','Search units...',[this.ufItem('1A',false,false),this.ufItem('1B',false,false),this.ufItem('2A',false,false),this.ufItem('4C',true,true),this.ufItem('4D',false,false),this.ufItem('5A',false,false)].join(''));
+    const sb=this.sidebar('Units','Search units',[this.ufItem('1A',false,false),this.ufItem('1B',false,false),this.ufItem('2A',false,false),this.ufItem('4C',true,true),this.ufItem('4D',false,false),this.ufItem('5A',false,false)].join(''));
     let m='';
     m+=this.banner('Unit fees stack on top of property fees and unit type fees for this specific unit. Open a unit to see its full detail page.','');
     m+=`<div class="eyebrow">Optional fees — Unit 4C</div>`;
@@ -922,7 +932,7 @@ class Component extends DCLogic {
     const srcChip=(t,c)=>{const map={gray:'background:#f2f2f2;color:#666',blue:'background:#e5f3fb;color:#0071aa',amber:'background:#fdeedd;color:#b35a00'};return `<span class="loz" style="${map[c]};text-transform:none;letter-spacing:0">${t}</span>`;};
     m+=`<div class="tile"><div class="thead2"><span class="ttl">Stacked fee preview — Unit 4C</span><div style="flex:1"></div><a data-act="navUnit" data-arg="4C" style="font-size:13px">Open unit →</a></div><div style="display:grid;grid-template-columns:minmax(140px,1fr) 160px 240px;background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Charge type','Amount','Source'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>${qp.map(r=>`<div style="display:grid;grid-template-columns:minmax(140px,1fr) 160px 240px;align-items:center;border-bottom:1px solid #ebf1f5"><span class="td name" style="border:none;padding-left:16px">${r[0]}</span><span class="td num" style="border:none">${r[1]}</span><span class="td" style="border:none">${srcChip(r[2],r[3])}</span></div>`).join('')}<div style="padding:10px 16px;font-size:13px;color:#8a9aa8">This is the complete fee set that populates on a rent quote for Unit 4C.</div></div>`;
     m+=this.priceSummary(this.parseAmt('$2,050'));
-    return `<div style="display:flex;align-items:stretch"><div>${sb}</div><div style="flex:1;min-width:0;padding:16px;display:flex;flex-direction:column;gap:16px">${m}</div></div>`;
+    return `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden"><div style="flex:none;overflow-y:auto">${sb}</div><div style="flex:1;min-width:0;overflow-y:auto"><div style="padding:16px;display:flex;flex-direction:column;gap:16px">${m}</div></div></div>`;
   }
 
   apBody(){
@@ -979,9 +989,9 @@ class Component extends DCLogic {
     let inner;
     const t = this.state.profileTab;
     if (t === 'Overview') inner = this.overviewBody();
-    else if (t === 'Amenities') return `<div style="flex:1">${this.amenitiesBody()}</div>`;
-    else if (t === 'Unit Type Fees') return `<div style="flex:1">${this.utBody()}</div>`;
-    else if (t === 'Unit Fees') return `<div style="flex:1">${this.ufBody()}</div>`;
+    else if (t === 'Amenities') return `<div style="flex:1;min-height:0;display:flex;flex-direction:column">${this.amenitiesBody()}</div>`;
+    else if (t === 'Unit Type Fees') return `<div style="flex:1;min-height:0;display:flex;flex-direction:column">${this.utBody()}</div>`;
+    else if (t === 'Unit Fees') return `<div style="flex:1;min-height:0;display:flex;flex-direction:column">${this.ufBody()}</div>`;
     else if (t === 'Assigned Properties') inner = this.apBody();
     else inner = this.chBody();
     return `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden"><div style="flex:1;min-width:0;overflow-y:auto;display:flex;flex-direction:column"><div style="flex:1;min-width:0;padding:16px;display:flex;flex-direction:column;gap:16px;max-width:1500px;width:100%;box-sizing:border-box;margin:0 auto">${inner}</div></div>${this.rail()}</div>`;
