@@ -291,6 +291,11 @@ class Component extends DCLogic {
     const on = (id in this.state.toggles) ? this.state.toggles[id] : def;
     return `<span data-act="tog" data-arg="${id}" data-def="${def?1:0}" style="display:inline-block;width:32px;height:18px;border-radius:999px;background:${on?'var(--ac,#008dd5)':'#cedbe7'};position:relative;cursor:pointer;vertical-align:middle"><span style="position:absolute;top:2px;left:${on?16:2}px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left 120ms ease-out"></span></span>`;
   }
+  chk(def, id){
+    id = id || ('t' + (this._tid++));
+    const on = (id in this.state.toggles) ? this.state.toggles[id] : def;
+    return `<span data-act="tog" data-arg="${id}" data-def="${def?1:0}" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;box-sizing:border-box;border-radius:3px;cursor:pointer;vertical-align:middle;${on?'background:var(--ac,#008dd5);border:1px solid var(--ac,#008dd5)':'background:#fff;border:1px solid #b3b3b3'}">${on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span>`;
+  }
   statusLoz(s, c){ const m = { green:'background:#e2f1da;color:#4d8a2a', amber:'background:#fdeedd;color:#b35a00', gray:'background:#f2f2f2;color:#666' }; return `<span class="loz" style="${m[c]};text-transform:none;letter-spacing:0">${s}</span>`; }
   levelChip(t){ let c='background:#f2f2f2;color:#666'; if(/^Unit type/.test(t)) c='background:#e5f3fb;color:#0071aa'; else if(/^Unit /.test(t)) c='background:#fdeedd;color:#b35a00'; return `<span class="loz" style="${c};text-transform:none;letter-spacing:0">${t}</span>`; }
   originChip(o){ return o==='property'
@@ -311,10 +316,10 @@ class Component extends DCLogic {
   depositsTile(){
     const rows=[['Security deposit','$500.00','Refundable','1.5× rent','SECDEP',true],['Pet deposit — Dog','$300.00','Refundable','Per pet','PET',true],['Last month rent','$1,350.00','Partially refundable','1× rent','LMR',false],['Key & fob deposit','$50.00','Non-refundable','Flat','KEY',false]];
     const refChip=(t)=>{const m={'Refundable':'background:#e2f1da;color:#4d8a2a','Non-refundable':'background:#fdeaea;color:#d02830','Partially refundable':'background:#fdeedd;color:#b35a00'};return `<span class="loz" style="${m[t]};text-transform:none;letter-spacing:0">${t}</span>`;};
-    const cols='190px 120px 180px 120px 90px 70px 90px';
-    const head=`<div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Charge type','Amount','Refundability','Max held','MITS','ILS','Actions'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>`;
-    const body=rows.map(r=>`<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5"><span class="td name" style="border:none;padding-left:16px">${r[0]}</span><span class="td num" style="border:none">${r[1]}</span><span class="td" style="border:none">${refChip(r[2])}</span><span class="td" style="border:none">${r[3]}</span><span class="td mono" style="border:none;font-size:12px">${r[4]}</span><span class="td" style="border:none">${this.tog(r[5])}</span><span class="td" style="border:none"><span class="act"><span class="material-symbols-outlined icon-edit">edit</span><span class="material-symbols-outlined icon-del">delete</span></span></span></div>`).join('');
-    return `<div class="eyebrow" style="margin-top:8px">Deposits</div><div class="tile"><div class="thead2"><span class="ttl">Deposits</span><span class="loz loz-dep">Held</span><div style="flex:1"></div><button data-act="addopen" data-arg="deposit" class="btn-out">Add deposit</button></div><div style="overflow-x:auto"><div style="min-width:860px">${head}${body}</div></div></div>`;
+    const cols='190px 120px 180px 120px 115px 70px 90px';
+    const head=`<div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Charge type','Amount','Refundability','Max held','Charge Category','Active','Actions'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>`;
+    const body=rows.map(r=>`<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5"><span class="td name" style="border:none;padding-left:16px">${r[0]}</span><span class="td num" style="border:none">${r[1]}</span><span class="td" style="border:none">${refChip(r[2])}</span><span class="td" style="border:none">${r[3]}</span><span class="td mono" style="border:none;font-size:12px">${r[4]}</span><span class="td" style="border:none">${this.chk(r[5])}</span><span class="td" style="border:none"><span class="act"><span class="material-symbols-outlined icon-edit">edit</span><span class="material-symbols-outlined icon-del">delete</span></span></span></div>`).join('');
+    return `<div class="eyebrow" style="margin-top:8px">Deposits</div><div class="tile"><div class="thead2"><span class="ttl">Deposits</span><span class="loz loz-dep">Held</span><div style="flex:1"></div><button data-act="addopen" data-arg="deposit" class="btn-out">Add deposit</button></div><div style="overflow-x:auto"><div style="min-width:885px">${head}${body}</div></div></div>`;
   }
 
   transparencyBadge(){
@@ -347,8 +352,8 @@ class Component extends DCLogic {
     const rows=this.oriItems();
     const cols='minmax(160px,1fr) 120px 120px 140px 70px 90px';
     const typeChip=(t)=>{const m={Parking:'background:#e5f3fb;color:#0071aa',Garage:'background:#f0e8fb;color:#6a4aa8',Storage:'background:#fdeedd;color:#b35a00'};return `<span class="loz" style="${m[t]};text-transform:none;letter-spacing:0">${t}</span>`;};
-    const head=`<div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Rentable item','Type','Default rent','Availability','ILS','Actions'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>`;
-    const body=rows.map(r=>`<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5"><span class="td name" style="border:none;padding-left:16px">${r.name}</span><span class="td" style="border:none">${typeChip(r.type)}</span><span class="td num" style="border:none">${r.rent}<span style="color:#8a9aa8;font-size:12px"> /mo</span></span><span class="td" style="border:none">${r.qty}</span><span class="td" style="border:none">${this.tog(r.ils)}</span><span class="td" style="border:none"><span class="act"><span class="material-symbols-outlined icon-edit">edit</span><span class="material-symbols-outlined icon-del">delete</span></span></span></div>`).join('');
+    const head=`<div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Rentable item','Type','Default rent','Availability','Active','Actions'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>`;
+    const body=rows.map(r=>`<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5"><span class="td name" style="border:none;padding-left:16px">${r.name}</span><span class="td" style="border:none">${typeChip(r.type)}</span><span class="td num" style="border:none">${r.rent}<span style="color:#8a9aa8;font-size:12px"> /mo</span></span><span class="td" style="border:none">${r.qty}</span><span class="td" style="border:none">${this.chk(r.ils)}</span><span class="td" style="border:none"><span class="act"><span class="material-symbols-outlined icon-edit">edit</span><span class="material-symbols-outlined icon-del">delete</span></span></span></div>`).join('');
     return `<div class="eyebrow" style="margin-top:8px">Other rentable items (ORI)</div><div class="tile"><div class="thead2"><span class="ttl">ORI charges</span><span class="loz" style="background:#e5f3fb;color:#0071aa">Property level</span><div style="flex:1"></div><button data-act="addopen" data-arg="ori" class="btn-out">Add ORI</button></div><div style="padding:10px 16px;border-bottom:1px solid #ebf1f5;font-size:12px;color:#8a9aa8">Each item carries a default rent. ORI appear as selectable optional add-ons in rent quotes and move-in.</div><div style="overflow-x:auto"><div style="min-width:700px">${head}${body}</div></div></div>`;
   }
 
@@ -706,7 +711,7 @@ class Component extends DCLogic {
     const rows = s.propFees.filter(f => f.group === groupKey);
     const cols = '150px minmax(110px,1fr) 95px 105px 120px 100px 95px 78px 180px';
     const head = `<div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">
-      ${['Charge type','Description','Amount','Source','Level','Origin','Overrides','ILS','Actions'].map((h,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${h}</span>`).join('')}</div>`;
+      ${['Charge type','Description','Amount','Source','Level','Origin','Overrides','Active','Actions'].map((h,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${h}</span>`).join('')}</div>`;
     const body = rows.map(f => {
       const n = f.overrides.length;
       const rowBg = f.expanded ? '#f0f6fb' : '#fff';
@@ -738,7 +743,7 @@ class Component extends DCLogic {
         sub = `<div style="padding:4px 16px 16px 48px;background:#f0f6fb;display:flex;flex-direction:column;gap:10px">${inner}</div>`;
       }
       const strike = f.excluded ? 'text-decoration:line-through;color:#b3b3b3' : '';
-      const ilsCell = this.tog(f.ils,'fee'+f.id+'ils').replace('data-act="tog" data-arg="fee'+f.id+'ils" data-def="'+(f.ils?1:0)+'"','data-act="feeils" data-arg="'+f.id+'"');
+      const ilsCell = this.chk(f.ils,'fee'+f.id+'ils').replace('data-act="tog" data-arg="fee'+f.id+'ils" data-def="'+(f.ils?1:0)+'"','data-act="feeils" data-arg="'+f.id+'"');
       const chev = `<span data-act="feeexp" data-arg="${f.id}" class="material-symbols-outlined" style="font-size:20px;color:${f.expanded?'var(--ac,#008dd5)':(n>0?'#666':'#b3b3b3')};cursor:pointer">${f.expanded?'expand_less':'expand_more'}</span>`;
       let actionsCell;
       if (f.excluded) actionsCell = `<a data-act="feerestore" data-arg="${f.id}" style="font-size:13px">Restore</a>${chev}`;
@@ -799,17 +804,17 @@ class Component extends DCLogic {
 
   // ================= PROFILE TABS =================
   ovTableRows(rows, mode){
-    const cols='150px minmax(120px,1fr) 100px 110px 95px 150px 70px 90px';
+    const cols='150px minmax(120px,1fr) 100px 110px 115px 150px 70px 90px';
     const c5 = mode==='cond' ? 'Condition' : 'Applies at';
-    const head=`<div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Charge type','Description','Amount','Source','MITS code',c5,'ILS','Actions'].map((h,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${h}</span>`).join('')}</div>`;
+    const head=`<div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Charge type','Description','Amount','Source','Charge Category',c5,'Active','Actions'].map((h,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${h}</span>`).join('')}</div>`;
     const body=rows.map(r=>{
       const c5v = mode==='cond'
         ? `<span class="loz" style="background:#fdeedd;color:#b35a00;text-transform:none;letter-spacing:0"><span class="material-symbols-outlined" style="font-size:12px;vertical-align:-2px;margin-right:2px">bolt</span>${r[5]}</span>`
         : this.levelChip(r[5]||'Property');
       return `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5">
-      <span class="td name" style="border:none;padding-left:16px">${r[0]}</span><span class="td" style="border:none">${r[1]}</span><span class="td num" style="border:none">${r[2]}</span><span class="td" style="border:none">${r[3]}</span><span class="td mono" style="border:none;font-size:12px">${r[6]||''}</span><span class="td" style="border:none">${c5v}</span><span class="td" style="border:none">${this.tog(r[4])}</span><span class="td" style="border:none"><span class="act"><span class="material-symbols-outlined icon-edit">edit</span><span class="material-symbols-outlined icon-del">delete</span></span></span></div>`;
+      <span class="td name" style="border:none;padding-left:16px">${r[0]}</span><span class="td" style="border:none">${r[1]}</span><span class="td num" style="border:none">${r[2]}</span><span class="td" style="border:none">${r[3]}</span><span class="td mono" style="border:none;font-size:12px">${r[6]||''}</span><span class="td" style="border:none">${c5v}</span><span class="td" style="border:none">${this.chk(r[4])}</span><span class="td" style="border:none"><span class="act"><span class="material-symbols-outlined icon-edit">edit</span><span class="material-symbols-outlined icon-del">delete</span></span></span></div>`;
     }).join('');
-    return `<div style="overflow-x:auto"><div style="min-width:965px">${head}${body}</div></div>`;
+    return `<div style="overflow-x:auto"><div style="min-width:985px">${head}${body}</div></div>`;
   }
   profTile(title,loz,lozClass,rows,group,mode){
     return `<div class="tile"><div class="thead2"><span class="ttl">${title}</span><span class="loz ${lozClass}">${loz}</span><div style="flex:1"></div><button data-act="addopen" data-arg="${group}" class="btn-out">Add fee</button></div>${this.ovTableRows(rows, mode)}</div>`;
