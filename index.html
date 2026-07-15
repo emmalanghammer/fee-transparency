@@ -179,7 +179,17 @@ class Component extends DCLogic {
 
   // ---------- theming ----------
   setRoot = (el) => { this.rootEl = el; this.applyVars(); };
-  componentDidUpdate() { this.applyVars(); }
+  scrollPanes(){ return this.rootEl ? [...this.rootEl.querySelectorAll('div')].filter(d=>(d.getAttribute('style')||'').includes('overflow-y:auto')) : []; }
+  setState(update, cb){
+    this._scrollSnap = this.scrollPanes().map(d=>d.scrollTop);
+    super.setState(update, cb);
+  }
+  componentDidUpdate() {
+    this.applyVars();
+    const snap = this._scrollSnap; this._scrollSnap = null;
+    if (this._resetScroll) { this._resetScroll = false; return; }
+    if (snap) { const panes = this.scrollPanes(); snap.forEach((v,i)=>{ if(panes[i]) panes[i].scrollTop = v; }); }
+  }
   applyVars() {
     const el = this.rootEl; if (!el) return;
     el.style.setProperty('--ac', this.props.accent || '#008dd5');
@@ -187,7 +197,7 @@ class Component extends DCLogic {
   }
 
   // ---------- state helpers ----------
-  go(view, extra){ this.setState(Object.assign({ view }, extra || {})); window.scrollTo(0,0); }
+  go(view, extra){ this._resetScroll = true; this.setState(Object.assign({ view }, extra || {})); window.scrollTo(0,0); }
   flash(msg){ this.setState({ toast: msg }); clearTimeout(this._t); this._t = setTimeout(() => this.setState({ toast: null }), 2200); }
   mutFee(id, fn){ this.setState(s => ({ propFees: s.propFees.map(f => f.id === id ? fn(Object.assign({}, f)) : f) })); }
   q(sel){ return this.rootEl ? this.rootEl.querySelector(sel) : null; }
@@ -202,10 +212,10 @@ class Component extends DCLogic {
       case 'navProfile': this.go('profile'); break;
       case 'navProperty': this.go('property', arg ? { property: arg, propTab: 'Fees' } : { propTab: 'Fees' }); break;
       case 'navUnit': this.go('unit', { unit: arg }); break;
-      case 'ptab': this.setState({ profileTab: arg }); break;
+      case 'ptab': this._resetScroll = true; this.setState({ profileTab: arg }); break;
       case 'utsel': this.setState({ utSel: arg }); break;
       case 'proptab':
-        if (arg === 'Fees' || arg === 'Units') this.setState({ propTab: arg });
+        if (arg === 'Fees' || arg === 'Units') { this._resetScroll = true; this.setState({ propTab: arg }); }
         else this.flash(arg + ' tab is out of scope for this prototype');
         break;
       case 'tog': {
