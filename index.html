@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="_ds/rmx-design-system-019dd9a2-6db7-79d2-bf37-c82345a95d1d/colors_and_type.css">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" rel="stylesheet">
+  <script src="_ds/rmx-design-system-019dd9a2-6db7-79d2-bf37-c82345a95d1d/_ds_bundle.js"></script>
+  <style>
+    body { margin: 0; background: #f5f8fa; font-family: Roboto, sans-serif; }
+    a { color: #008dd5; text-decoration: none; }
+    a:hover { color: #0071aa; text-decoration: underline; }
+    .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20; user-select:none; }
+    .th { padding:8px 12px; text-align:left; font-size:12px; font-weight:500; color:#666; background:#f5f8fa; border-bottom:1px solid #cedbe7; white-space:nowrap; }
+    .td { padding:var(--row-py,10px) 12px; border-bottom:1px solid #ebf1f5; color:#666; font-size:14px; }
+    .name { color:#13314c; font-weight:500; }
+    .num { color:#424e5b; white-space:nowrap; }
+    .mono { color:#424e5b; font-family:'Roboto Mono',monospace; font-size:12px; }
+    .tile { background:#fff; border:1px solid #cedbe7; border-radius:5px; overflow:hidden; }
+    .thead2 { padding:12px 16px; border-bottom:2px solid #13314c; display:flex; align-items:center; gap:10px; }
+    .ttl { font-size:15px; font-weight:500; color:#13314c; }
+    .card { background:#fff; border:1px solid #cedbe7; border-radius:5px; display:flex; flex-direction:column; }
+    .cardhd { display:flex; align-items:center; gap:8px; padding:12px 16px; border-bottom:2px solid #008dd5; }
+    .cardtt { font-size:14px; font-weight:500; color:#13314c; flex:1; }
+    .loz-mand { background:#fdeaea; color:#d02830; }
+    .loz-opt { background:#e5f3fb; color:#0071aa; }
+    .loz-sub { background:#e2f1da; color:#4d8a2a; }
+    .loz-camp { background:#f0e8fb; color:#6a4aa8; }
+    .loz-sit { background:#fdeedd; color:#b35a00; }
+    .loz-dep { background:#e0f0f0; color:#2a7d7d; }
+    .loz { border-radius:999px; font-size:11px; font-weight:500; padding:2px 10px; letter-spacing:0.03em; text-transform:uppercase; }
+    .btn-out { background:#fff; color:var(--ac,#008dd5); border:1px solid var(--ac,#008dd5); border-radius:4px; padding:6px 14px; font:500 13px Roboto,sans-serif; cursor:pointer; }
+    .btn-pri { background:var(--ac,#008dd5); color:#fff; border:none; border-radius:4px; padding:6px 14px; font:500 13px Roboto,sans-serif; cursor:pointer; }
+    .fld { padding:7px 10px; border:1px solid #cedbe7; background:#f5f8fa; border-radius:4px; font:400 14px Roboto,sans-serif; color:#424e5b; width:100%; box-sizing:border-box; }
+    .flabel { font-size:12px; color:#666; }
+    .eyebrow { font-size:11px; font-weight:500; color:#8a9aa8; text-transform:uppercase; letter-spacing:0.06em; }
+    .icon-edit { font-size:17px; color:var(--ac,#008dd5); cursor:pointer; }
+    .icon-del { font-size:17px; color:#eb343c; cursor:pointer; }
+    .act { display:inline-flex; align-items:center; gap:12px; }
+    .crumb { cursor:pointer; }
+    .crumb:hover { text-decoration:underline; }
+    .railico { font-size:20px; cursor:pointer; }
+    .checker { background-image:linear-gradient(45deg,#e4e9ee 25%,transparent 25%),linear-gradient(-45deg,#e4e9ee 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e4e9ee 75%),linear-gradient(-45deg,transparent 75%,#e4e9ee 75%); background-size:14px 14px; background-position:0 0,0 7px,7px -7px,-7px 0; background-color:#f0f3f6; }
+    .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#13314c; color:#fff; padding:12px 20px; border-radius:6px; font-size:14px; box-shadow:0 3px 12px rgba(0,0,0,0.25); z-index:200; display:flex; align-items:center; gap:10px; }
+  </style>
+</helmet>
+<div class="rmx" onClick="{{ onClick }}" ref="{{ rootRef }}" style="min-height:100vh;display:flex;flex-direction:column;background:#f5f8fa">
+  {{ screen }}
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;accent&quot;: { &quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#008dd5&quot;, &quot;options&quot;: [&quot;#008dd5&quot;, &quot;#7e57c2&quot;, &quot;#1f8a5b&quot;, &quot;#e54c7a&quot;, &quot;#f58220&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Theme&quot; },
+  &quot;density&quot;: { &quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;Comfortable&quot;, &quot;options&quot;: [&quot;Comfortable&quot;, &quot;Compact&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Layout&quot; }
+}">
+class Component extends DCLogic {
+  state = {
+    view: 'profile',
+    profileTab: 'Overview',
+    propTab: 'Fees',
+    property: 'Riverview Apartments',
+    unit: '1B',
+    toggles: {},
+    propFees: [
+      { id:1, group:'req-rec', name:'Rent', desc:'Monthly base rent', amount:'Market rent', source:'Unit market rent', mits:'RENT', level:'Property', origin:'profile', ils:true, excluded:false, overrides:[], expanded:false },
+      { id:2, group:'req-rec', name:'Trash', desc:'Trash service', amount:'$28.00', source:'Flat', mits:'UTILITY', level:'Property', origin:'profile', ils:true, excluded:false, overrides:[{id:1,scope:'2BR/2BA',excluded:false,amount:'$32.00'}], expanded:false },
+      { id:3, group:'req-rec', name:'Water', desc:'Water & sewer', amount:'$38.00', source:'Flat', mits:'UTILITY', level:'Property', origin:'profile', ils:true, excluded:false, overrides:[], expanded:false },
+      { id:4, group:'req-one', name:'Admin fee', desc:'One-time admin charge', amount:'$150.00', source:'Flat', mits:'ADMIN', level:'Property', origin:'profile', ils:true, excluded:false, overrides:[], expanded:false },
+      { id:5, group:'req-one', name:'Application fee', desc:'Per applicant', amount:'$50.00', source:'Flat', mits:'APPLICATION', level:'Property', origin:'profile', ils:true, excluded:false, overrides:[], expanded:false },
+      { id:6, group:'sit-rec', name:'Pet fee — Dog', desc:'Per pet, monthly', amount:'$45.00', source:'Pet type', mits:'PET', level:'Property', origin:'profile', cond:'If pet', ils:true, excluded:false, overrides:[], expanded:false },
+      { id:7, group:'sit-rec', name:'Covered parking', desc:'Reserved covered space', amount:'$75–$125', source:'ORI range', mits:'PARKING', level:'Property', origin:'profile', cond:'If parking rented', ils:true, excluded:false, overrides:[{id:2,scope:'Unit 1A',excluded:true,amount:''}], expanded:false },
+      { id:8, group:'opt-rec', name:'Storage', desc:'Storage locker', amount:'$40.00', source:'Flat', mits:'STORAGE', level:'Unit', origin:'property', ils:true, excluded:false, overrides:[], expanded:false },
+      { id:9, group:'opt-one', name:'Pet deposit — Dog', desc:'Refundable, per pet', amount:'$300.00', source:'Pet type', mits:'PET', level:'Property', origin:'profile', ils:true, excluded:false, overrides:[], expanded:false },
+      { id:10, group:'opt-one', name:'Hold fee', desc:'Unit reservation fee', amount:'$200.00', source:'Flat', mits:'HOLD', level:'Property', origin:'property', ils:true, excluded:false, overrides:[], expanded:false }
+    ],
+    nextFeeId: 11,
+    nextOvId: 3,
+    modal: null,
+    ov: null,
+    toast: null,
+    assign: null,
+    petImport: false,
+    histExp: {},
+    qInclude: { 'Pet fee — Dog':false, 'Covered parking spot':false, 'Single garage':false, 'Storage':true },
+    qOverrides: {},
+    qOverrideOpen: null,
+    qOffsets: { 12:true, 6:true, 18:true },
+    amSelected: null,
+    amList: [
+      { id:1, name:'W/D in unit', map:'In-Unit Laundry' },
+      { id:2, name:'Central A/C', map:'Air Conditioning' },
+      { id:3, name:'Pet friendly', map:'Pets Allowed' },
+      { id:4, name:'Granite countertops', map:null },
+      { id:5, name:'Detached garage', map:null },
+      { id:6, name:'Community pool', map:'Swimming Pool' },
+      { id:7, name:'Smart thermostat', map:null },
+      { id:8, name:'Stainless appliances', map:'Dishwasher' }
+    ],
+    amNextId: 9
+  };
+
+  stdAmenities(){
+    return {
+      Property: ['Air Conditioning','Swimming Pool','Fitness Center','In-Unit Laundry','Pets Allowed','Covered Parking','Elevator','Gated Access','Clubhouse'],
+      Asset: ['Refrigerator','Dishwasher','Microwave','Smart Thermostat','Washer/Dryer','Water Heater','Garbage Disposal','Ceiling Fan']
+    };
+  }
+
+  quoteTerms(){ return [ {m:12,label:'12 months',offset:-25}, {m:6,label:'6 months',offset:60}, {m:18,label:'18 months',offset:-50} ]; }
+  quoteReqMonthly(mr){ return [ {name:'Base rent',base:mr,level:'Property',src:'Unit market rent',rent:true}, {name:'Trash',base:28,level:'Property',src:'Flat'}, {name:'Water',base:38,level:'Property',src:'Flat'}, {name:'Amenity fee',base:45,level:'Unit type',src:'Flat'} ]; }
+  quoteReqMovein(){ return [ {name:'Admin fee',base:150,level:'Property'}, {name:'Application fee',base:50,level:'Property'} ]; }
+  quoteOptional(){ return [ {name:'Storage',base:40,level:'Unit',kind:'Optional'}, {name:'Pet fee — Dog',base:45,level:'Property',kind:'Situational',cond:'If pet'}, {name:'Covered parking spot',base:75,level:'Property',kind:'ORI'}, {name:'Single garage',base:125,level:'Property',kind:'ORI'} ]; }
+  renewalRows(){ return [ {name:'Base rent',cur:1350,ren:1400,level:'Property'}, {name:'Trash',cur:28,ren:32,level:'Property'}, {name:'Water',cur:38,ren:45,level:'Property'}, {name:'Amenity fee',cur:45,ren:45,level:'Unit type'}, {name:'Pet fee — Dog',cur:45,ren:45,level:'Property'} ]; }
+  qAmt(name,base){ const o=this.state.qOverrides[name]; return o!=null ? this.parseAmt(o) : base; }
+
+  candidateProps(){
+    return [
+      { name:'Elmwood Park', loc:'Columbus OH', units:56, pre:true },
+      { name:'Bradford House', loc:'Cincinnati OH', units:24, pre:true },
+      { name:'Harbor Point', loc:'Newport KY', units:31, pre:true },
+      { name:'Maple Terrace', loc:'Dayton OH', units:18, pre:false },
+      { name:'Cedar Run', loc:'Mason OH', units:42, pre:false }
+    ];
+  }
+  petSetup(){
+    return [
+      { type:'Dog', rent:'$45.00', deposit:'$300.00', mits:'PET' },
+      { type:'Cat', rent:'$30.00', deposit:'$200.00', mits:'PET' },
+      { type:'Small caged', rent:'$15.00', deposit:'$0.00', mits:'PET' }
+    ];
+  }
+  oriItems(){
+    return [
+      { name:'Covered parking spot', type:'Parking', rent:'$75.00', qty:'12 available', ils:true },
+      { name:'Uncovered parking spot', type:'Parking', rent:'$40.00', qty:'20 available', ils:true },
+      { name:'Single garage', type:'Garage', rent:'$125.00', qty:'6 available', ils:true },
+      { name:'Storage unit', type:'Storage', rent:'$40.00', qty:'15 available', ils:false }
+    ];
+  }
+  feeAmountHistory(){
+    return [
+      { name:'Trash', level:'Property', mits:'UTILITY', hist:[['Jan 24','$25'],['Jul 24','$26'],['Jan 25','$28'],['Jul 25','$32']], by:'Ali Ferryman' },
+      { name:'Water', level:'Property', mits:'UTILITY', hist:[['Jan 24','$34'],['Jan 25','$38'],['Jul 25','$45']], by:'Ali Ferryman' },
+      { name:'Amenity fee', level:'Unit type', mits:'AMENITY', hist:[['Jan 24','$45'],['Jan 25','$45'],['Jul 25','$45']], by:'Admin' },
+      { name:'Application fee', level:'Property', mits:'APPLICATION', hist:[['Jan 24','$50'],['Jul 25','$50'],['Jul 25','$0']], by:'Rachel H.' },
+      { name:'Admin fee', level:'Property', mits:'ADMIN', hist:[['Jan 24','$125'],['Jan 25','$150']], by:'Admin' }
+    ];
+  }
+
+  units() {
+    return [
+      { u:'1A', type:'Studio', sqft:'520', rent:'$995', tenant:'Vacant', st:'gray' },
+      { u:'1B', type:'1BR/1BA', sqft:'650', rent:'$1,350', tenant:'Charlie Apegian', st:'green' },
+      { u:'2A', type:'2BR/2BA', sqft:'950', rent:'$1,600', tenant:'Dana Whitfield', st:'green' },
+      { u:'2B', type:'2BR/2BA', sqft:'950', rent:'$1,600', tenant:'Vacant', st:'gray' },
+      { u:'3A', type:'1BR/1BA', sqft:'660', rent:'$1,375', tenant:'Priya Anand', st:'green' },
+      { u:'3B', type:'1BR/1BA', sqft:'660', rent:'$1,375', tenant:'Vacant', st:'gray' },
+      { u:'4C', type:'3BR/2BA', sqft:'1,250', rent:'$2,050', tenant:'Marcus Lee', st:'green' },
+      { u:'4D', type:'3BR/2BA', sqft:'1,250', rent:'$2,050', tenant:'On notice', st:'amber' },
+      { u:'5A', type:'Studio', sqft:'515', rent:'$990', tenant:'Vacant', st:'gray' }
+    ];
+  }
+  unitInfo(u){ return this.units().find(x => x.u === u) || this.units()[1]; }
+
+  properties() {
+    return [
+      ['Riverview Apartments','Loveland OH','Conventional','49','71%','Jun 1, 2025','3 overrides','Active','green'],
+      ['Oakwood Commons','Cincinnati OH','Conventional','72','88%','Jun 1, 2025','0','Active','green'],
+      ['Sunrise Heights','Fairfield OH','Conventional','38','65%','Jun 15, 2025','1 override','Active','green'],
+      ['Bradford House','Cincinnati OH','Conventional','24','50%','Jul 1, 2025','0','Setup in progress','amber'],
+      ['Elmwood Park','Columbus OH','Conventional','56','79%','—','—','Not started','gray']
+    ];
+  }
+
+  // ---------- theming ----------
+  setRoot = (el) => { this.rootEl = el; this.applyVars(); };
+  componentDidUpdate() { this.applyVars(); }
+  applyVars() {
+    const el = this.rootEl; if (!el) return;
+    el.style.setProperty('--ac', this.props.accent || '#008dd5');
+    el.style.setProperty('--row-py', (this.props.density || 'Comfortable') === 'Compact' ? '6px' : '10px');
+  }
+
+  // ---------- state helpers ----------
+  go(view, extra){ this.setState(Object.assign({ view }, extra || {})); window.scrollTo(0,0); }
+  flash(msg){ this.setState({ toast: msg }); clearTimeout(this._t); this._t = setTimeout(() => this.setState({ toast: null }), 2200); }
+  mutFee(id, fn){ this.setState(s => ({ propFees: s.propFees.map(f => f.id === id ? fn(Object.assign({}, f)) : f) })); }
+  q(sel){ return this.rootEl ? this.rootEl.querySelector(sel) : null; }
+
+  onClick = (e) => {
+    const el = e.target.closest('[data-act]');
+    if (!el) return;
+    const act = el.getAttribute('data-act');
+    const arg = el.getAttribute('data-arg');
+    if (el.tagName === 'A') e.preventDefault();
+    switch (act) {
+      case 'navProfile': this.go('profile'); break;
+      case 'navProperty': this.go('property', arg ? { property: arg, propTab: 'Fees' } : { propTab: 'Fees' }); break;
+      case 'navUnit': this.go('unit', { unit: arg }); break;
+      case 'ptab': this.setState({ profileTab: arg }); break;
+      case 'proptab':
+        if (arg === 'Fees' || arg === 'Units') this.setState({ propTab: arg });
+        else this.flash(arg + ' tab is out of scope for this prototype');
+        break;
+      case 'tog': {
+        const id = arg, def = el.getAttribute('data-def') === '1';
+        this.setState(s => { const cur = (id in s.toggles) ? s.toggles[id] : def; return { toggles: Object.assign({}, s.toggles, { [id]: !cur }) }; });
+        break;
+      }
+      case 'feeils': this.mutFee(+arg, f => { f.ils = !f.ils; return f; }); break;
+      case 'feeexp': this.mutFee(+arg, f => { f.expanded = !f.expanded; return f; }); break;
+      case 'feedel': this.setState(s => ({ propFees: s.propFees.filter(f => f.id !== +arg), ov: (s.ov && s.ov.feeId === +arg) ? null : s.ov })); break;
+      case 'feeexclude': this.mutFee(+arg, f => { f.excluded = true; return f; }); this.flash('Fee excluded at this property'); break;
+      case 'feerestore': this.mutFee(+arg, f => { f.excluded = false; return f; }); break;
+      case 'ovremove': { const [fid, oid] = arg.split(':').map(Number); this.mutFee(fid, f => { f.overrides = f.overrides.filter(o => o.id !== oid); return f; }); break; }
+      case 'ovopen': this.mutFee(+arg, f => { f.expanded = true; return f; }); this.setState({ ov: { feeId: +arg, scope: 'all', mode: 'amount' } }); break;
+      case 'ovscope': this.setState(s => ({ ov: Object.assign({}, s.ov, { scope: arg }) })); break;
+      case 'ovmode': this.setState(s => ({ ov: Object.assign({}, s.ov, { mode: arg }) })); break;
+      case 'ovcancel': this.setState({ ov: null }); break;
+      case 'ovsave': this.saveOverride(); break;
+      case 'addopen': this.setState({ modal: { group: arg }, toggles: Object.assign({}, this.state.toggles, { modalIls: true }) }); break;
+      case 'addclose': this.setState({ modal: null }); break;
+      case 'addsave': this.saveFee(); break;
+      case 'histexp': this.setState(s => ({ histExp: Object.assign({}, s.histExp, { [arg]: !s.histExp[arg] }) })); break;
+      case 'assignOpen': this.setState({ assign: { step:1, sel: this.candidateProps().filter(p=>p.pre).map(p=>p.name) } }); break;
+      case 'assignToggle': this.setState(s => { const sel = s.assign.sel.includes(arg) ? s.assign.sel.filter(x=>x!==arg) : [...s.assign.sel, arg]; return { assign: Object.assign({}, s.assign, { sel }) }; }); break;
+      case 'assignNext': if (this.state.assign.sel.length) this.setState(s => ({ assign: Object.assign({}, s.assign, { step:2 }) })); else this.flash('Select at least one property'); break;
+      case 'assignBack': this.setState(s => ({ assign: Object.assign({}, s.assign, { step:1 }) })); break;
+      case 'assignConfirm': { const n = this.state.assign.sel.length; this.setState({ assign: null }); this.flash(n + ' propert' + (n>1?'ies':'y') + ' assigned · opted into Fee Transparency'); break; }
+      case 'assignClose': this.setState({ assign: null }); break;
+      case 'petImportOpen': this.setState({ petImport: true, toggles: Object.assign({}, this.state.toggles, { pi0:true, pi1:true, pi2:false }) }); break;
+      case 'petImportClose': this.setState({ petImport: false }); break;
+      case 'petImportConfirm': { const sel = [0,1,2].filter(i => (('pi'+i) in this.state.toggles) ? this.state.toggles['pi'+i] : false); this.setState({ petImport: false }); this.flash('Converted ' + sel.length + ' pet fees to situational template charges'); break; }
+      case 'navQuote': this.go('quote', arg ? { unit: arg } : {}); break;
+      case 'navRenewal': this.go('renewal', arg ? { unit: arg } : {}); break;
+      case 'qinc': this.setState(s => ({ qInclude: Object.assign({}, s.qInclude, { [arg]: !s.qInclude[arg] }) })); break;
+      case 'qovopen': this.setState({ qOverrideOpen: arg }); break;
+      case 'qovcancel': this.setState({ qOverrideOpen: null }); break;
+      case 'qovsave': { const v = (this.q('#qov-input') || {}).value || ''; const name = this.state.qOverrideOpen; if (v.trim()) this.setState(s => ({ qOverrides: Object.assign({}, s.qOverrides, { [name]: v.trim() }), qOverrideOpen: null })); else this.setState({ qOverrideOpen: null }); break; }
+      case 'qovremove': this.setState(s => { const o = Object.assign({}, s.qOverrides); delete o[arg]; return { qOverrides: o }; }); break;
+      case 'qoffset': this.setState(s => ({ qOffsets: Object.assign({}, s.qOffsets, { [arg]: !s.qOffsets[arg] }) })); break;
+      case 'amselect': this.setState(s => ({ amSelected: s.amSelected === +arg ? null : +arg })); break;
+      case 'ammap': { const sel = this.state.amSelected; if (sel == null) { this.flash('Select one of your amenities first'); break; } this.setState(s => ({ amList: s.amList.map(a => a.id === sel ? Object.assign({}, a, { map: arg }) : a), amSelected: null })); this.flash('Mapped to ' + arg); break; }
+      case 'amunmap': this.setState(s => ({ amList: s.amList.map(a => a.id === +arg ? Object.assign({}, a, { map: null }) : a) })); break;
+      case 'amcreate': this.setState(s => ({ amList: [...s.amList, { id: s.amNextId, name: 'New custom amenity', map: null, isNew: true }], amNextId: s.amNextId + 1 })); this.flash('Custom amenity created — sends as MITS custom'); break;
+      case 'noop': break;
+      case 'toast': this.flash(arg); break;
+      default: break;
+    }
+  };
+
+  saveOverride(){
+    const e = this.state.ov; if (!e) return;
+    let scope;
+    if (e.scope === 'all') scope = 'All units';
+    else if (e.scope === 'type') scope = (this.q('#ov-type') || {}).value || '2BR/2BA';
+    else scope = 'Unit ' + ((this.q('#ov-unit') || {}).value || '1A');
+    const amount = (this.q('#ov-amount') || {}).value || '$0.00';
+    this.setState(s => {
+      const row = { id: s.nextOvId, scope, excluded: e.mode === 'exclude', amount: e.mode === 'exclude' ? '' : amount };
+      return { nextOvId: s.nextOvId + 1, ov: null, propFees: s.propFees.map(f => f.id === e.feeId ? Object.assign({}, f, { expanded: true, overrides: [...f.overrides, row] }) : f) };
+    });
+    this.flash('Override added');
+  }
+
+  saveFee(){
+    const m = this.state.modal; if (!m) return;
+    const name = ((this.q('#m-name') || {}).value || '').trim();
+    if (!name) { this.flash('Charge type is required'); return; }
+    const amount = ((this.q('#m-amount') || {}).value || '').trim() || '$0.00';
+    const desc = ((this.q('#m-desc') || {}).value || '').trim();
+    const source = (this.q('#m-source') || {}).value || 'Flat';
+    const level = (this.q('#m-level') || {}).value || 'Property';
+    const ils = ('modalIls' in this.state.toggles) ? this.state.toggles.modalIls : true;
+    this.setState(s => ({
+      nextFeeId: s.nextFeeId + 1, modal: null,
+      propFees: [...s.propFees, { id: s.nextFeeId, group: m.group, name, desc, amount, source, mits:'CUSTOM', level, origin:'property', ils, excluded:false, overrides: [], expanded: false }]
+    }));
+    this.flash('Fee added');
+  }
+
+  // ---------- reusable bits ----------
+  tog(def, id){
+    id = id || ('t' + (this._tid++));
+    const on = (id in this.state.toggles) ? this.state.toggles[id] : def;
+    return `<span data-act="tog" data-arg="${id}" data-def="${def?1:0}" style="display:inline-block;width:32px;height:18px;border-radius:999px;background:${on?'var(--ac,#008dd5)':'#cedbe7'};position:relative;cursor:pointer;vertical-align:middle"><span style="position:absolute;top:2px;left:${on?16:2}px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left 120ms ease-out"></span></span>`;
+  }
+  statusLoz(s, c){ const m = { green:'background:#e2f1da;color:#4d8a2a', amber:'background:#fdeedd;color:#b35a00', gray:'background:#f2f2f2;color:#666' }; return `<span class="loz" style="${m[c]};text-transform:none;letter-spacing:0">${s}</span>`; }
+  levelChip(t){ let c='background:#f2f2f2;color:#666'; if(/^Unit type/.test(t)) c='background:#e5f3fb;color:#0071aa'; else if(/^Unit /.test(t)) c='background:#fdeedd;color:#b35a00'; return `<span class="loz" style="${c};text-transform:none;letter-spacing:0">${t}</span>`; }
+  originChip(o){ return o==='property'
+    ? '<span class="loz" style="background:#e2f1da;color:#4d8a2a;text-transform:none;letter-spacing:0">This property</span>'
+    : '<span class="loz" style="background:#e5f3fb;color:#0071aa;text-transform:none;letter-spacing:0">Profile</span>'; }
+  parseAmt(v){ if(!v) return 0; const m=(''+v).replace(/[, ]/g,'').match(/\$?(\d+(?:\.\d+)?)/); return m?parseFloat(m[1]):0; }
+  money(n){ return '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  priceSummary(mr){
+    const pf=this.state.propFees.filter(f=>!f.excluded);
+    let monthly=mr, oneTime=0; const ils=[];
+    pf.forEach(f=>{ const a=this.parseAmt(f.amount); if(f.group==='req-rec') monthly+=a; if(f.group==='req-one') oneTime+=a; if(f.ils) ils.push(f.name.replace(/ — .*/,'')); });
+    return `<div class="tile" style="border-color:var(--ac,#008dd5)"><div style="padding:16px 20px;display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px"><span style="font-size:14px;color:#666">Total monthly price</span><span style="font-size:26px;font-weight:700;color:#13314c">${this.money(monthly)}<span style="font-size:14px;font-weight:400;color:#8a9aa8"> /mo</span></span></div>
+      <div style="display:flex;align-items:baseline;justify-content:space-between"><span style="font-size:13px;color:#666">One-time move-in costs</span><span style="font-size:16px;font-weight:600;color:#424e5b">${this.money(oneTime)}</span></div>
+      <div style="border-top:1px solid #ebf1f5;padding-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:#4d8a2a;font-weight:500"><span class="material-symbols-outlined" style="font-size:15px">visibility</span>ILS-visible</span>${ils.map(nm=>`<span class="loz" style="background:#e2f1da;color:#4d8a2a;text-transform:none;letter-spacing:0">${nm}</span>`).join('')||'<span style="font-size:12px;color:#b3b3b3">None</span>'}</div>
+      <div style="font-size:12px;color:#8a9aa8;line-height:1.45">Total monthly price = market rent + mandatory recurring fees. Optional and situational fees are added only when the tenant selects them. Recalculates as fees change.</div></div></div>`;
+  }
+  depositsTile(){
+    const rows=[['Security deposit','$500.00','Refundable','1.5× rent','SECDEP',true],['Pet deposit — Dog','$300.00','Refundable','Per pet','PET',true],['Last month rent','$1,350.00','Partially refundable','1× rent','LMR',false],['Key & fob deposit','$50.00','Non-refundable','Flat','KEY',false]];
+    const refChip=(t)=>{const m={'Refundable':'background:#e2f1da;color:#4d8a2a','Non-refundable':'background:#fdeaea;color:#d02830','Partially refundable':'background:#fdeedd;color:#b35a00'};return `<span class="loz" style="${m[t]};text-transform:none;letter-spacing:0">${t}</span>`;};
+    const cols='190px 120px 180px 120px 90px 70px 90px';
+    const head=`<div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Charge type','Amount','Refundability','Max held','MITS','ILS','Actions'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>`;
+    const body=rows.map(r=>`<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5"><span class="td name" style="border:none;padding-left:16px">${r[0]}</span><span class="td num" style="border:none">${r[1]}</span><span class="td" style="border:none">${refChip(r[2])}</span><span class="td" style="border:none">${r[3]}</span><span class="td mono" style="border:none;font-size:12px">${r[4]}</span><span class="td" style="border:none">${this.tog(r[5])}</span><span class="td" style="border:none"><span class="act"><span class="material-symbols-outlined icon-edit">edit</span><span class="material-symbols-outlined icon-del">delete</span></span></span></div>`).join('');
+    return `<div class="eyebrow" style="margin-top:8px">Deposits</div><div class="tile"><div class="thead2"><span class="ttl">Deposits</span><span class="loz loz-dep">Held</span><div style="flex:1"></div><button data-act="addopen" data-arg="deposit" class="btn-out">Add deposit</button></div><div style="overflow-x:auto"><div style="min-width:860px">${head}${body}</div></div></div>`;
+  }
+
+  transparencyBadge(){
+    return `<span style="display:inline-flex;align-items:center;gap:5px;background:#e2f1da;color:#3a7d2c;border:1px solid #b6ddaa;border-radius:999px;padding:3px 11px 3px 8px;font-size:12px;font-weight:500"><span class="material-symbols-outlined" style="font-size:15px">verified_user</span>Fee Transparency: On</span>`;
+  }
+  levelPill(level){
+    const m={ 'Property':'background:#eef1f4;color:#4a5b6b', 'Unit type':'background:#e5f3fb;color:#0071aa', 'Unit':'background:#fdeedd;color:#b35a00' };
+    const ic={ 'Property':'apartment', 'Unit type':'category', 'Unit':'door_front' };
+    return `<span class="loz" style="${m[level]||m['Property']};text-transform:none;letter-spacing:0;display:inline-flex;align-items:center;gap:3px"><span class="material-symbols-outlined" style="font-size:12px">${ic[level]||'apartment'}</span>${level}</span>`;
+  }
+  sparkline(hist){
+    const vals=hist.map(h=>this.parseAmt(h[1]));
+    const first=vals[0], last=vals[vals.length-1];
+    const up=last>first, down=last<first;
+    const col=up?'#d02830':(down?'#3a7d2c':'#8a9aa8');
+    const w=64,h=20,mn=Math.min(...vals),mx=Math.max(...vals),rng=(mx-mn)||1;
+    const pts=vals.map((v,i)=>`${((i/(vals.length-1))*(w-4)+2).toFixed(1)},${(h-2-((v-mn)/rng)*(h-4)).toFixed(1)}`).join(' ');
+    const lx=(w-2), ly=(h-2-((last-mn)/rng)*(h-4));
+    return `<span style="display:inline-flex;align-items:center;gap:6px"><svg width="${w}" height="${h}" style="vertical-align:middle;overflow:visible"><polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="2.4" fill="${col}"/></svg><span style="display:inline-flex;align-items:center;font-size:12px;font-weight:600;color:${col}">${up?'▲':(down?'▼':'—')}</span></span>`;
+  }
+  deltaLabel(hist){
+    const f=this.parseAmt(hist[0][1]), l=this.parseAmt(hist[hist.length-1][1]);
+    if(l===f) return '<span style="font-size:12px;color:#8a9aa8">No change</span>';
+    const pct=f?Math.round(((l-f)/f)*100):0;
+    const up=l>f, col=up?'#d02830':'#3a7d2c';
+    return `<span style="font-size:12px;color:${col};font-weight:500">${hist[0][1]} → ${hist[hist.length-1][1]} (${up?'+':''}${pct}%)</span>`;
+  }
+
+  oriTile(){
+    const rows=this.oriItems();
+    const cols='minmax(160px,1fr) 120px 120px 140px 70px 90px';
+    const typeChip=(t)=>{const m={Parking:'background:#e5f3fb;color:#0071aa',Garage:'background:#f0e8fb;color:#6a4aa8',Storage:'background:#fdeedd;color:#b35a00'};return `<span class="loz" style="${m[t]};text-transform:none;letter-spacing:0">${t}</span>`;};
+    const head=`<div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Rentable item','Type','Default rent','Availability','ILS','Actions'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>`;
+    const body=rows.map(r=>`<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5"><span class="td name" style="border:none;padding-left:16px">${r.name}</span><span class="td" style="border:none">${typeChip(r.type)}</span><span class="td num" style="border:none">${r.rent}<span style="color:#8a9aa8;font-size:12px"> /mo</span></span><span class="td" style="border:none">${r.qty}</span><span class="td" style="border:none">${this.tog(r.ils)}</span><span class="td" style="border:none"><span class="act"><span class="material-symbols-outlined icon-edit">edit</span><span class="material-symbols-outlined icon-del">delete</span></span></span></div>`).join('');
+    return `<div class="eyebrow" style="margin-top:8px">Other rentable items (ORI)</div><div class="tile"><div class="thead2"><span class="ttl">ORI charges</span><span class="loz" style="background:#e5f3fb;color:#0071aa">Property level</span><div style="flex:1"></div><button data-act="addopen" data-arg="ori" class="btn-out">Add ORI</button></div><div style="padding:10px 16px;border-bottom:1px solid #ebf1f5;font-size:12px;color:#8a9aa8">Each item carries a default rent. ORI appear as selectable optional add-ons in rent quotes and move-in.</div><div style="overflow-x:auto"><div style="min-width:700px">${head}${body}</div></div></div>`;
+  }
+
+  listingPreview(){
+    const pf=this.state.propFees.filter(f=>!f.excluded && f.ils);
+    const mand=pf.filter(f=>f.group==='req-rec');
+    const oneTime=pf.filter(f=>f.group==='req-one');
+    const opt=pf.filter(f=>f.group==='opt-rec' || f.group==='sit-rec');
+    let monthly=1350; mand.forEach(f=>{ monthly+=this.parseAmt(f.amount); });
+    const chip=(nm,amt,cond)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px dashed #e4ebf1"><span style="font-size:13px;color:#2b3a48">${nm}${cond?` <span style="font-size:11px;color:#8a9aa8">· ${cond}</span>`:''}</span><span style="font-size:13px;color:#13314c;font-weight:500">${amt}</span></div>`;
+    return `<div class="eyebrow" style="margin-top:8px">Listing preview</div>
+      <div class="tile" style="overflow:hidden">
+        <div style="display:flex;align-items:center;gap:8px;padding:12px 16px;background:#13314c"><span class="material-symbols-outlined" style="font-size:18px;color:#fff">travel_explore</span><span style="font-size:14px;font-weight:500;color:#fff">What a prospect sees on the listing (ILS)</span><div style="flex:1"></div><span style="font-size:12px;color:#b3c2cf">Riverview Apartments · 1BR/1BA</span></div>
+        <div style="display:flex;flex-wrap:wrap;gap:0">
+          <div style="flex:1;min-width:300px;padding:18px 20px;border-right:1px solid #ebf1f5;box-sizing:border-box">
+            <div style="font-size:12px;color:#8a9aa8;text-transform:uppercase;letter-spacing:0.05em">Starting price</div>
+            <div style="display:flex;align-items:baseline;gap:8px;margin:4px 0 2px"><span style="font-size:32px;font-weight:700;color:#13314c">${this.money(monthly)}</span><span style="font-size:14px;color:#8a9aa8">/mo</span></div>
+            <div style="font-size:12px;color:#8a9aa8;margin-bottom:14px">Rent + required monthly fees</div>
+            <div style="font-size:12px;font-weight:600;color:#4a5b6b;margin-bottom:2px">Included every month</div>
+            ${chip('Base rent','$1,350.00')}${mand.map(f=>chip(f.name,f.amount)).join('')}
+            <div style="font-size:12px;font-weight:600;color:#4a5b6b;margin:14px 0 2px">Due at move-in</div>
+            ${oneTime.map(f=>chip(f.name,f.amount)).join('')||'<div style="font-size:13px;color:#b3b3b3;padding:7px 0">None listed</div>'}
+          </div>
+          <div style="flex:1;min-width:260px;padding:18px 20px;box-sizing:border-box">
+            <div style="font-size:12px;font-weight:600;color:#4a5b6b;margin-bottom:6px">Optional add-ons</div>
+            ${opt.map(f=>chip(f.name,f.amount,f.cond)).join('')}
+            <div style="display:flex;align-items:flex-start;gap:8px;margin-top:14px;background:#f5f8fa;border-radius:6px;padding:10px 12px">
+              <span class="material-symbols-outlined" style="font-size:16px;color:#3a7d2c">visibility</span>
+              <span style="font-size:12px;color:#666;line-height:1.45">Only fees with ILS display on show here. Toggle a fee's ILS switch to add or hide it from listings — this replaces the old marketing pricing-field mapping.</span>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  legacyTiles(){
+    const overlay=(title,sub,rows)=>`<div class="tile" style="position:relative;overflow:hidden">
+      <div class="thead2" style="border-bottom-color:#cedbe7"><span class="ttl" style="color:#8a9aa8">${title}</span><span class="loz" style="background:#eef1f4;color:#8a9aa8">Legacy</span></div>
+      <div style="filter:grayscale(1);opacity:0.5;pointer-events:none">${rows}</div>
+      <div style="position:absolute;inset:0;background:rgba(245,248,250,0.72);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:20px">
+        <span style="width:38px;height:38px;border-radius:50%;background:#fff;border:1px solid #cedbe7;display:flex;align-items:center;justify-content:center"><span class="material-symbols-outlined" style="font-size:20px;color:#8a9aa8">lock</span></span>
+        <div style="font-size:13px;color:#424e5b;max-width:320px">Managed by fee template: <span style="font-weight:600;color:#13314c">Standard Conventional</span></div>
+        <a data-act="navProfile" style="font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:4px">Open fee setup <span class="material-symbols-outlined" style="font-size:15px">open_in_new</span></a>
+      </div></div>`;
+    const rowsA=`<div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px">${[['Recurring rent','$1,350.00'],['Trash','$28.00'],['Water','$38.00']].map(r=>`<div style="display:flex;justify-content:space-between;font-size:13px;color:#666"><span>${r[0]}</span><span>${r[1]}</span></div>`).join('')}</div>`;
+    const rowsB=`<div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px">${[['Pet rent mapping','Charge 45'],['Parking mapping','ORI 220'],['ILS price field','Rent + fees']].map(r=>`<div style="display:flex;justify-content:space-between;font-size:13px;color:#666"><span>${r[0]}</span><span>${r[1]}</span></div>`).join('')}</div>`;
+    return `<div class="eyebrow" style="margin-top:8px">Legacy setup</div>
+      <div style="display:flex;align-items:center;gap:8px;background:#fff8ee;border:1px solid #f3d9b0;border-radius:4px;padding:10px 16px;margin-bottom:4px"><span class="material-symbols-outlined" style="font-size:18px;color:#b35a00">info</span><span style="font-size:13px;color:#7a5220">These tiles are read-only while this property uses a fee template. Manage everything from the template's fee setup.</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">${overlay('Recurring Charges','',rowsA)}${overlay('Tenant Charge Setup','',rowsB)}</div>`;
+  }
+
+  assignModalHTML(){
+    const a=this.state.assign; if(!a) return '';
+    const cands=this.candidateProps();
+    let inner;
+    if(a.step===1){
+      const list=cands.map(p=>{const on=a.sel.includes(p.name);return `<label data-act="assignToggle" data-arg="${p.name}" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid ${on?'var(--ac,#008dd5)':'#cedbe7'};background:${on?'#f0f6fb':'#fff'};border-radius:5px;cursor:pointer"><span style="width:18px;height:18px;border-radius:4px;border:1px solid ${on?'var(--ac,#008dd5)':'#cedbe7'};background:${on?'var(--ac,#008dd5)':'#fff'};display:flex;align-items:center;justify-content:center;flex:none">${on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff">check</span>':''}</span><span style="flex:1"><span style="display:block;font-size:14px;font-weight:500;color:#13314c">${p.name}</span><span style="font-size:12px;color:#8a9aa8">${p.loc} · ${p.units} units</span></span></label>`;}).join('');
+      inner=`<div style="padding:20px;display:flex;flex-direction:column;gap:12px">
+        <div style="font-size:13px;color:#666">Select the properties to assign <span style="font-weight:600;color:#13314c">Standard Conventional</span> to.</div>
+        <div style="display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto">${list}</div></div>
+        <div style="display:flex;align-items:center;gap:8px;padding:14px 20px;border-top:1px solid #cedbe7;background:#f5f8fa"><span style="font-size:13px;color:#8a9aa8">${a.sel.length} selected</span><div style="flex:1"></div><button data-act="assignClose" class="btn-out" style="padding:8px 20px;font-size:14px">Cancel</button><button data-act="assignNext" class="btn-pri" style="padding:8px 20px;font-size:14px">Continue</button></div>`;
+    } else {
+      const list=a.sel.map(n=>{const p=cands.find(x=>x.name===n)||{loc:'',units:''};return `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #ebf1f5"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5)">home_work</span><span style="flex:1;font-size:14px;color:#13314c">${p.name}</span><span style="font-size:12px;color:#8a9aa8">${p.units} units</span></div>`;}).join('');
+      inner=`<div style="padding:20px;display:flex;flex-direction:column;gap:16px">
+        <div style="display:flex;gap:12px;background:#eef7ee;border:1px solid #b6ddaa;border-radius:6px;padding:14px 16px">
+          <span class="material-symbols-outlined" style="font-size:22px;color:#3a7d2c;flex:none">verified_user</span>
+          <div><div style="font-size:14px;font-weight:600;color:#2b5220;margin-bottom:2px">Assigning this template opts these ${a.sel.length} properties into Fee Transparency</div><div style="font-size:12px;color:#4a6b3c;line-height:1.5">Their fees will be managed by the template and shown to prospects on ILS. Legacy Recurring Charges and Tenant Charge Setup become read-only on each property.</div></div>
+        </div>
+        <div class="tile" style="border-radius:6px">${list}</div></div>
+        <div style="display:flex;align-items:center;gap:8px;padding:14px 20px;border-top:1px solid #cedbe7;background:#f5f8fa"><button data-act="assignBack" class="btn-out" style="padding:8px 16px;font-size:14px"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px">arrow_back</span> Back</button><div style="flex:1"></div><button data-act="assignConfirm" class="btn-pri" style="padding:8px 20px;font-size:14px">Assign &amp; opt in</button></div>`;
+    }
+    return `<div data-act="assignClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:100"><div data-act="noop" style="width:620px;max-width:94vw;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.28);overflow:hidden"><div style="display:flex;align-items:center;padding:16px 20px;border-bottom:1px solid #cedbe7"><span style="font-size:16px;font-weight:500;color:#13314c">Assign template to properties</span><span style="margin-left:12px;font-size:12px;color:#8a9aa8">Step ${a.step} of 2</span><div style="flex:1"></div><span data-act="assignClose" class="material-symbols-outlined" style="font-size:20px;color:#666;cursor:pointer">close</span></div>${inner}</div></div>`;
+  }
+
+  petImportHTML(){
+    if(!this.state.petImport) return '';
+    const rows=this.petSetup().map((p,i)=>{const on=(('pi'+i) in this.state.toggles)?this.state.toggles['pi'+i]:false;return `<label data-act="tog" data-arg="pi${i}" data-def="0" style="display:grid;grid-template-columns:24px 1fr 90px 90px;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid #ebf1f5;cursor:pointer"><span style="width:18px;height:18px;border-radius:4px;border:1px solid ${on?'var(--ac,#008dd5)':'#cedbe7'};background:${on?'var(--ac,#008dd5)':'#fff'};display:flex;align-items:center;justify-content:center">${on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff">check</span>':''}</span><span style="font-size:14px;color:#13314c;font-weight:500">${p.type}</span><span style="font-size:13px;color:#666">${p.rent}/mo</span><span style="font-size:13px;color:#666">${p.deposit} dep</span></label>`;}).join('');
+    return `<div data-act="petImportClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:100"><div data-act="noop" style="width:560px;max-width:94vw;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.28);overflow:hidden">
+      <div style="display:flex;align-items:center;padding:16px 20px;border-bottom:1px solid #cedbe7"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5);margin-right:8px">pets</span><span style="font-size:16px;font-weight:500;color:#13314c">Pull from existing pet fee setup</span><div style="flex:1"></div><span data-act="petImportClose" class="material-symbols-outlined" style="font-size:20px;color:#666;cursor:pointer">close</span></div>
+      <div style="padding:16px 20px 8px;font-size:13px;color:#666">These pet fees are configured on this property's existing setup. Select the ones to convert into <span style="font-weight:600;color:#13314c">situational template charges</span> (per pet type, applied only when a pet exists).</div>
+      <div style="margin:8px 20px;border:1px solid #cedbe7;border-radius:6px;overflow:hidden"><div style="display:grid;grid-template-columns:24px 1fr 90px 90px;gap:10px;padding:8px 16px;background:#f5f8fa;border-bottom:1px solid #cedbe7"><span></span><span style="font-size:11px;font-weight:600;color:#8a9aa8;text-transform:uppercase">Pet type</span><span style="font-size:11px;font-weight:600;color:#8a9aa8;text-transform:uppercase">Rent</span><span style="font-size:11px;font-weight:600;color:#8a9aa8;text-transform:uppercase">Deposit</span></div>${rows}</div>
+      <div style="display:flex;align-items:center;gap:8px;padding:14px 20px;border-top:1px solid #cedbe7;background:#f5f8fa"><span class="material-symbols-outlined" style="font-size:16px;color:#8a9aa8">bolt</span><span style="font-size:12px;color:#8a9aa8">Converted charges land in Situational fees</span><div style="flex:1"></div><button data-act="petImportClose" class="btn-out" style="padding:8px 16px;font-size:14px">Cancel</button><button data-act="petImportConfirm" class="btn-pri" style="padding:8px 18px;font-size:14px">Convert to template charges</button></div>
+    </div></div>`;
+  }
+
+  // ================= RENT QUOTE =================
+  quoteLine(l, opts){
+    opts = opts || {};
+    const s = this.state;
+    const overridden = s.qOverrides[l.name] != null;
+    const eff = this.qAmt(l.name, l.base);
+    const open = s.qOverrideOpen === l.name;
+    const cols = opts.check ? '26px 150px 150px 1fr 150px' : '150px 150px 1fr 150px';
+    const check = opts.check ? `<span data-act="qinc" data-arg="${l.name}" style="width:18px;height:18px;border-radius:4px;border:1px solid ${opts.on?'var(--ac,#008dd5)':'#cedbe7'};background:${opts.on?'var(--ac,#008dd5)':'#fff'};display:flex;align-items:center;justify-content:center;cursor:pointer;align-self:center">${opts.on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff">check</span>':''}</span>` : '';
+    const dim = (opts.check && !opts.on) ? 'opacity:0.55' : '';
+    const amtCell = l.rent
+      ? `<span style="font-size:14px;color:#8a9aa8">Market — see terms below</span>`
+      : (overridden
+          ? `<span style="text-decoration:line-through;color:#b3b3b3;font-size:13px">${this.money(l.base)}</span> <span style="color:#b35a00;font-weight:600;font-size:14px">${this.money(eff)}</span>`
+          : `<span style="font-size:14px;color:#13314c;font-weight:500">${this.money(l.base)}</span>`);
+    let action;
+    if (l.rent) action = `<span style="font-size:12px;color:#8a9aa8">Rent set per term</span>`;
+    else if (open) action = `<span style="display:inline-flex;align-items:center;gap:6px"><input id="qov-input" class="fld" style="width:96px;padding:5px 8px;border-color:var(--ac,#008dd5)" placeholder="$0.00" value="${overridden?eff.toFixed(2):''}"><a data-act="qovsave" style="font-size:13px;font-weight:500">Save</a><a data-act="qovcancel" style="font-size:13px;color:#8a9aa8">Cancel</a></span>`;
+    else if (overridden) action = `<span style="display:inline-flex;align-items:center;gap:8px"><span class="loz" style="background:#fdeedd;color:#b35a00;text-transform:none;letter-spacing:0">Quote override</span><a data-act="qovremove" data-arg="${l.name}" style="font-size:12px;color:#eb343c">Remove</a></span>`;
+    else action = `<a data-act="qovopen" data-arg="${l.name}" style="font-size:13px">Override for this quote</a>`;
+    return `<div style="display:grid;grid-template-columns:${cols};gap:12px;align-items:center;padding:11px 16px;border-bottom:1px solid #ebf1f5;${dim}">
+      ${check}
+      <span style="font-size:14px;color:#13314c;font-weight:500">${l.name}${l.cond?` <span style="font-size:11px;color:#b35a00">· ${l.cond}</span>`:''}</span>
+      <span>${this.levelPill(l.level)}</span>
+      <span>${amtCell}</span>
+      <span style="text-align:right">${action}</span>
+    </div>`;
+  }
+
+  quoteBody(){
+    const s = this.state, info = this.unitInfo(s.unit), mr = this.parseAmt(info.rent);
+    const reqMon = this.quoteReqMonthly(mr), reqOne = this.quoteReqMovein(), opt = this.quoteOptional();
+    // monthly fees excluding rent
+    const feesMon = reqMon.filter(l=>!l.rent).reduce((a,l)=>a+this.qAmt(l.name,l.base),0)
+      + opt.filter(l=>s.qInclude[l.name]).reduce((a,l)=>a+this.qAmt(l.name,l.base),0);
+    const moveIn = reqOne.reduce((a,l)=>a+this.qAmt(l.name,l.base),0);
+    const rentBase = this.qAmt('Base rent', mr);
+
+    let h = '';
+    h += `<div style="padding:16px 16px 0"><div class="tile" style="padding:16px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <div style="flex:1;min-width:220px"><div style="font-size:12px;color:#8a9aa8;text-transform:uppercase;letter-spacing:0.05em">New rent quote</div><div style="font-size:20px;font-weight:700;color:#13314c;margin-top:2px">Unit ${info.u} · ${info.type}</div><div style="font-size:13px;color:#666;margin-top:2px">${s.property} · Loveland OH</div></div>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div style="display:flex;flex-direction:column;gap:4px;min-width:150px"><span class="flabel">Prospect</span><input class="fld" value="Jordan Rivera"></div>
+        <div style="display:flex;flex-direction:column;gap:4px;min-width:130px"><span class="flabel">Move-in date</span><div class="fld" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">Feb 1, 2026<span class="material-symbols-outlined" style="font-size:18px;color:#666">calendar_today</span></div></div>
+      </div></div></div>`;
+    h += `<div style="padding:16px 16px 0">${this.banner('Fee structure auto-pulled from the property template <b>Standard Conventional</b> — property, unit type and unit charges for this unit. Toggle optional items and ORI below; tenant-specific changes are quote overrides only.','')}</div>`;
+
+    h += `<div style="padding:16px 16px 0"><div class="tile"><div class="thead2"><span class="ttl">Required — monthly</span><span class="loz loz-mand">Mandatory</span></div>${reqMon.map(l=>this.quoteLine(l)).join('')}</div></div>`;
+    h += `<div style="padding:16px 16px 0"><div class="tile"><div class="thead2"><span class="ttl">Optional items &amp; ORI</span><span class="loz loz-opt">Agent selects</span><div style="flex:1"></div><span style="font-size:12px;color:#8a9aa8">Checked items are included in this quote</span></div>${opt.map(l=>this.quoteLine(l,{check:true,on:!!s.qInclude[l.name]})).join('')}</div></div>`;
+    h += `<div style="padding:16px 16px 0"><div class="tile"><div class="thead2"><span class="ttl">Due at move-in</span></div>${reqOne.map(l=>this.quoteLine(l)).join('')}<div style="display:flex;justify-content:space-between;padding:12px 16px;background:#f5f8fa;font-size:14px"><span style="color:#666">Total move-in (one-time)</span><span style="font-weight:700;color:#13314c">${this.money(moveIn)}</span></div></div></div>`;
+
+    // lease terms with offsets
+    const cards = this.quoteTerms().map(t => {
+      const on = s.qOffsets[t.m];
+      const effRent = rentBase + (on ? t.offset : 0);
+      const total = effRent + feesMon;
+      const offLabel = t.offset === 0 ? 'None' : (t.offset < 0 ? '−'+this.money(Math.abs(t.offset)) : '+'+this.money(t.offset));
+      const offCol = t.offset < 0 ? '#3a7d2c' : (t.offset>0?'#b35a00':'#8a9aa8');
+      return `<div class="tile" style="flex:1;min-width:220px;${t.m===12?'border-color:var(--ac,#008dd5);box-shadow:0 4px 12px rgba(0,0,0,0.08)':''}">
+        <div style="padding:12px 16px;border-bottom:1px solid #ebf1f5;display:flex;align-items:center;justify-content:space-between"><span style="font-size:15px;font-weight:600;color:#13314c">${t.label}</span>${t.m===12?'<span class="loz" style="background:#e5f3fb;color:#0071aa">Recommended</span>':''}</div>
+        <div style="padding:14px 16px;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;justify-content:space-between;font-size:13px;color:#666"><span>Market rent</span><span>${this.money(rentBase)}</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:#666">Rent offset</span><span style="color:${on?offCol:'#b3b3b3'};font-weight:500">${on?offLabel:'Off'}</span></div>
+          <label data-act="qoffset" data-arg="${t.m}" style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:#666;padding:2px 0"><span style="display:inline-block;width:32px;height:18px;border-radius:999px;background:${on?'var(--ac,#008dd5)':'#cedbe7'};position:relative;flex:none"><span style="position:absolute;top:2px;left:${on?16:2}px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left 120ms ease-out"></span></span>Apply rent offsets</label>
+          <div style="display:flex;justify-content:space-between;font-size:13px;color:#666;border-top:1px dashed #e4ebf1;padding-top:8px"><span>Effective rent</span><span style="color:#13314c;font-weight:500">${this.money(effRent)}</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;color:#666"><span>Monthly fees</span><span>${this.money(feesMon)}</span></div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid #ebf1f5;padding-top:10px;margin-top:2px"><span style="font-size:13px;color:#666">Total / mo</span><span style="font-size:22px;font-weight:700;color:#13314c">${this.money(total)}</span></div>
+        </div></div>`;
+    }).join('');
+    h += `<div style="padding:16px"><div class="eyebrow" style="margin-bottom:8px">Lease terms &amp; pricing</div><div style="display:flex;gap:16px;flex-wrap:wrap">${cards}</div><div style="font-size:12px;color:#8a9aa8;margin-top:10px">Rent offsets adjust market rent per term (e.g. loyalty discount on longer terms, short-term premium on 6 months). Toggle per term to compare. Monthly fees reflect the required charges plus any optional items checked above.</div></div>`;
+
+    // sync the toggle state ids with qOffsets so the switch reflects reality
+    return `<div style="flex:1;display:flex;align-items:stretch"><div style="flex:1;min-width:0;max-width:1100px;width:100%;margin:0 auto;padding-bottom:16px">${h}</div>${this.rail()}</div>`;
+  }
+
+  // ================= RENEWAL =================
+  renewalBody(){
+    const info = this.unitInfo(this.state.unit);
+    const rows = this.renewalRows();
+    const curTotal = rows.reduce((a,r)=>a+r.cur,0);
+    const renTotal = rows.reduce((a,r)=>a+r.ren,0);
+    const changed = rows.filter(r=>r.cur!==r.ren).length;
+    const col = (label,val,accent)=>`<div style="flex:1;padding:16px 20px;${accent?'background:#f0f6fb':''}"><div class="eyebrow">${label}</div><div style="font-size:28px;font-weight:700;color:#13314c;margin-top:6px">${this.money(val)}<span style="font-size:13px;font-weight:400;color:#8a9aa8"> /mo</span></div></div>`;
+
+    let h='';
+    h += `<div style="padding:16px 16px 0"><div class="tile" style="padding:16px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <div style="flex:1;min-width:220px"><div style="font-size:12px;color:#8a9aa8;text-transform:uppercase;letter-spacing:0.05em">Renewal offer</div><div style="font-size:20px;font-weight:700;color:#13314c;margin-top:2px">Unit ${info.u} · ${info.tenant}</div><div style="font-size:13px;color:#666;margin-top:2px">Current lease ends Jan 31, 2026 · ${this.state.property}</div></div>
+      ${this.transparencyBadge()}
+    </div></div>`;
+    h += `<div style="padding:16px 16px 0">${this.banner('Fee Transparency renewal — the resident sees exactly what changes. '+changed+' fee'+(changed>1?'s':'')+' changed from the current lease.','')}</div>`;
+
+    const rc = 'minmax(150px,1fr) 120px 120px 120px 150px';
+    const head = `<div style="display:grid;grid-template-columns:${rc};background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Fee','Level','Current','Renewal','Change'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>`;
+    const body = rows.map(r=>{
+      const ch = r.cur!==r.ren;
+      const up = r.ren>r.cur;
+      const chip = ch
+        ? `<span class="loz" style="background:${up?'#fdeaea':'#e2f1da'};color:${up?'#d02830':'#3a7d2c'};text-transform:none;letter-spacing:0">${up?'▲':'▼'} ${up?'+':'−'}${this.money(Math.abs(r.ren-r.cur))}</span>`
+        : `<span style="font-size:12px;color:#8a9aa8">No change</span>`;
+      return `<div style="display:grid;grid-template-columns:${rc};align-items:center;border-bottom:1px solid #ebf1f5;${ch?'background:#fff8ee':''}">
+        <span class="td name" style="border:none;padding-left:16px">${r.name}</span>
+        <span class="td" style="border:none">${this.levelPill(r.level)}</span>
+        <span class="td num" style="border:none">${this.money(r.cur)}</span>
+        <span class="td num" style="border:none;${ch?'color:#b35a00;font-weight:600':''}">${this.money(r.ren)}</span>
+        <span class="td" style="border:none">${chip}</span></div>`;
+    }).join('');
+    h += `<div style="padding:16px 16px 0"><div class="tile"><div class="thead2"><span class="ttl">Current vs renewal fees</span><span style="font-size:12px;color:#8a9aa8;margin-left:4px">Changed fees highlighted</span></div><div style="overflow-x:auto"><div style="min-width:660px">${head}${body}</div></div>
+      <div style="display:flex;border-top:2px solid #13314c">${col('Current total monthly',curTotal,false)}<div style="width:1px;background:#cedbe7"></div>${col('Renewal total monthly',renTotal,true)}</div></div></div>`;
+
+    // offered terms
+    const terms = [ {label:'12 months', prem:0, note:'Standard renewal'}, {label:'Month-to-month', prem:150, note:'Flexibility premium'} ];
+    const cards = terms.map(t=>{
+      const tot = renTotal + t.prem;
+      return `<div class="tile" style="flex:1;min-width:220px;${t.prem===0?'border-color:var(--ac,#008dd5);box-shadow:0 4px 12px rgba(0,0,0,0.08)':''}">
+        <div style="padding:12px 16px;border-bottom:1px solid #ebf1f5;display:flex;align-items:center;justify-content:space-between"><span style="font-size:15px;font-weight:600;color:#13314c">${t.label}</span>${t.prem===0?'<span class="loz" style="background:#e5f3fb;color:#0071aa">Best value</span>':''}</div>
+        <div style="padding:14px 16px;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;justify-content:space-between;font-size:13px;color:#666"><span>Renewal fees</span><span>${this.money(renTotal)}</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:#666">Term premium</span><span style="color:${t.prem?'#b35a00':'#8a9aa8'};font-weight:500">${t.prem?'+'+this.money(t.prem):'None'}</span></div>
+          <div style="font-size:11px;color:#8a9aa8">${t.note}</div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid #ebf1f5;padding-top:10px"><span style="font-size:13px;color:#666">Total / mo</span><span style="font-size:22px;font-weight:700;color:#13314c">${this.money(tot)}</span></div>
+        </div></div>`;
+    }).join('');
+    h += `<div style="padding:16px"><div class="eyebrow" style="margin-bottom:8px">Offered renewal terms</div><div style="display:flex;gap:16px;flex-wrap:wrap">${cards}</div></div>`;
+
+    return `<div style="flex:1;display:flex;align-items:stretch"><div style="flex:1;min-width:0;max-width:1100px;width:100%;margin:0 auto;padding-bottom:16px">${h}</div>${this.rail()}</div>`;
+  }
+
+  // ================= AMENITIES STANDARDIZATION =================
+  amenitiesBody(){
+    const s = this.state;
+    const list = s.amList;
+    const mapped = list.filter(a=>a.map);
+    const unmapped = list.filter(a=>!a.map);
+    const std = this.stdAmenities();
+    const usedCount = (name)=>list.filter(a=>a.map===name).length;
+    const selName = s.amSelected!=null ? (list.find(a=>a.id===s.amSelected)||{}).name : null;
+
+    // left rows
+    const leftRow = (a)=>{
+      const on = s.amSelected===a.id;
+      if(a.map){
+        return `<div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid #ebf1f5;background:#fff">
+          <span class="material-symbols-outlined" style="font-size:18px;color:#3a7d2c">check_circle</span>
+          <span style="flex:1;font-size:14px;color:#13314c">${a.name}${a.isNew?' <span class="loz" style="background:#e5f3fb;color:#0071aa;text-transform:none;letter-spacing:0">new</span>':''}</span>
+          <span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:#3a7d2c"><span class="material-symbols-outlined" style="font-size:14px">arrow_forward</span>${a.map}</span>
+          <span data-act="amunmap" data-arg="${a.id}" class="material-symbols-outlined" title="Unmap" style="font-size:16px;color:#8a9aa8;cursor:pointer">close</span></div>`;
+      }
+      return `<div data-act="amselect" data-arg="${a.id}" style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid #ebf1f5;cursor:pointer;background:${on?'#f0f6fb':'#fff'};box-shadow:${on?'inset 3px 0 0 var(--ac,#008dd5)':'none'}">
+        <span class="material-symbols-outlined" style="font-size:18px;color:${on?'var(--ac,#008dd5)':'#f58220'}">${on?'radio_button_checked':'warning'}</span>
+        <span style="flex:1;font-size:14px;color:#13314c">${a.name}${a.isNew?' <span class="loz" style="background:#e5f3fb;color:#0071aa;text-transform:none;letter-spacing:0">new</span>':''}</span>
+        <span class="loz" style="background:#fdeedd;color:#b35a00;text-transform:none;letter-spacing:0">Custom · won't list</span></div>`;
+    };
+    const left = `<div class="tile" style="flex:1;min-width:300px;align-self:flex-start"><div class="thead2"><span class="ttl">Your amenities</span><span style="font-size:12px;color:#8a9aa8;margin-left:4px">${list.length} total</span><div style="flex:1"></div><button data-act="amcreate" class="btn-out">+ Custom</button></div>${list.map(leftRow).join('')}<div style="padding:10px 14px;font-size:12px;color:#8a9aa8">${selName?`Selected <b style="color:#13314c">${selName}</b> — now pick a standard on the right.`:'Click a flagged amenity, then a standard on the right to map it.'}</div></div>`;
+
+    // right groups
+    const chipList = (arr)=>arr.map(name=>{
+      const c = usedCount(name);
+      const armed = s.amSelected!=null;
+      return `<div data-act="ammap" data-arg="${name}" style="display:flex;align-items:center;gap:8px;padding:9px 12px;border:1px solid ${c?'#b6ddaa':'#cedbe7'};background:${c?'#f1f8ee':'#fff'};border-radius:6px;cursor:${armed?'pointer':'default'};${armed?'':'opacity:0.92'}" ${armed?'':''}>
+        <span class="material-symbols-outlined" style="font-size:16px;color:${c?'#3a7d2c':'#8a9aa8'}">${c?'check_circle':'add_circle'}</span>
+        <span style="flex:1;font-size:13px;color:#13314c">${name}</span>
+        ${c?`<span class="loz" style="background:#e2f1da;color:#3a7d2c;text-transform:none;letter-spacing:0">${c} mapped</span>`:(armed?`<span style="font-size:12px;color:var(--ac,#008dd5);font-weight:500">Map here</span>`:'')}</div>`;
+    }).join('');
+    const right = `<div class="tile" style="flex:1;min-width:300px;align-self:flex-start"><div class="thead2"><span class="ttl">Standardized amenities</span><span class="loz loz-opt">MITS</span></div>
+      <div style="padding:14px 16px;display:flex;flex-direction:column;gap:8px"><div style="display:flex;align-items:center;gap:8px"><span class="material-symbols-outlined" style="font-size:16px;color:#4a5b6b">apartment</span><span class="eyebrow" style="letter-spacing:0.04em">Property level</span></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${chipList(std.Property)}</div></div>
+      <div style="padding:6px 16px 16px;display:flex;flex-direction:column;gap:8px"><div style="display:flex;align-items:center;gap:8px"><span class="material-symbols-outlined" style="font-size:16px;color:#6a4aa8">deployed_code</span><span class="eyebrow" style="letter-spacing:0.04em">Asset level</span><span class="loz" style="background:#f0e8fb;color:#6a4aa8">New</span></div><div style="grid-template-columns:1fr 1fr;display:grid;gap:8px">${chipList(std.Asset)}</div></div></div>`;
+
+    let h = '';
+    h += this.banner('Standardize your amenities against the MITS list so they syndicate correctly. Property-level amenities describe the community; <b>asset-level</b> amenities (new) attach to specific units and appliances. Unmapped items still send as custom MITS but <b>will not list on MH Village</b>.','');
+    h += `<div class="tile"><div style="display:flex;flex-wrap:wrap;gap:0"><div style="flex:1;min-width:160px;padding:14px 18px;border-right:1px solid #ebf1f5"><div style="font-size:12px;color:#8a9aa8">Mapped to standard</div><div style="font-size:22px;font-weight:700;color:#3a7d2c">${mapped.length}<span style="font-size:14px;color:#8a9aa8;font-weight:400"> / ${list.length}</span></div></div><div style="flex:1;min-width:160px;padding:14px 18px;border-right:1px solid #ebf1f5"><div style="font-size:12px;color:#8a9aa8">Will send as custom</div><div style="font-size:22px;font-weight:700;color:#b35a00">${unmapped.length}</div></div><div style="flex:2;min-width:220px;padding:14px 18px;display:flex;align-items:center"><span style="font-size:12px;color:#8a9aa8;line-height:1.45"><span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px;color:#b35a00">warning</span> Custom amenities send to partners as free-text (MITS) and are skipped by MH Village until mapped.</span></div></div></div>`;
+    h += `<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">${left}${right}</div>`;
+    return `<div style="flex:1;display:flex;align-items:stretch"><div style="flex:1;min-width:0;padding:16px;display:flex;flex-direction:column;gap:16px;max-width:1200px;width:100%;box-sizing:border-box;margin:0 auto">${h}</div>${this.rail()}</div>`;
+  }
+
+  profileScoreboard(){
+    const stat=(l,v)=>`<div style="display:flex;align-items:baseline;gap:6px"><span style="font-size:13px;color:#666">${l}:</span><span style="font-size:16px;font-weight:700;color:#13314c">${v}</span></div>`;
+    return `<div style="background:#fff;border-bottom:1px solid #cedbe7;flex:none;overflow-x:auto"><div style="display:flex;align-items:stretch;min-width:1080px">
+      <div style="width:44px;border-right:1px solid #cedbe7;display:flex;align-items:center;justify-content:center;color:var(--ac,#008dd5)"><span class="material-symbols-outlined" style="font-size:20px">keyboard_double_arrow_right</span></div>
+      <div style="width:6px;background:#2a9d8f;margin:10px 0 10px 10px;border-radius:2px"></div>
+      <div style="flex:1;padding:12px 16px;display:flex;flex-direction:column;gap:6px;justify-content:center;white-space:nowrap">
+        <div style="display:flex;align-items:center;gap:10px"><span style="font-size:16px;font-weight:700;color:#13314c">Standard Conventional</span>${this.transparencyBadge()}</div>
+        <div style="display:flex;align-items:center;gap:14px;font-size:13px;color:#666">
+          <span>Created by: <span style="color:#13314c">Admin</span></span><span style="color:#cedbe7">|</span>
+          <span>Last modified: <span style="color:#13314c">Jul 10, 2025</span></span><span style="color:#cedbe7">|</span>
+          <span>Property type: <span style="color:#13314c">Conventional</span></span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:20px;padding:0 20px;border-left:1px solid #ebf1f5;white-space:nowrap">${stat('Assigned','14')}${stat('Required','6')}${stat('Optional','3')}${stat('Situational','2')}${stat('Overrides','4')}</div>
+      <div style="display:flex;align-items:center;gap:8px;padding:0 16px;white-space:nowrap">
+        <button data-act="assignOpen" class="btn-out" style="padding:7px 16px;font-size:14px">Assign to property</button>
+        <span style="display:inline-flex">
+          <button data-act="toast" data-arg="Bulk update fees" class="btn-pri" style="border-radius:4px 0 0 4px;padding:8px 16px;font-size:14px">Bulk update fees</button>
+          <button data-act="toast" data-arg="Bulk actions" class="btn-pri" style="border-left:1px solid rgba(255,255,255,0.35);border-radius:0 4px 4px 0;padding:8px 6px;display:inline-flex;align-items:center"><span class="material-symbols-outlined" style="font-size:18px">arrow_drop_down</span></button>
+        </span>
+      </div>
+    </div></div>`;
+  }
+
+  header(){
+    return `<div style="background:#13314c;display:flex;align-items:center;padding:8px 16px;flex:none">
+      <div style="flex:1 0 0;min-width:1px;display:flex;align-items:center;gap:16px">
+        <img src="assets/logo-rentmanager-white.svg" alt="Rent Manager" style="height:32px;width:175px;object-fit:contain;object-position:left">
+      </div>
+      <div style="flex:1 0 0;min-width:1px;display:flex;align-items:center;justify-content:center;gap:8px">
+        <div style="display:flex;align-items:center;gap:1px">
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:39px;height:32px;background:#425a70;border-radius:4px 0 0 4px"><img src="assets/icon-menu.svg" alt="Menu" style="width:20px;height:20px"></span>
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:45px;height:32px;background:#425a70"><img src="assets/icon-reports.svg" alt="Reports" style="width:20px;height:20px"></span>
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:32px;background:#425a70;border-radius:0 4px 4px 0"><img src="assets/icon-grade.svg" alt="Favorites" style="width:20px;height:20px"></span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;width:454px;max-width:38vw;height:32px;background:#425a70;border-radius:4px;padding:0 8px;overflow:hidden">
+          <img src="assets/icon-search.svg" alt="" style="width:24px;height:24px">
+          <span style="font-style:italic;color:#fff;font-size:12px;white-space:nowrap">Command Launch</span>
+        </div>
+      </div>
+      <div style="flex:1 0 0;min-width:1px;display:flex;align-items:center;justify-content:flex-end;gap:32px">
+        <div style="line-height:normal;color:#fff"><div style="font-size:12px">Company Code</div><div style="font-size:14px">lcs-rmexpress</div></div>
+        <div style="display:flex;align-items:center;gap:20px">
+          <img src="assets/icon-notifications.svg" alt="Notifications" style="width:20px;height:20px">
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:200px;background:#008dd5;color:#fff;font-size:14px">DS</span>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  ctx(entity, crumbs, nav){
+    const trail = crumbs.map((c, i) => {
+      const sep = i > 0 ? '<span style="opacity:0.5">›</span>' : '';
+      if (c.act) return `${sep}<a data-act="${c.act}"${c.arg?` data-arg="${c.arg}"`:''} class="crumb" style="color:#fff;opacity:0.9">${c.label}</a>`;
+      return `${sep}<span style="color:#fff${i===crumbs.length-1?';font-weight:500':';opacity:0.9'}">${c.label}</span>`;
+    }).join('<span style="width:2px"></span>');
+    return `<div style="height:40px;background:var(--ac,#008dd5);display:flex;align-items:center;padding:0 16px;gap:10px;color:#fff;font-size:14px;flex:none">
+      <span style="font-weight:500">${entity}</span><span style="opacity:0.5">·</span>
+      <span style="display:flex;align-items:center;gap:8px">${trail}</span>
+      <span style="display:flex;align-items:center;gap:6px;margin-left:8px;font-size:13px;opacity:0.9"><span class="material-symbols-outlined" style="font-size:16px;cursor:pointer">chevron_left</span><span>${nav}</span><span class="material-symbols-outlined" style="font-size:16px;cursor:pointer">chevron_right</span></span>
+      <div style="flex:1"></div>
+      <span class="material-symbols-outlined" style="font-size:18px;opacity:0.85">sync</span>
+      <span class="material-symbols-outlined" style="font-size:18px;opacity:0.85">help</span>
+    </div>`;
+  }
+
+  tabRow(tabs, active, act){
+    return `<div style="display:flex;background:#fff;border-bottom:1px solid #cedbe7;padding:0 16px;flex:none;overflow-x:auto">${tabs.map(t => {
+      const on = t === active;
+      return `<span data-act="${act}" data-arg="${t}" style="padding:12px 18px;font-size:14px;white-space:nowrap;cursor:pointer;${on?'color:#13314c;font-weight:500;box-shadow:inset 0 -3px 0 #f58220':'color:#666'}">${t}</span>`;
+    }).join('')}</div>`;
+  }
+
+  rail(){
+    const ic = ['keyboard_double_arrow_left','search','bookmark','note_add','content_copy','mail','settings'];
+    return `<div style="width:44px;flex:none;background:#fff;border-left:1px solid #cedbe7;display:flex;flex-direction:column;align-items:center;gap:18px;padding:16px 0;color:var(--ac,#008dd5)">${ic.map(i=>`<span class="material-symbols-outlined railico">${i}</span>`).join('')}</div>`;
+  }
+
+  footer(label){
+    return `<div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;background:#fff;border-top:1px solid #cedbe7;flex:none;position:sticky;bottom:0;z-index:5">
+      <button class="btn-out" style="padding:8px 20px;font-size:14px">Discard</button>
+      <button data-act="toast" data-arg="Changes saved" class="btn-pri" style="padding:8px 20px;font-size:14px">${label}</button>
+    </div>`;
+  }
+
+  banner(text, link, act, arg){
+    return `<div style="display:flex;align-items:center;gap:10px;background:#f0f6fb;border:1px solid #cedbe7;border-radius:4px;padding:10px 16px">
+      <span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5)">info</span>
+      <span style="font-size:13px;color:#424e5b">${text}</span><div style="flex:1"></div>${link?`<a data-act="${act||'toast'}"${arg?` data-arg="${arg}"`:' data-arg="Opens contextual help"'} style="font-size:13px">${link}</a>`:''}</div>`;
+  }
+
+  // ================= PROPERTY — FEES (editable) =================
+  feeTable(groupKey, title, loz, lozClass){
+    const s = this.state;
+    const ov = s.ov;
+    const rows = s.propFees.filter(f => f.group === groupKey);
+    const cols = '150px minmax(110px,1fr) 95px 105px 120px 100px 95px 78px 180px';
+    const head = `<div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">
+      ${['Charge type','Description','Amount','Source','Level','Origin','Overrides','ILS','Actions'].map((h,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${h}</span>`).join('')}</div>`;
+    const body = rows.map(f => {
+      const n = f.overrides.length;
+      const rowBg = f.expanded ? '#f0f6fb' : '#fff';
+      const ovCell = n > 0
+        ? `<span data-act="feeexp" data-arg="${f.id}" style="background:#e5f3fb;color:#0071aa;border-radius:999px;font-size:12px;font-weight:500;padding:2px 10px;cursor:pointer;white-space:nowrap">${n} override${n>1?'s':''}</span>`
+        : `<span style="color:#b3b3b3">—</span>`;
+      let sub = '';
+      if (f.expanded) {
+        let inner = '';
+        if (n > 0) {
+          inner += `<div class="tile" style="max-width:720px"><div style="display:grid;grid-template-columns:200px 160px 1fr;background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Scope','Override','Actions'].map(h=>`<span style="padding:6px 12px;font-size:11px;font-weight:500;color:#8a9aa8;text-transform:uppercase;letter-spacing:0.04em">${h}</span>`).join('')}</div>${f.overrides.map(o=>`<div style="display:grid;grid-template-columns:200px 160px 1fr;align-items:center;border-bottom:1px solid #ebf1f5"><span style="padding:8px 12px;font-size:13px;color:#13314c;font-weight:500">${o.scope}</span><span style="padding:8px 12px">${o.excluded?`<span class="loz" style="background:#fdeedd;color:#b35a00">Excluded</span>`:`<span style="font-size:13px;color:#0071aa;font-weight:500">${o.amount}</span>`}</span><span style="padding:8px 12px"><a data-act="ovremove" data-arg="${f.id}:${o.id}" style="color:#eb343c;font-size:12px">Remove</a></span></div>`).join('')}</div>`;
+        }
+        const editing = ov && ov.feeId === f.id;
+        if (editing) {
+          inner += `<div class="tile" style="border-color:var(--ac,#008dd5);padding:16px;max-width:720px;display:flex;flex-direction:column;gap:14px">
+            <div style="font-size:14px;font-weight:500;color:#13314c">Add override — ${f.name}</div>
+            <div style="display:flex;align-items:center;gap:20px;font-size:13px;color:#424e5b;flex-wrap:wrap"><span style="font-weight:500;color:#13314c">Applies to:</span>
+              ${[['all','All units'],['type','Unit type'],['unit','Specific unit']].map(([v,l])=>`<label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" ${ov.scope===v?'checked':''} data-act="ovscope" data-arg="${v}" style="accent-color:var(--ac,#008dd5)">${l}</label>`).join('')}</div>
+            ${ov.scope==='type'?`<select id="ov-type" class="fld" style="max-width:220px">${['Studio','1BR/1BA','2BR/2BA','3BR/2BA','4BR/2BA'].map(t=>`<option${t==='2BR/2BA'?' selected':''}>${t}</option>`).join('')}</select>`:''}
+            ${ov.scope==='unit'?`<select id="ov-unit" class="fld" style="max-width:220px">${this.units().map(u=>`<option>${u.u}</option>`).join('')}</select>`:''}
+            <div style="display:flex;align-items:center;gap:20px;font-size:13px;color:#424e5b;flex-wrap:wrap"><span style="font-weight:500;color:#13314c">Override:</span>
+              <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" ${ov.mode==='amount'?'checked':''} data-act="ovmode" data-arg="amount" style="accent-color:var(--ac,#008dd5)">Amount</label>
+              ${ov.mode==='amount'?`<input id="ov-amount" class="fld" style="width:120px;border-color:var(--ac,#008dd5);background:#f0f6fb;color:#0071aa;font-weight:500" value="$0.00">`:''}
+              <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" ${ov.mode==='exclude'?'checked':''} data-act="ovmode" data-arg="exclude" style="accent-color:var(--ac,#008dd5)">Exclude fee</label></div>
+            <div style="display:flex;justify-content:flex-end;gap:8px"><button data-act="ovcancel" class="btn-out">Cancel</button><button data-act="ovsave" class="btn-pri">Save override</button></div></div>`;
+        } else {
+          inner += `<div><a data-act="ovopen" data-arg="${f.id}" style="font-size:13px">+ Add override</a></div>`;
+        }
+        sub = `<div style="padding:4px 16px 16px 48px;background:#f0f6fb;display:flex;flex-direction:column;gap:10px">${inner}</div>`;
+      }
+      const strike = f.excluded ? 'text-decoration:line-through;color:#b3b3b3' : '';
+      const ilsCell = this.tog(f.ils,'fee'+f.id+'ils').replace('data-act="tog" data-arg="fee'+f.id+'ils" data-def="'+(f.ils?1:0)+'"','data-act="feeils" data-arg="'+f.id+'"');
+      const chev = `<span data-act="feeexp" data-arg="${f.id}" class="material-symbols-outlined" style="font-size:20px;color:${f.expanded?'var(--ac,#008dd5)':(n>0?'#666':'#b3b3b3')};cursor:pointer">${f.expanded?'expand_less':'expand_more'}</span>`;
+      let actionsCell;
+      if (f.excluded) actionsCell = `<a data-act="feerestore" data-arg="${f.id}" style="font-size:13px">Restore</a>${chev}`;
+      else if (f.origin==='profile') actionsCell = `<a data-act="ovopen" data-arg="${f.id}" style="font-size:13px">+ Add override</a><span data-act="feeexclude" data-arg="${f.id}" class="material-symbols-outlined" title="Exclude at this property" style="font-size:18px;color:#b35a00;cursor:pointer">block</span>${chev}`;
+      else actionsCell = `<a data-act="ovopen" data-arg="${f.id}" style="font-size:13px">+ Add override</a><span data-act="feedel" data-arg="${f.id}" class="material-symbols-outlined icon-del">delete</span>${chev}`;
+      return `<div style="border-bottom:1px solid #ebf1f5">
+        <div style="display:grid;grid-template-columns:${cols};align-items:center;background:${rowBg}">
+          <span class="td name" style="border:none;padding-left:16px;${strike}">${f.name}${f.excluded?' <span style="font-size:11px;color:#b35a00;font-weight:400">· excluded here</span>':''}</span>
+          <span class="td" style="border:none;${strike}">${f.desc}</span>
+          <span class="td num" style="border:none;${strike}">${f.amount}</span>
+          <span class="td" style="border:none;white-space:nowrap">${f.source}</span>
+          <span class="td" style="border:none">${this.levelPill(f.level||'Property')}</span>
+          <span class="td" style="border:none">${this.originChip(f.origin)}</span>
+          <span class="td" style="border:none">${ovCell}</span>
+          <span class="td" style="border:none">${ilsCell}</span>
+          <span class="td" style="border:none;display:flex;align-items:center;gap:10px;white-space:nowrap">${actionsCell}</span>
+        </div>${sub}</div>`;
+    }).join('');
+    return `<div class="tile"><div class="thead2"><span class="ttl">${title}</span><span class="loz ${lozClass}">${loz}</span><div style="flex:1"></div><button data-act="addopen" data-arg="${groupKey}" class="btn-out">Add fee</button></div><div style="overflow-x:auto"><div style="min-width:1120px">${head}${body}</div></div></div>`;
+  }
+
+  propFeesBody(){
+    let h = '';
+    h += `<div class="tile"><div style="padding:14px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <span style="font-size:15px;font-weight:500;color:#13314c">Fee Setup Template</span>
+      <span style="display:inline-flex;align-items:center;gap:6px;background:#e5f3fb;color:#0071aa;border-radius:4px;padding:5px 12px;font-size:13px;font-weight:500"><span class="material-symbols-outlined" style="font-size:16px">verified</span>Standard Conventional</span>
+      ${this.transparencyBadge()}
+      <a data-act="toast" data-arg="Would open the template picker" style="font-size:13px">Change template</a>
+      <a data-act="navProfile" style="font-size:13px">Open fee setup →</a>
+      <div style="flex:1"></div>
+      <span style="font-size:13px;color:#8a9aa8">Fees below are additive on top of this template for all units at this property.</span></div></div>`;
+    h += `<div class="eyebrow">Required fees</div>`;
+    h += this.feeTable('req-rec','Recurring','Mandatory','loz-mand');
+    h += this.feeTable('req-one','One-time & move-in','Mandatory','loz-mand');
+    h += `<div class="eyebrow" style="margin-top:8px">Optional fees</div>`;
+    h += this.feeTable('opt-rec','Recurring','Tenant selects','loz-opt');
+    h += this.feeTable('opt-one','One-time & move-in','Tenant selects','loz-opt');
+    h += `<div class="eyebrow" style="margin-top:8px">Situational fees</div>`;
+    h += this.feeTable('sit-rec','Applies only when a condition exists','Situational','loz-sit');
+    h += this.listingPreview();
+    h += this.legacyTiles();
+    return h;
+  }
+
+  propUnitsBody(){
+    const cols = '90px 130px 90px 110px minmax(140px,1fr) 120px 90px';
+    const head = `<div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Unit','Unit type','Sq ft','Market rent','Tenant','Status',''].map((h,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${h}</span>`).join('')}</div>`;
+    const body = this.units().map(u => `<div data-act="navUnit" data-arg="${u.u}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5;cursor:pointer" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''">
+      <span class="td name" style="border:none;padding-left:16px;color:var(--ac,#008dd5)">${u.u}</span>
+      <span class="td" style="border:none">${u.type}</span>
+      <span class="td num" style="border:none">${u.sqft}</span>
+      <span class="td num" style="border:none">${u.rent}</span>
+      <span class="td" style="border:none">${u.tenant}</span>
+      <span class="td" style="border:none">${this.statusLoz(u.tenant==='Vacant'?'Vacant':(u.st==='amber'?'On notice':'Occupied'), u.st)}</span>
+      <span class="td" style="border:none;text-align:right;padding-right:16px"><span class="material-symbols-outlined" style="font-size:18px;color:#b3b3b3">chevron_right</span></span></div>`).join('');
+    return `<div class="tile"><div class="thead2"><span class="ttl">Units · ${this.units().length} of 49</span><div style="flex:1"></div><button class="btn-out">Add unit</button></div><div style="overflow-x:auto"><div style="min-width:820px">${head}${body}</div></div><div style="padding:12px 16px;font-size:13px;color:#8a9aa8">Click a unit to open its detail page and unit-level fees.</div></div>`;
+  }
+
+  // ================= PROFILE TABS =================
+  ovTableRows(rows, mode){
+    const cols='150px minmax(120px,1fr) 100px 110px 95px 150px 70px 90px';
+    const c5 = mode==='cond' ? 'Condition' : 'Applies at';
+    const head=`<div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Charge type','Description','Amount','Source','MITS code',c5,'ILS','Actions'].map((h,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${h}</span>`).join('')}</div>`;
+    const body=rows.map(r=>{
+      const c5v = mode==='cond'
+        ? `<span class="loz" style="background:#fdeedd;color:#b35a00;text-transform:none;letter-spacing:0"><span class="material-symbols-outlined" style="font-size:12px;vertical-align:-2px;margin-right:2px">bolt</span>${r[5]}</span>`
+        : this.levelChip(r[5]||'Property');
+      return `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5">
+      <span class="td name" style="border:none;padding-left:16px">${r[0]}</span><span class="td" style="border:none">${r[1]}</span><span class="td num" style="border:none">${r[2]}</span><span class="td" style="border:none">${r[3]}</span><span class="td mono" style="border:none;font-size:12px">${r[6]||''}</span><span class="td" style="border:none">${c5v}</span><span class="td" style="border:none">${this.tog(r[4])}</span><span class="td" style="border:none"><span class="act"><span class="material-symbols-outlined icon-edit">edit</span><span class="material-symbols-outlined icon-del">delete</span></span></span></div>`;
+    }).join('');
+    return `<div style="overflow-x:auto"><div style="min-width:965px">${head}${body}</div></div>`;
+  }
+  profTile(title,loz,lozClass,rows,group,mode){
+    return `<div class="tile"><div class="thead2"><span class="ttl">${title}</span><span class="loz ${lozClass}">${loz}</span><div style="flex:1"></div><button data-act="addopen" data-arg="${group}" class="btn-out">Add fee</button></div>${this.ovTableRows(rows, mode)}</div>`;
+  }
+
+  overviewBody(){
+    let h='';
+    h+=this.banner('Property-level fees apply to all units at assigned properties. Unit type and unit fees are additive — they stack on top of these at quote time.','Learn more →');
+    h+=`<div class="tile"><div class="thead2"><span class="ttl">Template settings</span><div style="flex:1"></div>${this.transparencyBadge()}</div><div style="display:flex;align-items:stretch;flex-wrap:wrap">
+      <div style="flex:1;min-width:280px;padding:16px;display:flex;flex-direction:column;gap:14px">
+        <div class="eyebrow">General</div>
+        <div style="display:flex;flex-direction:column;gap:4px"><span class="flabel">Template name</span><input class="fld" value="Standard Conventional"></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><span class="flabel">Property type</span><div class="fld" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">Conventional<span class="material-symbols-outlined" style="font-size:20px;color:#666">arrow_drop_down</span></div></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><span class="flabel">Description</span><input class="fld" value="Standard fee set for conventional multifamily"></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><span class="flabel">Fee Transparency opt-in</span><div style="display:flex;align-items:center;gap:10px">${this.tog(true)}<span style="font-size:13px;color:#8a9aa8">Unlocks this template &amp; shows fees on ILS + resident portal</span></div><div style="font-size:11px;color:#b35a00;background:#fdf3e6;border-radius:4px;padding:6px 10px;line-height:1.4"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:-2px">bolt</span> Assigning this template to a property auto-opts that property in.</div></div>
+      </div>
+      <div style="width:1px;background:#cedbe7"></div>
+      <div style="flex:1;min-width:280px;padding:16px;display:flex;flex-direction:column;gap:12px">
+        <div class="eyebrow">Move-in behavior</div>
+        <div style="display:flex;align-items:flex-start;gap:10px"><span style="width:16px;height:16px;border-radius:3px;background:var(--ac,#008dd5);display:inline-flex;align-items:center;justify-content:center;flex:none"><span class="material-symbols-outlined" style="font-size:13px;color:#fff">check</span></span><span style="font-size:13px;color:#424e5b;line-height:1.45">If next month's recurring charges have already been posted, automatically create one-time charges for the current month</span></div>
+        <div style="font-size:12px;color:#8a9aa8;line-height:1.45;border-top:1px solid #ebf1f5;padding-top:10px">Whether a zero-dollar charge still posts is set per fee — see the fee tables below.</div>
+      </div></div></div>`;
+    h+=`<div class="eyebrow">Required fees</div>`;
+    h+=this.profTile('Recurring','Mandatory','loz-mand',[['Rent','Base rent','Market rent','Unit market rent',true,'Property','RENT'],['Trash','Trash collection','$28.00','Flat',true,'Property','UTILITY'],['Water','Water service','$38.00','Flat',true,'Property','UTILITY'],['Trash surcharge','Additional valet trash','$4.00','Flat',true,'Unit type · 2BR/2BA','UTILITY']],'req-rec');
+    h+=this.profTile('One-time & move-in','Mandatory','loz-mand',[['Admin','Administrative fee','$150.00','Flat',true,'Property','ADMIN'],['Application','Application fee','$50.00','Flat',true,'Property','APPLICATION']],'req-one');
+    h+=this.depositsTile();
+    h+=`<div class="eyebrow" style="margin-top:8px">Optional fees</div>`;
+    h+=this.profTile('Recurring','Tenant selects','loz-opt',[['Storage','Storage unit','$40.00','Flat',false,'Property','STORAGE'],['Amenity fee','Pool & fitness access','$45.00','Flat',true,'Unit type · 2BR/2BA','AMENITY']],'opt-rec');
+    h+=this.profTile('One-time & move-in','Tenant selects','loz-opt',[['Hold fee','Unit reservation fee','$200.00','Flat',true,'Property','HOLD']],'opt-one');
+    h+=`<div style="display:flex;align-items:center;gap:12px;margin-top:8px"><span class="eyebrow">Situational fees</span><div style="flex:1"></div><a data-act="petImportOpen" style="font-size:13px;display:inline-flex;align-items:center;gap:4px"><span class="material-symbols-outlined" style="font-size:16px">pets</span>Pull from existing pet fee setup</a></div>`;
+    h+=this.profTile('Applies only when a condition exists','Situational','loz-sit',[['Pet fee','Pet rent, per pet','$45.00','Pet type',true,'If pet','PET'],['Covered parking','Reserved covered space','$75–$125','ORI range',true,'If parking rented','PARKING']],'opt-rec','cond');
+    h+=this.oriTile();
+    h+=this.listingPreview();
+    h+=`<div class="eyebrow" style="margin-top:8px">Concessions & promotions</div>`;
+    h+=`<div class="tile"><div class="thead2"><span class="ttl">Concessions</span><span class="loz loz-sub">Subtractive</span><div style="flex:1"></div><button data-act="toast" data-arg="Add concession" class="btn-out">Add concession</button></div><div style="display:grid;grid-template-columns:220px 1fr 1fr 1fr 1fr 100px;background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Name','Value','Type','Applies to','Expires','Actions'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div><div style="display:grid;grid-template-columns:220px 1fr 1fr 1fr 1fr 100px;align-items:center"><span class="td name" style="border:none;padding-left:16px">Move-in special</span><span class="td num" style="border:none">1 month free</span><span class="td" style="border:none">Rent waiver</span><span class="td" style="border:none">All units</span><span class="td" style="border:none">Dec 31, 2025</span><span class="td" style="border:none"><span class="act"><span class="material-symbols-outlined icon-edit">edit</span><span class="material-symbols-outlined icon-del">delete</span></span></span></div></div>`;
+    return h;
+  }
+
+  sidebar(title, search, items){
+    return `<div style="width:220px;flex:none;background:#fff;border-right:1px solid #cedbe7;padding:16px 0;align-self:stretch">
+      <div class="eyebrow" style="padding:0 16px">${title}</div>
+      <div style="padding:8px 12px 4px"><div style="display:flex;align-items:center;gap:6px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;padding:6px 8px"><span class="material-symbols-outlined" style="font-size:15px;color:#b3b3b3">search</span><span style="font-style:italic;color:#b3b3b3;font-size:13px">${search}</span></div></div>
+      <div style="display:flex;flex-direction:column">${items}</div></div>`;
+  }
+  sideItem(name, sub, badge, active){
+    const bg=active?'background:#f0f6fb;border-left:3px solid var(--ac,#008dd5);':'border-left:3px solid transparent;';
+    const dot=active?'<span style="width:6px;height:6px;border-radius:50%;background:var(--ac,#008dd5);flex:none"></span>':'';
+    let b='';
+    if(badge==='has') b=`<span style="background:#e5f3fb;color:#0071aa;border-radius:999px;font-size:11px;padding:1px 8px;font-weight:500;white-space:nowrap">2 fees</span>`;
+    else if(badge==='none') b=`<span style="background:#f2f2f2;color:#8a9aa8;border-radius:999px;font-size:11px;padding:1px 8px;white-space:nowrap">No fees</span>`;
+    return `<div style="padding:9px 12px;${bg}cursor:pointer;display:flex;flex-direction:column;gap:3px"><div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:${active?500:400};color:${active?'var(--ac,#008dd5)':'#13314c'}">${dot}<span>${name}</span></div><div style="display:flex;align-items:center;gap:8px;padding-left:${active?'14px':'0'}"><span style="font-size:12px;color:#8a9aa8">${sub}</span>${b}</div></div>`;
+  }
+  emptyFees(text, group){ return `<div style="padding:20px 16px;display:flex;flex-direction:column;gap:12px;align-items:flex-start"><span style="font-style:italic;color:#b3b3b3;font-size:14px">${text}</span><a data-act="addopen" data-arg="${group}" style="display:inline-block;border:1px dashed #cedbe7;border-radius:4px;padding:8px 16px;font-size:13px">+ Add fee</a></div>`; }
+
+  utBody(){
+    const sb=this.sidebar('Unit types','Search unit types...',[this.sideItem('All unit types','55 units total','',false),this.sideItem('Studio','8 units','none',false),this.sideItem('1BR/1BA','12 units','none',false),this.sideItem('2BR/2BA','18 units','has',true),this.sideItem('3BR/2BA','11 units','none',false),this.sideItem('4BR/2BA','6 units','none',false)].join(''));
+    let m='';
+    m+=this.banner('Unit type fees are additive — they stack on top of property-level fees for all units of this type. A 2BR/2BA unit receives both property fees and 2BR/2BA fees on their quote.','');
+    m+=`<div class="eyebrow">Required fees</div>`;
+    m+=this.profTile('Recurring','Mandatory','loz-mand',[['Trash surcharge','Additional valet trash for 2BR/2BA','$4.00','Flat',true,'Unit type · 2BR/2BA','UTILITY']],'req-rec');
+    m+=`<div class="tile"><div class="thead2"><span class="ttl">One-time & move-in</span><span class="loz loz-mand">Mandatory</span><div style="flex:1"></div><button data-act="addopen" data-arg="req-one" class="btn-out">Add fee</button></div>${this.emptyFees('No fees defined for 2BR/2BA · fees added here apply to all 2BR/2BA units','req-one')}</div>`;
+    m+=`<div class="eyebrow" style="margin-top:8px">Optional fees</div>`;
+    m+=this.profTile('Recurring','Tenant selects','loz-opt',[['Amenity fee','Pool & fitness access','$45.00','Flat',true,'Unit type · 2BR/2BA','AMENITY']],'opt-rec');
+    return `<div style="display:flex;align-items:stretch"><div>${sb}</div><div style="flex:1;min-width:0;padding:16px;display:flex;flex-direction:column;gap:16px">${m}</div></div>`;
+  }
+
+  ufItem(name, custom, active){
+    const bg=active?'background:#f0f6fb;border-left:3px solid var(--ac,#008dd5);':'border-left:3px solid transparent;';
+    const dot=active?'<span style="width:6px;height:6px;border-radius:50%;background:var(--ac,#008dd5);flex:none"></span>':'';
+    const b=custom?`<span style="background:#e5f3fb;color:#0071aa;border-radius:999px;font-size:11px;padding:1px 8px;font-weight:500;white-space:nowrap">Custom</span>`:`<span style="font-size:12px;color:#b3b3b3">Inherited</span>`;
+    return `<div data-act="navUnit" data-arg="${name}" style="padding:8px 12px;${bg}cursor:pointer;display:flex;align-items:center;gap:8px;justify-content:space-between"><span style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:${active?500:400};color:${active?'var(--ac,#008dd5)':'#13314c'}">${dot}Unit ${name}</span>${b}</div>`;
+  }
+  ufBody(){
+    const sb=this.sidebar('Units','Search units...',[this.ufItem('1A',false,false),this.ufItem('1B',false,false),this.ufItem('2A',false,false),this.ufItem('4C',true,true),this.ufItem('4D',false,false),this.ufItem('5A',false,false)].join(''));
+    let m='';
+    m+=this.banner('Unit fees stack on top of property fees and unit type fees for this specific unit. Open a unit to see its full detail page.','');
+    m+=`<div class="eyebrow">Optional fees — Unit 4C</div>`;
+    m+=this.profTile('Recurring','Tenant selects','loz-opt',[['Storage','Corner storage unit — unique to 4C','$40.00','Flat',false,'Unit · 4C','STORAGE']],'opt-rec');
+    const qp=[['Rent','Market rent','Property','gray'],['Trash','$28.00','Property','gray'],['Water','$38.00','Property','gray'],['Admin fee','$150.00','Property','gray'],['Amenity fee','$45.00','Unit type · 3BR/2BA','blue'],['Storage','$40.00','Unit · 4C','amber']];
+    const srcChip=(t,c)=>{const map={gray:'background:#f2f2f2;color:#666',blue:'background:#e5f3fb;color:#0071aa',amber:'background:#fdeedd;color:#b35a00'};return `<span class="loz" style="${map[c]};text-transform:none;letter-spacing:0">${t}</span>`;};
+    m+=`<div class="tile"><div class="thead2"><span class="ttl">Stacked fee preview — Unit 4C</span><div style="flex:1"></div><a data-act="navUnit" data-arg="4C" style="font-size:13px">Open unit →</a></div><div style="display:grid;grid-template-columns:minmax(140px,1fr) 160px 240px;background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Charge type','Amount','Source'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>${qp.map(r=>`<div style="display:grid;grid-template-columns:minmax(140px,1fr) 160px 240px;align-items:center;border-bottom:1px solid #ebf1f5"><span class="td name" style="border:none;padding-left:16px">${r[0]}</span><span class="td num" style="border:none">${r[1]}</span><span class="td" style="border:none">${srcChip(r[2],r[3])}</span></div>`).join('')}<div style="padding:10px 16px;font-size:13px;color:#8a9aa8">This is the complete fee set that populates on a rent quote for Unit 4C.</div></div>`;
+    m+=this.priceSummary(this.parseAmt('$2,050'));
+    return `<div style="display:flex;align-items:stretch"><div>${sb}</div><div style="flex:1;min-width:0;padding:16px;display:flex;flex-direction:column;gap:16px">${m}</div></div>`;
+  }
+
+  apBody(){
+    const cols='220px 1fr 90px 100px 140px 130px 150px 150px';
+    const head=`<div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Property','Location','Units','Occupancy','Assigned','Overrides','Fee status','Actions'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>`;
+    const body=this.properties().map(r=>{
+      const ovc = r[6]==='0'?`<span style="color:#b3b3b3">0 overrides</span>`:(r[6]==='—'?`<span style="color:#b3b3b3">—</span>`:`<span style="color:#b35a00">${r[6]}</span>`);
+      const action = r[8]==='green'?'View fees →':(r[8]==='amber'?'Continue setup →':'Start setup →');
+      return `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5">
+        <span class="td name" style="border:none;padding-left:16px"><a data-act="navProperty" data-arg="${r[0]}" style="font-weight:500">${r[0]}</a></span>
+        <span class="td" style="border:none">${r[1]}</span><span class="td num" style="border:none">${r[3]}</span><span class="td num" style="border:none">${r[4]}</span><span class="td" style="border:none">${r[5]}</span><span class="td" style="border:none">${ovc}</span><span class="td" style="border:none">${this.statusLoz(r[7],r[8])}</span>
+        <span class="td" style="border:none"><a data-act="navProperty" data-arg="${r[0]}" style="font-size:13px">${action}</a></span></div>`;
+    }).join('');
+    return `<div class="tile"><div class="thead2"><span class="ttl">Assigned properties · 14</span><span class="loz" style="background:#e2f1da;color:#3a7d2c">All opted in</span><div style="flex:1"></div><button data-act="assignOpen" class="btn-pri"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px;margin-right:2px">add</span>Assign property</button></div><div style="overflow-x:auto"><div style="min-width:1040px">${head}${body}</div></div><div style="padding:12px 16px;border-top:1px solid #ebf1f5;font-size:13px;color:#8a9aa8">5 of 14 properties shown · assigning this template auto-opts a property into Fee Transparency.</div></div>`;
+  }
+
+  chBody(){
+    const rows=[['Jul 10, 2025','Ali Ferryman','Trash · Recurring','$28 → $32','2BR/2BA unit type','BU-2025-041'],['Jul 10, 2025','Ali Ferryman','Water · Recurring','$38 → $45','2BR/2BA unit type','BU-2025-041'],['Jul 8, 2025','Rachel H.','Application fee','$50 → $0 waived','2BR/2BA unit type','—'],['Jul 5, 2025','Admin','Move-in special','Added · 1 month free','All units','—'],['Jun 28, 2025','Ali Ferryman','Trash · Recurring','$25 → $28','All units','BU-2025-039'],['Jun 15, 2025','Admin','Standard Conventional','Profile created','—','—']];
+    const cols='120px 130px 1fr 160px 150px 130px 110px';
+    const head=`<div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Date','Changed by','Fee','Change','Scope','Bulk ref','Actions'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>`;
+    const body=rows.map(r=>`<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5"><span class="td" style="border:none;padding-left:16px;white-space:nowrap">${r[0]}</span><span class="td name" style="border:none">${r[1]}</span><span class="td" style="border:none">${r[2]}</span><span class="td num" style="border:none">${r[3]}</span><span class="td" style="border:none">${r[4]}</span><span class="td mono" style="border:none;font-size:12px">${r[5]}</span><span class="td" style="border:none"><a data-act="toast" data-arg="View diff" style="font-size:13px">View diff →</a></span></div>`).join('');
+    const log=`<div class="tile"><div class="thead2"><span class="ttl">Change log</span><span style="font-size:12px;color:#8a9aa8;margin-left:4px">Chronological</span></div><div style="overflow-x:auto"><div style="min-width:940px">${head}${body}</div></div></div>`;
+
+    // amount history by fee
+    const fcols='170px 110px 90px 120px 150px 130px 70px';
+    const fhead=`<div style="display:grid;grid-template-columns:${fcols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Fee','Level','Current','Trend','Change over time','Last changed by',''].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>`;
+    const fbody=this.feeAmountHistory().map((f,idx)=>{
+      const cur=f.hist[f.hist.length-1][1];
+      const open=!!this.state.histExp[idx];
+      let sub='';
+      if(open){
+        sub=`<div style="background:#f0f6fb;padding:8px 16px 14px 40px;border-bottom:1px solid #ebf1f5"><div style="display:flex;flex-direction:column">${f.hist.map((h,i)=>{
+          const prev=i>0?this.parseAmt(f.hist[i-1][1]):null, cv=this.parseAmt(h[1]);
+          const dir=prev===null?'':(cv>prev?'<span style="color:#d02830;font-weight:600">▲</span>':(cv<prev?'<span style="color:#3a7d2c;font-weight:600">▼</span>':'<span style="color:#8a9aa8">—</span>'));
+          return `<div style="display:flex;align-items:center;gap:12px;padding:6px 0;border-bottom:1px dashed #dce6ee"><span style="width:70px;font-size:12px;color:#8a9aa8">${h[0]}</span><span style="width:60px;font-size:13px;color:#13314c;font-weight:500">${h[1]}</span><span style="width:20px;text-align:center">${dir}</span><span style="font-size:12px;color:#8a9aa8">${i===0?'Initial value':(this.parseAmt(f.hist[i-1][1])!==cv?('from '+f.hist[i-1][1]):'no change')}</span></div>`;
+        }).join('')}</div></div>`;
+      }
+      return `<div style="border-bottom:1px solid #ebf1f5"><div style="display:grid;grid-template-columns:${fcols};align-items:center">
+        <span class="td name" style="border:none;padding-left:16px">${f.name}<div style="font-size:11px;color:#8a9aa8;font-family:'Roboto Mono',monospace">${f.mits}</div></span>
+        <span class="td" style="border:none">${this.levelPill(f.level)}</span>
+        <span class="td num" style="border:none">${cur}</span>
+        <span class="td" style="border:none">${this.sparkline(f.hist)}</span>
+        <span class="td" style="border:none">${this.deltaLabel(f.hist)}</span>
+        <span class="td" style="border:none;white-space:nowrap">${f.by}</span>
+        <span class="td" style="border:none"><span data-act="histexp" data-arg="${idx}" class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5);cursor:pointer">${open?'expand_less':'expand_more'}</span></span>
+      </div>${sub}</div>`;
+    }).join('');
+    const amtHist=`<div class="tile"><div class="thead2"><span class="ttl">Amount history by fee</span><span style="font-size:12px;color:#8a9aa8;margin-left:4px">Trend per charge</span><div style="flex:1"></div><a data-act="toast" data-arg="Export history" style="font-size:13px">Export</a></div><div style="overflow-x:auto"><div style="min-width:840px">${fhead}${fbody}</div></div><div style="padding:10px 16px;font-size:12px;color:#8a9aa8">Click a fee to expand its full amount timeline. <span style="color:#d02830;font-weight:600">▲</span> increase · <span style="color:#3a7d2c;font-weight:600">▼</span> decrease.</div></div>`;
+
+    return `<div style="display:flex;flex-direction:column;gap:16px">${amtHist}${log}</div>`;
+  }
+
+  profileBody(){
+    let inner;
+    const t = this.state.profileTab;
+    if (t === 'Overview') inner = this.overviewBody();
+    else if (t === 'Amenities') return `<div style="flex:1">${this.amenitiesBody()}</div>`;
+    else if (t === 'Unit Type Fees') return `<div style="flex:1">${this.utBody()}</div>`;
+    else if (t === 'Unit Fees') return `<div style="flex:1">${this.ufBody()}</div>`;
+    else if (t === 'Assigned Properties') inner = this.apBody();
+    else inner = this.chBody();
+    return `<div style="flex:1;display:flex;align-items:stretch"><div style="flex:1;min-width:0;padding:16px;display:flex;flex-direction:column;gap:16px;max-width:1500px;width:100%;box-sizing:border-box;margin:0 auto">${inner}</div>${this.rail()}</div>`;
+  }
+
+  // ================= UNIT DETAIL =================
+  unitBody(){
+    const info = this.unitInfo(this.state.unit);
+    const rc = [['Property','CON','Concession','1','01/01/2026','—','100.00','#008dd5'],['Property','ELE','Electric','1','01/01/2026','—','200.00','#008dd5'],['Tenant','RC','Recurring rent','1','01/01/2026','—','1,170.00','#8a9aa8'],['Property','H2O','Water (from profile)','1','01/01/2026','—','40.00','#008dd5']];
+    const imgCats = [['Kitchen',2],['Living Room',2],['Bedroom',2],['Bathroom',2],['Exterior',1]];
+    let imgs = '';
+    imgCats.forEach(([cat,n]) => { for (let i=0;i<n;i++) imgs += `<div style="display:flex;flex-direction:column;gap:6px;flex:none">${i===0?`<span style="font-size:12px;color:#666">${cat}</span>`:'<span style="font-size:12px;color:#666">&nbsp;</span>'}<div class="checker" style="width:150px;height:96px;border:1px solid #cedbe7;border-radius:4px;position:relative"><span style="position:absolute;top:4px;right:4px;width:18px;height:18px;border-radius:50%;background:var(--ac,#008dd5);color:#fff;display:flex;align-items:center;justify-content:center"><span class="material-symbols-outlined" style="font-size:13px">close</span></span></div></div>`; });
+
+    const cardHead = (title, action, link) => `<div class="cardhd"><span class="cardtt">${title}</span>${action?`<a data-act="toast" data-arg="${action}" style="font-size:13px">${action}</a>`:''}${link?`<span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5);cursor:pointer">open_in_new</span>`:''}</div>`;
+    const emptyGrid = (headers) => `<div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px"><div style="display:flex;gap:24px">${headers.map(h=>`<span style="font-size:12px;font-weight:500;color:#8a9aa8;flex:1">${h}</span>`).join('')}</div><div style="display:flex;gap:24px">${headers.map(()=>`<span style="font-size:13px;color:#b3b3b3;flex:1">—</span>`).join('')}</div></div>`;
+
+    let h = '';
+    // scoreboard
+    h += `<div style="padding:16px 16px 0"><div class="tile" style="padding:16px 20px;display:flex;align-items:flex-start;gap:16px">
+      <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:22px;font-weight:700;color:#13314c">${info.u}</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="display:inline-flex;align-items:center;gap:6px;background:#fbe9ef;color:#b5325e;border-radius:4px;padding:4px 10px;font-size:13px"><span class="material-symbols-outlined" style="font-size:15px">home</span>${this.state.property}</span>
+          <span style="display:inline-flex;align-items:center;gap:6px;background:#fbe9ef;color:#b5325e;border-radius:4px;padding:4px 10px;font-size:13px"><span class="material-symbols-outlined" style="font-size:15px">person</span>${info.tenant}</span>
+          <span style="font-size:13px;color:#666">Unit Type: <span style="color:#13314c">${info.type}</span></span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px;align-items:flex-end">
+        <div style="display:flex;align-items:center;gap:12px"><div style="text-align:right;font-size:13px;color:#666;line-height:1.6"><div>Square Footage: <span style="color:#13314c;font-weight:500">${info.sqft}</span></div><div>Market Rent: <span style="color:#13314c;font-weight:500">${info.rent.replace('$','')}.00</span></div></div>
+        <div style="display:flex;flex-direction:column;gap:8px"><button data-act="navQuote" data-arg="${info.u}" class="btn-pri" style="padding:8px 18px;font-size:14px;display:inline-flex;align-items:center;justify-content:center;gap:6px"><span class="material-symbols-outlined" style="font-size:16px">request_quote</span>Create Rent Quote</button><button data-act="navRenewal" data-arg="${info.u}" class="btn-out" style="padding:8px 18px;font-size:14px;display:inline-flex;align-items:center;justify-content:center;gap:6px"><span class="material-symbols-outlined" style="font-size:16px">autorenew</span>Renewal Offer</button></div></div>
+      </div></div></div>`;
+    // images
+    h += `<div style="padding:16px 16px 0">${this.priceSummary(this.parseAmt(info.rent))}</div>`;
+    h += `<div style="padding:16px 16px 0"><div class="tile"><div class="cardhd" style="border-bottom-color:#13314c"><span class="cardtt">Images</span><a data-act="toast" data-arg="Add Image" style="font-size:13px;display:inline-flex;align-items:center;gap:4px"><span class="material-symbols-outlined" style="font-size:16px">add</span>Add Image</a></div><div style="display:flex;align-items:center;gap:12px;padding:14px 16px;overflow-x:auto"><span class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer;flex:none">chevron_left</span>${imgs}<span class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer;flex:none">chevron_right</span></div></div></div>`;
+    // grid
+    const general = `<div class="card">${cardHead('General','Cancel')}<div style="padding:16px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;gap:14px"><div style="flex:1;display:flex;flex-direction:column;gap:4px"><span class="flabel">Name</span><input class="fld" value="${info.u}"></div><div style="flex:1;display:flex;flex-direction:column;gap:4px"><span class="flabel">Unit Type</span><div class="fld" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">${info.type}<span class="material-symbols-outlined" style="font-size:20px;color:#666">arrow_drop_down</span></div></div></div>
+      <div style="display:flex;gap:14px"><div style="flex:1;display:flex;flex-direction:column;gap:4px"><span class="flabel">Floor</span><div class="fld" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;color:#b3b3b3">&lt;Unassigned&gt;<span class="material-symbols-outlined" style="font-size:20px;color:#666">arrow_drop_down</span></div></div><div style="flex:1;display:flex;flex-direction:column;gap:4px"><span class="flabel">Color</span><div class="fld" style="display:flex;align-items:center;gap:8px;cursor:pointer"><span style="width:12px;height:12px;background:#13314c;border-radius:2px"></span>Default<span style="flex:1"></span><span class="material-symbols-outlined" style="font-size:20px;color:#666">arrow_drop_down</span></div></div></div>
+      <div style="display:flex;flex-direction:column;gap:4px"><span class="flabel">Comment</span><textarea class="fld" style="min-height:70px;resize:vertical"></textarea></div></div></div>`;
+    const addresses = `<div class="card">${cardHead('Addresses','',true)}<div style="display:flex;border-bottom:1px solid #cedbe7">${['Primary','Alternate','Forwarding'].map((t,i)=>`<span style="flex:1;text-align:center;padding:12px;font-size:14px;cursor:pointer;${i===0?'color:#13314c;font-weight:500;box-shadow:inset 0 -3px 0 #f58220':'color:#666'}">${t}</span>`).join('')}</div><div style="padding:16px;display:flex;flex-direction:column;gap:12px"><div class="fld" style="min-height:70px;background:#f0f6fb">1492 Loveland-Madeira Road Unit # 02<br>Loveland, OH 45140</div><label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#424e5b"><span style="width:16px;height:16px;border-radius:3px;background:#f58220;display:inline-flex;align-items:center;justify-content:center"><span class="material-symbols-outlined" style="font-size:13px;color:#fff">check</span></span>Default</label></div></div>`;
+    const misc = `<div class="card">${cardHead('Miscellaneous','',true)}<div style="padding:16px;display:flex;flex-direction:column;gap:14px"><div style="display:flex;gap:14px"><div style="flex:1;display:flex;flex-direction:column;gap:4px"><span class="flabel">Bedrooms</span><input class="fld" value="${info.type[0]==='S'?'0':info.type[0]}"></div><div style="flex:1;display:flex;flex-direction:column;gap:4px"><span class="flabel">Bathrooms</span><input class="fld" value="1"></div></div><div style="display:flex;gap:14px"><div style="flex:1;display:flex;flex-direction:column;gap:4px"><span class="flabel">Max Occupancy</span><input class="fld" value="2"></div><div style="flex:1;display:flex;flex-direction:column;gap:4px"><span class="flabel">Square Footage</span><input class="fld" value="${info.sqft}"></div></div><div style="display:flex;flex-direction:column;gap:4px"><span class="flabel">Inspection Template</span><div class="fld" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">&nbsp;<span class="material-symbols-outlined" style="font-size:20px;color:#666">arrow_drop_down</span></div></div></div></div>`;
+    const amenities = `<div class="card">${cardHead('Amenities','',true)}<div style="padding:16px;display:flex;gap:24px;flex-wrap:wrap"><span style="display:inline-flex;align-items:center;gap:8px;font-size:13px;color:#424e5b"><span class="material-symbols-outlined" style="font-size:17px;color:#4d8a2a">check</span>Appliances Included</span><span style="display:inline-flex;align-items:center;gap:8px;font-size:13px;color:#424e5b"><span class="material-symbols-outlined" style="font-size:17px;color:#4d8a2a">check</span>Pets Allowed</span></div></div>`;
+    const recurring = `<div class="card">${cardHead('Recurring Charges','',true)}<div style="display:grid;grid-template-columns:80px 60px 1fr 90px 110px 100px;background:#f5f8fa;border-bottom:1px solid #cedbe7">${['','Charge','','Freq','From','Amount'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>${rc.map(r=>`<div style="display:grid;grid-template-columns:80px 60px 1fr 90px 110px 100px;align-items:center;border-bottom:1px solid #ebf1f5"><span style="display:flex;align-items:center;gap:6px;padding-left:16px;font-size:13px;color:#666"><span style="width:4px;height:24px;background:${r[7]};border-radius:2px"></span>${r[0]}</span><span class="td mono" style="border:none;font-size:12px">${r[1]}</span><span class="td" style="border:none">${r[2]}</span><span class="td num" style="border:none;text-align:center">${r[3]}</span><span class="td" style="border:none">${r[4]}</span><span class="td num" style="border:none;text-align:right;padding-right:16px">${r[6]}</span></div>`).join('')}<div style="padding:12px 16px;display:flex;align-items:center;gap:12px"><a data-act="navProperty" data-arg="${this.state.property}" style="font-size:13px">Manage in fee setup →</a><span style="font-size:13px;color:#8a9aa8">Property charges come from the assigned fee template.</span></div></div>`;
+    const cards = [general, addresses, misc,
+      `<div class="card">${cardHead('Unit Status','',true)}${emptyGrid(['Status','Since','Ready','Notice','Turn','Notes'])}</div>`,
+      `<div class="card">${cardHead('Default Security Deposits','',true)}<div style="display:grid;grid-template-columns:96px 1fr 100px 90px;background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Origin','Deposit','Amount','Refund'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>${[['Security deposit','$500.00','Yes'],['Pet deposit','$300.00','Yes'],['Key & fob','$50.00','No']].map(r=>`<div style="display:grid;grid-template-columns:96px 1fr 100px 90px;align-items:center;border-bottom:1px solid #ebf1f5"><span style="display:flex;align-items:center;gap:6px;padding-left:16px"><span style="width:4px;height:22px;background:var(--ac,#008dd5);border-radius:2px"></span><span class="loz" style="background:#e5f3fb;color:#0071aa;text-transform:none;letter-spacing:0">Profile</span></span><span class="td name" style="border:none">${r[0]}</span><span class="td num" style="border:none">${r[1]}</span><span class="td" style="border:none">${r[2]}</span></div>`).join('')}<div style="padding:10px 16px;font-size:12px;color:#8a9aa8">Defaults inherited from Standard Conventional.</div></div>`,
+      amenities,
+      `<div class="card">${cardHead('Assets','',true)}${emptyGrid(['Asset','Model','Serial','Installed','Warranty'])}</div>`,
+      `<div class="card">${cardHead('Current Market Rent','',true)}<div style="padding:16px;display:flex;align-items:baseline;gap:10px"><span style="font-size:28px;font-weight:700;color:#13314c">${info.rent}</span><span style="font-size:13px;color:#8a9aa8">effective Jan 1, 2026</span></div></div>`,
+      `<div class="card">${cardHead('History / Notes','Add Note',true)}${emptyGrid(['Date','User','Type','Note','Ref'])}</div>`,
+      recurring,
+      `<div class="card">${cardHead('User Defined Fields','',true)}<div style="display:grid;grid-template-columns:1fr 1fr;background:#f5f8fa;border-bottom:1px solid #cedbe7"><span style="padding:8px 16px;font-size:12px;font-weight:500;color:#666">Name</span><span style="padding:8px 16px;font-size:12px;font-weight:500;color:#666">Value</span></div><div style="display:grid;grid-template-columns:1fr 1fr"><span class="td" style="border:none;padding-left:16px">Vendor Confirmation</span><span class="td" style="border:none">Yes</span></div></div>`,
+      `<div class="card">${cardHead('Occupancy','',true)}${emptyGrid(['Resident','Move-in','Lease end','Status','Balance','Contact'])}</div>`
+    ];
+    h += `<div style="padding:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:start">${cards.join('')}</div>`;
+    return `<div style="flex:1;display:flex;align-items:stretch"><div style="flex:1;min-width:0;display:flex;flex-direction:column">${h}</div>${this.rail()}</div>`;
+  }
+
+  // ================= MODAL / TOAST =================
+  modalHTML(){
+    const m = this.state.modal; if (!m) return '';
+    const label = { 'req-rec':'Required · Recurring', 'req-one':'Required · One-time', 'opt-rec':'Optional · Recurring', 'opt-one':'Optional · One-time', 'sit-rec':'Situational', 'deposit':'Deposit', 'ori':'ORI item' }[m.group] || 'Fee';
+    return `<div style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:100">
+      <div style="width:560px;background:#fff;border-radius:5px;box-shadow:0 3px 12px rgba(0,0,0,0.2);overflow:hidden">
+        <div style="display:flex;align-items:center;padding:14px 20px;border-bottom:1px solid #cedbe7"><span style="font-size:16px;font-weight:500;color:#13314c">Add Fee — ${label}</span><div style="flex:1"></div><span data-act="addclose" class="material-symbols-outlined" style="font-size:20px;color:#666;cursor:pointer">close</span></div>
+        <div style="padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:14px 16px">
+          <div style="display:flex;flex-direction:column;gap:4px"><span class="flabel">Charge type <span style="color:#eb343c">*</span></span><input id="m-name" class="fld" placeholder="e.g. Valet trash"></div>
+          <div style="display:flex;flex-direction:column;gap:4px"><span class="flabel">Amount <span style="color:#eb343c">*</span></span><input id="m-amount" class="fld" placeholder="$0.00"></div>
+          <div style="display:flex;flex-direction:column;gap:4px;grid-column:1 / -1"><span class="flabel">Description</span><input id="m-desc" class="fld" placeholder="Shown on lease and ILS"></div>
+          <div style="display:flex;flex-direction:column;gap:4px"><span class="flabel">Source</span><select id="m-source" class="fld"><option>Flat</option><option>Unit market rent</option><option>Pet type</option><option>ORI range</option></select></div>
+          <div style="display:flex;flex-direction:column;gap:6px;grid-column:1 / -1"><span class="flabel">Charge level</span><div style="display:flex;gap:8px">${[['Property','apartment'],['Unit type','category'],['Unit','door_front']].map(([lv,ic],i)=>`<label style="flex:1;display:flex;align-items:center;gap:8px;border:1px solid #cedbe7;border-radius:5px;padding:9px 12px;cursor:pointer"><input type="radio" name="m-level-r" value="${lv}" ${i===0?'checked':''} onchange="document.getElementById('m-level').value=this.value" style="accent-color:var(--ac,#008dd5)"><span class="material-symbols-outlined" style="font-size:16px;color:#666">${ic}</span><span style="font-size:13px;color:#13314c">${lv}</span></label>`).join('')}</div><input type="hidden" id="m-level" value="Property"><span style="font-size:11px;color:#8a9aa8">Property applies to all units · Unit type / Unit stack on top for that scope.</span></div>
+          <div style="display:flex;align-items:center;gap:10px;grid-column:1 / -1;border-top:1px solid #ebf1f5;padding-top:12px">${this.tog(true,'modalIls')}<span style="font-size:13px;color:#424e5b">Display on ILS <span style="color:#8a9aa8">— prospect sees this fee on the listing</span></span></div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;padding:14px 20px;border-top:1px solid #cedbe7;background:#f5f8fa"><button data-act="addclose" class="btn-out" style="padding:8px 20px;font-size:14px">Cancel</button><button data-act="addsave" class="btn-pri" style="padding:8px 20px;font-size:14px">Add Fee</button></div>
+      </div></div>`;
+  }
+  toastHTML(){ return this.state.toast ? `<div class="toast"><span class="material-symbols-outlined" style="font-size:18px">check_circle</span>${this.state.toast}</div>` : ''; }
+
+  // ================= SCREENS =================
+  screenHTML(){
+    this._tid = 0;
+    const s = this.state;
+    let out = this.header();
+    if (s.view === 'profile') {
+      out += this.ctx('Fee Setup Templates', [{ label:'Standard Conventional' }], '1 of 3');
+      out += this.profileScoreboard();
+      out += this.tabRow(['Overview','Unit Type Fees','Unit Fees','Amenities','Assigned Properties','Change History'], s.profileTab, 'ptab');
+      out += this.profileBody();
+      out += this.footer('Save template');
+    } else if (s.view === 'property') {
+      out += this.ctx('Property', [{ label:'Standard Conventional', act:'navProfile' }, { label: s.property }], '2 of 42');
+      out += this.tabRow(['General','Images','Fees','Units','Leasing','Utilities','Documents','Marketing'], s.propTab, 'proptab');
+      const body = s.propTab === 'Units' ? this.propUnitsBody() : this.propFeesBody();
+      out += `<div style="flex:1;display:flex;align-items:stretch"><div style="flex:1;min-width:0;padding:16px;display:flex;flex-direction:column;gap:16px;max-width:1500px;width:100%;box-sizing:border-box;margin:0 auto">${body}</div>${this.rail()}</div>`;
+      out += this.footer(s.propTab === 'Units' ? 'Save units' : 'Save fees');
+    } else if (s.view === 'quote') {
+      out += this.ctx('Rent Quote', [{ label: s.property, act:'navProperty', arg: s.property }, { label:'Unit ' + s.unit, act:'navUnit', arg: s.unit }, { label:'New quote' }], 'Draft');
+      out += this.quoteBody();
+      out += this.footer('Send quote to prospect');
+    } else if (s.view === 'renewal') {
+      out += this.ctx('Renewal Offer', [{ label: s.property, act:'navProperty', arg: s.property }, { label:'Unit ' + s.unit, act:'navUnit', arg: s.unit }, { label:'Renewal' }], 'Draft');
+      out += this.renewalBody();
+      out += this.footer('Send renewal offer');
+    } else {
+      out += this.ctx('Unit', [{ label:'Standard Conventional', act:'navProfile' }, { label: s.property, act:'navProperty', arg: s.property }, { label:'Unit ' + s.unit }], '125 of 255');
+      out += this.unitBody();
+      out += this.footer('Save unit');
+    }
+    out += this.modalHTML();
+    out += this.assignModalHTML();
+    out += this.petImportHTML();
+    out += this.toastHTML();
+    return out;
+  }
+
+  renderVals(){
+    return {
+      rootRef: this.setRoot,
+      onClick: this.onClick,
+      screen: React.createElement('div', { style: { display:'flex', flexDirection:'column', flex:1, minHeight:'100vh' }, dangerouslySetInnerHTML: { __html: this.screenHTML() } })
+    };
+  }
+}
+</script>
+</body>
+</html>
