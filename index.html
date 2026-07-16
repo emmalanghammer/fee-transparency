@@ -91,6 +91,7 @@ class Component extends DCLogic {
       { id:10, group:'opt-one', name:'Hold fee', desc:'Unit reservation fee', amount:'$200.00', source:'Flat', mits:'HOLD', level:'Property', origin:'property', ils:true, excluded:false, overrides:[], expanded:false }
     ],
     nextFeeId: 11,
+    addedFees: [],
     nextOvId: 3,
     modal: null,
     ov: null,
@@ -275,7 +276,7 @@ class Component extends DCLogic {
       case 'ovmode': this.setState(s => ({ ov: Object.assign({}, s.ov, { mode: arg }) })); break;
       case 'ovcancel': this.setState({ ov: null }); break;
       case 'ovsave': this.saveOverride(); break;
-      case 'addopen': this.setState({ modal: { group: arg }, toggles: Object.assign({}, this.state.toggles, { modalIls: true }) }); break;
+      case 'addopen': { let ctx=null; if(this.state.view==='profile'){ const pt=this.state.profileTab; if(pt==='Unit Type Fees') ctx='ut:'+this.state.utSel; else if(pt==='Unit Fees') ctx='uf:'+this.state.ufSel; else ctx='prop'; } this.setState({ modal: { group: arg, ctx }, toggles: Object.assign({}, this.state.toggles, { modalIls: true }) }); break; }
       case 'addclose': this.setState({ modal: null }); break;
       case 'addsave': this.saveFee(); break;
       case 'histexp': this.setState(s => ({ histExp: Object.assign({}, s.histExp, { [arg]: !s.histExp[arg] }) })); break;
@@ -336,10 +337,19 @@ class Component extends DCLogic {
     const ils = ('modalIls' in this.state.toggles) ? this.state.toggles.modalIls : true;
     let group = m.group;
     if (/^(req|opt|sit)-/.test(group)) {
-      const suffix = group === 'sit-rec' ? 'rec' : group.split('-')[1];
+      const suffix = group.endsWith('-one') ? 'one' : 'rec';
       if (req.startsWith('Required')) group = 'req-' + suffix;
       else if (req.startsWith('Optional')) group = 'opt-' + suffix;
-      else if (req.startsWith('Situational')) group = 'sit-rec';
+      else if (req.startsWith('Situational')) group = 'sit-' + suffix;
+    }
+    if (m.ctx) {
+      // New charge-table tabs (Property Fees / Unit Type Fees / Unit Fees)
+      const code = (ctype || name).replace(/\s+/g,'').toUpperCase().slice(0,10) || 'CUSTOM';
+      const app = m.ctx==='prop' ? 'Property' : (m.ctx.indexOf('ut:')===0 ? 'Unit Type: '+m.ctx.slice(3) : 'Unit · '+m.ctx.slice(3));
+      const charge = { ctx:m.ctx, group, code, desc: desc||name, amount: amount.replace(/^\$/,''), cat: ctype || 'Custom', app, active: ils, cond: cond||undefined };
+      this.setState(s => ({ modal: null, addedFees: [...s.addedFees, charge] }));
+      this.flash('Charge added');
+      return;
     }
     this.setState(s => ({
       nextFeeId: s.nextFeeId + 1, modal: null,
@@ -1235,10 +1245,13 @@ class Component extends DCLogic {
     const add=`<div data-act="addopen" data-arg="${group}" style="background:#f5f9fc;padding:9px 16px;cursor:pointer"><span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,#008dd5)"><span class="material-symbols-outlined" style="font-size:18px">add</span>Add ${label} Charge</span></div>`;
     return `<div style="font-size:13px;font-weight:600;color:#666;padding:16px 16px 8px">${label}</div><div style="padding:0 16px;overflow-x:auto"><div style="min-width:${cond?1120:1000}px;border:1px solid #cedbe7;border-radius:4px;overflow:hidden">${head}${body}${add}</div></div>`;
   }
+  addedFor(ctx, group){ return ctx ? this.state.addedFees.filter(f=>f.ctx===ctx&&f.group===group) : []; }
   chargeAccordion(id, title, sub, recRows, oneRows, opts){
     opts=opts||{};
-    const inner = this.chargeTable('Recurring', recRows, opts.recGroup, {condition:opts.condition, empty:opts.recEmpty, keyPrefix:opts.keyPrefix})
-      + this.chargeTable('One-Time', oneRows, opts.oneGroup, {empty:opts.oneEmpty||'No one-time charges added.', keyPrefix:opts.keyPrefix});
+    const rec = recRows.concat(this.addedFor(opts.ctx, opts.recGroup));
+    const one = oneRows.concat(this.addedFor(opts.ctx, opts.oneGroup));
+    const inner = this.chargeTable('Recurring', rec, opts.recGroup, {condition:opts.condition, empty:opts.recEmpty, keyPrefix:opts.keyPrefix})
+      + this.chargeTable('One-Time', one, opts.oneGroup, {empty:opts.oneEmpty||'No one-time charges added.', keyPrefix:opts.keyPrefix});
     return `<div class="tile" style="overflow:hidden">
       <div onclick="var b=this.parentElement.querySelector('.acc-body');var c=this.querySelector('.acc-chev');var open=b.style.display!=='none';b.style.display=open?'none':'block';c.textContent=open?'expand_more':'expand_less'" style="display:flex;align-items:center;gap:8px;padding:14px 16px;cursor:pointer">
         <span class="material-symbols-outlined acc-chev" style="font-size:20px;color:#666">expand_less</span>
@@ -1318,19 +1331,19 @@ class Component extends DCLogic {
        {code:'PETDP',desc:'Pet Deposit - Dog',amount:'300.00',cat:'PET',app:'Property',active:true},
        {code:'LMR',desc:"Last month's rent",amount:'1,350.00',cat:'LMR',app:'Property',active:true},
        {code:'KEY',desc:'Key & fob deposit',amount:'50.00',cat:'KEY',app:'Property',active:true}]),
-      {keyPrefix:'pf',recGroup:'req-rec',oneGroup:'req-one'});
+      {ctx:'prop',keyPrefix:'pf',recGroup:'req-rec',oneGroup:'req-one'});
     // Optional Charges
     h+=this.chargeAccordion('opt','Optional Charges','Tenant selects',
       pl([{code:'SF',desc:'Storage unit',amount:'40.00',cat:'STORAGE',app:'Property',active:true},
        {code:'AMENFEE',desc:'Pool & fitness access',amount:'45.00',cat:'AMENITY',app:'Unit Type: 2BR/2BA',active:true}]),
       pl([{code:'HOLD',desc:'Unit reservation fee',amount:'200.00',cat:'HOLD',app:'Property',active:true}]),
-      {keyPrefix:'pf',recGroup:'opt-rec',oneGroup:'opt-one'});
+      {ctx:'prop',keyPrefix:'pf',recGroup:'opt-rec',oneGroup:'opt-one'});
     // Situational Charges
     h+=this.chargeAccordion('sit','Situational Charges','Applies when a condition exists',
       pl([{code:'PETFEE',desc:'Pet rent, per pet',cond:'If resident has a pet',amount:'45.00',cat:'PET',app:'Property',active:true},
        {code:'COVPARK',desc:'Reserved covered parking',cond:'If parking rented',amount:'75-125',cat:'PARKING',app:'Property',active:true}]),
       [],
-      {keyPrefix:'pf',recGroup:'sit-rec',oneGroup:'sit-one',condition:true,oneEmpty:'No situational one-time charges added.'});
+      {ctx:'prop',keyPrefix:'pf',recGroup:'sit-rec',oneGroup:'sit-one',condition:true,oneEmpty:'No situational one-time charges added.'});
     return h;
   }
 
@@ -1393,9 +1406,9 @@ class Component extends DCLogic {
     } else {
       const t=data.find(x=>x.name===sel)||data[2];
       m+=this.banner(`Unit type fees are additive — they stack on top of property-level fees for all units of this type. A ${t.name} unit receives both property fees and ${t.name} fees on their quote.`,'');
-      m+=this.chargeAccordion('utreq','Required Charges','',t.reqRec,[],{keyPrefix:'ut',recGroup:'req-rec',oneGroup:'req-one',recEmpty:`No required recurring charges added on ${t.name} unit type.`,oneEmpty:`No required one-time charges added on ${t.name} unit type.`});
-      m+=this.chargeAccordion('utopt','Optional Charges','Tenant selects',t.optRec,[],{keyPrefix:'ut',recGroup:'opt-rec',oneGroup:'opt-one',recEmpty:`No optional recurring charges added on ${t.name} unit type.`,oneEmpty:`No optional one-time charges added on ${t.name} unit type.`});
-      m+=this.chargeAccordion('utsit','Situational Charges','Applies when a condition exists',[],[],{keyPrefix:'ut',condition:true,recGroup:'sit-rec',oneGroup:'sit-one',recEmpty:`No situational recurring charges added on ${t.name} unit type.`,oneEmpty:`No situational one-time charges added on ${t.name} unit type.`});
+      m+=this.chargeAccordion('utreq','Required Charges','',t.reqRec,[],{ctx:'ut:'+t.name,keyPrefix:'ut',recGroup:'req-rec',oneGroup:'req-one',recEmpty:`No required recurring charges added on ${t.name} unit type.`,oneEmpty:`No required one-time charges added on ${t.name} unit type.`});
+      m+=this.chargeAccordion('utopt','Optional Charges','Tenant selects',t.optRec,[],{ctx:'ut:'+t.name,keyPrefix:'ut',recGroup:'opt-rec',oneGroup:'opt-one',recEmpty:`No optional recurring charges added on ${t.name} unit type.`,oneEmpty:`No optional one-time charges added on ${t.name} unit type.`});
+      m+=this.chargeAccordion('utsit','Situational Charges','Applies when a condition exists',[],[],{ctx:'ut:'+t.name,keyPrefix:'ut',condition:true,recGroup:'sit-rec',oneGroup:'sit-one',recEmpty:`No situational recurring charges added on ${t.name} unit type.`,oneEmpty:`No situational one-time charges added on ${t.name} unit type.`});
     }
     return `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden"><div style="flex:none;overflow-y:auto">${sb}</div><div style="flex:1;min-width:0;overflow-y:auto"><div style="padding:16px;display:flex;flex-direction:column;gap:16px">${m}</div></div></div>`;
   }
@@ -1435,9 +1448,9 @@ class Component extends DCLogic {
     } else {
       m+=this.banner(`Unit fees are additive — they stack on top of both property fees and unit type fees for this specific unit. Unit ${sel.u} receives property fees + ${sel.type} fees + these unit fees on their quote.`,'');
       const uEmpty=(what)=>`No ${what} charges added on Unit ${sel.u}.`;
-      m+=this.chargeAccordion('ufreq','Required Charges','',[],[],{keyPrefix:'uf',recGroup:'req-rec',oneGroup:'req-one',recEmpty:uEmpty('required recurring'),oneEmpty:uEmpty('required one-time')});
-      m+=this.chargeAccordion('ufopt','Optional Charges','Tenant selects',sel.fees,[],{keyPrefix:'uf',recGroup:'opt-rec',oneGroup:'opt-one',recEmpty:uEmpty('optional recurring'),oneEmpty:uEmpty('optional one-time')});
-      m+=this.chargeAccordion('ufsit','Situational Charges','Applies when a condition exists',[],[],{keyPrefix:'uf',condition:true,recGroup:'sit-rec',oneGroup:'sit-one',recEmpty:uEmpty('situational recurring'),oneEmpty:uEmpty('situational one-time')});
+      m+=this.chargeAccordion('ufreq','Required Charges','',[],[],{ctx:'uf:'+sel.u,keyPrefix:'uf',recGroup:'req-rec',oneGroup:'req-one',recEmpty:uEmpty('required recurring'),oneEmpty:uEmpty('required one-time')});
+      m+=this.chargeAccordion('ufopt','Optional Charges','Tenant selects',sel.fees,[],{ctx:'uf:'+sel.u,keyPrefix:'uf',recGroup:'opt-rec',oneGroup:'opt-one',recEmpty:uEmpty('optional recurring'),oneEmpty:uEmpty('optional one-time')});
+      m+=this.chargeAccordion('ufsit','Situational Charges','Applies when a condition exists',[],[],{ctx:'uf:'+sel.u,keyPrefix:'uf',condition:true,recGroup:'sit-rec',oneGroup:'sit-one',recEmpty:uEmpty('situational recurring'),oneEmpty:uEmpty('situational one-time')});
       const ut=this.utData().find(t=>t.name===sel.type);
       const rows=[];
       s.propFees.filter(f=>!f.excluded&&(f.group==='req-rec'||f.name==='Admin fee')).forEach(f=>rows.push([f.name,f.amount,'Property','gray']));
