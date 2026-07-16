@@ -431,9 +431,9 @@ class Component extends DCLogic {
     const oneTime=pf.filter(f=>f.group==='req-one').map(resolve).filter(f=>!f.excluded);
     const opt=pf.filter(f=>f.group==='opt-rec'||f.group==='sit-rec').map(resolve).filter(f=>!f.excluded);
     const ut=this.utData().find(t=>t.name===unit.type);
-    const utReq=ut?ut.req.filter(r=>r[4]).map(r=>({name:r[0],amount:r[2]})):[];
-    const utOpt=ut?ut.opt.filter(r=>r[4]).map(r=>({name:r[0],amount:r[2]})):[];
-    const unitFees=(unit.fees||[]).filter(r=>r[4]).map(r=>({name:r[0],amount:r[2]}));
+    const utReq=ut?(ut.reqRec||[]).filter(r=>r.active).map(r=>({name:r.desc,amount:'$'+r.amount})):[];
+    const utOpt=ut?(ut.optRec||[]).filter(r=>r.active).map(r=>({name:r.desc,amount:'$'+r.amount})):[];
+    const unitFees=(unit.fees||[]).filter(r=>r.active).map(r=>({name:r.desc,amount:'$'+r.amount}));
     let monthly=mr; mand.concat(utReq).forEach(f=>{ monthly+=this.parseAmt(f.amount); });
     const chip=(nm,amt,cond,flag)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px dashed #e4ebf1"><span style="font-size:13px;color:#2b3a48">${nm}${cond?` <span style="font-size:11px;color:#b35a00">· ${cond}</span>`:''}${flag?` <span style="font-size:11px;color:#0071aa">· ${flag}</span>`:''}</span><span style="font-size:13px;color:#13314c;font-weight:500">${amt}</span></div>`;
     const onch=`onchange="this.dataset.arg=this.value;this.dispatchEvent(new MouseEvent('click',{bubbles:true}))"`;
@@ -1006,7 +1006,7 @@ class Component extends DCLogic {
   }
 
   registerBody(){
-    const chg = this.state.propFees.filter(f=>f.origin==='profile').length + this.utData().reduce((n,t)=>n+t.req.length+t.opt.length,0);
+    const chg = this.state.propFees.filter(f=>f.origin==='profile').length + this.utData().reduce((n,t)=>n+this.utFees(t).length,0);
     const rows=[
       { name:'Standard Apartment', desc:'Standard fee set for apartment communities', prop:'Riverview Apartments', more:13, units:210, charges:chg, updated:'07/10/25', act:'navProfile' },
       { name:'Luxury Apartment', desc:'Premium fees for luxury and high-end apartment communities', prop:'Clearcreek Apartments', more:3, units:96, charges:24, updated:'03/03/26' },
@@ -1210,10 +1210,11 @@ class Component extends DCLogic {
     const head=`<div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #cedbe7">${heads.map(th).join('')}</div>`;
     const kebab=`<span data-act="toast" data-arg="Row actions" style="display:flex;align-items:center;justify-content:center;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">more_vert</span></span>`;
     const td=(c,i)=>`<span style="display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:8px 12px${i===0?' 8px 16px':''};font-size:14px;color:#13314c">${c}</span>`;
+    const kp=opts.keyPrefix||'ov';
     const body = rows.length ? rows.map(r=>{
       const base = cond
-        ? [r.code, r.desc, `<span style="color:#666">${r.cond||''}</span>`, r.amount, `<span style="color:#666">${r.cat}</span>`, this.appPill(r.app), this.chk(r.active,'ov-'+group+'-'+r.code,'#f58220')]
-        : [r.code, r.desc, r.amount, `<span style="color:#666">${r.cat}</span>`, this.appPill(r.app), this.chk(r.active,'ov-'+group+'-'+r.code,'#f58220')];
+        ? [r.code, r.desc, `<span style="color:#666">${r.cond||''}</span>`, r.amount, `<span style="color:#666">${r.cat}</span>`, this.appPill(r.app), this.chk(r.active,kp+'-'+group+'-'+r.code,'#f58220')]
+        : [r.code, r.desc, r.amount, `<span style="color:#666">${r.cat}</span>`, this.appPill(r.app), this.chk(r.active,kp+'-'+group+'-'+r.code,'#f58220')];
       return `<div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #ebf1f5">${base.map(td).join('')}${kebab}</div>`;
     }).join('') : `<div style="padding:16px;text-align:center;font-size:14px;font-style:italic;color:#b3b3b3;border-bottom:1px solid #ebf1f5">${opts.empty||'No charges added.'}</div>`;
     const add=`<div data-act="addopen" data-arg="${group}" style="background:#f5f9fc;padding:9px 16px;cursor:pointer"><span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,#008dd5)"><span class="material-symbols-outlined" style="font-size:18px">add</span>Add ${label} Charge</span></div>`;
@@ -1221,8 +1222,8 @@ class Component extends DCLogic {
   }
   chargeAccordion(id, title, sub, recRows, oneRows, opts){
     opts=opts||{};
-    const inner = this.chargeTable('Recurring', recRows, opts.recGroup, {condition:opts.condition, empty:opts.recEmpty})
-      + this.chargeTable('One-Time', oneRows, opts.oneGroup, {empty:opts.oneEmpty||'No one-time charges added.'});
+    const inner = this.chargeTable('Recurring', recRows, opts.recGroup, {condition:opts.condition, empty:opts.recEmpty, keyPrefix:opts.keyPrefix})
+      + this.chargeTable('One-Time', oneRows, opts.oneGroup, {empty:opts.oneEmpty||'No one-time charges added.', keyPrefix:opts.keyPrefix});
     return `<div class="tile" style="overflow:hidden">
       <div onclick="var b=this.parentElement.querySelector('.acc-body');var c=this.querySelector('.acc-chev');var open=b.style.display!=='none';b.style.display=open?'none':'block';c.textContent=open?'expand_more':'expand_less'" style="display:flex;align-items:center;gap:8px;padding:14px 16px;cursor:pointer">
         <span class="material-symbols-outlined acc-chev" style="font-size:20px;color:#666">expand_less</span>
@@ -1305,21 +1306,22 @@ class Component extends DCLogic {
 
   utData(){
     return [
-      { name:'Studio', units:8, req:[], opt:[] },
-      { name:'1BR/1BA', units:12, req:[], opt:[] },
+      { name:'Studio', units:8, reqRec:[], optRec:[] },
+      { name:'1BR/1BA', units:12, reqRec:[], optRec:[] },
       { name:'2BR/2BA', units:18,
-        req:[['Trash surcharge','Additional valet trash for 2BR/2BA','$4.00','Flat',true,'Unit type · 2BR/2BA','UTILITY']],
-        opt:[['Amenity fee','Pool & fitness access','$45.00','Flat',true,'Unit type · 2BR/2BA','AMENITY']] },
-      { name:'3BR/2BA', units:11, req:[],
-        opt:[['Amenity fee','Pool & fitness access','$45.00','Flat',true,'Unit type · 3BR/2BA','AMENITY']] },
-      { name:'4BR/2BA', units:6, req:[], opt:[] },
+        reqRec:[{code:'GARBAGFEE',desc:'Additional trash valet',amount:'4.00',cat:'Utility',app:'Unit Type: 2BR/2BA',active:true}],
+        optRec:[{code:'AMENFEE',desc:'Pool & fitness access',amount:'45.00',cat:'AMENITY',app:'Unit Type: 2BR/2BA',active:true}] },
+      { name:'3BR/2BA', units:11, reqRec:[],
+        optRec:[{code:'AMENFEE',desc:'Pool & fitness access',amount:'45.00',cat:'AMENITY',app:'Unit Type: 3BR/2BA',active:true}] },
+      { name:'4BR/2BA', units:6, reqRec:[], optRec:[] },
     ];
   }
+  utFees(t){ return (t.reqRec||[]).concat(t.optRec||[]); }
   utBody(){
     const data=this.utData();
     const sel=this.state.utSel;
     const total=data.reduce((n,t)=>n+t.units,0);
-    const feeCount=(t)=>t.req.length+t.opt.length;
+    const feeCount=(t)=>this.utFees(t).length;
     const items=[this.sideItem('All unit types', total+' units','', sel==='All','utsel','All')]
       .concat(data.map(t=>this.sideItem(t.name, t.units+' units', feeCount(t)?feeCount(t)+(feeCount(t)>1?' fees':' fee'):'none', sel===t.name,'utsel',t.name))).join('');
     const sb=this.sidebar('Unit Types','Search unit types',items,'Add Unit Type');
@@ -1328,20 +1330,16 @@ class Component extends DCLogic {
       m+=this.banner('Unit type fees are additive — they stack on top of property-level fees for all units of this type. Select a unit type to manage its fees.','');
       m+=`<div class="eyebrow">Fees by unit type</div>`;
       m+=`<div class="tile"><div style="display:grid;grid-template-columns:140px 90px 1fr 110px;background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Unit type','Units','Unit type fees',''].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>${data.map(t=>{
-        const fees=t.req.concat(t.opt);
-        const list=fees.length?fees.map(f=>`${f[0]} · ${f[2]}`).join(', '):'<span style="font-style:italic;color:#b3b3b3">No unit type fees</span>';
+        const fees=this.utFees(t);
+        const list=fees.length?fees.map(f=>`${f.desc} · $${f.amount}`).join(', '):'<span style="font-style:italic;color:#b3b3b3">No unit type fees</span>';
         return `<div data-act="utsel" data-arg="${t.name}" style="display:grid;grid-template-columns:140px 90px 1fr 110px;align-items:center;border-bottom:1px solid #ebf1f5;cursor:pointer"><span class="td name" style="border:none;padding-left:16px">${t.name}</span><span class="td num" style="border:none">${t.units}</span><span class="td" style="border:none">${list}</span><span class="td" style="border:none"><a style="font-size:13px">Manage →</a></span></div>`;
       }).join('')}</div>`;
     } else {
       const t=data.find(x=>x.name===sel)||data[2];
       m+=this.banner(`Unit type fees are additive — they stack on top of property-level fees for all units of this type. A ${t.name} unit receives both property fees and ${t.name} fees on their quote.`,'');
-      m+=`<div class="eyebrow">Required fees</div>`;
-      m+= t.req.length ? this.profTile('Recurring','Mandatory','loz-mand',t.req,'req-rec')
-        : `<div class="tile"><div class="thead2"><span class="ttl">Recurring</span><span class="loz loz-mand">Mandatory</span><div style="flex:1"></div><button data-act="addopen" data-arg="req-rec" class="btn-out">Add fee</button></div>${this.emptyFees(`No fees defined for ${t.name} · fees added here apply to all ${t.name} units`,'req-rec')}</div>`;
-      m+=`<div class="tile"><div class="thead2"><span class="ttl">One-time & move-in</span><span class="loz loz-mand">Mandatory</span><div style="flex:1"></div><button data-act="addopen" data-arg="req-one" class="btn-out">Add fee</button></div>${this.emptyFees(`No fees defined for ${t.name} · fees added here apply to all ${t.name} units`,'req-one')}</div>`;
-      m+=`<div class="eyebrow" style="margin-top:8px">Optional fees</div>`;
-      m+= t.opt.length ? this.profTile('Recurring','Tenant selects','loz-opt',t.opt,'opt-rec')
-        : `<div class="tile"><div class="thead2"><span class="ttl">Recurring</span><span class="loz loz-opt">Tenant selects</span><div style="flex:1"></div><button data-act="addopen" data-arg="opt-rec" class="btn-out">Add fee</button></div>${this.emptyFees(`No optional fees defined for ${t.name}`,'opt-rec')}</div>`;
+      m+=this.chargeAccordion('utreq','Required Charges','',t.reqRec,[],{keyPrefix:'ut',recGroup:'req-rec',oneGroup:'req-one',recEmpty:`No required recurring charges added on ${t.name} unit type.`,oneEmpty:`No required one-time charges added on ${t.name} unit type.`});
+      m+=this.chargeAccordion('utopt','Optional Charges','Tenant selects',t.optRec,[],{keyPrefix:'ut',recGroup:'opt-rec',oneGroup:'opt-one',recEmpty:`No optional recurring charges added on ${t.name} unit type.`,oneEmpty:`No optional one-time charges added on ${t.name} unit type.`});
+      m+=this.chargeAccordion('utsit','Situational Charges','Applies when a condition exists',[],[],{keyPrefix:'ut',condition:true,recGroup:'sit-rec',oneGroup:'sit-one',recEmpty:`No situational recurring charges added on ${t.name} unit type.`,oneEmpty:`No situational one-time charges added on ${t.name} unit type.`});
     }
     return `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden"><div style="flex:none;overflow-y:auto">${sb}</div><div style="flex:1;min-width:0;overflow-y:auto"><div style="padding:16px;display:flex;flex-direction:column;gap:16px">${m}</div></div></div>`;
   }
@@ -1352,7 +1350,7 @@ class Component extends DCLogic {
     return `<div data-act="ufsel" data-arg="${name}" style="padding:8px 8px 8px 12px;${bg}cursor:pointer;display:flex;align-items:center;gap:8px;justify-content:space-between"><span style="font-size:14px;color:#13314c">Unit ${name}</span>${b}</div>`;
   }
   ufUnits(){
-    const custom={ '4C':[['Storage','Corner storage unit — unique to 4C','$40.00','Flat',false,'Unit · 4C','STORAGE']] };
+    const custom={ '4C':[{code:'SF',desc:'Corner storage unit — unique to 4C',amount:'40.00',cat:'STORAGE',app:'Unit · 4C',active:true}] };
     const riv=['1A','1B','2A','4C','4D','5A'].map(u=>Object.assign({}, this.unitInfo(u), { prop:'Riverview Apartments', fees: custom[u]||[] }));
     const oak=[{u:'1C',type:'1BR/1BA',rent:'$1,295'},{u:'2D',type:'2BR/2BA',rent:'$1,540'},{u:'3E',type:'2BR/2BA',rent:'$1,540'},{u:'4A',type:'Studio',rent:'$965'}].map(x=>Object.assign(x,{prop:'Oakwood Commons',fees:[]}));
     const sun=[{u:'A1',type:'1BR/1BA',rent:'$1,410'},{u:'B2',type:'2BR/2BA',rent:'$1,675'},{u:'C3',type:'3BR/2BA',rent:'$2,120'}].map(x=>Object.assign(x,{prop:'Sunrise Heights',fees:[]}));
@@ -1380,19 +1378,15 @@ class Component extends DCLogic {
       m+=this.banner('No units match the current filters — adjust the property or unit type filter to see units.','');
     } else {
       m+=this.banner(`Unit fees are additive — they stack on top of both property fees and unit type fees for this specific unit. Unit ${sel.u} receives property fees + ${sel.type} fees + these unit fees on their quote.`,'');
-      const empty=(grp)=>this.emptyFees(`No fees defined for Unit ${sel.u} · Fees added here will apply in addition to property and unit type fees`,grp);
-      m+=`<div class="eyebrow">Required fees</div>`;
-      m+=`<div class="tile"><div class="thead2"><span class="ttl">Recurring</span><span class="loz loz-mand">Mandatory</span><div style="flex:1"></div><button data-act="addopen" data-arg="req-rec" class="btn-out">Add fee</button></div>${empty('req-rec')}</div>`;
-      m+=`<div class="tile"><div class="thead2"><span class="ttl">One-time & move-in</span><span class="loz loz-mand">Mandatory</span><div style="flex:1"></div><button data-act="addopen" data-arg="req-one" class="btn-out">Add fee</button></div>${empty('req-one')}</div>`;
-      m+=`<div class="eyebrow" style="margin-top:8px">Optional fees</div>`;
-      m+= sel.fees.length ? this.profTile('Recurring','Tenant selects','loz-opt',sel.fees,'opt-rec')
-        : `<div class="tile"><div class="thead2"><span class="ttl">Recurring</span><span class="loz loz-opt">Tenant selects</span><div style="flex:1"></div><button data-act="addopen" data-arg="opt-rec" class="btn-out">Add fee</button></div>${empty('opt-rec')}</div>`;
-      m+=`<div class="tile"><div class="thead2"><span class="ttl">One-time & move-in</span><span class="loz loz-opt">Tenant selects</span><div style="flex:1"></div><button data-act="addopen" data-arg="opt-one" class="btn-out">Add fee</button></div>${empty('opt-one')}</div>`;
+      const uEmpty=(what)=>`No ${what} charges added on Unit ${sel.u}.`;
+      m+=this.chargeAccordion('ufreq','Required Charges','',[],[],{keyPrefix:'uf',recGroup:'req-rec',oneGroup:'req-one',recEmpty:uEmpty('required recurring'),oneEmpty:uEmpty('required one-time')});
+      m+=this.chargeAccordion('ufopt','Optional Charges','Tenant selects',sel.fees,[],{keyPrefix:'uf',recGroup:'opt-rec',oneGroup:'opt-one',recEmpty:uEmpty('optional recurring'),oneEmpty:uEmpty('optional one-time')});
+      m+=this.chargeAccordion('ufsit','Situational Charges','Applies when a condition exists',[],[],{keyPrefix:'uf',condition:true,recGroup:'sit-rec',oneGroup:'sit-one',recEmpty:uEmpty('situational recurring'),oneEmpty:uEmpty('situational one-time')});
       const ut=this.utData().find(t=>t.name===sel.type);
       const rows=[];
       s.propFees.filter(f=>!f.excluded&&(f.group==='req-rec'||f.name==='Admin fee')).forEach(f=>rows.push([f.name,f.amount,'Property','gray']));
-      if(ut) ut.req.concat(ut.opt).forEach(f=>rows.push([f[0],f[2],'Unit type · '+sel.type,'blue']));
-      sel.fees.forEach(f=>rows.push([f[0],f[2],'Unit · '+sel.u,'amber']));
+      if(ut) this.utFees(ut).forEach(f=>rows.push([f.desc,'$'+f.amount,'Unit type · '+sel.type,'blue']));
+      sel.fees.forEach(f=>rows.push([f.desc,'$'+f.amount,'Unit · '+sel.u,'amber']));
       const srcChip=(t,c)=>{const map={gray:'background:#f2f2f2;color:#666',blue:'background:#e5f3fb;color:#0071aa',amber:'background:#fdeedd;color:#b35a00'};return `<span class="loz" style="${map[c]};text-transform:none;letter-spacing:0">${t}</span>`;};
       m+=`<div class="tile"><div class="thead2"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">keyboard_arrow_down</span><span class="ttl">Stacked fee preview — Unit ${sel.u}</span></div><div style="display:grid;grid-template-columns:minmax(140px,1fr) 160px 240px;background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Charge type','Amount','Source'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>${rows.map(r=>`<div style="display:grid;grid-template-columns:minmax(140px,1fr) 160px 240px;align-items:center;border-bottom:1px solid #ebf1f5"><span class="td name" style="border:none;padding-left:16px">${r[0]}</span><span class="td num" style="border:none">${r[1]}</span><span class="td" style="border:none">${srcChip(r[2],r[3])}</span></div>`).join('')}<div style="padding:10px 16px;font-size:13px;color:#8a9aa8">This is the complete fee set that will populate on a rent quote for Unit ${sel.u}.</div></div>`;
     }
