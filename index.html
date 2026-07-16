@@ -693,25 +693,23 @@ class Component extends DCLogic {
   }
 
   profileScoreboard(){
-    const item=(l,v)=>`<span style="display:inline-flex;align-items:center;gap:8px"><span>${l}</span><span>${v}</span></span>`;
-    return `<div style="padding:16px 24px 0;flex:none"><div style="display:flex;align-items:stretch;min-height:64px;background:#fff;border:1px solid #cedbe7;border-radius:4px;overflow:hidden;box-shadow:2px 2px 12px -5px rgba(76,76,76,0.08),0 4px 15px -5px rgba(76,76,76,0.08),0 -1px 20px -5px rgba(76,76,76,0.02)">
-      <div style="width:16px;flex:none;background:#425a70"></div>
-      <div style="flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:32px;flex-wrap:wrap;padding:16px 32px">
-        <div style="display:flex;flex-direction:column;gap:16px;justify-content:center">
-          <div style="display:flex;align-items:center;gap:10px"><span style="font-size:16px;font-weight:600;line-height:24px;color:#13314c">Standard Conventional</span>${this.transparencyBadge()}</div>
-          <div style="display:flex;align-items:center;gap:32px;font-size:14px;color:#13314c;white-space:nowrap">
-            ${item('Created by:','Admin')}${item('Last modified:','07/10/2025')}${item('Property Type:','Multi Family')}
-          </div>
+    const item=(l,v)=>`<span style="display:inline-flex;align-items:center;gap:8px"><span style="color:#666">${l}</span><span>${v}</span></span>`;
+    const stat=(l,v)=>`<span style="display:inline-flex;align-items:baseline;justify-content:flex-end;gap:20px;white-space:nowrap"><span style="color:#666">${l}</span><span style="font-weight:600;color:#13314c">${v}</span></span>`;
+    return `<div style="padding:16px 20px 0;flex:none"><div style="display:flex;align-items:center;justify-content:space-between;gap:32px;flex-wrap:wrap;min-height:64px;background:#fff;border:1px solid #cedbe7;border-radius:4px;padding:16px 20px;box-shadow:2px 2px 12px -5px rgba(76,76,76,0.08),0 4px 15px -5px rgba(76,76,76,0.08),0 -1px 20px -5px rgba(76,76,76,0.02)">
+      <div style="display:flex;flex-direction:column;gap:12px;justify-content:center;min-width:0">
+        <span style="font-size:20px;line-height:28px;color:#13314c">Standard Conventional</span>
+        <div style="display:flex;align-items:center;gap:32px;font-size:14px;color:#13314c;white-space:nowrap;flex-wrap:wrap">
+          ${item('Created by:','Admin')}${item('Last modified:','07/10/2025')}${item('Property Type:','Multi Family')}
+          <span style="display:inline-flex;align-items:center;gap:8px"><span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5)">home</span><a data-act="ptab" data-arg="Assigned Properties" style="font-size:14px">Riverview Apartments</a><span data-act="ptab" data-arg="Assigned Properties" style="display:inline-flex;align-items:center;background:#fff;border:1px solid var(--ac,#008dd5);border-radius:12px;padding-left:8px;color:var(--ac,#008dd5);font-size:13px;line-height:20px;cursor:pointer">+13<span class="material-symbols-outlined" style="font-size:20px">arrow_drop_down</span></span></span>
         </div>
-        <div style="display:flex;align-items:center;gap:32px">
-          <div style="display:flex;align-items:center;gap:16px;font-size:16px;white-space:nowrap">
-            <span style="display:inline-flex;align-items:center;gap:24px;padding:4px 0"><span style="color:#666">Assigned:</span><span style="font-weight:600;color:#13314c">14 Properties</span></span>
-            <span style="padding:4px 0;font-weight:600;color:#13314c">210 Units</span>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:8px;align-items:stretch">
-            <button data-act="toast" data-arg="Bulk update fees" class="btn-pri" style="height:36px;min-height:36px;padding:8px;border-radius:4px;font:400 14px Roboto,sans-serif">Bulk Update Fees</button>
-            <button data-act="assignOpen" class="btn-pri" style="height:36px;min-height:36px;padding:8px 16px;border-radius:4px;font:400 14px Roboto,sans-serif">Assign to Property</button>
-          </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:32px">
+        <div style="display:flex;flex-direction:column;gap:10px;font-size:16px">
+          ${stat('Total Units:','210')}${stat('Total Charges:','15')}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;align-items:stretch">
+          <button data-act="toast" data-arg="Bulk update fees" class="btn-pri" style="height:36px;min-height:36px;padding:8px 16px;border-radius:4px;font:400 14px Roboto,sans-serif">Bulk Update Fees</button>
+          <button data-act="assignOpen" class="btn-pri" style="height:36px;min-height:36px;padding:8px 16px;border-radius:4px;font:400 14px Roboto,sans-serif">Assign to Property</button>
         </div>
       </div>
     </div></div>`;
@@ -1198,35 +1196,84 @@ class Component extends DCLogic {
     return `<div class="tile"><div class="thead2"><span class="ttl">${title}</span><span class="loz ${lozClass}">${loz}</span><div style="flex:1"></div><button data-act="addopen" data-arg="${group}" class="btn-out">Add fee</button></div>${this.ovTableRows(rows, mode)}</div>`;
   }
 
+  appPill(t){
+    const unit=/unit/i.test(t);
+    return `<span style="display:inline-block;background:${unit?'#e5f3fb':'#eef1f4'};color:${unit?'#0071aa':'#4a5b6b'};border-radius:4px;padding:3px 10px;font-size:13px;white-space:nowrap">${t}</span>`;
+  }
+  chargeTable(label, rows, group, opts){
+    opts=opts||{};
+    const cond=opts.condition;
+    const cols = cond ? '120px minmax(160px,1fr) 200px 100px 150px 160px 60px 36px' : '120px minmax(200px,1fr) 100px 150px 180px 60px 36px';
+    const heads = cond ? ['Charge Type','Description','Condition','Amount','Charge Category','Charge Application','Active',''] : ['Charge Type','Description','Amount','Charge Category','Charge Application','Active',''];
+    const head=`<div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #cedbe7">${heads.map((x,i)=>`<span style="padding:6px 12px${i===0?' 6px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>`;
+    const body = rows.length ? rows.map(r=>{
+      const cells = cond
+        ? [`<span style="font-family:monospace;font-size:12px;color:#13314c">${r.code}</span>`, r.desc, `<span style="color:#666">${r.cond||''}</span>`, `<span style="text-align:right">${r.amount}</span>`, `<span style="color:#666">${r.cat}</span>`, this.appPill(r.app), this.chk(r.active,'ov-'+group+'-'+r.code)]
+        : [`<span style="font-family:monospace;font-size:12px;color:#13314c">${r.code}</span>`, r.desc, `<span style="text-align:right">${r.amount}</span>`, `<span style="color:#666">${r.cat}</span>`, this.appPill(r.app), this.chk(r.active,'ov-'+group+'-'+r.code)];
+      return `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5">${cells.map((c,i)=>`<span class="td" style="border:none;padding:10px 12px${i===0?' 10px 16px':''};font-size:14px;color:#13314c">${c}</span>`).join('')}<span data-act="toast" data-arg="Row actions" style="display:flex;align-items:center;justify-content:center;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:#666">more_vert</span></span></div>`;
+    }).join('') : `<div style="padding:14px 16px;text-align:center;font-size:14px;font-style:italic;color:#b3b3b3">${opts.empty||'No charges added.'}</div>`;
+    const add=`<div style="padding:8px 16px"><a data-act="addopen" data-arg="${group}" style="font-size:13px;display:inline-flex;align-items:center;gap:4px"><span class="material-symbols-outlined" style="font-size:18px">add</span>Add ${label} Charge</a></div>`;
+    return `<div style="font-size:13px;font-weight:600;color:#13314c;padding:14px 16px 8px">${cond?'Recurring':label==='Recurring'?'Recurring':'One-Time'}</div><div style="overflow-x:auto"><div style="min-width:${cond?1100:1000}px">${head}${body}${add}</div></div>`;
+  }
+  chargeAccordion(id, title, sub, recRows, oneRows, opts){
+    opts=opts||{};
+    const inner = this.chargeTable('Recurring', recRows, opts.recGroup, {condition:opts.condition, empty:opts.recEmpty})
+      + this.chargeTable('One-Time', oneRows, opts.oneGroup, {empty:opts.oneEmpty||'No one-time charges added.'});
+    return `<div class="tile" style="overflow:hidden">
+      <div onclick="var b=this.parentElement.querySelector('.acc-body');var c=this.querySelector('.acc-chev');var open=b.style.display!=='none';b.style.display=open?'none':'block';c.textContent=open?'chevron_right':'expand_more'" style="display:flex;align-items:center;gap:8px;padding:14px 16px;cursor:pointer;border-bottom:1px solid #cedbe7">
+        <span class="material-symbols-outlined acc-chev" style="font-size:20px;color:#666">expand_more</span>
+        <span style="font-size:14px;font-weight:600;color:#13314c">${title}</span>${sub?`<span style="font-size:13px;color:#8a9aa8;font-style:italic">${sub}</span>`:''}
+      </div>
+      <div class="acc-body">${inner}</div></div>`;
+  }
   overviewBody(){
+    const orangeChk=(t,on)=>`<label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#424e5b;cursor:pointer"><input type="checkbox" ${on?'checked':''} style="accent-color:#f58220;width:18px;height:18px;margin:0;flex:none">${t}</label>`;
     let h='';
-    h+=this.banner('Property-level fees apply to all units at assigned properties. Unit type and unit fees are additive — they stack on top of these at quote time.','Learn more →');
-    h+=`<div class="tile"><div class="thead2"><span class="ttl">Template settings</span><div style="flex:1"></div>${this.transparencyBadge()}</div><div style="display:flex;align-items:stretch;flex-wrap:wrap">
-      <div style="flex:1;min-width:280px;padding:16px;display:flex;flex-direction:column;gap:14px">
-        <div class="eyebrow">General</div>
-        <div style="display:flex;flex-direction:column;gap:4px"><span class="flabel">Template name</span><input class="fld" value="Standard Conventional"></div>
-        <div style="display:flex;flex-direction:column;gap:4px"><span class="flabel">Property type</span><select class="fld" style="height:auto">${this.ptOpts('Multi Family')}</select></div>
-        <div style="display:flex;flex-direction:column;gap:4px"><span class="flabel">Description</span><input class="fld" value="Standard fee set for conventional multifamily"></div>
-        <div style="display:flex;flex-direction:column;gap:6px"><span class="flabel">Fee Transparency opt-in</span><div style="display:flex;align-items:center;gap:10px">${this.tog(true)}<span style="font-size:13px;color:#8a9aa8">Unlocks this template &amp; shows fees on ILS + resident portal</span></div><div style="font-size:11px;color:#b35a00;background:#fdf3e6;border-radius:4px;padding:6px 10px;line-height:1.4"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:-2px">bolt</span> Assigning this template to a property auto-opts that property in.</div></div>
+    // Template Settings
+    h+=`<div class="tile"><div class="thead2"><span class="ttl">Template Settings</span></div><div style="display:flex;align-items:stretch;flex-wrap:wrap">
+      <div style="flex:1;min-width:320px;padding:16px;display:flex;flex-direction:column;gap:14px">
+        ${orangeChk('Active',true)}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div style="display:flex;flex-direction:column;gap:4px"><span class="flabel">Template Name</span><input class="fld" value="Standard Fee Setup" style="height:36px;box-sizing:border-box"></div>
+          <div style="display:flex;flex-direction:column;gap:4px"><span class="flabel">Property Type</span><select class="fld" style="height:36px">${this.ptOpts('Multi Family')}</select></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px"><span class="flabel">Description</span><input class="fld" value="Use this as the default" style="height:36px;box-sizing:border-box"></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><span class="flabel">Fee Transparency</span><div style="display:flex;align-items:center;gap:10px">${this.tog(true)}<span style="font-size:13px;color:#424e5b">Shown on ILS</span></div></div>
       </div>
       <div style="width:1px;background:#cedbe7"></div>
-      <div style="flex:1;min-width:280px;padding:16px;display:flex;flex-direction:column;gap:12px">
-        <div class="eyebrow">Move-in behavior</div>
-        <div style="display:flex;align-items:flex-start;gap:10px"><span style="width:16px;height:16px;border-radius:3px;background:var(--ac,#008dd5);display:inline-flex;align-items:center;justify-content:center;flex:none"><span class="material-symbols-outlined" style="font-size:13px;color:#fff">check</span></span><span style="font-size:13px;color:#424e5b;line-height:1.45">If next month's recurring charges have already been posted, automatically create one-time charges for the current month</span></div>
-        <div style="font-size:12px;color:#8a9aa8;line-height:1.45;border-top:1px solid #ebf1f5;padding-top:10px">Whether a zero-dollar charge still posts is set per fee — see the fee tables below.</div>
+      <div style="flex:1;min-width:320px;padding:16px;display:flex;flex-direction:column;gap:14px">
+        <div class="flabel" style="font-weight:600;color:#13314c">Move-In Behavior</div>
+        ${orangeChk("If next month's recurring charges have already been posted, automatically create one-time charges for the current month",true)}
+        <div style="display:flex;flex-direction:column;gap:12px;padding-left:2px">
+          <label style="display:inline-flex;align-items:center;gap:10px;font-size:14px;color:#424e5b;cursor:pointer"><input type="radio" name="ov-movein" style="accent-color:var(--ac,#008dd5);width:18px;height:18px;margin:0">Use post day<input class="fld" value="1" style="width:48px;height:34px;box-sizing:border-box;text-align:center"></label>
+          <label style="display:inline-flex;align-items:center;gap:10px;font-size:14px;color:#424e5b;cursor:pointer"><input type="radio" name="ov-movein" checked style="accent-color:var(--ac,#008dd5);width:18px;height:18px;margin:0">Use tenant's rent due day</label>
+        </div>
       </div></div></div>`;
-    h+=`<div class="eyebrow">Required fees</div>`;
-    h+=this.profTile('Recurring','Mandatory','loz-mand',[['Rent','Base rent','Market rent','Unit market rent',true,'Property','RENT'],['Trash','Trash collection','$28.00','Flat',true,'Property','UTILITY'],['Water','Water service','$38.00','Flat',true,'Property','UTILITY'],['Trash surcharge','Additional valet trash','$4.00','Flat',true,'Unit type · 2BR/2BA','UTILITY']],'req-rec');
-    h+=this.profTile('One-time & move-in','Mandatory','loz-mand',[['Admin','Administrative fee','$150.00','Flat',true,'Property','ADMIN'],['Application','Application fee','$50.00','Flat',true,'Property','APPLICATION']],'req-one');
-    h+=this.depositsTile();
-    h+=`<div class="eyebrow" style="margin-top:8px">Optional fees</div>`;
-    h+=this.profTile('Recurring','Tenant selects','loz-opt',[['Storage','Storage unit','$40.00','Flat',false,'Property','STORAGE'],['Amenity fee','Pool & fitness access','$45.00','Flat',true,'Unit type · 2BR/2BA','AMENITY']],'opt-rec');
-    h+=this.profTile('One-time & move-in','Tenant selects','loz-opt',[['Hold fee','Unit reservation fee','$200.00','Flat',true,'Property','HOLD']],'opt-one');
-    h+=`<div style="display:flex;align-items:center;gap:12px;margin-top:8px"><span class="eyebrow">Situational fees</span><div style="flex:1"></div><a data-act="petImportOpen" style="font-size:13px;display:inline-flex;align-items:center;gap:4px"><span class="material-symbols-outlined" style="font-size:16px">pets</span>Pull from existing pet fee setup</a></div>`;
-    h+=this.profTile('Applies only when a condition exists','Situational','loz-sit',[['Pet fee','Pet rent, per pet','$45.00','Pet type',true,'If pet','PET'],['Covered parking','Reserved covered space','$75–$125','ORI range',true,'If parking rented','PARKING']],'opt-rec','cond');
-    h+=this.oriTile();
-    h+=`<div class="eyebrow" style="margin-top:8px">Concessions & promotions</div>`;
-    h+=`<div class="tile"><div class="thead2"><span class="ttl">Concessions</span><span class="loz loz-sub">Subtractive</span><div style="flex:1"></div><button data-act="toast" data-arg="Add concession" class="btn-out">Add concession</button></div><div style="display:grid;grid-template-columns:220px 1fr 1fr 1fr 1fr 100px;background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Name','Value','Type','Applies to','Expires','Actions'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div><div style="display:grid;grid-template-columns:220px 1fr 1fr 1fr 1fr 100px;align-items:center"><span class="td name" style="border:none;padding-left:16px">Move-in special</span><span class="td num" style="border:none">1 month free</span><span class="td" style="border:none">Rent waiver</span><span class="td" style="border:none">All units</span><span class="td" style="border:none">Dec 31, 2025</span><span class="td" style="border:none"><span class="act"><span class="material-symbols-outlined icon-edit">edit</span><span class="material-symbols-outlined icon-del">delete</span></span></span></div></div>`;
+    // Required Charges
+    h+=this.chargeAccordion('req','Required Charges','',
+      [{code:'RC',desc:'Base rent',amount:'Market Rent',cat:'Rent',app:'Property',active:true},
+       {code:'GARBAG',desc:'Trash collection',amount:'28.00',cat:'Utility',app:'Property',active:true},
+       {code:'WATER',desc:'Water service',amount:'38.00',cat:'Utility',app:'Property',active:true},
+       {code:'GARBAGFEE',desc:'Additional trash valet',amount:'4.00',cat:'Utility',app:'Unit Type: 2BR/2BA',active:true}],
+      [{code:'ADMIN',desc:'Administrative fee',amount:'150.00',cat:'ADMIN',app:'Property',active:true},
+       {code:'APPFEE',desc:'Application fee',amount:'50.00',cat:'APPLICATION',app:'Property',active:true},
+       {code:'DP',desc:'Security deposit',amount:'500.00',cat:'SECDEP',app:'Property',active:true},
+       {code:'PETDP',desc:'Pet Deposit - Dog',amount:'300.00',cat:'PET',app:'Property',active:true},
+       {code:'LMR',desc:"Last month's rent",amount:'1,350.00',cat:'LMR',app:'Property',active:true},
+       {code:'KEY',desc:'Key & fob deposit',amount:'50.00',cat:'KEY',app:'Property',active:true}],
+      {recGroup:'req-rec',oneGroup:'req-one'});
+    // Optional Charges
+    h+=this.chargeAccordion('opt','Optional Charges','Tenant selects',
+      [{code:'SF',desc:'Storage unit',amount:'40.00',cat:'STORAGE',app:'Property',active:true},
+       {code:'AMENFEE',desc:'Pool & fitness access',amount:'45.00',cat:'AMENITY',app:'Unit Type: 2BR/2BA',active:true}],
+      [{code:'HOLD',desc:'Unit reservation fee',amount:'200.00',cat:'HOLD',app:'Property',active:true}],
+      {recGroup:'opt-rec',oneGroup:'opt-one'});
+    // Situational Charges
+    h+=this.chargeAccordion('sit','Situational Charges','Applies when a condition exists',
+      [{code:'PETFEE',desc:'Pet rent, per pet',cond:'If resident has a pet',amount:'45.00',cat:'PET',app:'Property',active:true},
+       {code:'COVPARK',desc:'Reserved covered parking',cond:'If parking rented',amount:'75-125',cat:'PARKING',app:'Property',active:true}],
+      [],
+      {recGroup:'sit-rec',oneGroup:'sit-rec',condition:true,oneEmpty:'No situational one-time charges added.'});
     return h;
   }
 
