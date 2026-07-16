@@ -47,6 +47,9 @@
     .railico { font-size:20px; cursor:pointer; }
     .checker { background-image:linear-gradient(45deg,#e4e9ee 25%,transparent 25%),linear-gradient(-45deg,#e4e9ee 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e4e9ee 75%),linear-gradient(-45deg,transparent 75%,#e4e9ee 75%); background-size:14px 14px; background-position:0 0,0 7px,7px -7px,-7px 0; background-color:#f0f3f6; }
     .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#13314c; color:#fff; padding:12px 20px; border-radius:6px; font-size:14px; box-shadow:0 3px 12px rgba(0,0,0,0.25); z-index:200; display:flex; align-items:center; gap:10px; }
+    .tipw { position:relative; display:inline-flex; }
+    .tipw .tip { display:none; position:absolute; left:26px; top:-6px; width:280px; background:#fff; border:1px solid #cedbe7; border-radius:6px; box-shadow:0 6px 20px rgba(0,0,0,0.18); padding:12px 14px; font-size:13px; color:#13314c; line-height:1.5; z-index:20; }
+    .tipw:hover .tip { display:block; }
   </style>
 </helmet>
 <div class="rmx" onClick="{{ onClick }}" ref="{{ rootRef }}" style="height:100vh;overflow:hidden;display:flex;flex-direction:column;background:#f5f8fa">
@@ -129,11 +132,17 @@ class Component extends DCLogic {
 
   candidateProps(){
     return [
-      { name:'Elmwood Park', loc:'Columbus OH', units:56, pre:true },
+      { name:'Riverview Apartments', loc:'Loveland OH', units:49, pre:true },
+      { name:'Oakwood Commons', loc:'Cincinnati OH', units:72, pre:true },
+      { name:'Sunrise Heights', loc:'Fairfield OH', units:38, pre:true },
       { name:'Bradford House', loc:'Cincinnati OH', units:24, pre:true },
-      { name:'Harbor Point', loc:'Newport KY', units:31, pre:true },
-      { name:'Maple Terrace', loc:'Dayton OH', units:18, pre:false },
-      { name:'Cedar Run', loc:'Mason OH', units:42, pre:false }
+      { name:'Elmwood Park', loc:'Columbus OH', units:56, pre:true },
+      { name:'1127 Blackwell', loc:'Dayton OH', units:12, pre:false },
+      { name:'1742 Vine Street', loc:'Cincinnati OH', units:6, pre:false },
+      { name:'2015 Riverside Dr', loc:'Covington KY', units:9, pre:false },
+      { name:'4180 Montgomery Rd', loc:'Norwood OH', units:14, pre:false },
+      { name:'5273 Sunrise View Circle', loc:'Newport KY', units:8, pre:false, assignedTo:'Luxury Apartment' },
+      { name:"Becky's RV Campground", loc:'Mason OH', units:64, pre:false, assignedTo:'RV / Campground Standard' }
     ];
   }
   petSetup(){
@@ -272,6 +281,8 @@ class Component extends DCLogic {
       case 'histexp': this.setState(s => ({ histExp: Object.assign({}, s.histExp, { [arg]: !s.histExp[arg] }) })); break;
       case 'assignOpen': this.setState({ assign: { step:1, sel: this.candidateProps().filter(p=>p.pre).map(p=>p.name) } }); break;
       case 'assignToggle': this.setState(s => { const sel = s.assign.sel.includes(arg) ? s.assign.sel.filter(x=>x!==arg) : [...s.assign.sel, arg]; return { assign: Object.assign({}, s.assign, { sel }) }; }); break;
+      case 'assignAll': this.setState(s => { const all = this.candidateProps().map(p=>p.name); const sel = s.assign.sel.length===all.length ? [] : all; return { assign: Object.assign({}, s.assign, { sel }) }; }); break;
+      case 'assignClear': this.setState(s => ({ assign: Object.assign({}, s.assign, { sel: [] }) })); break;
       case 'assignNext': if (this.state.assign.sel.length) this.setState(s => ({ assign: Object.assign({}, s.assign, { step:2 }) })); else this.flash('Select at least one property'); break;
       case 'assignBack': this.setState(s => ({ assign: Object.assign({}, s.assign, { step:1 }) })); break;
       case 'assignConfirm': { const n = this.state.assign.sel.length; this.setState({ assign: null }); this.flash(n + ' propert' + (n>1?'ies':'y') + ' assigned · opted into Fee Transparency'); break; }
@@ -488,24 +499,28 @@ class Component extends DCLogic {
   assignModalHTML(){
     const a=this.state.assign; if(!a) return '';
     const cands=this.candidateProps();
-    let inner;
-    if(a.step===1){
-      const list=cands.map(p=>{const on=a.sel.includes(p.name);return `<label data-act="assignToggle" data-arg="${p.name}" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid ${on?'var(--ac,#008dd5)':'#cedbe7'};background:${on?'#f0f6fb':'#fff'};border-radius:5px;cursor:pointer"><span style="width:18px;height:18px;border-radius:4px;border:1px solid ${on?'var(--ac,#008dd5)':'#cedbe7'};background:${on?'var(--ac,#008dd5)':'#fff'};display:flex;align-items:center;justify-content:center;flex:none">${on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff">check</span>':''}</span><span style="flex:1"><span style="display:block;font-size:14px;font-weight:500;color:#13314c">${p.name}</span><span style="font-size:12px;color:#8a9aa8">${p.loc} · ${p.units} units</span></span></label>`;}).join('');
-      inner=`<div style="padding:20px;display:flex;flex-direction:column;gap:12px">
-        <div style="font-size:13px;color:#666">Select the properties to assign <span style="font-weight:600;color:#13314c">Standard Apartment</span> to.</div>
-        <div style="display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto">${list}</div></div>
-        <div style="display:flex;align-items:center;gap:8px;padding:14px 20px;border-top:1px solid #cedbe7;background:#f5f8fa"><span style="font-size:13px;color:#8a9aa8">${a.sel.length} selected</span><div style="flex:1"></div><button data-act="assignClose" class="btn-out" style="padding:8px 20px;font-size:14px">Cancel</button><button data-act="assignNext" class="btn-pri" style="padding:8px 20px;font-size:14px">Continue</button></div>`;
-    } else {
-      const list=a.sel.map(n=>{const p=cands.find(x=>x.name===n)||{loc:'',units:''};return `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #ebf1f5"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5)">home_work</span><span style="flex:1;font-size:14px;color:#13314c">${p.name}</span><span style="font-size:12px;color:#8a9aa8">${p.units} units</span></div>`;}).join('');
-      inner=`<div style="padding:20px;display:flex;flex-direction:column;gap:16px">
-        <div style="display:flex;gap:12px;background:#eef7ee;border:1px solid #b6ddaa;border-radius:6px;padding:14px 16px">
-          <span class="material-symbols-outlined" style="font-size:22px;color:#3a7d2c;flex:none">verified_user</span>
-          <div><div style="font-size:14px;font-weight:600;color:#2b5220;margin-bottom:2px">Assigning this template opts these ${a.sel.length} properties into Fee Transparency</div><div style="font-size:12px;color:#4a6b3c;line-height:1.5">Their fees will be managed by the template and shown to prospects on ILS. Legacy Recurring Charges and Tenant Charge Setup become read-only on each property.</div></div>
+    const sel=a.sel;
+    const allOn=sel.length===cands.length;
+    const cbox=(on,color)=>`<span style="width:20px;height:20px;border-radius:4px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${on?`background:${color||'#f58220'};border:1px solid ${color||'#f58220'}`:'background:#fff;border:1px solid #b3b3b3'}">${on?'<span class="material-symbols-outlined" style="font-size:15px;color:#fff;font-weight:600">check</span>':''}</span>`;
+    const rows=cands.map(p=>{const on=sel.includes(p.name);
+      const warn=p.assignedTo?`<span class="tipw"><span class="material-symbols-outlined" style="font-size:18px;color:#eab308;cursor:default">warning</span><span class="tip">This property is already using the <b>${p.assignedTo}</b> template. Assigning this property to this template will override it's current assignment.</span></span>`:'';
+      return `<label data-act="assignToggle" data-arg="${p.name}" style="display:flex;align-items:center;gap:12px;padding:9px 12px;border-bottom:1px solid #ebf1f5;cursor:pointer">${cbox(on)}<span style="flex:1;min-width:0;font-size:14px;color:#13314c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</span>${warn}</label>`;}).join('');
+    const pills=sel.length?sel.map(n=>`<span style="display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid #cedbe7;border-radius:4px;padding:5px 8px 5px 10px;font-size:14px;color:#13314c"><span>${n}</span><span data-act="assignToggle" data-arg="${n}" class="material-symbols-outlined" style="font-size:16px;color:#d02830;cursor:pointer">close</span></span>`).join(''):`<span style="font-size:13px;color:#b3b3b3;font-style:italic">No properties selected</span>`;
+    return `<div data-act="assignClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:100"><div data-act="noop" style="width:582px;max-width:94vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.28);display:flex;flex-direction:column;overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #cedbe7;flex:none"><span style="font-size:20px;line-height:28px;color:#13314c">Properties</span><span data-act="assignClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span></div>
+      <div style="flex:1;min-height:0;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="flex:1;min-width:0;display:flex;align-items:center;gap:8px;height:36px;box-sizing:border-box;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;padding:0 10px"><span style="flex:1;min-width:0;font-size:14px;color:#b3b3b3;font-style:italic">Search</span><span class="material-symbols-outlined" style="font-size:18px;color:#666">search</span></div>
+          <button data-act="toast" data-arg="Add by Group" class="btn-pri" style="height:36px;padding:8px 14px;font-size:14px;border-radius:4px">Add by Group</button>
+          <button data-act="toast" data-arg="Remove by Group" class="btn-pri" style="height:36px;padding:8px 14px;font-size:14px;border-radius:4px">Remove by Group</button>
         </div>
-        <div class="tile" style="border-radius:6px">${list}</div></div>
-        <div style="display:flex;align-items:center;gap:8px;padding:14px 20px;border-top:1px solid #cedbe7;background:#f5f8fa"><button data-act="assignBack" class="btn-out" style="padding:8px 16px;font-size:14px"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px">arrow_back</span> Back</button><div style="flex:1"></div><button data-act="assignConfirm" class="btn-pri" style="padding:8px 20px;font-size:14px">Assign &amp; opt in</button></div>`;
-    }
-    return `<div data-act="assignClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:100"><div data-act="noop" style="width:620px;max-width:94vw;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.28);overflow:hidden"><div style="display:flex;align-items:center;padding:16px 20px;border-bottom:1px solid #cedbe7"><span style="font-size:16px;font-weight:500;color:#13314c">Assign template to properties</span><span style="margin-left:12px;font-size:12px;color:#8a9aa8">Step ${a.step} of 2</span><div style="flex:1"></div><span data-act="assignClose" class="material-symbols-outlined" style="font-size:20px;color:#666;cursor:pointer">close</span></div>${inner}</div></div>`;
+        <label data-act="assignAll" style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;color:#13314c;align-self:flex-start">${cbox(allOn)}Select All</label>
+        <div style="border:1px solid #cedbe7;border-radius:4px;max-height:210px;overflow-y:auto">${rows}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:14px;font-weight:600;color:#13314c">Selected Properties (${sel.length})</span><a data-act="assignClear" style="font-size:14px">Clear All</a></div>
+        <div style="border:1px solid #cedbe7;border-radius:4px;padding:12px;min-height:120px;display:flex;flex-wrap:wrap;gap:8px;align-content:flex-start">${pills}</div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:12px 20px;border-top:1px solid #cedbe7;background:#f5f8fa;flex:none"><button data-act="assignConfirm" class="btn-pri" style="padding:8px 20px;font-size:14px;border-radius:4px">Save</button><button data-act="assignClose" class="btn-out" style="padding:8px 20px;font-size:14px;border-radius:4px">Cancel</button></div>
+    </div></div>`;
   }
 
   petImportHTML(){
