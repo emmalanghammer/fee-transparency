@@ -213,6 +213,7 @@ class Component extends DCLogic {
     if (el.tagName === 'A') e.preventDefault();
     switch (act) {
       case 'navProfile': this.go('profile'); break;
+      case 'navRegister': this.go('register'); break;
       case 'navProperty': this.go('property', arg ? { property: arg, propTab: 'Rental Fees' } : { propTab: 'Rental Fees' }); break;
       case 'navUnit': this.go('unit', { unit: arg }); break;
       case 'ptab': this._resetScroll = true; this.setState({ profileTab: arg }); break;
@@ -690,14 +691,14 @@ class Component extends DCLogic {
     </div>`;
   }
 
-  ctx(entity, crumbs, nav){
+  ctx(entity, crumbs, nav, entityAct){
     const trail = crumbs.map((c, i) => {
       const sep = i > 0 ? '<span style="opacity:0.5">›</span>' : '';
       if (c.act) return `${sep}<a data-act="${c.act}"${c.arg?` data-arg="${c.arg}"`:''} class="crumb" style="color:#fff;opacity:0.9">${c.label}</a>`;
       return `${sep}<span style="color:#fff${i===crumbs.length-1?';font-weight:500':';opacity:0.9'}">${c.label}</span>`;
     }).join('<span style="width:2px"></span>');
     return `<div style="height:40px;background:var(--ac,#008dd5);display:flex;align-items:center;padding:0 16px;gap:10px;color:#fff;font-size:14px;flex:none">
-      <span style="font-weight:500">${entity}</span><span style="opacity:0.5">·</span>
+      ${entityAct?`<a data-act="${entityAct}" class="crumb" style="color:#fff;font-weight:500">${entity}</a>`:`<span style="font-weight:500">${entity}</span>`}<span style="opacity:0.5">·</span>
       <span style="display:flex;align-items:center;gap:8px">${trail}</span>
       <span style="display:flex;align-items:center;gap:6px;margin-left:8px;font-size:13px;opacity:0.9"><span class="material-symbols-outlined" style="font-size:16px;cursor:pointer">chevron_left</span><span>${nav}</span><span class="material-symbols-outlined" style="font-size:16px;cursor:pointer">chevron_right</span></span>
       <div style="flex:1"></div>
@@ -812,6 +813,50 @@ class Component extends DCLogic {
     h += this.listingPreview();
     h += this.legacyTiles();
     return h;
+  }
+
+  registerBody(){
+    const chg = this.state.propFees.filter(f=>f.origin==='profile').length + this.utData().reduce((n,t)=>n+t.req.length+t.opt.length,0);
+    const rows=[
+      { name:'Standard Conventional', desc:'Standard fee set for conventional multifamily', prop:'Riverview Apartments', more:13, units:210, charges:chg, updated:'07/10/25', act:'navProfile' },
+      { name:'Luxury Apartment', desc:'Premium fees for luxury and high-end apartment communities', prop:'Clearcreek Apartments', more:3, units:96, charges:24, updated:'03/03/26' },
+      { name:'Townhome Community', desc:'Fee structure for townhome communities', prop:'Waterstone Townhomes', more:1, units:48, charges:10, updated:'11/05/25' },
+    ];
+    const cols='minmax(180px,1.2fr) minmax(280px,2fr) minmax(240px,1.5fr) 110px 120px 120px 40px';
+    const pill=(n)=>`<span style="display:inline-flex;align-items:center;background:#fff;border:1px solid var(--ac,#008dd5);border-radius:12px;padding-left:8px;color:var(--ac,#008dd5);font-size:13px;line-height:20px">+${n}<span class="material-symbols-outlined" style="font-size:20px">arrow_drop_down</span></span>`;
+    const hcell=(t)=>`<span style="display:flex;align-items:center;height:28px;box-sizing:border-box;padding:4px 8px;font-size:12px;font-weight:500;letter-spacing:1px;color:#fff;border-right:1px solid rgba(255,255,255,0.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>`;
+    const header=`<div style="display:grid;grid-template-columns:${cols};background:#737373">${['Template Name','Description','Assigned Properties','Total Units','Total Charges','Last Updated'].map(hcell).join('')}<span style="display:flex;align-items:center;justify-content:center;height:28px"><span class="material-symbols-outlined" style="font-size:20px;color:#fff">view_column</span></span></div>`;
+    const body=rows.map(r=>`<div data-act="${r.act||'toast'}"${r.act?'':` data-arg="Only Standard Conventional is mocked in this prototype"`} style="display:grid;grid-template-columns:${cols};align-items:center;background:#fff;border-bottom:1px solid #ebf1f5;cursor:pointer" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background='#fff'">
+      <span style="padding:8px;font-size:14px;color:#13314c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.name}</span>
+      <span style="padding:8px;font-size:14px;color:#13314c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.desc}</span>
+      <span style="padding:8px;display:flex;align-items:center;gap:12px;min-width:0"><span style="font-size:14px;color:#13314c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.prop}</span>${pill(r.more)}</span>
+      <span style="padding:8px;font-size:14px;color:#13314c">${r.units}</span>
+      <span style="padding:8px;font-size:14px;color:#13314c">${r.charges}</span>
+      <span style="padding:8px;font-size:14px;color:#13314c">${r.updated}</span>
+      <span data-act="toast" data-arg="Row actions" style="display:flex;align-items:center;justify-content:center"><span class="material-symbols-outlined" style="font-size:20px;color:#666">more_vert</span></span>
+    </div>`).join('');
+    return `
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div style="display:flex;align-items:flex-end;gap:8px">
+          <div style="display:flex;flex-direction:column;gap:4px;width:248px">
+            <span style="font-size:14px;color:var(--ac,#008dd5)">Search</span>
+            <div style="display:flex;align-items:center;gap:4px;height:36px;box-sizing:border-box;background:#fff;border:1px solid var(--ac,#008dd5);border-radius:4px;padding:0 8px">
+              <span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5);flex:none">search</span>
+              <span style="flex:1;min-width:0;font-style:italic;color:#b3b3b3;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Find a template</span>
+              <span class="material-symbols-outlined" style="font-size:20px;color:#666;flex:none">keyboard_arrow_down</span>
+            </div>
+          </div>
+          <label style="display:inline-flex;align-items:center;gap:8px;height:36px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer"><input type="checkbox" style="width:18px;height:18px;accent-color:var(--ac,#008dd5);margin:0">Show Inactive</label>
+        </div>
+        <div style="display:flex;align-items:flex-end;gap:8px">
+          <button data-act="toast" data-arg="Import Rental Fee Template" class="btn-pri" style="height:36px;padding:8px 16px 8px 8px;border-radius:4px;font:400 14px Roboto,sans-serif;display:inline-flex;align-items:center;gap:8px"><span class="material-symbols-outlined" style="font-size:20px">download</span>Import Rental Fee Template</button>
+          <button data-act="toast" data-arg="Add Rental Fee Template" class="btn-pri" style="height:36px;padding:8px 16px 8px 8px;border-radius:4px;font:400 14px Roboto,sans-serif;display:inline-flex;align-items:center;gap:8px"><span class="material-symbols-outlined" style="font-size:20px">add_circle</span>Add Rental Fee Template</button>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="border:1px solid #b3b3b3;border-radius:4px;overflow:hidden;background:#fff"><div style="overflow-x:auto"><div style="min-width:1100px">${header}${body}</div></div></div>
+        <div style="display:flex;justify-content:flex-end"><span style="font-size:12px;color:#b3b3b3">${rows.length} of ${rows.length} Records</span></div>
+      </div>`;
   }
 
   propScoreboard(){
@@ -1293,7 +1338,7 @@ class Component extends DCLogic {
     const s = this.state;
     let out = this.header();
     if (s.view === 'profile') {
-      out += this.ctx('Rental Fee Templates', [{ label:'Standard Conventional' }], '1 of 3');
+      out += this.ctx('Rental Fee Templates', [{ label:'Standard Conventional' }], '1 of 3', 'navRegister');
       out += this.profileScoreboard();
       out += this.tabRow(['Overview','Unit Type Fees','Unit Fees','Amenities','Assigned Properties','Change History'], s.profileTab, 'ptab');
       out += this.profileBody();
@@ -1305,6 +1350,15 @@ class Component extends DCLogic {
       const body = s.propTab === 'General' ? this.propGeneralBody() : this.propFeesBody();
       out += `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden"><div style="flex:1;min-width:0;overflow-y:auto;display:flex;flex-direction:column"><div style="flex:1;min-width:0;padding:16px;display:flex;flex-direction:column;gap:16px;max-width:1500px;width:100%;box-sizing:border-box;margin:0 auto">${body}</div></div>${this.rail()}</div>`;
       out += this.footer(s.propTab === 'General' ? 'Save property' : 'Save fees');
+    } else if (s.view === 'register') {
+      out += `<div style="height:40px;background:var(--ac,#008dd5);display:flex;align-items:center;padding:0 16px;gap:12px;color:#fff;flex:none">
+        <span style="font-size:18px;line-height:24px">Rental Fee Templates</span>
+        <div style="flex:1"></div>
+        <span data-act="toast" data-arg="Print" class="material-symbols-outlined" style="font-size:18px;opacity:0.85;cursor:pointer">print</span>
+        <span data-act="toast" data-arg="Refresh" class="material-symbols-outlined" style="font-size:18px;opacity:0.85;cursor:pointer">autorenew</span>
+        <span class="material-symbols-outlined" style="font-size:18px;opacity:0.85;cursor:pointer">help</span>
+      </div>`;
+      out += `<div style="flex:1;min-height:0;overflow-y:auto"><div style="padding:16px 24px;display:flex;flex-direction:column;gap:16px">${this.registerBody()}</div></div>`;
     } else if (s.view === 'quote') {
       out += this.ctx('Rent Quote', [{ label: s.property, act:'navProperty', arg: s.property }, { label:'Unit ' + s.unit, act:'navUnit', arg: s.unit }, { label:'New quote' }], 'Draft');
       out += this.quoteBody();
