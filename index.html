@@ -811,7 +811,7 @@ class Component extends DCLogic {
   feeTable(groupKey, title, loz, lozClass){
     const s = this.state;
     const ov = s.ov;
-    const rows = s.propFees.filter(f => f.group === groupKey);
+    const rows = s.propFees.filter(f => f.group === groupKey && (f.level||'Property')==='Property');
     const cols = '150px minmax(110px,1fr) 95px 105px 120px 100px 95px 78px 180px';
     const head = `<div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">
       ${['Charge type','Description','Amount','Source','Level','Origin','Overrides','Active','Actions'].map((h,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${h}</span>`).join('')}</div>`;
@@ -865,7 +865,8 @@ class Component extends DCLogic {
           <span class="td" style="border:none;display:flex;align-items:center;gap:10px;white-space:nowrap">${actionsCell}</span>
         </div>${sub}</div>`;
     }).join('');
-    return `<div class="tile"><div class="thead2"><span class="ttl">${title}</span><span class="loz ${lozClass}">${loz}</span><div style="flex:1"></div><button data-act="addopen" data-arg="${groupKey}" class="btn-out">Add fee</button></div><div style="overflow-x:auto"><div style="min-width:1120px">${head}${body}</div></div></div>`;
+    const emptyRow = rows.length ? '' : `<div style="padding:16px;text-align:center;font-size:14px;font-style:italic;color:#b3b3b3;border-bottom:1px solid #ebf1f5">No property-level charges in this section.</div>`;
+    return `<div class="tile"><div class="thead2"><span class="ttl">${title}</span><span class="loz ${lozClass}">${loz}</span><div style="flex:1"></div><button data-act="addopen" data-arg="${groupKey}" class="btn-out">Add fee</button></div><div style="overflow-x:auto"><div style="min-width:1120px">${head}${body}${emptyRow}</div></div></div>`;
   }
 
   propFeesBody(){
