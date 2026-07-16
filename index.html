@@ -67,6 +67,10 @@ class Component extends DCLogic {
     ufSel: '4C',
     lpProp: 'Riverview Apartments',
     lpUnit: '1B',
+    importStep: 1,
+    importAnal: 0,
+    importedTemplate: false,
+    importedCount: 10,
     propTab: 'Rental Fees',
     property: 'Riverview Apartments',
     unit: '1B',
@@ -216,6 +220,23 @@ class Component extends DCLogic {
     switch (act) {
       case 'navProfile': this.go('profile'); break;
       case 'navRegister': this.go('register'); break;
+      case 'importOpen': this.go('import', { importStep: 1, importAnal: 0 }); break;
+      case 'importNext': {
+        const st = this.state.importStep;
+        this._resetScroll = true;
+        if (st === 1) { this.setState({ importStep: 2, importAnal: 0 }); this.startImportAnalysis(); }
+        else if (st === 2 && this.state.importAnal >= 3) this.setState({ importStep: 3 });
+        break;
+      }
+      case 'importBack': this._resetScroll = true; this.setState(s => ({ importStep: Math.max(1, s.importStep - 1) })); break;
+      case 'importCancel': this.go('register'); break;
+      case 'importCreate': {
+        const included = this.importIncludedCount();
+        this._resetScroll = true;
+        this.setState({ importStep: 4, importedTemplate: true, importedCount: included });
+        break;
+      }
+      case 'importAssign': this.go('profile', { assign: { step:1, sel: this.candidateProps().filter(p=>p.pre).map(p=>p.name) } }); break;
       case 'navProperty': this.go('property', arg ? { property: arg, propTab: 'Rental Fees' } : { propTab: 'Rental Fees' }); break;
       case 'navUnit': this.go('unit', { unit: arg }); break;
       case 'ptab': this._resetScroll = true; this.setState({ profileTab: arg }); break;
@@ -844,6 +865,146 @@ class Component extends DCLogic {
     return h;
   }
 
+  // ================= AI IMPORT =================
+  importDocs(){
+    return [
+      { name:'Riverview_Lease_Unit4C.pdf', meta:'Lease agreement · 14 pages · 1.8 MB', pages:'14 pages', charges:7 },
+      { name:'Pet_Addendum.pdf', meta:'Addendum · 2 pages · 240 KB', pages:'2 pages', charges:2 },
+      { name:'Parking_Storage_Addendum.pdf', meta:'Addendum · 3 pages · 310 KB', pages:'3 pages', charges:2 },
+    ];
+  }
+  importRows(){
+    return [
+      { title:'Recurring', loz:'Mandatory', lozClass:'loz-mand', eyebrow:'Required fees', rows:[
+        ['Rent','Monthly base rent','Market rent','Lease p.1 §2','High',true,'imp-rent'],
+        ['Trash','Valet trash service','$28.00','Lease p.4 §7','High',true,'imp-trash'],
+        ['Water / sewer','Flat utility charge','$38.00','Lease p.4 §7','Medium',true,'imp-water']]},
+      { title:'One-time & move-in', loz:'Mandatory', lozClass:'loz-mand', rows:[
+        ['Admin fee','Administrative fee','$150.00','Lease p.2 §3','High',true,'imp-admin'],
+        ['Application fee','Per applicant','$50.00','Lease p.2 §3','High',true,'imp-app'],
+        ['Security deposit','Refundable deposit','$500.00','Lease p.2 §4','High',true,'imp-dep']]},
+      { title:'Recurring', loz:'Tenant selects', lozClass:'loz-opt', eyebrow:'Optional fees', rows:[
+        ['Pet rent','Per pet, monthly','$45.00','Pet Addendum p.1','High',true,'imp-pet'],
+        ['Covered parking','Reserved space','$75.00','Parking Addendum p.1','High',true,'imp-park'],
+        ['Storage','Storage locker','$40.00','Parking Addendum p.2','High',true,'imp-stor']]},
+      { title:'One-time & move-in', loz:'Tenant selects', lozClass:'loz-opt', rows:[
+        ['Pet deposit','Refundable, per pet','$300.00','Pet Addendum p.1','High',true,'imp-petdep'],
+        ['Late fee','Flagged: “5% of balance” — enter a flat default','—','Lease p.5 §9','Low',false,'imp-late']]},
+    ];
+  }
+  importIncludedCount(){
+    const t=this.state.toggles;
+    return this.importRows().flatMap(g=>g.rows).filter(r=>(r[6] in t)?t[r[6]]:r[5]).length;
+  }
+  startImportAnalysis(){
+    [this._ia1,this._ia2,this._ia3].forEach(t=>clearTimeout(t));
+    this._ia1=setTimeout(()=>this.setState({importAnal:1}),900);
+    this._ia2=setTimeout(()=>this.setState({importAnal:2}),1800);
+    this._ia3=setTimeout(()=>this.setState({importAnal:3}),2700);
+  }
+  importStepper(step){
+    const steps=['Upload documents','AI analysis','Review fees','Template created'];
+    return `<div style="background:#fff;border-bottom:1px solid #cedbe7;padding:12px 24px;display:flex;align-items:center;gap:12px;flex:none;overflow-x:auto">${steps.map((t,i)=>{
+      const n=i+1, done=n<step, active=n===step;
+      const circ = done
+        ? `<span style="width:24px;height:24px;border-radius:50%;background:var(--ac,#008dd5);color:#fff;display:inline-flex;align-items:center;justify-content:center;flex:none"><span class="material-symbols-outlined" style="font-size:16px">check</span></span>`
+        : `<span style="width:24px;height:24px;border-radius:50%;${active?'background:var(--ac,#008dd5);color:#fff':'background:#fff;color:#8a9aa8;border:1px solid #cedbe7'};display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;box-sizing:border-box;flex:none">${n}</span>`;
+      const sep=i<steps.length-1?`<span style="width:56px;height:1px;background:#cedbe7;flex:none"></span>`:'';
+      return `<span style="display:inline-flex;align-items:center;gap:8px;white-space:nowrap">${circ}<span style="font-size:14px;color:${active?'#13314c':'#8a9aa8'};font-weight:${active?600:400}">${t}</span></span>${sep}`;
+    }).join('')}</div>`;
+  }
+  importBody(){
+    const s=this.state, step=s.importStep, docs=this.importDocs();
+    const pdfRow=(d,statusHtml)=>`<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid #ebf1f5">
+      <span class="material-symbols-outlined" style="font-size:22px;color:#d02830;flex:none">picture_as_pdf</span>
+      <div style="flex:1;min-width:0"><div style="font-size:14px;color:#13314c;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.name}</div><div style="font-size:12px;color:#8a9aa8">${d.meta}</div></div>
+      ${statusHtml}</div>`;
+    if(step===1){
+      let h='';
+      h+=this.banner('Upload a signed lease and any addendums. Rent Manager AI reads them and drafts a complete rental fee template — every recurring and one-time charge, with the source clause cited for review.','');
+      h+=`<div class="tile"><div class="thead2"><span class="ttl">Upload documents</span></div><div style="padding:16px;display:flex;flex-direction:column;gap:14px">
+        <div data-act="toast" data-arg="Browse files" style="border:2px dashed #cedbe7;border-radius:6px;padding:34px 20px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer">
+          <span class="material-symbols-outlined" style="font-size:34px;color:var(--ac,#008dd5)">upload_file</span>
+          <div style="font-size:14px;font-weight:500;color:#13314c">Drag lease &amp; addendum files here</div>
+          <div style="font-size:12px;color:#8a9aa8">PDF, DOCX, or scanned image · up to 25 MB each</div>
+          <button class="btn-out" style="margin-top:4px;padding:7px 16px;font-size:13px">Browse files</button>
+        </div>
+        <div class="eyebrow">${docs.length} documents added</div>
+        <div style="border:1px solid #ebf1f5;border-radius:4px;overflow:hidden">${docs.map(d=>pdfRow(d,`${this.statusLoz('Ready','green')}<span data-act="toast" data-arg="Remove document" class="material-symbols-outlined" style="font-size:18px;color:#666;cursor:pointer">close</span>`)).join('')}</div>
+        <div style="display:flex;align-items:flex-start;gap:8px;background:#f5f8fa;border-radius:6px;padding:10px 12px"><span class="material-symbols-outlined" style="font-size:16px;color:#8a9aa8">lock</span><span style="font-size:12px;color:#666;line-height:1.45">Documents are processed securely and are not used to train models. You confirm every extracted fee before the template is created.</span></div>
+      </div></div>`;
+      return h;
+    }
+    if(step===2){
+      const anal=s.importAnal||0;
+      const phases=['Extracting text and tables','Matching charges to fee types','Detecting posting rules and move-in behavior'];
+      const progressLabel = anal>=3 ? 'Analysis complete' : `Step ${Math.min(anal+1,3)} of 3 · ${phases[Math.min(anal,2)]}`;
+      const checkItem=(t,done,active)=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 0"><span class="material-symbols-outlined" style="font-size:20px;color:${done?'#3a7d2c':(active?'var(--ac,#008dd5)':'#cedbe7')}">${done?'check_circle':(active?'progress_activity':'radio_button_unchecked')}</span><span style="font-size:14px;color:${done?'#13314c':'#666'}">${t}</span></div>`;
+      const checks=['Text and tables extracted from 3 documents','Charges identified and matched to RMX fee types','Posting rules and move-in behavior detected'];
+      let h='';
+      h+=`<div class="tile"><div style="padding:28px 24px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center">
+        <span class="material-symbols-outlined" style="font-size:36px;color:var(--ac,#008dd5)">auto_awesome</span>
+        <div style="font-size:18px;font-weight:600;color:#13314c">Reading your documents</div>
+        <div style="font-size:13px;color:#666;max-width:460px">Rent Manager AI is extracting charges, amounts, and posting rules. This usually takes under a minute.</div>
+        <div style="width:100%;max-width:420px;height:6px;background:#ebf1f5;border-radius:3px;margin-top:8px;overflow:hidden"><div style="width:${Math.round((anal/3)*100)}%;height:100%;background:var(--ac,#008dd5);transition:width 400ms ease"></div></div>
+        <div style="font-size:12px;color:#8a9aa8">${progressLabel}</div>
+      </div></div>`;
+      h+=`<div class="eyebrow">Documents</div>`;
+      h+=`<div class="tile">${docs.map((d,i)=>{
+        const done=anal>=i+1;
+        const status=done?`<span style="display:inline-flex;align-items:center;gap:6px"><span style="font-size:12px;color:#8a9aa8">${d.charges} charges found</span>${this.statusLoz('Analyzed','green')}</span>`:`<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#8a9aa8"><span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5)">progress_activity</span>Reading…</span>`;
+        return pdfRow(d,status);
+      }).join('')}</div>`;
+      h+=`<div class="tile"><div style="padding:8px 16px">${checks.map((t,i)=>checkItem(t,anal>=i+1,anal===i)).join('')}</div></div>`;
+      return h;
+    }
+    if(step===3){
+      const cols='140px minmax(200px,1fr) 110px 170px 100px 70px';
+      const conf=(c)=>{const m={High:'background:#e2f1da;color:#4d8a2a',Medium:'background:#fdeedd;color:#b35a00',Low:'background:#fdeaea;color:#d02830'};return `<span class="loz" style="${m[c]};text-transform:none;letter-spacing:0">${c}</span>`;};
+      const src=(t)=>`<span style="display:inline-flex;align-items:center;gap:4px;color:var(--ac,#008dd5);font-size:13px;white-space:nowrap"><span class="material-symbols-outlined" style="font-size:16px">description</span>${t}</span>`;
+      const table=(g)=>`<div class="tile"><div class="thead2"><span class="ttl">${g.title}</span><span class="loz ${g.lozClass}">${g.loz}</span></div><div style="overflow-x:auto"><div style="min-width:820px">
+        <div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Charge type','Description','Amount','Source clause','Confidence','Include'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>
+        ${g.rows.map(r=>`<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5"><span class="td name" style="border:none;padding-left:16px">${r[0]}</span><span class="td" style="border:none">${r[1]}</span><span class="td num" style="border:none">${r[2]}</span><span class="td" style="border:none">${src(r[3])}</span><span class="td" style="border:none">${conf(r[4])}</span><span class="td" style="border:none">${this.chk(r[5],r[6])}</span></div>`).join('')}
+      </div></div></div>`;
+      let h='';
+      h+=this.banner('Rent Manager AI found 11 charges across 3 documents and drafted the template below. Review each amount, adjust confidence flags, then create the template. Nothing is saved until you confirm.','');
+      h+=`<div class="tile"><div class="thead2"><span class="ttl">Draft template</span><span class="loz loz-camp" style="display:inline-flex;align-items:center;gap:4px"><span class="material-symbols-outlined" style="font-size:13px">auto_awesome</span>AI-generated draft</span></div>
+        <div style="padding:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+          <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:13px;color:#666">Template name</span><input id="imp-name" class="fld" value="Riverview — Lease-derived" style="height:34px;box-sizing:border-box"></div>
+          <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:13px;color:#666">Property type</span><select class="fld" style="height:34px"><option>Conventional</option><option>Multi Family</option></select></div>
+          <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:13px;color:#666">Apply extracted fees at</span><select class="fld" style="height:34px"><option>Property level</option><option>Unit type level</option></select></div>
+        </div></div>`;
+      h+=`<div style="display:flex;align-items:center;gap:8px;background:#fff8ee;border:1px solid #f3d9b0;border-radius:4px;padding:10px 16px"><span class="material-symbols-outlined" style="font-size:18px;color:#b35a00">flag</span><span style="font-size:13px;color:#7a5220">2 charges need review — a variable late fee and an ambiguous utility amount were flagged Medium/Low confidence. Confirm or edit them before creating the template.</span></div>`;
+      this.importRows().forEach(g=>{ if(g.eyebrow) h+=`<div class="eyebrow" style="margin-top:8px">${g.eyebrow}</div>`; h+=table(g); });
+      return h;
+    }
+    const skipped=this.importRows().flatMap(g=>g.rows).length - s.importedCount;
+    const card=(icon,title,sub,act)=>`<div data-act="${act}" style="flex:1;min-width:240px;display:flex;align-items:center;gap:12px;border:1px solid #cedbe7;border-radius:6px;padding:14px 16px;background:#fff;cursor:pointer">
+      <span class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5)">${icon}</span>
+      <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:500;color:#13314c">${title}</div><div style="font-size:12px;color:#8a9aa8">${sub}</div></div>
+      <span class="material-symbols-outlined" style="font-size:20px;color:#b3b3b3">chevron_right</span></div>`;
+    return `<div class="tile"><div style="padding:32px 24px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center">
+        <span style="width:52px;height:52px;border-radius:50%;background:#e2f1da;display:inline-flex;align-items:center;justify-content:center"><span class="material-symbols-outlined" style="font-size:30px;color:#3a7d2c">check</span></span>
+        <div style="font-size:20px;font-weight:600;color:#13314c">Template created</div>
+        <div style="font-size:14px;color:#666;max-width:480px">“Riverview — Lease-derived” is ready with ${s.importedCount} fees from your documents. ${skipped?`${skipped} flagged charge${skipped>1?'s were':' was'} skipped and can be added anytime.`:'Every extracted charge was included.'}</div>
+        <div style="display:flex;gap:0;margin-top:10px;border:1px solid #ebf1f5;border-radius:6px;overflow:hidden">
+          ${[[s.importedCount,'Fees added'],[3,'Source documents'],[skipped,'Skipped for review']].map(([v,l],i)=>`<div style="padding:12px 26px;${i<2?'border-right:1px solid #ebf1f5;':''}text-align:center"><div style="font-size:22px;font-weight:700;color:#13314c">${v}</div><div style="font-size:12px;color:#8a9aa8">${l}</div></div>`).join('')}
+        </div>
+      </div></div>
+      <div class="eyebrow" style="margin-top:8px">Next steps</div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap">${card('tune','Open the template','Review fees, add unit type and unit layers','navProfile')}${card('apartment','Assign to a property',"Make these fees live for a property's units",'importAssign')}</div>`;
+  }
+  importFooter(step){
+    const anal=this.state.importAnal||0;
+    const btn=(act,label,pri,disabled)=>`<button data-act="${act}" class="${pri?'btn-pri':'btn-out'}" style="padding:8px 18px;font-size:14px;${disabled?'opacity:0.5;pointer-events:none;':''}">${label}</button>`;
+    let left='', right='';
+    if(step===1){ left=`<a data-act="navRegister" style="font-size:14px">← Back to templates</a>`; right=btn('importCancel','Cancel')+btn('importNext','Analyze with Rent Manager AI →',true); }
+    else if(step===2){ left=`<a data-act="importBack" style="font-size:14px">← Back</a>`; right=btn('importCancel','Cancel')+btn('importNext','Continue',true,anal<3); }
+    else if(step===3){ left=`<a data-act="importBack" style="font-size:14px">← Back</a>`; right=btn('importCancel','Cancel')+btn('importCreate','Create template',true); }
+    else { right=btn('importCancel','Close')+btn('navProfile','Open template',true); }
+    return `<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:#fff;border-top:1px solid #cedbe7;flex:none">${left}<div style="flex:1"></div>${right}</div>`;
+  }
+
   registerBody(){
     const chg = this.state.propFees.filter(f=>f.origin==='profile').length + this.utData().reduce((n,t)=>n+t.req.length+t.opt.length,0);
     const rows=[
@@ -851,8 +1012,9 @@ class Component extends DCLogic {
       { name:'Luxury Apartment', desc:'Premium fees for luxury and high-end apartment communities', prop:'Clearcreek Apartments', more:3, units:96, charges:24, updated:'03/03/26' },
       { name:'Townhome Community', desc:'Fee structure for townhome communities', prop:'Waterstone Townhomes', more:1, units:48, charges:10, updated:'11/05/25' },
     ];
+    if(this.state.importedTemplate) rows.push({ name:'Riverview — Lease-derived', desc:'Drafted from lease & addendum documents by Rent Manager AI', prop:'Riverview Apartments', more:0, units:49, charges:this.state.importedCount, updated:'07/16/26' });
     const cols='minmax(180px,1.2fr) minmax(280px,2fr) minmax(240px,1.5fr) 110px 120px 120px 40px';
-    const pill=(n)=>`<span style="display:inline-flex;align-items:center;background:#fff;border:1px solid var(--ac,#008dd5);border-radius:12px;padding-left:8px;color:var(--ac,#008dd5);font-size:13px;line-height:20px">+${n}<span class="material-symbols-outlined" style="font-size:20px">arrow_drop_down</span></span>`;
+    const pill=(n)=>n?`<span style="display:inline-flex;align-items:center;background:#fff;border:1px solid var(--ac,#008dd5);border-radius:12px;padding-left:8px;color:var(--ac,#008dd5);font-size:13px;line-height:20px">+${n}<span class="material-symbols-outlined" style="font-size:20px">arrow_drop_down</span></span>`:'';
     const hcell=(t)=>`<span style="display:flex;align-items:center;height:28px;box-sizing:border-box;padding:4px 8px;font-size:12px;font-weight:500;letter-spacing:1px;color:#fff;border-right:1px solid rgba(255,255,255,0.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>`;
     const header=`<div style="display:grid;grid-template-columns:${cols};background:#737373">${['Template Name','Description','Assigned Properties','Total Units','Total Charges','Last Updated'].map(hcell).join('')}<span style="display:flex;align-items:center;justify-content:center;height:28px"><span class="material-symbols-outlined" style="font-size:20px;color:#fff">view_column</span></span></div>`;
     const body=rows.map(r=>`<div data-act="${r.act||'toast'}"${r.act?'':` data-arg="Only Standard Conventional is mocked in this prototype"`} style="display:grid;grid-template-columns:${cols};align-items:center;background:#fff;border-bottom:1px solid #ebf1f5;cursor:pointer" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background='#fff'">
@@ -878,7 +1040,7 @@ class Component extends DCLogic {
           <label style="display:inline-flex;align-items:center;gap:8px;height:36px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer"><input type="checkbox" style="width:18px;height:18px;accent-color:var(--ac,#008dd5);margin:0">Show Inactive</label>
         </div>
         <div style="display:flex;align-items:flex-end;gap:8px">
-          <button data-act="toast" data-arg="Import Rental Fee Template" class="btn-pri" style="height:36px;padding:8px 16px 8px 8px;border-radius:4px;font:400 14px Roboto,sans-serif;display:inline-flex;align-items:center;gap:8px"><span class="material-symbols-outlined" style="font-size:20px">download</span>Import Rental Fee Template</button>
+          <button data-act="importOpen" class="btn-pri" style="height:36px;padding:8px 16px 8px 8px;border-radius:4px;font:400 14px Roboto,sans-serif;display:inline-flex;align-items:center;gap:8px"><span class="material-symbols-outlined" style="font-size:20px">download</span>Import Rental Fee Template</button>
           <button data-act="toast" data-arg="Add Rental Fee Template" class="btn-pri" style="height:36px;padding:8px 16px 8px 8px;border-radius:4px;font:400 14px Roboto,sans-serif;display:inline-flex;align-items:center;gap:8px"><span class="material-symbols-outlined" style="font-size:20px">add_circle</span>Add Rental Fee Template</button>
         </div>
       </div>
@@ -1388,6 +1550,16 @@ class Component extends DCLogic {
         <span class="material-symbols-outlined" style="font-size:18px;opacity:0.85;cursor:pointer">help</span>
       </div>`;
       out += `<div style="flex:1;min-height:0;overflow-y:auto"><div style="padding:16px 24px;display:flex;flex-direction:column;gap:16px">${this.registerBody()}</div></div>`;
+    } else if (s.view === 'import') {
+      out += `<div style="height:40px;background:var(--ac,#008dd5);display:flex;align-items:center;padding:0 16px;gap:10px;color:#fff;font-size:14px;flex:none">
+        <a data-act="navRegister" class="crumb" style="color:#fff;font-weight:500">Rental Fee Templates</a><span style="opacity:0.5">·</span>
+        <span style="color:#fff;font-weight:500">New template from documents</span>
+        <div style="flex:1"></div>
+        <span class="material-symbols-outlined" style="font-size:18px;opacity:0.85;cursor:pointer">help</span>
+      </div>`;
+      out += this.importStepper(s.importStep);
+      out += `<div style="flex:1;min-height:0;overflow-y:auto"><div style="padding:16px;display:flex;flex-direction:column;gap:16px;max-width:1000px;width:100%;box-sizing:border-box;margin:0 auto">${this.importBody()}</div></div>`;
+      out += this.importFooter(s.importStep);
     } else if (s.view === 'quote') {
       out += this.ctx('Rent Quote', [{ label: s.property, act:'navProperty', arg: s.property }, { label:'Unit ' + s.unit, act:'navUnit', arg: s.unit }, { label:'New quote' }], 'Draft');
       out += this.quoteBody();
