@@ -1269,7 +1269,7 @@ class Component extends DCLogic {
     let h='';
     h+=`<div class="eyebrow" style="margin-top:4px">Fee structure</div>`;
     h+=`<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:stretch">
-      ${card({tab:'Property Fees',icon:'apartment',bg:'#eef1f4',fg:'#4a5b6b',title:'Property Fees',scope:'All units · every property',count:15,desc:'Base fees applied to every unit at all 14 assigned properties.',chips:req(10)+opt(3)+sit(2),foot:'Applies at property level'})}
+      ${card({tab:'Property Fees',icon:'apartment',bg:'#eef1f4',fg:'#4a5b6b',title:'Property Fees',scope:'All units · every property',count:13,desc:'Base fees applied to every unit at all 14 assigned properties.',chips:req(9)+opt(2)+sit(2),foot:'Applies at property level'})}
       ${card({tab:'Unit Type Fees',icon:'category',bg:'#e5f3fb',fg:'#0071aa',title:'Unit Type Fees',scope:'5 unit types',count:3,desc:'Additive fees for a unit type (e.g. 2BR/2BA), on top of property fees.',chips:req(1)+opt(2),foot:'2 of 5 types have fees'})}
       ${card({tab:'Unit Fees',icon:'door_front',bg:'#fdeedd',fg:'#b35a00',title:'Unit Fees',scope:'Per specific unit',count:1,desc:'One-off fees for a single unit, on top of property and unit type fees.',chips:opt(1),foot:'1 unit customized'})}
     </div>`;
@@ -1288,31 +1288,32 @@ class Component extends DCLogic {
     return h;
   }
   propertyFeesBody(){
+    const pl=a=>a.filter(f=>f.app==='Property'); // property-level charges only
     let h='';
     h+=this.banner('Property-level fees apply to all units at assigned properties. Unit type and unit fees are additive — they stack on top of these at quote time.','Learn more →');
     // Required Charges
     h+=this.chargeAccordion('req','Required Charges','',
-      [{code:'RC',desc:'Base rent',amount:'Market Rent',cat:'Rent',app:'Property',active:true},
+      pl([{code:'RC',desc:'Base rent',amount:'Market Rent',cat:'Rent',app:'Property',active:true},
        {code:'GARBAG',desc:'Trash collection',amount:'28.00',cat:'Utility',app:'Property',active:true},
        {code:'WATER',desc:'Water service',amount:'38.00',cat:'Utility',app:'Property',active:true},
-       {code:'GARBAGFEE',desc:'Additional trash valet',amount:'4.00',cat:'Utility',app:'Unit Type: 2BR/2BA',active:true}],
-      [{code:'ADMIN',desc:'Administrative fee',amount:'150.00',cat:'ADMIN',app:'Property',active:true},
+       {code:'GARBAGFEE',desc:'Additional trash valet',amount:'4.00',cat:'Utility',app:'Unit Type: 2BR/2BA',active:true}]),
+      pl([{code:'ADMIN',desc:'Administrative fee',amount:'150.00',cat:'ADMIN',app:'Property',active:true},
        {code:'APPFEE',desc:'Application fee',amount:'50.00',cat:'APPLICATION',app:'Property',active:true},
        {code:'DP',desc:'Security deposit',amount:'500.00',cat:'SECDEP',app:'Property',active:true},
        {code:'PETDP',desc:'Pet Deposit - Dog',amount:'300.00',cat:'PET',app:'Property',active:true},
        {code:'LMR',desc:"Last month's rent",amount:'1,350.00',cat:'LMR',app:'Property',active:true},
-       {code:'KEY',desc:'Key & fob deposit',amount:'50.00',cat:'KEY',app:'Property',active:true}],
+       {code:'KEY',desc:'Key & fob deposit',amount:'50.00',cat:'KEY',app:'Property',active:true}]),
       {keyPrefix:'pf',recGroup:'req-rec',oneGroup:'req-one'});
     // Optional Charges
     h+=this.chargeAccordion('opt','Optional Charges','Tenant selects',
-      [{code:'SF',desc:'Storage unit',amount:'40.00',cat:'STORAGE',app:'Property',active:true},
-       {code:'AMENFEE',desc:'Pool & fitness access',amount:'45.00',cat:'AMENITY',app:'Unit Type: 2BR/2BA',active:true}],
-      [{code:'HOLD',desc:'Unit reservation fee',amount:'200.00',cat:'HOLD',app:'Property',active:true}],
+      pl([{code:'SF',desc:'Storage unit',amount:'40.00',cat:'STORAGE',app:'Property',active:true},
+       {code:'AMENFEE',desc:'Pool & fitness access',amount:'45.00',cat:'AMENITY',app:'Unit Type: 2BR/2BA',active:true}]),
+      pl([{code:'HOLD',desc:'Unit reservation fee',amount:'200.00',cat:'HOLD',app:'Property',active:true}]),
       {keyPrefix:'pf',recGroup:'opt-rec',oneGroup:'opt-one'});
     // Situational Charges
     h+=this.chargeAccordion('sit','Situational Charges','Applies when a condition exists',
-      [{code:'PETFEE',desc:'Pet rent, per pet',cond:'If resident has a pet',amount:'45.00',cat:'PET',app:'Property',active:true},
-       {code:'COVPARK',desc:'Reserved covered parking',cond:'If parking rented',amount:'75-125',cat:'PARKING',app:'Property',active:true}],
+      pl([{code:'PETFEE',desc:'Pet rent, per pet',cond:'If resident has a pet',amount:'45.00',cat:'PET',app:'Property',active:true},
+       {code:'COVPARK',desc:'Reserved covered parking',cond:'If parking rented',amount:'75-125',cat:'PARKING',app:'Property',active:true}]),
       [],
       {keyPrefix:'pf',recGroup:'sit-rec',oneGroup:'sit-one',condition:true,oneEmpty:'No situational one-time charges added.'});
     return h;
