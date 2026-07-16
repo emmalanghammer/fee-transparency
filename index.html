@@ -65,6 +65,8 @@ class Component extends DCLogic {
     ufProp: 'Riverview Apartments',
     ufType: 'All',
     ufSel: '4C',
+    lpProp: 'Riverview Apartments',
+    lpUnit: '1B',
     propTab: 'Rental Fees',
     property: 'Riverview Apartments',
     unit: '1B',
@@ -219,6 +221,8 @@ class Component extends DCLogic {
       case 'ptab': this._resetScroll = true; this.setState({ profileTab: arg }); break;
       case 'utsel': this.setState({ utSel: arg }); break;
       case 'ufsel': this.setState({ ufSel: arg }); break;
+      case 'lpprop': if (arg) { const first = this.ufUnits().filter(x => x.prop === arg)[0]; this.setState({ lpProp: arg, lpUnit: first ? first.u : null }); } break;
+      case 'lpunit': if (arg) this.setState({ lpUnit: arg }); break;
       case 'ufprop': if (arg) { const first = this.ufUnits().filter(x => x.prop === arg)[0]; this.setState({ ufProp: arg, ufType: 'All', ufSel: first ? first.u : null }); } break;
       case 'uftype': if (arg) { const list = this.ufUnits().filter(x => x.prop === this.state.ufProp && (arg === 'All' || x.type === arg)); const keep = list.some(x => x.u === this.state.ufSel); this.setState({ ufType: arg, ufSel: keep ? this.state.ufSel : (list[0] ? list[0].u : null) }); } break;
       case 'proptab':
@@ -384,36 +388,62 @@ class Component extends DCLogic {
     return `<div class="eyebrow" style="margin-top:8px">Other rentable items (ORI)</div><div class="tile"><div class="thead2"><span class="ttl">ORI charges</span><span class="loz" style="background:#e5f3fb;color:#0071aa">Property level</span><div style="flex:1"></div><button data-act="addopen" data-arg="ori" class="btn-out">Add ORI</button></div><div style="padding:10px 16px;border-bottom:1px solid #ebf1f5;font-size:12px;color:#8a9aa8">Each item carries a default rent. ORI appear as selectable optional add-ons in rent quotes and move-in.</div><div style="overflow-x:auto"><div style="min-width:700px">${head}${body}</div></div></div>`;
   }
 
-  listingPreview(){
-    const pf=this.state.propFees.filter(f=>!f.excluded && f.ils);
-    const mand=pf.filter(f=>f.group==='req-rec');
-    const oneTime=pf.filter(f=>f.group==='req-one');
-    const opt=pf.filter(f=>f.group==='opt-rec' || f.group==='sit-rec');
-    let monthly=1350; mand.forEach(f=>{ monthly+=this.parseAmt(f.amount); });
-    const chip=(nm,amt,cond)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px dashed #e4ebf1"><span style="font-size:13px;color:#2b3a48">${nm}${cond?` <span style="font-size:11px;color:#8a9aa8">· ${cond}</span>`:''}</span><span style="font-size:13px;color:#13314c;font-weight:500">${amt}</span></div>`;
-    return `<div class="eyebrow" style="margin-top:8px">Listing preview</div>
-      <div class="tile" style="overflow:hidden">
-        <div style="display:flex;align-items:center;gap:8px;padding:12px 16px;background:#13314c"><span class="material-symbols-outlined" style="font-size:18px;color:#fff">travel_explore</span><span style="font-size:14px;font-weight:500;color:#fff">What a prospect sees on the listing (ILS)</span><div style="flex:1"></div><span style="font-size:12px;color:#b3c2cf">Riverview Apartments · 1BR/1BA</span></div>
+  lpBody(){
+    const s=this.state;
+    const all=this.ufUnits();
+    const props=[...new Set(all.map(x=>x.prop))];
+    const prop=props.includes(s.lpProp)?s.lpProp:props[0];
+    const units=all.filter(x=>x.prop===prop);
+    const unit=units.find(x=>x.u===s.lpUnit)||units[0];
+    const mr=this.parseAmt(unit.rent||'$0');
+    const resolve=(f)=>{
+      let amount=f.amount, excluded=false;
+      (f.overrides||[]).forEach(o=>{
+        if(o.scope===unit.type || o.scope==='Unit '+unit.u){ if(o.excluded) excluded=true; else amount=o.amount; }
+      });
+      return { name:f.name, amount, cond:f.cond, overridden:amount!==f.amount, excluded };
+    };
+    const pf=s.propFees.filter(f=>!f.excluded && f.ils && f.name!=='Rent');
+    const mand=pf.filter(f=>f.group==='req-rec').map(resolve).filter(f=>!f.excluded);
+    const oneTime=pf.filter(f=>f.group==='req-one').map(resolve).filter(f=>!f.excluded);
+    const opt=pf.filter(f=>f.group==='opt-rec'||f.group==='sit-rec').map(resolve).filter(f=>!f.excluded);
+    const ut=this.utData().find(t=>t.name===unit.type);
+    const utReq=ut?ut.req.filter(r=>r[4]).map(r=>({name:r[0],amount:r[2]})):[];
+    const utOpt=ut?ut.opt.filter(r=>r[4]).map(r=>({name:r[0],amount:r[2]})):[];
+    const unitFees=(unit.fees||[]).filter(r=>r[4]).map(r=>({name:r[0],amount:r[2]}));
+    let monthly=mr; mand.concat(utReq).forEach(f=>{ monthly+=this.parseAmt(f.amount); });
+    const chip=(nm,amt,cond,flag)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px dashed #e4ebf1"><span style="font-size:13px;color:#2b3a48">${nm}${cond?` <span style="font-size:11px;color:#b35a00">· ${cond}</span>`:''}${flag?` <span style="font-size:11px;color:#0071aa">· ${flag}</span>`:''}</span><span style="font-size:13px;color:#13314c;font-weight:500">${amt}</span></div>`;
+    const onch=`onchange="this.dataset.arg=this.value;this.dispatchEvent(new MouseEvent('click',{bubbles:true}))"`;
+    const sel=(label,act,opts)=>`<div style="display:flex;flex-direction:column;gap:4px;width:260px"><span style="font-size:13px;color:#666">${label}</span><select data-act="${act}" class="fld" style="height:36px" ${onch}>${opts.join('')}</select></div>`;
+    let h='';
+    h+=this.banner('Preview exactly what a prospect sees on the ILS listing for any property and unit this template covers. The stack updates with property fees, unit type fees, overrides, and unit-specific fees.','');
+    h+=`<div class="tile"><div style="padding:14px 16px;display:flex;gap:16px;flex-wrap:wrap">
+      ${sel('Property','lpprop',props.map(p=>`<option${p===prop?' selected':''}>${p}</option>`))}
+      ${sel('Unit','lpunit',units.map(x=>`<option value="${x.u}"${x.u===unit.u?' selected':''}>Unit ${x.u} · ${x.type}</option>`))}
+    </div></div>`;
+    h+=`<div class="tile" style="overflow:hidden">
+        <div style="display:flex;align-items:center;gap:8px;padding:12px 16px;background:#13314c"><span class="material-symbols-outlined" style="font-size:18px;color:#fff">travel_explore</span><span style="font-size:14px;font-weight:500;color:#fff">What a prospect sees on the listing (ILS)</span><div style="flex:1"></div><span style="font-size:12px;color:#b3c2cf">${prop} · Unit ${unit.u} · ${unit.type}</span></div>
         <div style="display:flex;flex-wrap:wrap;gap:0">
           <div style="flex:1;min-width:300px;padding:18px 20px;border-right:1px solid #ebf1f5;box-sizing:border-box">
             <div style="font-size:12px;color:#8a9aa8;text-transform:uppercase;letter-spacing:0.05em">Starting price</div>
             <div style="display:flex;align-items:baseline;gap:8px;margin:4px 0 2px"><span style="font-size:32px;font-weight:700;color:#13314c">${this.money(monthly)}</span><span style="font-size:14px;color:#8a9aa8">/mo</span></div>
             <div style="font-size:12px;color:#8a9aa8;margin-bottom:14px">Rent + required monthly fees</div>
             <div style="font-size:12px;font-weight:600;color:#4a5b6b;margin-bottom:2px">Included every month</div>
-            ${chip('Base rent','$1,350.00')}${mand.map(f=>chip(f.name,f.amount)).join('')}
+            ${chip('Base rent',this.money(mr))}${mand.map(f=>chip(f.name,f.amount,'',f.overridden?unit.type+' override':'')).join('')}${utReq.map(f=>chip(f.name,f.amount,'',unit.type)).join('')}
             <div style="font-size:12px;font-weight:600;color:#4a5b6b;margin:14px 0 2px">Due at move-in</div>
             ${oneTime.map(f=>chip(f.name,f.amount)).join('')||'<div style="font-size:13px;color:#b3b3b3;padding:7px 0">None listed</div>'}
           </div>
           <div style="flex:1;min-width:260px;padding:18px 20px;box-sizing:border-box">
             <div style="font-size:12px;font-weight:600;color:#4a5b6b;margin-bottom:6px">Optional add-ons</div>
-            ${opt.map(f=>chip(f.name,f.amount,f.cond)).join('')}
+            ${opt.map(f=>chip(f.name,f.amount,f.cond)).join('')}${utOpt.map(f=>chip(f.name,f.amount,'',unit.type)).join('')}${unitFees.map(f=>chip(f.name,f.amount,'','Unit '+unit.u)).join('')}
             <div style="display:flex;align-items:flex-start;gap:8px;margin-top:14px;background:#f5f8fa;border-radius:6px;padding:10px 12px">
               <span class="material-symbols-outlined" style="font-size:16px;color:#3a7d2c">visibility</span>
-              <span style="font-size:12px;color:#666;line-height:1.45">Only fees with ILS display on show here. Toggle a fee's ILS switch to add or hide it from listings — this replaces the old marketing pricing-field mapping.</span>
+              <span style="font-size:12px;color:#666;line-height:1.45">Only fees with Active on show here. Toggle a fee's Active checkbox to add or hide it from listings — this replaces the old marketing pricing-field mapping.</span>
             </div>
           </div>
         </div>
       </div>`;
+    return h;
   }
 
   legacyTiles(){
@@ -810,7 +840,6 @@ class Component extends DCLogic {
     h += this.feeTable('opt-one','One-time & move-in','Tenant selects','loz-opt');
     h += `<div class="eyebrow" style="margin-top:8px">Situational fees</div>`;
     h += this.feeTable('sit-rec','Applies only when a condition exists','Situational','loz-sit');
-    h += this.listingPreview();
     h += this.legacyTiles();
     return h;
   }
@@ -1033,7 +1062,6 @@ class Component extends DCLogic {
     h+=`<div style="display:flex;align-items:center;gap:12px;margin-top:8px"><span class="eyebrow">Situational fees</span><div style="flex:1"></div><a data-act="petImportOpen" style="font-size:13px;display:inline-flex;align-items:center;gap:4px"><span class="material-symbols-outlined" style="font-size:16px">pets</span>Pull from existing pet fee setup</a></div>`;
     h+=this.profTile('Applies only when a condition exists','Situational','loz-sit',[['Pet fee','Pet rent, per pet','$45.00','Pet type',true,'If pet','PET'],['Covered parking','Reserved covered space','$75–$125','ORI range',true,'If parking rented','PARKING']],'opt-rec','cond');
     h+=this.oriTile();
-    h+=this.listingPreview();
     h+=`<div class="eyebrow" style="margin-top:8px">Concessions & promotions</div>`;
     h+=`<div class="tile"><div class="thead2"><span class="ttl">Concessions</span><span class="loz loz-sub">Subtractive</span><div style="flex:1"></div><button data-act="toast" data-arg="Add concession" class="btn-out">Add concession</button></div><div style="display:grid;grid-template-columns:220px 1fr 1fr 1fr 1fr 100px;background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Name','Value','Type','Applies to','Expires','Actions'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div><div style="display:grid;grid-template-columns:220px 1fr 1fr 1fr 1fr 100px;align-items:center"><span class="td name" style="border:none;padding-left:16px">Move-in special</span><span class="td num" style="border:none">1 month free</span><span class="td" style="border:none">Rent waiver</span><span class="td" style="border:none">All units</span><span class="td" style="border:none">Dec 31, 2025</span><span class="td" style="border:none"><span class="act"><span class="material-symbols-outlined icon-edit">edit</span><span class="material-symbols-outlined icon-del">delete</span></span></span></div></div>`;
     return h;
@@ -1116,8 +1144,8 @@ class Component extends DCLogic {
   ufUnits(){
     const custom={ '4C':[['Storage','Corner storage unit — unique to 4C','$40.00','Flat',false,'Unit · 4C','STORAGE']] };
     const riv=['1A','1B','2A','4C','4D','5A'].map(u=>Object.assign({}, this.unitInfo(u), { prop:'Riverview Apartments', fees: custom[u]||[] }));
-    const oak=[{u:'1C',type:'1BR/1BA'},{u:'2D',type:'2BR/2BA'},{u:'3E',type:'2BR/2BA'},{u:'4A',type:'Studio'}].map(x=>Object.assign(x,{prop:'Oakwood Commons',fees:[]}));
-    const sun=[{u:'A1',type:'1BR/1BA'},{u:'B2',type:'2BR/2BA'},{u:'C3',type:'3BR/2BA'}].map(x=>Object.assign(x,{prop:'Sunrise Heights',fees:[]}));
+    const oak=[{u:'1C',type:'1BR/1BA',rent:'$1,295'},{u:'2D',type:'2BR/2BA',rent:'$1,540'},{u:'3E',type:'2BR/2BA',rent:'$1,540'},{u:'4A',type:'Studio',rent:'$965'}].map(x=>Object.assign(x,{prop:'Oakwood Commons',fees:[]}));
+    const sun=[{u:'A1',type:'1BR/1BA',rent:'$1,410'},{u:'B2',type:'2BR/2BA',rent:'$1,675'},{u:'C3',type:'3BR/2BA',rent:'$2,120'}].map(x=>Object.assign(x,{prop:'Sunrise Heights',fees:[]}));
     return riv.concat(oak,sun);
   }
   ufBody(){
@@ -1218,6 +1246,7 @@ class Component extends DCLogic {
     else if (t === 'Amenities') return `<div style="flex:1;min-height:0;display:flex;flex-direction:column">${this.amenitiesBody()}</div>`;
     else if (t === 'Unit Type Fees') return `<div style="flex:1;min-height:0;display:flex;flex-direction:column">${this.utBody()}</div>`;
     else if (t === 'Unit Fees') return `<div style="flex:1;min-height:0;display:flex;flex-direction:column">${this.ufBody()}</div>`;
+    else if (t === 'Listing Preview') inner = this.lpBody();
     else if (t === 'Assigned Properties') inner = this.apBody();
     else inner = this.chBody();
     return `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden"><div style="flex:1;min-width:0;overflow-y:auto;display:flex;flex-direction:column"><div style="flex:1;min-width:0;padding:16px;display:flex;flex-direction:column;gap:16px;max-width:1500px;width:100%;box-sizing:border-box;margin:0 auto">${inner}</div></div>${this.rail()}</div>`;
@@ -1340,7 +1369,7 @@ class Component extends DCLogic {
     if (s.view === 'profile') {
       out += this.ctx('Rental Fee Templates', [{ label:'Standard Conventional' }], '1 of 3', 'navRegister');
       out += this.profileScoreboard();
-      out += this.tabRow(['Overview','Unit Type Fees','Unit Fees','Amenities','Assigned Properties','Change History'], s.profileTab, 'ptab');
+      out += this.tabRow(['Overview','Unit Type Fees','Unit Fees','Listing Preview','Amenities','Assigned Properties','Change History'], s.profileTab, 'ptab');
       out += this.profileBody();
       out += this.footer(s.profileTab === 'Unit Fees' ? 'Save unit fees' : 'Save template');
     } else if (s.view === 'property') {
