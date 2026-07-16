@@ -178,11 +178,11 @@ class Component extends DCLogic {
 
   properties() {
     return [
-      ['Riverview Apartments','Loveland OH','Conventional','49','71%','Jun 1, 2025','3 overrides','Active','green'],
-      ['Oakwood Commons','Cincinnati OH','Conventional','72','88%','Jun 1, 2025','0','Active','green'],
-      ['Sunrise Heights','Fairfield OH','Conventional','38','65%','Jun 15, 2025','1 override','Active','green'],
-      ['Bradford House','Cincinnati OH','Conventional','24','50%','Jul 1, 2025','0','Setup in progress','amber'],
-      ['Elmwood Park','Columbus OH','Conventional','56','79%','—','—','Not started','gray']
+      ['Riverview Apartments','Loveland OH','Apartment','49','71%','Jun 1, 2025','3 overrides','Active','green'],
+      ['Oakwood Commons','Cincinnati OH','Multifamily','72','88%','Jun 1, 2025','0','Active','green'],
+      ['Sunrise Heights','Fairfield OH','Multifamily','38','65%','Jun 15, 2025','1 override','Active','green'],
+      ['Bradford House','Cincinnati OH','Duplex','24','50%','Jul 1, 2025','0','Setup in progress','amber'],
+      ['Elmwood Park','Columbus OH','Single Family','56','79%','—','—','Not started','gray']
     ];
   }
 
@@ -353,6 +353,7 @@ class Component extends DCLogic {
   originChip(o){ return o==='property'
     ? '<span class="loz" style="background:#e2f1da;color:#4d8a2a;text-transform:none;letter-spacing:0">This property</span>'
     : '<span class="loz" style="background:#e5f3fb;color:#0071aa;text-transform:none;letter-spacing:0">Profile</span>'; }
+  ptOpts(selected){ return ['Single Family','Multifamily','Apartment','Duplex'].map(t=>`<option${t===selected?' selected':''}>${t}</option>`).join(''); }
   parseAmt(v){ if(!v) return 0; const m=(''+v).replace(/[, ]/g,'').match(/\$?(\d+(?:\.\d+)?)/); return m?parseFloat(m[1]):0; }
   money(n){ return '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
   priceSummary(mr){
@@ -699,7 +700,7 @@ class Component extends DCLogic {
         <div style="display:flex;flex-direction:column;gap:16px;justify-content:center">
           <div style="display:flex;align-items:center;gap:10px"><span style="font-size:16px;font-weight:600;line-height:24px;color:#13314c">Standard Conventional</span>${this.transparencyBadge()}</div>
           <div style="display:flex;align-items:center;gap:32px;font-size:14px;color:#13314c;white-space:nowrap">
-            ${item('Created by:','Admin')}${item('Last modified:','07/10/2025')}${item('Property Type:','Conventional')}
+            ${item('Created by:','Admin')}${item('Last modified:','07/10/2025')}${item('Property Type:','Multifamily')}
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:32px">
@@ -971,7 +972,7 @@ class Component extends DCLogic {
       h+=`<div class="tile"><div class="thead2"><span class="ttl">Draft template</span><span class="loz loz-camp" style="display:inline-flex;align-items:center;gap:4px"><span class="material-symbols-outlined" style="font-size:13px">auto_awesome</span>AI-generated draft</span></div>
         <div style="padding:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
           <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:13px;color:#666">Template name</span><input id="imp-name" class="fld" value="Riverview — Lease-derived" style="height:34px;box-sizing:border-box"></div>
-          <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:13px;color:#666">Property type</span><select class="fld" style="height:34px"><option>Conventional</option><option>Multi Family</option></select></div>
+          <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:13px;color:#666">Property type</span><select class="fld" style="height:34px">${this.ptOpts('Multifamily')}</select></div>
           <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:13px;color:#666">Apply extracted fees at</span><select class="fld" style="height:34px"><option>Property level</option><option>Unit type level</option></select></div>
         </div></div>`;
       h+=`<div style="display:flex;align-items:center;gap:8px;background:#fff8ee;border:1px solid #f3d9b0;border-radius:4px;padding:10px 16px"><span class="material-symbols-outlined" style="font-size:18px;color:#b35a00">flag</span><span style="font-size:13px;color:#7a5220">2 charges need review — a variable late fee and an ambiguous utility amount were flagged Medium/Low confidence. Confirm or edit them before creating the template.</span></div>`;
@@ -1099,7 +1100,7 @@ class Component extends DCLogic {
       `${input('Full Name', p)}
        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">${input('Short Name','RIVER')}${select('Display Color','Apartment Complex')}</div>
        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">${input('Manager','Stewart Chandler')}${input('Email','','Manage Subscriptions')}</div>
-       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:end">${select('Property Type','Apartment')}<div style="padding-bottom:8px">${check('Active',true)}</div></div>`);
+       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:end"><div style="display:flex;flex-direction:column;gap:4px;min-width:0"><span style="font-size:13px;color:#666">Property Type</span><select class="fld" style="height:34px">${this.ptOpts('Apartment')}</select></div><div style="padding-bottom:8px">${check('Active',true)}</div></div>`);
 
     const address = tile('Primary Address', `<span data-act="toast" data-arg="Open addresses" class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);cursor:pointer">open_in_new</span>`,
       `<div style="display:flex;align-items:center;border-bottom:1px solid #cedbe7">${['Primary','Alternate','Forwarding'].map((t,i)=>`<span data-act="toast" data-arg="${t} address" style="padding:8px 14px;font-size:13px;cursor:pointer;${i===0?'color:#13314c;font-weight:600;border-bottom:2px solid var(--ac,#008dd5)':'color:#666'}">${t}</span>`).join('')}<div style="flex:1"></div><span class="material-symbols-outlined" style="font-size:18px;color:#666">menu</span></div>
@@ -1204,7 +1205,7 @@ class Component extends DCLogic {
       <div style="flex:1;min-width:280px;padding:16px;display:flex;flex-direction:column;gap:14px">
         <div class="eyebrow">General</div>
         <div style="display:flex;flex-direction:column;gap:4px"><span class="flabel">Template name</span><input class="fld" value="Standard Conventional"></div>
-        <div style="display:flex;flex-direction:column;gap:4px"><span class="flabel">Property type</span><div class="fld" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">Conventional<span class="material-symbols-outlined" style="font-size:20px;color:#666">arrow_drop_down</span></div></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><span class="flabel">Property type</span><select class="fld" style="height:auto">${this.ptOpts('Multifamily')}</select></div>
         <div style="display:flex;flex-direction:column;gap:4px"><span class="flabel">Description</span><input class="fld" value="Standard fee set for conventional multifamily"></div>
         <div style="display:flex;flex-direction:column;gap:6px"><span class="flabel">Fee Transparency opt-in</span><div style="display:flex;align-items:center;gap:10px">${this.tog(true)}<span style="font-size:13px;color:#8a9aa8">Unlocks this template &amp; shows fees on ILS + resident portal</span></div><div style="font-size:11px;color:#b35a00;background:#fdf3e6;border-radius:4px;padding:6px 10px;line-height:1.4"><span class="material-symbols-outlined" style="font-size:13px;vertical-align:-2px">bolt</span> Assigning this template to a property auto-opts that property in.</div></div>
       </div>
