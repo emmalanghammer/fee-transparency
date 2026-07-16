@@ -808,13 +808,14 @@ class Component extends DCLogic {
   }
 
   // ================= PROPERTY — FEES (editable) =================
-  feeTable(groupKey, title, loz, lozClass){
+  feeTable(groupKey, label){
     const s = this.state;
     const ov = s.ov;
     const rows = s.propFees.filter(f => f.group === groupKey && (f.level||'Property')==='Property');
-    const cols = '150px minmax(110px,1fr) 95px 105px 120px 100px 95px 78px 180px';
-    const head = `<div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">
-      ${['Charge type','Description','Amount','Source','Level','Origin','Overrides','Active','Actions'].map((h,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${h}</span>`).join('')}</div>`;
+    const cols = '130px minmax(150px,1fr) 100px 120px 130px 105px 60px 150px';
+    const th=(x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:600;color:#13314c;white-space:nowrap">${x}</span>`;
+    const head=`<div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #cedbe7">${['Charge Type','Description','Amount','Source','Origin','Overrides','Active','Actions'].map(th).join('')}</div>`;
+    const td=(c,i,strike)=>`<span style="display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:8px 12px${i===0?' 8px 16px':''};font-size:14px;color:#13314c;${strike||''}">${c}</span>`;
     const body = rows.map(f => {
       const n = f.overrides.length;
       const rowBg = f.expanded ? '#f0f6fb' : '#fff';
@@ -846,27 +847,27 @@ class Component extends DCLogic {
         sub = `<div style="padding:4px 16px 16px 48px;background:#f0f6fb;display:flex;flex-direction:column;gap:10px">${inner}</div>`;
       }
       const strike = f.excluded ? 'text-decoration:line-through;color:#b3b3b3' : '';
-      const ilsCell = this.chk(f.ils,'fee'+f.id+'ils').replace('data-act="tog" data-arg="fee'+f.id+'ils" data-def="'+(f.ils?1:0)+'"','data-act="feeils" data-arg="'+f.id+'"');
+      const ilsCell = this.chk(f.ils,'fee'+f.id+'ils','#f58220').replace('data-act="tog" data-arg="fee'+f.id+'ils" data-def="'+(f.ils?1:0)+'"','data-act="feeils" data-arg="'+f.id+'"');
       const chev = `<span data-act="feeexp" data-arg="${f.id}" class="material-symbols-outlined" style="font-size:20px;color:${f.expanded?'var(--ac,#008dd5)':(n>0?'#666':'#b3b3b3')};cursor:pointer">${f.expanded?'expand_less':'expand_more'}</span>`;
       let actionsCell;
       if (f.excluded) actionsCell = `<a data-act="feerestore" data-arg="${f.id}" style="font-size:13px">Restore</a>${chev}`;
-      else if (f.origin==='profile') actionsCell = `<a data-act="ovopen" data-arg="${f.id}" style="font-size:13px">+ Add override</a><span data-act="feeexclude" data-arg="${f.id}" class="material-symbols-outlined" title="Exclude at this property" style="font-size:18px;color:#b35a00;cursor:pointer">block</span>${chev}`;
-      else actionsCell = `<a data-act="ovopen" data-arg="${f.id}" style="font-size:13px">+ Add override</a><span data-act="feedel" data-arg="${f.id}" class="material-symbols-outlined icon-del">delete</span>${chev}`;
+      else if (f.origin==='profile') actionsCell = `<a data-act="ovopen" data-arg="${f.id}" style="font-size:13px">+ Override</a><span data-act="feeexclude" data-arg="${f.id}" class="material-symbols-outlined" title="Exclude at this property" style="font-size:18px;color:#b35a00;cursor:pointer">block</span>${chev}`;
+      else actionsCell = `<a data-act="ovopen" data-arg="${f.id}" style="font-size:13px">+ Override</a><span data-act="feedel" data-arg="${f.id}" class="material-symbols-outlined icon-del">delete</span>${chev}`;
       return `<div style="border-bottom:1px solid #ebf1f5">
-        <div style="display:grid;grid-template-columns:${cols};align-items:center;background:${rowBg}">
-          <span class="td name" style="border:none;padding-left:16px;${strike}">${f.name}${f.excluded?' <span style="font-size:11px;color:#b35a00;font-weight:400">· excluded here</span>':''}</span>
-          <span class="td" style="border:none;${strike}">${f.desc}</span>
-          <span class="td num" style="border:none;${strike}">${f.amount}</span>
-          <span class="td" style="border:none;white-space:nowrap">${f.source}</span>
-          <span class="td" style="border:none">${this.levelPill(f.level||'Property')}</span>
-          <span class="td" style="border:none">${this.originChip(f.origin)}</span>
-          <span class="td" style="border:none">${ovCell}</span>
-          <span class="td" style="border:none">${ilsCell}</span>
-          <span class="td" style="border:none;display:flex;align-items:center;gap:10px;white-space:nowrap">${actionsCell}</span>
+        <div style="display:grid;grid-template-columns:${cols};background:${rowBg}">
+          ${td(`${f.name}${f.excluded?' <span style="font-size:11px;color:#b35a00;font-weight:400">· excluded</span>':''}`,0,strike)}
+          ${td(f.desc,1,strike)}
+          ${td(f.amount,2,strike)}
+          <span style="display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:8px 12px;font-size:14px;color:#13314c;white-space:nowrap">${f.source}</span>
+          ${td(this.originChip(f.origin),4)}
+          ${td(ovCell,5)}
+          ${td(ilsCell,6)}
+          <span style="display:flex;align-items:center;gap:10px;min-height:44px;box-sizing:border-box;padding:8px 12px;white-space:nowrap">${actionsCell}</span>
         </div>${sub}</div>`;
     }).join('');
     const emptyRow = rows.length ? '' : `<div style="padding:16px;text-align:center;font-size:14px;font-style:italic;color:#b3b3b3;border-bottom:1px solid #ebf1f5">No property-level charges in this section.</div>`;
-    return `<div class="tile"><div class="thead2"><span class="ttl">${title}</span><span class="loz ${lozClass}">${loz}</span><div style="flex:1"></div><button data-act="addopen" data-arg="${groupKey}" class="btn-out">Add fee</button></div><div style="overflow-x:auto"><div style="min-width:1120px">${head}${body}${emptyRow}</div></div></div>`;
+    const add=`<div data-act="addopen" data-arg="${groupKey}" style="background:#f5f9fc;padding:9px 16px;cursor:pointer"><span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,#008dd5)"><span class="material-symbols-outlined" style="font-size:18px">add</span>Add ${label} Charge</span></div>`;
+    return `<div style="font-size:13px;font-weight:600;color:#666;padding:16px 16px 8px">${label}</div><div style="padding:0 16px;overflow-x:auto"><div style="min-width:960px;border:1px solid #cedbe7;border-radius:4px;overflow:hidden">${head}${body}${emptyRow}${add}</div></div>`;
   }
 
   propFeesBody(){
@@ -879,14 +880,9 @@ class Component extends DCLogic {
       <a data-act="navProfile" style="font-size:13px">Open rental fee template →</a>
       <div style="flex:1"></div>
       <span style="font-size:13px;color:#8a9aa8">Fees below are additive on top of this template for all units at this property.</span></div></div>`;
-    h += `<div class="eyebrow">Required fees</div>`;
-    h += this.feeTable('req-rec','Recurring','Mandatory','loz-mand');
-    h += this.feeTable('req-one','One-time & move-in','Mandatory','loz-mand');
-    h += `<div class="eyebrow" style="margin-top:8px">Optional fees</div>`;
-    h += this.feeTable('opt-rec','Recurring','Tenant selects','loz-opt');
-    h += this.feeTable('opt-one','One-time & move-in','Tenant selects','loz-opt');
-    h += `<div class="eyebrow" style="margin-top:8px">Situational fees</div>`;
-    h += this.feeTable('sit-rec','Applies only when a condition exists','Situational','loz-sit');
+    h += this.acc('Required Charges','', this.feeTable('req-rec','Recurring') + this.feeTable('req-one','One-Time'));
+    h += this.acc('Optional Charges','Tenant selects', this.feeTable('opt-rec','Recurring') + this.feeTable('opt-one','One-Time'));
+    h += this.acc('Situational Charges','Applies when a condition exists', this.feeTable('sit-rec','Recurring') + this.feeTable('sit-one','One-Time'));
     h += this.legacyTiles();
     return h;
   }
@@ -1247,18 +1243,21 @@ class Component extends DCLogic {
     return `<div style="font-size:13px;font-weight:600;color:#666;padding:16px 16px 8px">${label}</div><div style="padding:0 16px;overflow-x:auto"><div style="min-width:${cond?1120:1000}px;border:1px solid #cedbe7;border-radius:4px;overflow:hidden">${head}${body}${add}</div></div>`;
   }
   addedFor(ctx, group){ return ctx ? this.state.addedFees.filter(f=>f.ctx===ctx&&f.group===group) : []; }
-  chargeAccordion(id, title, sub, recRows, oneRows, opts){
-    opts=opts||{};
-    const rec = recRows.concat(this.addedFor(opts.ctx, opts.recGroup));
-    const one = oneRows.concat(this.addedFor(opts.ctx, opts.oneGroup));
-    const inner = this.chargeTable('Recurring', rec, opts.recGroup, {condition:opts.condition, empty:opts.recEmpty, keyPrefix:opts.keyPrefix})
-      + this.chargeTable('One-Time', one, opts.oneGroup, {empty:opts.oneEmpty||'No one-time charges added.', keyPrefix:opts.keyPrefix});
+  acc(title, sub, inner){
     return `<div class="tile" style="overflow:hidden">
       <div onclick="var b=this.parentElement.querySelector('.acc-body');var c=this.querySelector('.acc-chev');var open=b.style.display!=='none';b.style.display=open?'none':'block';c.textContent=open?'expand_more':'expand_less'" style="display:flex;align-items:center;gap:8px;padding:14px 16px;cursor:pointer">
         <span class="material-symbols-outlined acc-chev" style="font-size:20px;color:#666">expand_less</span>
         <span style="font-size:14px;font-weight:600;color:#13314c">${title}</span>${sub?`<span style="font-size:13px;color:#8a9aa8;font-style:italic">${sub}</span>`:''}
       </div>
       <div class="acc-body" style="padding-bottom:12px">${inner}</div></div>`;
+  }
+  chargeAccordion(id, title, sub, recRows, oneRows, opts){
+    opts=opts||{};
+    const rec = recRows.concat(this.addedFor(opts.ctx, opts.recGroup));
+    const one = oneRows.concat(this.addedFor(opts.ctx, opts.oneGroup));
+    const inner = this.chargeTable('Recurring', rec, opts.recGroup, {condition:opts.condition, empty:opts.recEmpty, keyPrefix:opts.keyPrefix})
+      + this.chargeTable('One-Time', one, opts.oneGroup, {empty:opts.oneEmpty||'No one-time charges added.', keyPrefix:opts.keyPrefix});
+    return this.acc(title, sub, inner);
   }
   overviewBody(){
     const orangeChk=(t,on,id)=>`<span style="display:inline-flex;align-items:flex-start;gap:8px;font-size:14px;color:#424e5b">${this.chk(on,id,'#f58220')}<span style="line-height:18px">${t}</span></span>`;
