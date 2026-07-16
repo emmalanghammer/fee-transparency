@@ -1250,6 +1250,11 @@ class Component extends DCLogic {
           <label style="display:inline-flex;align-items:center;gap:10px;font-size:14px;color:#424e5b;cursor:pointer"><input type="radio" name="ov-movein" checked style="accent-color:var(--ac,#008dd5);width:18px;height:18px;margin:0">Use tenant's rent due day</label>
         </div>
       </div></div></div>`;
+    return h;
+  }
+  propertyFeesBody(){
+    let h='';
+    h+=this.banner('Property-level fees apply to all units at assigned properties. Unit type and unit fees are additive — they stack on top of these at quote time.','Learn more →');
     // Required Charges
     h+=this.chargeAccordion('req','Required Charges','',
       [{code:'RC',desc:'Base rent',amount:'Market Rent',cat:'Rent',app:'Property',active:true},
@@ -1262,19 +1267,19 @@ class Component extends DCLogic {
        {code:'PETDP',desc:'Pet Deposit - Dog',amount:'300.00',cat:'PET',app:'Property',active:true},
        {code:'LMR',desc:"Last month's rent",amount:'1,350.00',cat:'LMR',app:'Property',active:true},
        {code:'KEY',desc:'Key & fob deposit',amount:'50.00',cat:'KEY',app:'Property',active:true}],
-      {recGroup:'req-rec',oneGroup:'req-one'});
+      {keyPrefix:'pf',recGroup:'req-rec',oneGroup:'req-one'});
     // Optional Charges
     h+=this.chargeAccordion('opt','Optional Charges','Tenant selects',
       [{code:'SF',desc:'Storage unit',amount:'40.00',cat:'STORAGE',app:'Property',active:true},
        {code:'AMENFEE',desc:'Pool & fitness access',amount:'45.00',cat:'AMENITY',app:'Unit Type: 2BR/2BA',active:true}],
       [{code:'HOLD',desc:'Unit reservation fee',amount:'200.00',cat:'HOLD',app:'Property',active:true}],
-      {recGroup:'opt-rec',oneGroup:'opt-one'});
+      {keyPrefix:'pf',recGroup:'opt-rec',oneGroup:'opt-one'});
     // Situational Charges
     h+=this.chargeAccordion('sit','Situational Charges','Applies when a condition exists',
       [{code:'PETFEE',desc:'Pet rent, per pet',cond:'If resident has a pet',amount:'45.00',cat:'PET',app:'Property',active:true},
        {code:'COVPARK',desc:'Reserved covered parking',cond:'If parking rented',amount:'75-125',cat:'PARKING',app:'Property',active:true}],
       [],
-      {recGroup:'sit-rec',oneGroup:'sit-rec',condition:true,oneEmpty:'No situational one-time charges added.'});
+      {keyPrefix:'pf',recGroup:'sit-rec',oneGroup:'sit-one',condition:true,oneEmpty:'No situational one-time charges added.'});
     return h;
   }
 
@@ -1446,6 +1451,7 @@ class Component extends DCLogic {
     let inner;
     const t = this.state.profileTab;
     if (t === 'Overview') inner = this.overviewBody();
+    else if (t === 'Property Fees') inner = this.propertyFeesBody();
     else if (t === 'Amenities') return `<div style="flex:1;min-height:0;display:flex;flex-direction:column">${this.amenitiesBody()}</div>`;
     else if (t === 'Unit Type Fees') return `<div style="flex:1;min-height:0;display:flex;flex-direction:column">${this.utBody()}</div>`;
     else if (t === 'Unit Fees') return `<div style="flex:1;min-height:0;display:flex;flex-direction:column">${this.ufBody()}</div>`;
@@ -1572,7 +1578,7 @@ class Component extends DCLogic {
     if (s.view === 'profile') {
       out += this.ctx('Rental Fee Templates', [{ label:'Standard Apartment' }], '1 of 3', 'navRegister');
       out += this.profileScoreboard();
-      out += this.tabRow(['Overview','Unit Type Fees','Unit Fees','Listing Preview','Amenities','Assigned Properties','Change History'], s.profileTab, 'ptab');
+      out += this.tabRow(['Overview','Property Fees','Unit Type Fees','Unit Fees','Listing Preview','Amenities','Assigned Properties','Change History'], s.profileTab, 'ptab');
       out += this.profileBody();
       out += this.footer(s.profileTab === 'Unit Fees' ? 'Save unit fees' : 'Save template');
     } else if (s.view === 'property') {
