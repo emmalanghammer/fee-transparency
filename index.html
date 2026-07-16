@@ -343,10 +343,11 @@ class Component extends DCLogic {
     const on = (id in this.state.toggles) ? this.state.toggles[id] : def;
     return `<span data-act="tog" data-arg="${id}" data-def="${def?1:0}" style="display:inline-block;width:32px;height:18px;border-radius:999px;background:${on?'var(--ac,#008dd5)':'#cedbe7'};position:relative;cursor:pointer;vertical-align:middle"><span style="position:absolute;top:2px;left:${on?16:2}px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left 120ms ease-out"></span></span>`;
   }
-  chk(def, id){
+  chk(def, id, color){
     id = id || ('t' + (this._tid++));
+    color = color || 'var(--ac,#008dd5)';
     const on = (id in this.state.toggles) ? this.state.toggles[id] : def;
-    return `<span data-act="tog" data-arg="${id}" data-def="${def?1:0}" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;box-sizing:border-box;border-radius:3px;cursor:pointer;vertical-align:middle;${on?'background:var(--ac,#008dd5);border:1px solid var(--ac,#008dd5)':'background:#fff;border:1px solid #b3b3b3'}">${on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span>`;
+    return `<span data-act="tog" data-arg="${id}" data-def="${def?1:0}" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;box-sizing:border-box;border-radius:3px;cursor:pointer;vertical-align:middle;${on?`background:${color};border:1px solid ${color}`:'background:#fff;border:1px solid #b3b3b3'}">${on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span>`;
   }
   statusLoz(s, c){ const m = { green:'background:#e2f1da;color:#4d8a2a', amber:'background:#fdeedd;color:#b35a00', gray:'background:#f2f2f2;color:#666' }; return `<span class="loz" style="${m[c]};text-transform:none;letter-spacing:0">${s}</span>`; }
   levelChip(t){ let c='background:#f2f2f2;color:#666'; if(/^Unit type/.test(t)) c='background:#e5f3fb;color:#0071aa'; else if(/^Unit /.test(t)) c='background:#fdeedd;color:#b35a00'; return `<span class="loz" style="${c};text-transform:none;letter-spacing:0">${t}</span>`; }
@@ -1198,33 +1199,36 @@ class Component extends DCLogic {
 
   appPill(t){
     const unit=/unit/i.test(t);
-    return `<span style="display:inline-block;background:${unit?'#e5f3fb':'#eef1f4'};color:${unit?'#0071aa':'#4a5b6b'};border-radius:4px;padding:3px 10px;font-size:13px;white-space:nowrap">${t}</span>`;
+    return `<span style="display:inline-block;background:${unit?'#dceffb':'#e8eaed'};color:${unit?'#0071aa':'#4a5b6b'};border-radius:4px;padding:3px 10px;font-size:13px;white-space:nowrap">${t}</span>`;
   }
   chargeTable(label, rows, group, opts){
     opts=opts||{};
     const cond=opts.condition;
-    const cols = cond ? '120px minmax(160px,1fr) 200px 100px 150px 160px 60px 36px' : '120px minmax(200px,1fr) 100px 150px 180px 60px 36px';
+    const cols = cond ? '120px minmax(160px,1fr) 200px 100px 150px 160px 60px 40px' : '120px minmax(200px,1fr) 100px 150px 180px 60px 40px';
     const heads = cond ? ['Charge Type','Description','Condition','Amount','Charge Category','Charge Application','Active',''] : ['Charge Type','Description','Amount','Charge Category','Charge Application','Active',''];
-    const head=`<div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #cedbe7">${heads.map((x,i)=>`<span style="padding:6px 12px${i===0?' 6px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>`;
+    const th=(x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:600;color:#13314c;white-space:nowrap">${x}</span>`;
+    const head=`<div style="display:grid;grid-template-columns:${cols};border-top:1px solid #cedbe7;border-bottom:1px solid #cedbe7">${heads.map(th).join('')}</div>`;
+    const kebab=`<span data-act="toast" data-arg="Row actions" style="display:flex;align-items:center;justify-content:center;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">more_vert</span></span>`;
+    const td=(c,i)=>`<span style="display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:8px 12px${i===0?' 8px 16px':''};font-size:14px;color:#13314c">${c}</span>`;
     const body = rows.length ? rows.map(r=>{
-      const cells = cond
-        ? [`<span style="font-family:monospace;font-size:12px;color:#13314c">${r.code}</span>`, r.desc, `<span style="color:#666">${r.cond||''}</span>`, `<span style="text-align:right">${r.amount}</span>`, `<span style="color:#666">${r.cat}</span>`, this.appPill(r.app), this.chk(r.active,'ov-'+group+'-'+r.code)]
-        : [`<span style="font-family:monospace;font-size:12px;color:#13314c">${r.code}</span>`, r.desc, `<span style="text-align:right">${r.amount}</span>`, `<span style="color:#666">${r.cat}</span>`, this.appPill(r.app), this.chk(r.active,'ov-'+group+'-'+r.code)];
-      return `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5">${cells.map((c,i)=>`<span class="td" style="border:none;padding:10px 12px${i===0?' 10px 16px':''};font-size:14px;color:#13314c">${c}</span>`).join('')}<span data-act="toast" data-arg="Row actions" style="display:flex;align-items:center;justify-content:center;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:#666">more_vert</span></span></div>`;
-    }).join('') : `<div style="padding:14px 16px;text-align:center;font-size:14px;font-style:italic;color:#b3b3b3">${opts.empty||'No charges added.'}</div>`;
-    const add=`<div style="padding:8px 16px"><a data-act="addopen" data-arg="${group}" style="font-size:13px;display:inline-flex;align-items:center;gap:4px"><span class="material-symbols-outlined" style="font-size:18px">add</span>Add ${label} Charge</a></div>`;
-    return `<div style="font-size:13px;font-weight:600;color:#13314c;padding:14px 16px 8px">${cond?'Recurring':label==='Recurring'?'Recurring':'One-Time'}</div><div style="overflow-x:auto"><div style="min-width:${cond?1100:1000}px">${head}${body}${add}</div></div>`;
+      const base = cond
+        ? [r.code, r.desc, `<span style="color:#666">${r.cond||''}</span>`, r.amount, `<span style="color:#666">${r.cat}</span>`, this.appPill(r.app), this.chk(r.active,'ov-'+group+'-'+r.code,'#f58220')]
+        : [r.code, r.desc, r.amount, `<span style="color:#666">${r.cat}</span>`, this.appPill(r.app), this.chk(r.active,'ov-'+group+'-'+r.code,'#f58220')];
+      return `<div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #ebf1f5">${base.map(td).join('')}${kebab}</div>`;
+    }).join('') : `<div style="padding:16px;text-align:center;font-size:14px;font-style:italic;color:#b3b3b3;border-bottom:1px solid #ebf1f5">${opts.empty||'No charges added.'}</div>`;
+    const add=`<div data-act="addopen" data-arg="${group}" style="background:#f5f9fc;padding:9px 16px;cursor:pointer"><span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,#008dd5)"><span class="material-symbols-outlined" style="font-size:18px">add</span>Add ${label} Charge</span></div>`;
+    return `<div style="font-size:13px;font-weight:600;color:#666;padding:16px 16px 8px">${label}</div><div style="overflow-x:auto"><div style="min-width:${cond?1120:1000}px">${head}${body}${add}</div></div>`;
   }
   chargeAccordion(id, title, sub, recRows, oneRows, opts){
     opts=opts||{};
     const inner = this.chargeTable('Recurring', recRows, opts.recGroup, {condition:opts.condition, empty:opts.recEmpty})
       + this.chargeTable('One-Time', oneRows, opts.oneGroup, {empty:opts.oneEmpty||'No one-time charges added.'});
     return `<div class="tile" style="overflow:hidden">
-      <div onclick="var b=this.parentElement.querySelector('.acc-body');var c=this.querySelector('.acc-chev');var open=b.style.display!=='none';b.style.display=open?'none':'block';c.textContent=open?'chevron_right':'expand_more'" style="display:flex;align-items:center;gap:8px;padding:14px 16px;cursor:pointer;border-bottom:1px solid #cedbe7">
-        <span class="material-symbols-outlined acc-chev" style="font-size:20px;color:#666">expand_more</span>
+      <div onclick="var b=this.parentElement.querySelector('.acc-body');var c=this.querySelector('.acc-chev');var open=b.style.display!=='none';b.style.display=open?'none':'block';c.textContent=open?'expand_more':'expand_less'" style="display:flex;align-items:center;gap:8px;padding:14px 16px;cursor:pointer">
+        <span class="material-symbols-outlined acc-chev" style="font-size:20px;color:#666">expand_less</span>
         <span style="font-size:14px;font-weight:600;color:#13314c">${title}</span>${sub?`<span style="font-size:13px;color:#8a9aa8;font-style:italic">${sub}</span>`:''}
       </div>
-      <div class="acc-body">${inner}</div></div>`;
+      <div class="acc-body" style="padding-bottom:12px">${inner}</div></div>`;
   }
   overviewBody(){
     const orangeChk=(t,on)=>`<label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#424e5b;cursor:pointer"><input type="checkbox" ${on?'checked':''} style="accent-color:#f58220;width:18px;height:18px;margin:0;flex:none">${t}</label>`;
