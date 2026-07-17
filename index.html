@@ -74,7 +74,7 @@ class Component extends DCLogic {
     importAnal: 0,
     importedTemplate: false,
     importedCount: 10,
-    propTab: 'Rental Fees',
+    propTab: 'General',
     property: 'Riverview Apartments',
     unit: '1B',
     toggles: {},
@@ -271,7 +271,7 @@ class Component extends DCLogic {
         break;
       }
       case 'importAssign': this.go('profile', { assign: { step:1, sel: this.candidateProps().filter(p=>p.pre).map(p=>p.name) } }); break;
-      case 'navProperty': this.go('property', arg ? { property: arg, propTab: 'Rental Fees' } : { propTab: 'Rental Fees' }); break;
+      case 'navProperty': this.go('property', arg ? { property: arg, propTab: 'General' } : { propTab: 'General' }); break;
       case 'navUnit': this.go('unit', { unit: arg }); break;
       case 'ptab': this._resetScroll = true; this.setState({ profileTab: arg, ovPop: null }); break;
       case 'utsel': this.setState({ utSel: arg }); break;
@@ -281,7 +281,7 @@ class Component extends DCLogic {
       case 'ufprop': if (arg) { const first = this.ufUnits().filter(x => x.prop === arg)[0]; this.setState({ ufProp: arg, ufType: 'All', ufSel: first ? first.u : null }); } break;
       case 'uftype': if (arg) { const list = this.ufUnits().filter(x => x.prop === this.state.ufProp && (arg === 'All' || x.type === arg)); const keep = list.some(x => x.u === this.state.ufSel); this.setState({ ufType: arg, ufSel: keep ? this.state.ufSel : (list[0] ? list[0].u : null) }); } break;
       case 'proptab':
-        if (arg === 'General' || arg === 'Rental Fees') { this._resetScroll = true; this.setState({ propTab: arg }); }
+        if (arg === 'General') { this._resetScroll = true; this.setState({ propTab: arg }); }
         else this.flash(arg + ' tab is out of scope for this prototype');
         break;
       case 'tog': {
@@ -1156,9 +1156,22 @@ class Component extends DCLogic {
         ['Regional Portfolio','Southwest Ohio']]));
 
     const rec = this.state.propFees.filter(f=>!f.excluded && f.group==='req-rec');
-    const recurring = tile('Recurring Charges','',
-      gtable('180px 1fr 140px 140px',['Charge type','Description','Amount','Frequency'], rec.map(f=>[`<span style="font-weight:500;color:#13314c">${f.name}</span>`,f.desc,f.amount,'Monthly']))
-      + `<div style="display:flex;align-items:center;gap:12px"><a data-act="proptab" data-arg="Rental Fees" style="font-size:13px">Manage in Rental Fees →</a><span style="font-size:13px;color:#8a9aa8">Charges come from the assigned rental fee template.</span></div>`);
+    const lvlBar=(color)=>`<span style="display:inline-block;width:6px;height:20px;border-radius:2px;background:${color};vertical-align:-4px;margin-right:10px"></span>`;
+    const recCols='150px 1fr 130px 120px 120px 120px';
+    const recHead=`<div style="display:grid;grid-template-columns:${recCols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Charge type','Comment','Frequency','From date','To date','Amount'].map((h,i)=>`<span style="padding:8px 12px;font-size:12px;font-weight:500;color:#666;${i===5?'text-align:right':''}">${h}</span>`).join('')}</div>`;
+    const recRows=rec.map(f=>{
+      const tenant=/rent/i.test(f.name);
+      return `<div style="display:grid;grid-template-columns:${recCols};align-items:center;border-bottom:1px solid #ebf1f5">
+        <span class="td" style="border:none">${lvlBar(tenant?'#0071aa':'#425a70')}<span style="font-weight:500;color:#13314c">${f.name}</span></span>
+        <span class="td" style="border:none;color:#666">${f.desc}</span>
+        <span class="td" style="border:none">Monthly</span>
+        <span class="td" style="border:none">01/01/2026</span>
+        <span class="td" style="border:none;color:#b3b3b3">—</span>
+        <span class="td" style="border:none;text-align:right;justify-content:flex-end">${f.amount}</span></div>`;
+    }).join('');
+    const recurring = tile('Recurring Charges', `<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#8a9aa8"><span class="material-symbols-outlined" style="font-size:16px">lock</span>Read-only</span>`,
+      `<div style="border:1px solid #ebf1f5;border-radius:4px;overflow:hidden">${recHead}${recRows}</div>`
+      + `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-size:13px;color:#8a9aa8">Charges come from the assigned rental fee template and can't be edited here.</span><div style="flex:1"></div><a data-act="navProfile" style="font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:4px">Open template<span class="material-symbols-outlined" style="font-size:16px">arrow_forward</span></a></div>`);
 
     const emptyReg=(t,heads)=>tile(t,'',`${gtable(heads.map(()=>'1fr').join(' '),heads,[heads.map(()=>'<span style="color:#b3b3b3">—</span>')])}<span style="font-size:13px;font-style:italic;color:#b3b3b3">No transactions in the current period</span>`);
     const files = tile('Property Files', `<a data-act="toast" data-arg="Upload file" style="font-size:13px">Upload file</a>`,
@@ -1703,12 +1716,12 @@ class Component extends DCLogic {
       out += this.profileBody();
       out += this.footer(s.profileTab === 'Unit Fees' ? 'Save unit fees' : 'Save template');
     } else if (s.view === 'property') {
-      out += this.ctx('Property', [{ label:'Standard Apartment', act:'navProfile' }, { label: s.property }], '125 of 255');
+      out += this.ctx('Property', [{ label: s.property }], '125 of 255');
       out += this.propScoreboard();
-      out += this.tabRow(['General','Rental Fees','Leasing','Documents'], s.propTab, 'proptab');
-      const body = s.propTab === 'General' ? this.propGeneralBody() : this.propFeesBody();
+      out += this.tabRow(['General','Leasing','Documents'], s.propTab, 'proptab');
+      const body = this.propGeneralBody();
       out += `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden"><div style="flex:1;min-width:0;overflow-y:auto;display:flex;flex-direction:column"><div style="flex:1;min-width:0;padding:16px;display:flex;flex-direction:column;gap:16px;max-width:1500px;width:100%;box-sizing:border-box;margin:0 auto">${body}</div></div>${this.rail()}</div>`;
-      out += this.footer(s.propTab === 'General' ? 'Save property' : 'Save fees');
+      out += this.footer('Save property');
     } else if (s.view === 'register') {
       out += `<div style="height:40px;background:var(--ac,#008dd5);display:flex;align-items:center;padding:0 16px;gap:12px;color:#fff;flex:none">
         <span style="font-size:18px;line-height:24px">Rental Fee Templates</span>
