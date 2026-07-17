@@ -1380,7 +1380,7 @@ class Component extends DCLogic {
   }
 
   sidebar(title, search, items, addLabel){
-    return `<div style="width:263px;flex:none;background:#fff;border-right:1px solid #cedbe7;align-self:stretch;min-height:100%;box-sizing:border-box">
+    return `<div style="width:263px;flex:none;background:#fff;border:1px solid #cedbe7;border-radius:4px;overflow:hidden;align-self:stretch;min-height:100%;box-sizing:border-box">
       <div style="padding:12px 8px;border-bottom:1px solid #cedbe7;display:flex;flex-direction:column;gap:16px">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
           <span style="font-size:18px;font-weight:500;line-height:24px;color:#13314c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${title}</span>
@@ -1456,7 +1456,7 @@ class Component extends DCLogic {
       m+=this.chargeAccordion('utopt','Optional Charges','Tenant selects',t.optRec,[],{ctx:'ut:'+t.name,keyPrefix:'ut',recGroup:'opt-rec',oneGroup:'opt-one',recEmpty:`No optional recurring charges added on ${t.name} unit type.`,oneEmpty:`No optional one-time charges added on ${t.name} unit type.`});
       m+=this.chargeAccordion('utsit','Situational Charges','Applies when a condition exists',[],[],{ctx:'ut:'+t.name,keyPrefix:'ut',condition:true,recGroup:'sit-rec',oneGroup:'sit-one',recEmpty:`No situational recurring charges added on ${t.name} unit type.`,oneEmpty:`No situational one-time charges added on ${t.name} unit type.`});
     }
-    return `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden"><div style="flex:none;overflow-y:auto">${sb}</div><div style="flex:1;min-width:0;overflow-y:auto"><div style="padding:16px;display:flex;flex-direction:column;gap:16px">${m}</div></div></div>`;
+    return `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden;gap:16px;padding:16px;box-sizing:border-box"><div style="flex:none;overflow-y:auto;align-self:stretch">${sb}</div><div style="flex:1;min-width:0;overflow-y:auto"><div style="display:flex;flex-direction:column;gap:16px">${m}</div></div></div>`;
   }
 
   ufItem(name, custom, active){
@@ -1479,7 +1479,7 @@ class Component extends DCLogic {
     const list=all.filter(x=>x.prop===s.ufProp&&(s.ufType==='All'||x.type===s.ufType));
     const sel=list.find(x=>x.u===s.ufSel)||list[0];
     const items=list.map(x=>this.ufItem(x.u, x.fees.length>0, !!sel&&x.u===sel.u)).join('')||`<div style="padding:12px;font-size:13px;font-style:italic;color:#b3b3b3">No units match these filters</div>`;
-    const sb=`<div style="width:263px;flex:none;background:#fff;border-right:1px solid #cedbe7;align-self:stretch;min-height:100%;box-sizing:border-box;padding:12px 0">
+    const sb=`<div style="width:263px;flex:none;background:#fff;border:1px solid #cedbe7;border-radius:4px;overflow:hidden;align-self:stretch;min-height:100%;box-sizing:border-box;padding:12px 0">
       <div class="eyebrow" style="padding:0 12px">Filter by property</div>
       <div style="padding:6px 12px 12px"><select data-act="ufprop" class="fld" onchange="this.dataset.arg=this.value;this.dispatchEvent(new MouseEvent('click',{bubbles:true}))">${props.map(p=>`<option${p===s.ufProp?' selected':''}>${p}</option>`).join('')}</select></div>
       <div class="eyebrow" style="padding:0 12px">Filter by unit type</div>
@@ -1508,7 +1508,7 @@ class Component extends DCLogic {
       const srcChip=(t,c)=>{const map={gray:'background:#f2f2f2;color:#666',blue:'background:#e5f3fb;color:#0071aa',amber:'background:#fdeedd;color:#b35a00'};return `<span class="loz" style="${map[c]};text-transform:none;letter-spacing:0">${t}</span>`;};
       m+=`<div class="tile"><div class="thead2"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">keyboard_arrow_down</span><span class="ttl">Stacked fee preview — Unit ${sel.u}</span></div><div style="display:grid;grid-template-columns:minmax(140px,1fr) 160px 240px;background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Charge type','Amount','Source'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>${rows.map(r=>`<div style="display:grid;grid-template-columns:minmax(140px,1fr) 160px 240px;align-items:center;border-bottom:1px solid #ebf1f5"><span class="td name" style="border:none;padding-left:16px">${r[0]}</span><span class="td num" style="border:none">${r[1]}</span><span class="td" style="border:none">${srcChip(r[2],r[3])}</span></div>`).join('')}<div style="padding:10px 16px;font-size:13px;color:#8a9aa8">This is the complete fee set that will populate on a rent quote for Unit ${sel.u}.</div></div>`;
     }
-    return `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden"><div style="flex:none;overflow-y:auto">${sb}</div><div style="flex:1;min-width:0;overflow-y:auto"><div style="padding:16px;display:flex;flex-direction:column;gap:16px">${m}</div></div></div>`;
+    return `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden;gap:16px;padding:16px;box-sizing:border-box"><div style="flex:none;overflow-y:auto;align-self:stretch">${sb}</div><div style="flex:1;min-width:0;overflow-y:auto"><div style="display:flex;flex-direction:column;gap:16px">${m}</div></div></div>`;
   }
 
   apBody(){
