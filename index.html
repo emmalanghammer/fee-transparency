@@ -1407,15 +1407,28 @@ class Component extends DCLogic {
 
   utData(){
     return [
-      { name:'Studio', units:8, reqRec:[], optRec:[] },
-      { name:'1BR/1BA', units:12, reqRec:[], optRec:[] },
-      { name:'2BR/2BA', units:18,
+      { name:'Studio', units:8, occ:6, reqRec:[], optRec:[] },
+      { name:'1BR/1BA', units:12, occ:9, reqRec:[], optRec:[] },
+      { name:'2BR/2BA', units:18, occ:13,
         reqRec:[{code:'GARBAGFEE',desc:'Additional trash valet',amount:'4.00',cat:'Utility',app:'Unit Type: 2BR/2BA',active:true}],
         optRec:[{code:'AMENFEE',desc:'Pool & fitness access',amount:'45.00',cat:'AMENITY',app:'Unit Type: 2BR/2BA',active:true}] },
-      { name:'3BR/2BA', units:11, reqRec:[],
+      { name:'3BR/2BA', units:11, occ:8, reqRec:[],
         optRec:[{code:'AMENFEE',desc:'Pool & fitness access',amount:'45.00',cat:'AMENITY',app:'Unit Type: 3BR/2BA',active:true}] },
-      { name:'4BR/2BA', units:6, reqRec:[], optRec:[] },
+      { name:'4BR/2BA', units:6, occ:4, reqRec:[], optRec:[] },
     ];
+  }
+  // Selected-scope header row (mirrors the property scoreboard) used by the Unit Type Fees and Unit Fees tabs.
+  scopeHeader(title, mid, stats){
+    const stat=(l,v)=>`<span style="display:inline-flex;align-items:baseline;gap:10px;white-space:nowrap"><span style="color:#666">${l}</span><span style="font-weight:600;color:#13314c">${v}</span></span>`;
+    return `<div class="tile" style="padding:14px 20px;display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:14px;flex:1;min-width:0">
+        <span style="font-size:16px;font-weight:600;color:#13314c;white-space:nowrap">${title}</span>${mid||''}
+      </div>
+      <div style="display:flex;align-items:center;gap:28px;font-size:14px">${stats.map(x=>stat(x[0],x[1])).join('')}</div>
+    </div>`;
+  }
+  propAssocMid(){
+    return `<span style="display:inline-flex;align-items:center;gap:8px"><span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5)">home</span><a data-act="ptab" data-arg="Assigned Properties" style="font-size:14px">Riverview Apartments</a><span data-act="ptab" data-arg="Assigned Properties" style="display:inline-flex;align-items:center;background:#fff;border:1px solid var(--ac,#008dd5);border-radius:12px;padding-left:8px;color:var(--ac,#008dd5);font-size:13px;line-height:20px;cursor:pointer">+11<span class="material-symbols-outlined" style="font-size:20px">arrow_drop_down</span></span></span>`;
   }
   utFees(t){ return (t.reqRec||[]).concat(t.optRec||[]); }
   utBody(){
@@ -1438,6 +1451,7 @@ class Component extends DCLogic {
     } else {
       const t=data.find(x=>x.name===sel)||data[2];
       m+=this.banner(`Unit type fees are additive — they stack on top of property-level fees for all units of this type. A ${t.name} unit receives both property fees and ${t.name} fees on their quote.`,'');
+      m+=this.scopeHeader(`<span style="display:inline-flex;align-items:center;gap:8px">${this.utIcon(18)}${t.name}</span>`, this.propAssocMid(), [['Unit Count:', t.units],['Occupants:', t.occ]]);
       m+=this.chargeAccordion('utreq','Required Charges','',t.reqRec,[],{ctx:'ut:'+t.name,keyPrefix:'ut',recGroup:'req-rec',oneGroup:'req-one',recEmpty:`No required recurring charges added on ${t.name} unit type.`,oneEmpty:`No required one-time charges added on ${t.name} unit type.`});
       m+=this.chargeAccordion('utopt','Optional Charges','Tenant selects',t.optRec,[],{ctx:'ut:'+t.name,keyPrefix:'ut',recGroup:'opt-rec',oneGroup:'opt-one',recEmpty:`No optional recurring charges added on ${t.name} unit type.`,oneEmpty:`No optional one-time charges added on ${t.name} unit type.`});
       m+=this.chargeAccordion('utsit','Situational Charges','Applies when a condition exists',[],[],{ctx:'ut:'+t.name,keyPrefix:'ut',condition:true,recGroup:'sit-rec',oneGroup:'sit-one',recEmpty:`No situational recurring charges added on ${t.name} unit type.`,oneEmpty:`No situational one-time charges added on ${t.name} unit type.`});
@@ -1479,6 +1493,9 @@ class Component extends DCLogic {
       m+=this.banner('No units match the current filters — adjust the property or unit type filter to see units.','');
     } else {
       m+=this.banner(`Unit fees are additive — they stack on top of both property fees and unit type fees for this specific unit. Unit ${sel.u} receives property fees + ${sel.type} fees + these unit fees on their quote.`,'');
+      const typeChip=`<span style="display:inline-flex;align-items:center;gap:6px;background:#e5f3fb;color:#0071aa;border-radius:12px;padding:2px 10px;font-size:12px;white-space:nowrap">${this.utIcon(12)}${sel.type}</span>`;
+      const unitMid=`<span style="display:inline-flex;align-items:center;gap:8px"><span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5)">home</span><a data-act="navProperty" data-arg="${sel.prop}" style="font-size:14px">${sel.prop}</a></span>${typeChip}`;
+      m+=this.scopeHeader(`Unit ${sel.u}`, unitMid, [['Market rent:', sel.rent||'—'],['Tenant:', sel.tenant||'—']]);
       const uEmpty=(what)=>`No ${what} charges added on Unit ${sel.u}.`;
       m+=this.chargeAccordion('ufreq','Required Charges','',[],[],{ctx:'uf:'+sel.u,keyPrefix:'uf',recGroup:'req-rec',oneGroup:'req-one',recEmpty:uEmpty('required recurring'),oneEmpty:uEmpty('required one-time')});
       m+=this.chargeAccordion('ufopt','Optional Charges','Tenant selects',sel.fees,[],{ctx:'uf:'+sel.u,keyPrefix:'uf',recGroup:'opt-rec',oneGroup:'opt-one',recEmpty:uEmpty('optional recurring'),oneEmpty:uEmpty('optional one-time')});
