@@ -94,7 +94,6 @@ class Component extends DCLogic {
     addedFees: [],
     ovPop: null,
     exProp: 'All', exFee: 'All', exKind: 'All',
-    tplProp: null, ovEdit: null,
     nextOvId: 3,
     modal: null,
     ov: null,
@@ -301,13 +300,7 @@ class Component extends DCLogic {
       case 'ovmode': this.setState(s => ({ ov: Object.assign({}, s.ov, { mode: arg }) })); break;
       case 'ovcancel': this.setState({ ov: null }); break;
       case 'ovsave': this.saveOverride(); break;
-      case 'tplPropOpen': this._resetScroll = true; this.setState({ tplProp: arg, ovEdit: null }); break;
-      case 'tplPropClose': this._resetScroll = true; this.setState({ tplProp: null, ovEdit: null }); break;
-      case 'povredit': this.setState({ ovEdit: +arg }); break;
-      case 'povrcancel': this.setState({ ovEdit: null }); break;
-      case 'povrsave': { const v = ((this.q('#povr-input')||{}).value||'').trim(); const id = this.state.ovEdit; if(id!=null) this.mutFee(id, f=>{ f.localAmount = v || f.amount; return f; }); this.setState({ ovEdit: null }); break; }
-      case 'povrreset': this.mutFee(+arg, f=>{ f.localAmount = undefined; return f; }); break;
-      case 'addopen': { let ctx=null; if(this.state.view==='profile' && !this.state.tplProp){ const pt=this.state.profileTab; if(pt==='Unit Type Fees') ctx='ut:'+this.state.utSel; else if(pt==='Unit Fees') ctx='uf:'+this.state.ufSel; else ctx='prop'; } this.setState({ modal: { group: arg, ctx }, toggles: Object.assign({}, this.state.toggles, { modalIls: true }) }); break; }
+      case 'addopen': { let ctx=null; if(this.state.view==='profile'){ const pt=this.state.profileTab; if(pt==='Unit Type Fees') ctx='ut:'+this.state.utSel; else if(pt==='Unit Fees') ctx='uf:'+this.state.ufSel; else ctx='prop'; } this.setState({ modal: { group: arg, ctx }, toggles: Object.assign({}, this.state.toggles, { modalIls: true }) }); break; }
       case 'addclose': this.setState({ modal: null }); break;
       case 'addsave': this.saveFee(); break;
       case 'histexp': this.setState(s => ({ histExp: Object.assign({}, s.histExp, { [arg]: !s.histExp[arg] }) })); break;
@@ -874,63 +867,6 @@ class Component extends DCLogic {
   }
   manageLink(){
     return `<div style="padding:12px 16px 4px"><a data-act="navProfile" style="display:inline-flex;align-items:center;gap:4px;font-size:14px;font-weight:600;color:var(--ac,#008dd5)">Manage in template<span class="material-symbols-outlined" style="font-size:18px">arrow_forward</span></a></div>`;
-  }
-  // Editable per-property fee table shown inside the template (drill-in from Assigned Properties).
-  tplFeeTable(groupKey, label){
-    const s=this.state;
-    const rows=s.propFees.filter(f=>f.group===groupKey);
-    const cols='120px minmax(150px,1fr) 180px 110px 120px 120px 180px';
-    const th=(x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:600;color:#13314c;white-space:nowrap">${x}</span>`;
-    const head=`<div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #cedbe7">${['Charge Type','Description','Amount','Source','Level','Origin','Actions'].map(th).join('')}</div>`;
-    const td=(c,i,strike)=>`<span style="display:flex;align-items:center;min-height:48px;box-sizing:border-box;padding:8px 12px${i===0?' 8px 16px':''};font-size:14px;color:#13314c;${strike||''}">${c}</span>`;
-    const body=rows.map(f=>{
-      const local=f.origin==='property';
-      const editing=s.ovEdit===f.id;
-      const strike=f.excluded?'text-decoration:line-through;color:#b3b3b3':'';
-      let amountCell;
-      if(editing){
-        amountCell=`<span style="display:inline-flex;align-items:center;gap:6px"><input id="povr-input" class="fld" style="width:88px;height:30px;box-sizing:border-box;padding:4px 8px" value="${(f.localAmount||f.amount).replace(/^\$/,'')}"><a data-act="povrsave" style="font-size:13px;font-weight:500">Save</a><a data-act="povrcancel" style="font-size:13px;color:#8a9aa8">Cancel</a></span>`;
-      } else if(f.localAmount!=null){
-        amountCell=`<span><span style="color:#b3b3b3;text-decoration:line-through">${f.amount}</span> <span style="color:#8a9aa8">→</span> <span style="color:#b35a00;font-weight:600">${f.localAmount}</span></span>`;
-      } else {
-        amountCell=`<span style="${strike}">${f.amount}</span>`;
-      }
-      let actions;
-      if(f.excluded){
-        actions=`<a data-act="feerestore" data-arg="${f.id}" style="font-size:13px">Restore</a>`;
-      } else if(local){
-        actions=`<a data-act="feedel" data-arg="${f.id}" style="font-size:13px;color:#d02830">Delete</a>`;
-      } else if(editing){
-        actions=`<span style="font-size:12px;color:#8a9aa8">Editing amount…</span>`;
-      } else {
-        const ov=f.localAmount!=null?`<a data-act="povrreset" data-arg="${f.id}" style="font-size:13px">Reset</a>`:`<a data-act="povredit" data-arg="${f.id}" style="font-size:13px">Override amount</a>`;
-        actions=`${ov}<a data-act="feeexclude" data-arg="${f.id}" style="font-size:13px;color:#b35a00">Exclude</a>`;
-      }
-      return `<div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #ebf1f5">
-        ${td(`${f.name}${f.excluded?' <span style="font-size:11px;color:#b35a00;font-weight:400">· excluded</span>':''}`,0,strike)}
-        ${td(f.desc,1,strike)}
-        ${td(amountCell,2)}
-        <span style="display:flex;align-items:center;min-height:48px;box-sizing:border-box;padding:8px 12px;font-size:14px;color:#13314c;white-space:nowrap">${f.source}</span>
-        ${td(this.levelPill(f.level||'Property'),4)}
-        ${td(this.originChip(f.origin),5)}
-        <span style="display:flex;align-items:center;gap:12px;min-height:48px;box-sizing:border-box;padding:8px 12px;white-space:nowrap">${actions}</span>
-      </div>`;
-    }).join('');
-    const empty=rows.length?'':`<div style="padding:16px;text-align:center;font-size:14px;font-style:italic;color:#b3b3b3;border-bottom:1px solid #ebf1f5">No charges in this section.</div>`;
-    const add=`<div data-act="addopen" data-arg="${groupKey}" style="background:#f5f9fc;padding:9px 16px;cursor:pointer"><span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,#008dd5)"><span class="material-symbols-outlined" style="font-size:18px">add</span>Add property fee</span></div>`;
-    return `<div style="font-size:13px;font-weight:600;color:#666;padding:16px 16px 8px">${label}</div><div style="padding:0 16px;overflow-x:auto"><div style="min-width:900px;border:1px solid #cedbe7;border-radius:4px;overflow:hidden">${head}${body}${empty}${add}</div></div>`;
-  }
-  tplPropBody(){
-    const prop=this.state.tplProp;
-    let h='';
-    h+=`<div style="flex:1;min-height:0;overflow-y:auto"><div style="padding:16px;max-width:1500px;width:100%;box-sizing:border-box;margin:0 auto;display:flex;flex-direction:column;gap:16px">`;
-    h+=this.banner(`Editing fees for <b>${prop}</b> under the Standard Apartment template. Override amounts, exclude template fees, or add property-local fees. Identity fields stay owned by the template.`,'Back to template','tplPropClose');
-    h+=`<div class="tile" style="padding:16px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap"><div style="width:16px;height:40px;background:#425a70;border-radius:2px;flex:none"></div><div style="flex:1;min-width:0"><div style="font-size:18px;color:#13314c">${prop}</div><div style="font-size:13px;color:#666">Resolved fee stack · <span style="color:#0071aa">Standard Apartment</span> template</div></div><a data-act="navProfile" style="font-size:13px">Open template →</a></div>`;
-    h+=this.acc('Required Charges','', this.tplFeeTable('req-rec','Recurring') + this.tplFeeTable('req-one','One-Time'));
-    h+=this.acc('Optional Charges','Tenant selects', this.tplFeeTable('opt-rec','Recurring') + this.tplFeeTable('opt-one','One-Time'));
-    h+=this.acc('Situational Charges','Applies when a condition exists', this.tplFeeTable('sit-rec','Recurring') + this.tplFeeTable('sit-one','One-Time'));
-    h+=`</div></div>`;
-    return h;
   }
 
   propFeesBody(){
@@ -1550,8 +1486,8 @@ class Component extends DCLogic {
     const head=`<div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Property','Location','Units','Occupancy','Assigned','Overrides','Fee status','Push to ILS'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>`;
     const body=this.properties().map(r=>{
       const ovc = r[6]==='0'?`<span style="color:#b3b3b3">0 overrides</span>`:(r[6]==='—'?`<span style="color:#b3b3b3">—</span>`:`<a data-act="exdrill" data-arg="${r[0]}" style="color:#b35a00">${r[6]}</a>`);
-      return `<div data-act="tplPropOpen" data-arg="${r[0]}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5;cursor:pointer" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''">
-        <span class="td name" style="border:none;padding-left:16px"><span style="font-weight:500;color:var(--ac,#008dd5)">${r[0]}</span></span>
+      return `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5">
+        <span class="td name" style="border:none;padding-left:16px"><a data-act="navProperty" data-arg="${r[0]}" style="font-weight:500">${r[0]}</a></span>
         <span class="td" style="border:none">${r[1]}</span><span class="td num" style="border:none">${r[3]}</span><span class="td num" style="border:none">${r[4]}</span><span class="td" style="border:none">${r[5]}</span><span class="td" style="border:none">${ovc}</span><span class="td" style="border:none">${this.statusLoz(r[7],r[8])}</span>
         <span class="td" style="border:none">${this.tog(r[8]==='green','ils_'+r[0].replace(/\s+/g,'_'))}</span></div>`;
     }).join('');
@@ -1760,11 +1696,7 @@ class Component extends DCLogic {
     this._tid = 0;
     const s = this.state;
     let out = this.header();
-    if (s.view === 'profile' && s.tplProp) {
-      out += this.ctx('Rental Fee Templates', [{ label:'Standard Apartment', act:'tplPropClose' }, { label: s.tplProp }], '', 'navRegister');
-      out += this.tplPropBody();
-      out += this.footer('Save property fees');
-    } else if (s.view === 'profile') {
+    if (s.view === 'profile') {
       out += this.ctx('Rental Fee Templates', [{ label:'Standard Apartment' }], '1 of 3', 'navRegister');
       out += this.profileScoreboard();
       out += this.tabRow(['Overview','Property Fees','Unit Type Fees','Unit Fees','Pricing Preview','Amenities','Assigned Properties','Exceptions','Change History'], s.profileTab, 'ptab');
