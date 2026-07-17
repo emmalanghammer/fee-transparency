@@ -835,81 +835,46 @@ class Component extends DCLogic {
   }
 
   // ================= PROPERTY — FEES (editable) =================
+  // Read-only resolved fee table for the property Fees tab. Fees are edited only in the template.
   feeTable(groupKey, label){
-    const s = this.state;
-    const ov = s.ov;
-    const rows = s.propFees.filter(f => f.group === groupKey && (f.level||'Property')==='Property');
-    const cols = '130px minmax(150px,1fr) 100px 120px 130px 105px 60px 150px';
+    const rows = this.state.propFees.filter(f => f.group === groupKey);
+    const cols = '120px minmax(150px,1fr) 100px 110px 120px 120px 100px 70px';
     const th=(x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:600;color:#13314c;white-space:nowrap">${x}</span>`;
-    const head=`<div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #cedbe7">${['Charge Type','Description','Amount','Source','Origin','Overrides','Active','Actions'].map(th).join('')}</div>`;
+    const head=`<div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #cedbe7">${['Charge Type','Description','Amount','Source','Level','Origin','Overrides','Active'].map(th).join('')}</div>`;
     const td=(c,i,strike)=>`<span style="display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:8px 12px${i===0?' 8px 16px':''};font-size:14px;color:#13314c;${strike||''}">${c}</span>`;
     const body = rows.map(f => {
       const n = f.overrides.length;
-      const rowBg = f.expanded ? '#f0f6fb' : '#fff';
       const ovCell = n > 0
-        ? `<span data-act="feeexp" data-arg="${f.id}" style="background:#e5f3fb;color:#0071aa;border-radius:999px;font-size:12px;font-weight:500;padding:2px 10px;cursor:pointer;white-space:nowrap">${n} override${n>1?'s':''}</span>`
+        ? `<span style="background:#e5f3fb;color:#0071aa;border-radius:999px;font-size:12px;font-weight:500;padding:2px 10px;white-space:nowrap">${n} override${n>1?'s':''}</span>`
         : `<span style="color:#b3b3b3">—</span>`;
-      let sub = '';
-      if (f.expanded) {
-        let inner = '';
-        if (n > 0) {
-          inner += `<div class="tile" style="max-width:720px"><div style="display:grid;grid-template-columns:200px 160px 1fr;background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Scope','Override','Actions'].map(h=>`<span style="padding:6px 12px;font-size:11px;font-weight:500;color:#8a9aa8;text-transform:uppercase;letter-spacing:0.04em">${h}</span>`).join('')}</div>${f.overrides.map(o=>`<div style="display:grid;grid-template-columns:200px 160px 1fr;align-items:center;border-bottom:1px solid #ebf1f5"><span style="padding:8px 12px;font-size:13px;color:#13314c;font-weight:500">${o.scope}</span><span style="padding:8px 12px">${o.excluded?`<span class="loz" style="background:#fdeedd;color:#b35a00">Excluded</span>`:`<span style="font-size:13px;color:#0071aa;font-weight:500">${o.amount}</span>`}</span><span style="padding:8px 12px"><a data-act="ovremove" data-arg="${f.id}:${o.id}" style="color:#eb343c;font-size:12px">Remove</a></span></div>`).join('')}</div>`;
-        }
-        const editing = ov && ov.feeId === f.id;
-        if (editing) {
-          inner += `<div class="tile" style="border-color:var(--ac,#008dd5);padding:16px;max-width:720px;display:flex;flex-direction:column;gap:14px">
-            <div style="font-size:14px;font-weight:500;color:#13314c">Add override — ${f.name}</div>
-            <div style="display:flex;align-items:center;gap:20px;font-size:13px;color:#424e5b;flex-wrap:wrap"><span style="font-weight:500;color:#13314c">Applies to:</span>
-              ${[['all','All units'],['type','Unit type'],['unit','Specific unit']].map(([v,l])=>`<label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" ${ov.scope===v?'checked':''} data-act="ovscope" data-arg="${v}" style="accent-color:var(--ac,#008dd5)">${l}</label>`).join('')}</div>
-            ${ov.scope==='type'?`<select id="ov-type" class="fld" style="max-width:220px">${['Studio','1BR/1BA','2BR/2BA','3BR/2BA','4BR/2BA'].map(t=>`<option${t==='2BR/2BA'?' selected':''}>${t}</option>`).join('')}</select>`:''}
-            ${ov.scope==='unit'?`<select id="ov-unit" class="fld" style="max-width:220px">${this.units().map(u=>`<option>${u.u}</option>`).join('')}</select>`:''}
-            <div style="display:flex;align-items:center;gap:20px;font-size:13px;color:#424e5b;flex-wrap:wrap"><span style="font-weight:500;color:#13314c">Override:</span>
-              <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" ${ov.mode==='amount'?'checked':''} data-act="ovmode" data-arg="amount" style="accent-color:var(--ac,#008dd5)">Amount</label>
-              ${ov.mode==='amount'?`<input id="ov-amount" class="fld" style="width:120px;border-color:var(--ac,#008dd5);background:#f0f6fb;color:#0071aa;font-weight:500" value="$0.00">`:''}
-              <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" ${ov.mode==='exclude'?'checked':''} data-act="ovmode" data-arg="exclude" style="accent-color:var(--ac,#008dd5)">Exclude fee</label></div>
-            <div style="display:flex;justify-content:flex-end;gap:8px"><button data-act="ovcancel" class="btn-out">Cancel</button><button data-act="ovsave" class="btn-pri">Save override</button></div></div>`;
-        } else {
-          inner += `<div><a data-act="ovopen" data-arg="${f.id}" style="font-size:13px">+ Add override</a></div>`;
-        }
-        sub = `<div style="padding:4px 16px 16px 48px;background:#f0f6fb;display:flex;flex-direction:column;gap:10px">${inner}</div>`;
-      }
+      const activeCell = f.excluded
+        ? `<span class="material-symbols-outlined" style="font-size:18px;color:#b35a00" title="Excluded at this property">block</span>`
+        : (f.ils ? `<span class="material-symbols-outlined" style="font-size:18px;color:#3a7d2c">check</span>` : `<span style="color:#b3b3b3">—</span>`);
       const strike = f.excluded ? 'text-decoration:line-through;color:#b3b3b3' : '';
-      const ilsCell = this.chk(f.ils,'fee'+f.id+'ils','#f58220').replace('data-act="tog" data-arg="fee'+f.id+'ils" data-def="'+(f.ils?1:0)+'"','data-act="feeils" data-arg="'+f.id+'"');
-      const chev = `<span data-act="feeexp" data-arg="${f.id}" class="material-symbols-outlined" style="font-size:20px;color:${f.expanded?'var(--ac,#008dd5)':(n>0?'#666':'#b3b3b3')};cursor:pointer">${f.expanded?'expand_less':'expand_more'}</span>`;
-      let actionsCell;
-      if (f.excluded) actionsCell = `<a data-act="feerestore" data-arg="${f.id}" style="font-size:13px">Restore</a>${chev}`;
-      else if (f.origin==='profile') actionsCell = `<a data-act="ovopen" data-arg="${f.id}" style="font-size:13px">+ Override</a><span data-act="feeexclude" data-arg="${f.id}" class="material-symbols-outlined" title="Exclude at this property" style="font-size:18px;color:#b35a00;cursor:pointer">block</span>${chev}`;
-      else actionsCell = `<a data-act="ovopen" data-arg="${f.id}" style="font-size:13px">+ Override</a><span data-act="feedel" data-arg="${f.id}" class="material-symbols-outlined icon-del">delete</span>${chev}`;
-      return `<div style="border-bottom:1px solid #ebf1f5">
-        <div style="display:grid;grid-template-columns:${cols};background:${rowBg}">
+      return `<div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #ebf1f5">
           ${td(`${f.name}${f.excluded?' <span style="font-size:11px;color:#b35a00;font-weight:400">· excluded</span>':''}`,0,strike)}
           ${td(f.desc,1,strike)}
           ${td(f.amount,2,strike)}
           <span style="display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:8px 12px;font-size:14px;color:#13314c;white-space:nowrap">${f.source}</span>
-          ${td(this.originChip(f.origin),4)}
-          ${td(ovCell,5)}
-          ${td(ilsCell,6)}
-          <span style="display:flex;align-items:center;gap:10px;min-height:44px;box-sizing:border-box;padding:8px 12px;white-space:nowrap">${actionsCell}</span>
-        </div>${sub}</div>`;
+          ${td(this.levelPill(f.level||'Property'),4)}
+          ${td(this.originChip(f.origin),5)}
+          ${td(ovCell,6)}
+          ${td(activeCell,7)}
+        </div>`;
     }).join('');
-    const emptyRow = rows.length ? '' : `<div style="padding:16px;text-align:center;font-size:14px;font-style:italic;color:#b3b3b3;border-bottom:1px solid #ebf1f5">No property-level charges in this section.</div>`;
-    const add=`<div data-act="addopen" data-arg="${groupKey}" style="background:#f5f9fc;padding:9px 16px;cursor:pointer"><span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,#008dd5)"><span class="material-symbols-outlined" style="font-size:18px">add</span>Add ${label} Charge</span></div>`;
-    return `<div style="font-size:13px;font-weight:600;color:#666;padding:16px 16px 8px">${label}</div><div style="padding:0 16px;overflow-x:auto"><div style="min-width:960px;border:1px solid #cedbe7;border-radius:4px;overflow:hidden">${head}${body}${emptyRow}${add}</div></div>`;
+    const emptyRow = rows.length ? '' : `<div style="padding:16px;text-align:center;font-size:14px;font-style:italic;color:#b3b3b3;border-bottom:1px solid #ebf1f5">No charges in this section.</div>`;
+    return `<div style="font-size:13px;font-weight:600;color:#666;padding:16px 16px 8px">${label}</div><div style="padding:0 16px;overflow-x:auto"><div style="min-width:900px;border:1px solid #cedbe7;border-radius:4px;overflow:hidden">${head}${body}${emptyRow}</div></div>`;
+  }
+  manageLink(){
+    return `<div style="padding:12px 16px 4px"><a data-act="navProfile" style="display:inline-flex;align-items:center;gap:4px;font-size:14px;font-weight:600;color:var(--ac,#008dd5)">Manage in template<span class="material-symbols-outlined" style="font-size:18px">arrow_forward</span></a></div>`;
   }
 
   propFeesBody(){
     let h = '';
-    h += `<div class="tile"><div style="padding:14px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-      <span style="font-size:15px;font-weight:500;color:#13314c">Rental Fee Template</span>
-      <span style="display:inline-flex;align-items:center;gap:6px;background:#e5f3fb;color:#0071aa;border-radius:4px;padding:5px 12px;font-size:13px;font-weight:500"><span class="material-symbols-outlined" style="font-size:16px">verified</span>Standard Apartment</span>
-      ${this.transparencyBadge()}
-      <a data-act="toast" data-arg="Would open the template picker" style="font-size:13px">Change template</a>
-      <a data-act="navProfile" style="font-size:13px">Open rental fee template →</a>
-      <div style="flex:1"></div>
-      <span style="font-size:13px;color:#8a9aa8">Fees below are additive on top of this template for all units at this property.</span></div></div>`;
-    h += this.acc('Required Charges','', this.feeTable('req-rec','Recurring') + this.feeTable('req-one','One-Time'));
-    h += this.acc('Optional Charges','Tenant selects', this.feeTable('opt-rec','Recurring') + this.feeTable('opt-one','One-Time'));
-    h += this.acc('Situational Charges','Applies when a condition exists', this.feeTable('sit-rec','Recurring') + this.feeTable('sit-one','One-Time'));
+    h += this.banner('Fees for this property are managed in the Standard Apartment template.','Open template →','navProfile');
+    h += this.acc('Required Charges','', this.feeTable('req-rec','Recurring') + this.feeTable('req-one','One-Time') + this.manageLink());
+    h += this.acc('Optional Charges','Tenant selects', this.feeTable('opt-rec','Recurring') + this.feeTable('opt-one','One-Time') + this.manageLink());
+    h += this.acc('Situational Charges','Applies when a condition exists', this.feeTable('sit-rec','Recurring') + this.feeTable('sit-one','One-Time') + this.manageLink());
     h += this.legacyTiles();
     return h;
   }
