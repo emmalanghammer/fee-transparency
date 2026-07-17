@@ -721,6 +721,7 @@ class Component extends DCLogic {
   }
 
   profileScoreboard(){
+    const totalCharges=this.templateChargeCounts().total;
     const item=(l,v)=>`<span style="display:inline-flex;align-items:center;gap:8px"><span style="color:#666">${l}</span><span>${v}</span></span>`;
     const stat=(l,v)=>`<span style="display:inline-flex;align-items:baseline;justify-content:flex-end;gap:20px;white-space:nowrap"><span style="color:#666">${l}</span><span style="font-weight:600;color:#13314c">${v}</span></span>`;
     return `<div style="padding:16px 20px 0;flex:none"><div style="display:flex;align-items:center;justify-content:space-between;gap:32px;flex-wrap:wrap;min-height:64px;background:#fff;border:1px solid #cedbe7;border-radius:4px;padding:16px 20px;box-shadow:2px 2px 12px -5px rgba(76,76,76,0.08),0 4px 15px -5px rgba(76,76,76,0.08),0 -1px 20px -5px rgba(76,76,76,0.02)">
@@ -733,7 +734,7 @@ class Component extends DCLogic {
       </div>
       <div style="display:flex;align-items:center;gap:32px">
         <div style="display:flex;flex-direction:column;gap:10px;font-size:16px">
-          ${stat('Total Units:','210')}${stat('Total Charges:','15')}
+          ${stat('Total Units:','210')}${stat('Total Charges:',totalCharges)}
         </div>
         <div style="display:flex;flex-direction:column;gap:8px;align-items:stretch">
           <button data-act="toast" data-arg="Bulk update fees" class="btn-pri" style="height:36px;min-height:36px;padding:8px 16px;border-radius:4px;font:400 14px Roboto,sans-serif">Bulk Update Fees</button>
@@ -1030,7 +1031,7 @@ class Component extends DCLogic {
   }
 
   registerBody(){
-    const chg = this.state.propFees.filter(f=>f.origin==='profile').length + this.utData().reduce((n,t)=>n+this.utFees(t).length,0);
+    const chg = this.templateChargeCounts().total;
     const rows=[
       { name:'Standard Apartment', desc:'Standard fee set for apartment communities', prop:'Riverview Apartments', more:13, units:210, charges:chg, updated:'07/10/25', act:'navProfile' },
       { name:'Luxury Apartment', desc:'Premium fees for luxury and high-end apartment communities', prop:'Clearcreek Apartments', more:3, units:96, charges:24, updated:'03/03/26' },
@@ -1296,12 +1297,13 @@ class Component extends DCLogic {
         <div style="border-top:1px solid #ebf1f5;padding-top:10px;display:flex;align-items:center;justify-content:space-between"><span style="font-size:12px;color:#8a9aa8">${o.foot}</span><span style="font-size:13px;color:var(--ac,#008dd5);display:inline-flex;align-items:center;gap:2px">Manage<span class="material-symbols-outlined" style="font-size:16px">chevron_right</span></span></div>
       </div>`;
     const req=(n)=>chip('Required',n,'#fdeaea','#d02830'), opt=(n)=>chip('Optional',n,'#e5f3fb','#0071aa'), sit=(n)=>chip('Situational',n,'#fdeedd','#b35a00');
+    const c=this.templateChargeCounts();
     let h='';
     h+=`<div class="eyebrow" style="margin-top:4px">Fee structure</div>`;
     h+=`<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:stretch">
-      ${card({tab:'Property Fees',icon:'apartment',bg:'#eef1f4',fg:'#4a5b6b',title:'Property Fees',scope:'All units · every property',count:13,desc:'Base fees applied to every unit at all 14 assigned properties.',chips:req(9)+opt(2)+sit(2),foot:'Applies at property level'})}
-      ${card({tab:'Unit Type Fees',icon:'__unittype__',bg:'#e5f3fb',fg:'#0071aa',title:'Unit Type Fees',scope:'5 unit types',count:3,desc:'Additive fees for a unit type (e.g. 2BR/2BA), on top of property fees.',chips:req(1)+opt(2),foot:'2 of 5 types have fees'})}
-      ${card({tab:'Unit Fees',icon:'door_front',bg:'#fdeedd',fg:'#b35a00',title:'Unit Fees',scope:'Per specific unit',count:1,desc:'One-off fees for a single unit, on top of property and unit type fees.',chips:opt(1),foot:'1 unit customized'})}
+      ${card({tab:'Property Fees',icon:'apartment',bg:'#eef1f4',fg:'#4a5b6b',title:'Property Fees',scope:'All units · every property',count:c.property,desc:'Base fees applied to every unit at all 14 assigned properties.',chips:req(c.pReq)+opt(c.pOpt)+sit(c.pSit),foot:'Applies at property level'})}
+      ${card({tab:'Unit Type Fees',icon:'__unittype__',bg:'#e5f3fb',fg:'#0071aa',title:'Unit Type Fees',scope:'5 unit types',count:c.unittype,desc:'Additive fees for a unit type (e.g. 2BR/2BA), on top of property fees.',chips:req(c.uReq)+opt(c.uOpt)+sit(c.uSit),foot:'2 of 5 types have fees'})}
+      ${card({tab:'Unit Fees',icon:'door_front',bg:'#fdeedd',fg:'#b35a00',title:'Unit Fees',scope:'Per specific unit',count:c.unit,desc:'One-off fees for a single unit, on top of property and unit type fees.',chips:req(c.nReq)+opt(c.nOpt)+sit(c.nSit),foot:'1 unit customized'})}
     </div>`;
     // How fees stack
     const layer=(title,sub,bg,fg,icon)=>`<div style="flex:1;min-width:150px;background:${bg};border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:6px">${icon==='__unittype__'?this.utIcon(20):`<span class="material-symbols-outlined" style="font-size:20px;color:${fg}">${icon}</span>`}<span style="font-size:14px;font-weight:600;color:#13314c">${title}</span><span style="font-size:12px;color:#666">${sub}</span></div>`;
@@ -1317,35 +1319,59 @@ class Component extends DCLogic {
     </div>`;
     return h;
   }
+  // ---- template charge definitions: single source of truth for counts + tables ----
+  propChargeDefs(){
+    return [
+      {group:'req-rec',code:'RC',desc:'Base rent',amount:'Market Rent',cat:'Rent',app:'Property',active:true},
+      {group:'req-rec',code:'GARBAG',desc:'Trash collection',amount:'28.00',cat:'Utility',app:'Property',active:true},
+      {group:'req-rec',code:'WATER',desc:'Water service',amount:'38.00',cat:'Utility',app:'Property',active:true},
+      {group:'req-rec',code:'GARBAGFEE',desc:'Additional trash valet',amount:'4.00',cat:'Utility',app:'Unit Type: 2BR/2BA',active:true},
+      {group:'req-one',code:'ADMIN',desc:'Administrative fee',amount:'150.00',cat:'ADMIN',app:'Property',active:true},
+      {group:'req-one',code:'APPFEE',desc:'Application fee',amount:'50.00',cat:'APPLICATION',app:'Property',active:true},
+      {group:'req-one',code:'DP',desc:'Security deposit',amount:'500.00',cat:'SECDEP',app:'Property',active:true},
+      {group:'req-one',code:'PETDP',desc:'Pet Deposit - Dog',amount:'300.00',cat:'PET',app:'Property',active:true},
+      {group:'req-one',code:'LMR',desc:"Last month's rent",amount:'1,350.00',cat:'LMR',app:'Property',active:true},
+      {group:'req-one',code:'KEY',desc:'Key & fob deposit',amount:'50.00',cat:'KEY',app:'Property',active:true},
+      {group:'opt-rec',code:'SF',desc:'Storage unit',amount:'40.00',cat:'STORAGE',app:'Property',active:true},
+      {group:'opt-rec',code:'AMENFEE',desc:'Pool & fitness access',amount:'45.00',cat:'AMENITY',app:'Unit Type: 2BR/2BA',active:true},
+      {group:'opt-one',code:'HOLD',desc:'Unit reservation fee',amount:'200.00',cat:'HOLD',app:'Property',active:true},
+      {group:'sit-rec',code:'PETFEE',desc:'Pet rent, per pet',cond:'If resident has a pet',amount:'45.00',cat:'PET',app:'Property',active:true},
+      {group:'sit-rec',code:'COVPARK',desc:'Reserved covered parking',cond:'If parking rented',amount:'75-125',cat:'PARKING',app:'Property',active:true},
+    ];
+  }
+  chargeActive(kp,group,code,def){ const id=kp+'-'+group+'-'+code; return (id in this.state.toggles)?this.state.toggles[id]:def; }
+  // Every distinct charge definition in the template across property + unit type + unit levels.
+  templateCharges(){
+    const out=[];
+    this.propChargeDefs().filter(f=>f.app==='Property').forEach(f=>out.push({level:'property',group:f.group,active:this.chargeActive('pf',f.group,f.code,f.active)}));
+    this.utData().forEach(t=>{
+      (t.reqRec||[]).forEach(f=>out.push({level:'unittype',group:'req-rec',active:this.chargeActive('ut','req-rec',f.code,f.active)}));
+      (t.optRec||[]).forEach(f=>out.push({level:'unittype',group:'opt-rec',active:this.chargeActive('ut','opt-rec',f.code,f.active)}));
+    });
+    this.ufUnits().forEach(u=>(u.fees||[]).forEach(f=>out.push({level:'unit',group:'opt-rec',active:this.chargeActive('uf','opt-rec',f.code,f.active)})));
+    this.state.addedFees.forEach(f=>{ const level=f.ctx==='prop'?'property':(f.ctx.indexOf('ut:')===0?'unittype':'unit'); out.push({level,group:f.group,active:f.active!==false}); });
+    return out;
+  }
+  // Counts of active charge definitions, split by level and requirement. Header + cards share this.
+  templateChargeCounts(){
+    const all=this.templateCharges().filter(c=>c.active);
+    const lvl=(l)=>all.filter(c=>c.level===l);
+    const grp=(arr,p)=>arr.filter(c=>c.group.indexOf(p)===0).length;
+    const P=lvl('property'), U=lvl('unittype'), N=lvl('unit');
+    return { total:all.length,
+      property:P.length, pReq:grp(P,'req'), pOpt:grp(P,'opt'), pSit:grp(P,'sit'),
+      unittype:U.length, uReq:grp(U,'req'), uOpt:grp(U,'opt'), uSit:grp(U,'sit'),
+      unit:N.length, nReq:grp(N,'req'), nOpt:grp(N,'opt'), nSit:grp(N,'sit') };
+  }
   propertyFeesBody(){
     const pl=a=>a.filter(f=>f.app==='Property'); // property-level charges only
+    const defs=this.propChargeDefs();
+    const g=(grp)=>pl(defs.filter(d=>d.group===grp));
     let h='';
     h+=this.banner('Property-level fees apply to all units at assigned properties. Unit type and unit fees are additive — they stack on top of these at quote time.','Learn more →');
-    // Required Charges
-    h+=this.chargeAccordion('req','Required Charges','',
-      pl([{code:'RC',desc:'Base rent',amount:'Market Rent',cat:'Rent',app:'Property',active:true},
-       {code:'GARBAG',desc:'Trash collection',amount:'28.00',cat:'Utility',app:'Property',active:true},
-       {code:'WATER',desc:'Water service',amount:'38.00',cat:'Utility',app:'Property',active:true},
-       {code:'GARBAGFEE',desc:'Additional trash valet',amount:'4.00',cat:'Utility',app:'Unit Type: 2BR/2BA',active:true}]),
-      pl([{code:'ADMIN',desc:'Administrative fee',amount:'150.00',cat:'ADMIN',app:'Property',active:true},
-       {code:'APPFEE',desc:'Application fee',amount:'50.00',cat:'APPLICATION',app:'Property',active:true},
-       {code:'DP',desc:'Security deposit',amount:'500.00',cat:'SECDEP',app:'Property',active:true},
-       {code:'PETDP',desc:'Pet Deposit - Dog',amount:'300.00',cat:'PET',app:'Property',active:true},
-       {code:'LMR',desc:"Last month's rent",amount:'1,350.00',cat:'LMR',app:'Property',active:true},
-       {code:'KEY',desc:'Key & fob deposit',amount:'50.00',cat:'KEY',app:'Property',active:true}]),
-      {ctx:'prop',keyPrefix:'pf',recGroup:'req-rec',oneGroup:'req-one'});
-    // Optional Charges
-    h+=this.chargeAccordion('opt','Optional Charges','Tenant selects',
-      pl([{code:'SF',desc:'Storage unit',amount:'40.00',cat:'STORAGE',app:'Property',active:true},
-       {code:'AMENFEE',desc:'Pool & fitness access',amount:'45.00',cat:'AMENITY',app:'Unit Type: 2BR/2BA',active:true}]),
-      pl([{code:'HOLD',desc:'Unit reservation fee',amount:'200.00',cat:'HOLD',app:'Property',active:true}]),
-      {ctx:'prop',keyPrefix:'pf',recGroup:'opt-rec',oneGroup:'opt-one'});
-    // Situational Charges
-    h+=this.chargeAccordion('sit','Situational Charges','Applies when a condition exists',
-      pl([{code:'PETFEE',desc:'Pet rent, per pet',cond:'If resident has a pet',amount:'45.00',cat:'PET',app:'Property',active:true},
-       {code:'COVPARK',desc:'Reserved covered parking',cond:'If parking rented',amount:'75-125',cat:'PARKING',app:'Property',active:true}]),
-      [],
-      {ctx:'prop',keyPrefix:'pf',recGroup:'sit-rec',oneGroup:'sit-one',condition:true,oneEmpty:'No situational one-time charges added.'});
+    h+=this.chargeAccordion('req','Required Charges','', g('req-rec'), g('req-one'), {ctx:'prop',keyPrefix:'pf',recGroup:'req-rec',oneGroup:'req-one'});
+    h+=this.chargeAccordion('opt','Optional Charges','Tenant selects', g('opt-rec'), g('opt-one'), {ctx:'prop',keyPrefix:'pf',recGroup:'opt-rec',oneGroup:'opt-one'});
+    h+=this.chargeAccordion('sit','Situational Charges','Applies when a condition exists', g('sit-rec'), g('sit-one'), {ctx:'prop',keyPrefix:'pf',recGroup:'sit-rec',oneGroup:'sit-one',condition:true,oneEmpty:'No situational one-time charges added.'});
     return h;
   }
 
