@@ -92,6 +92,8 @@ class Component extends DCLogic {
     ],
     nextFeeId: 11,
     addedFees: [],
+    ovPop: null,
+    exProp: 'All', exFee: 'All', exKind: 'All',
     nextOvId: 3,
     modal: null,
     ov: null,
@@ -146,6 +148,22 @@ class Component extends DCLogic {
       { name:"Becky's RV Campground", loc:'Mason OH', units:64, pre:false, assignedTo:'RV / Campground Standard' }
     ];
   }
+  // Deviations from the template at assigned properties — overrides, local additions, exclusions.
+  exceptions(){
+    return [
+      { kind:'override', code:'GARBAG', fee:'Trash', scope:'Riverview Apartments', scopeType:'Property', tmpl:'$28.00', local:'$32.00', by:'Ali Ferryman', date:'Jul 10, 2025', reason:'Higher haul cost', bulk:'BU-2025-041' },
+      { kind:'override', code:'WATER', fee:'Water', scope:'Riverview Apartments', scopeType:'Property', tmpl:'$38.00', local:'$45.00', by:'Ali Ferryman', date:'Jul 10, 2025', reason:'', bulk:'BU-2025-041' },
+      { kind:'override', code:'ADMIN', fee:'Admin fee', scope:'Riverview Apartments', scopeType:'Property', tmpl:'$150.00', local:'$175.00', by:'Rachel H.', date:'Jul 8, 2025', reason:'Market adjustment', bulk:'' },
+      { kind:'override', code:'GARBAG', fee:'Trash', scope:'Sunrise Heights', scopeType:'Property', tmpl:'$28.00', local:'$30.00', by:'Admin', date:'Jun 15, 2025', reason:'', bulk:'' },
+      { kind:'exclusion', code:'COVPARK', fee:'Covered parking', scope:'Riverview Apartments · Unit 1A', scopeType:'Unit', tmpl:'$75–125', local:'Excluded', by:'Ali Ferryman', date:'Jul 10, 2025', reason:'No parking at 1A', bulk:'' },
+      { kind:'exclusion', code:'HOLD', fee:'Hold fee', scope:'Bradford House', scopeType:'Property', tmpl:'$200.00', local:'Excluded', by:'Admin', date:'Jul 1, 2025', reason:'', bulk:'' },
+      { kind:'addition', code:'VALET', fee:'Valet trash', scope:'Riverview Apartments', scopeType:'Property', tmpl:'—', local:'$12.00', by:'Ali Ferryman', date:'Jul 12, 2025', reason:'Added valet service', bulk:'' },
+      { kind:'addition', code:'EVCHG', fee:'EV charging', scope:'Oakwood Commons', scopeType:'Property', tmpl:'—', local:'$25.00', by:'Admin', date:'Jun 20, 2025', reason:'', bulk:'' },
+      { kind:'addition', code:'STOR', fee:'Storage', scope:'Riverview Apartments · Unit 4C', scopeType:'Unit', tmpl:'—', local:'$40.00', by:'Marcus Lee', date:'Jul 5, 2025', reason:'Corner unit', bulk:'' },
+    ];
+  }
+  overridesForCode(code){ return this.exceptions().filter(e=>e.kind==='override' && e.code===code); }
+  overridePropCount(code){ return new Set(this.overridesForCode(code).map(e=>e.scope)).size; }
   petSetup(){
     return [
       { type:'Dog', rent:'$45.00', deposit:'$300.00', mits:'PET' },
@@ -230,6 +248,12 @@ class Component extends DCLogic {
     switch (act) {
       case 'navProfile': this.go('profile'); break;
       case 'navRegister': this.go('register'); break;
+      case 'ovpop': { const r = el.getBoundingClientRect(); this.setState({ ovPop: { code: arg, x: r.left, y: r.bottom + 6 } }); break; }
+      case 'ovpopclose': this.setState({ ovPop: null }); break;
+      case 'exdrill': this._resetScroll = true; this.setState({ profileTab: 'Exceptions', exProp: arg||'All', exFee: 'All', exKind: 'All', ovPop: null }); break;
+      case 'exprop': if (arg) this.setState({ exProp: arg }); break;
+      case 'exfee': if (arg) this.setState({ exFee: arg }); break;
+      case 'exkind': if (arg) this.setState({ exKind: arg }); break;
       case 'importOpen': this.go('import', { importStep: 1, importAnal: 0 }); break;
       case 'importNext': {
         const st = this.state.importStep;
@@ -249,7 +273,7 @@ class Component extends DCLogic {
       case 'importAssign': this.go('profile', { assign: { step:1, sel: this.candidateProps().filter(p=>p.pre).map(p=>p.name) } }); break;
       case 'navProperty': this.go('property', arg ? { property: arg, propTab: 'Rental Fees' } : { propTab: 'Rental Fees' }); break;
       case 'navUnit': this.go('unit', { unit: arg }); break;
-      case 'ptab': this._resetScroll = true; this.setState({ profileTab: arg }); break;
+      case 'ptab': this._resetScroll = true; this.setState({ profileTab: arg, ovPop: null }); break;
       case 'utsel': this.setState({ utSel: arg }); break;
       case 'ufsel': this.setState({ ufSel: arg }); break;
       case 'lpprop': if (arg) { const first = this.ufUnits().filter(x => x.prop === arg)[0]; this.setState({ lpProp: arg, lpUnit: first ? first.u : null }); } break;
@@ -1226,6 +1250,7 @@ class Component extends DCLogic {
     const unit=/unit/i.test(t);
     return `<span style="display:inline-block;background:${unit?'#dceffb':'#e8eaed'};color:${unit?'#0071aa':'#4a5b6b'};border-radius:4px;padding:3px 10px;font-size:13px;white-space:nowrap">${t}</span>`;
   }
+  ovBadge(code){ const n=this.overridePropCount(code); if(!n) return ''; return `<span data-act="ovpop" data-arg="${code}" style="display:inline-flex;align-items:center;gap:3px;margin-left:8px;background:#fdeedd;color:#b35a00;border-radius:999px;font-size:11px;padding:2px 8px;white-space:nowrap;cursor:pointer"><span class="material-symbols-outlined" style="font-size:12px">alt_route</span>${n} propert${n===1?'y':'ies'} differ${n===1?'s':''}</span>`; }
   chargeTable(label, rows, group, opts){
     opts=opts||{};
     const cond=opts.condition;
@@ -1237,9 +1262,10 @@ class Component extends DCLogic {
     const td=(c,i)=>`<span style="display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:8px 12px${i===0?' 8px 16px':''};font-size:14px;color:#13314c">${c}</span>`;
     const kp=opts.keyPrefix||'ov';
     const body = rows.length ? rows.map(r=>{
+      const descCell = r.desc + (opts.showOverrides ? this.ovBadge(r.code) : '');
       const base = cond
-        ? [r.code, r.desc, `<span style="color:#666">${r.cond||''}</span>`, r.amount, `<span style="color:#666">${r.cat}</span>`, this.appPill(r.app), this.chk(r.active,kp+'-'+group+'-'+r.code,'#f58220')]
-        : [r.code, r.desc, r.amount, `<span style="color:#666">${r.cat}</span>`, this.appPill(r.app), this.chk(r.active,kp+'-'+group+'-'+r.code,'#f58220')];
+        ? [r.code, descCell, `<span style="color:#666">${r.cond||''}</span>`, r.amount, `<span style="color:#666">${r.cat}</span>`, this.appPill(r.app), this.chk(r.active,kp+'-'+group+'-'+r.code,'#f58220')]
+        : [r.code, descCell, r.amount, `<span style="color:#666">${r.cat}</span>`, this.appPill(r.app), this.chk(r.active,kp+'-'+group+'-'+r.code,'#f58220')];
       return `<div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #ebf1f5">${base.map(td).join('')}${kebab}</div>`;
     }).join('') : `<div style="padding:16px;text-align:center;font-size:14px;font-style:italic;color:#b3b3b3;border-bottom:1px solid #ebf1f5">${opts.empty||'No charges added.'}</div>`;
     const add=`<div data-act="addopen" data-arg="${group}" style="background:#f5f9fc;padding:9px 16px;cursor:pointer"><span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,#008dd5)"><span class="material-symbols-outlined" style="font-size:18px">add</span>Add ${label} Charge</span></div>`;
@@ -1258,8 +1284,8 @@ class Component extends DCLogic {
     opts=opts||{};
     const rec = recRows.concat(this.addedFor(opts.ctx, opts.recGroup));
     const one = oneRows.concat(this.addedFor(opts.ctx, opts.oneGroup));
-    const inner = this.chargeTable('Recurring', rec, opts.recGroup, {condition:opts.condition, empty:opts.recEmpty, keyPrefix:opts.keyPrefix})
-      + this.chargeTable('One-Time', one, opts.oneGroup, {empty:opts.oneEmpty||'No one-time charges added.', keyPrefix:opts.keyPrefix});
+    const inner = this.chargeTable('Recurring', rec, opts.recGroup, {condition:opts.condition, empty:opts.recEmpty, keyPrefix:opts.keyPrefix, showOverrides:opts.showOverrides})
+      + this.chargeTable('One-Time', one, opts.oneGroup, {empty:opts.oneEmpty||'No one-time charges added.', keyPrefix:opts.keyPrefix, showOverrides:opts.showOverrides});
     return this.acc(title, sub, inner);
   }
   overviewBody(){
@@ -1369,9 +1395,9 @@ class Component extends DCLogic {
     const g=(grp)=>pl(defs.filter(d=>d.group===grp));
     let h='';
     h+=this.banner('Property-level fees apply to all units at assigned properties. Unit type and unit fees are additive — they stack on top of these at quote time.','Learn more →');
-    h+=this.chargeAccordion('req','Required Charges','', g('req-rec'), g('req-one'), {ctx:'prop',keyPrefix:'pf',recGroup:'req-rec',oneGroup:'req-one'});
-    h+=this.chargeAccordion('opt','Optional Charges','Tenant selects', g('opt-rec'), g('opt-one'), {ctx:'prop',keyPrefix:'pf',recGroup:'opt-rec',oneGroup:'opt-one'});
-    h+=this.chargeAccordion('sit','Situational Charges','Applies when a condition exists', g('sit-rec'), g('sit-one'), {ctx:'prop',keyPrefix:'pf',recGroup:'sit-rec',oneGroup:'sit-one',condition:true,oneEmpty:'No situational one-time charges added.'});
+    h+=this.chargeAccordion('req','Required Charges','', g('req-rec'), g('req-one'), {ctx:'prop',keyPrefix:'pf',recGroup:'req-rec',oneGroup:'req-one',showOverrides:true});
+    h+=this.chargeAccordion('opt','Optional Charges','Tenant selects', g('opt-rec'), g('opt-one'), {ctx:'prop',keyPrefix:'pf',recGroup:'opt-rec',oneGroup:'opt-one',showOverrides:true});
+    h+=this.chargeAccordion('sit','Situational Charges','Applies when a condition exists', g('sit-rec'), g('sit-one'), {ctx:'prop',keyPrefix:'pf',recGroup:'sit-rec',oneGroup:'sit-one',condition:true,oneEmpty:'No situational one-time charges added.',showOverrides:true});
     return h;
   }
 
@@ -1494,7 +1520,7 @@ class Component extends DCLogic {
     const cols='220px 1fr 90px 100px 140px 130px 150px 150px';
     const head=`<div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Property','Location','Units','Occupancy','Assigned','Overrides','Fee status','Push to ILS'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>`;
     const body=this.properties().map(r=>{
-      const ovc = r[6]==='0'?`<span style="color:#b3b3b3">0 overrides</span>`:(r[6]==='—'?`<span style="color:#b3b3b3">—</span>`:`<span style="color:#b35a00">${r[6]}</span>`);
+      const ovc = r[6]==='0'?`<span style="color:#b3b3b3">0 overrides</span>`:(r[6]==='—'?`<span style="color:#b3b3b3">—</span>`:`<a data-act="exdrill" data-arg="${r[0]}" style="color:#b35a00">${r[6]}</a>`);
       return `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5">
         <span class="td name" style="border:none;padding-left:16px"><a data-act="navProperty" data-arg="${r[0]}" style="font-weight:500">${r[0]}</a></span>
         <span class="td" style="border:none">${r[1]}</span><span class="td num" style="border:none">${r[3]}</span><span class="td num" style="border:none">${r[4]}</span><span class="td" style="border:none">${r[5]}</span><span class="td" style="border:none">${ovc}</span><span class="td" style="border:none">${this.statusLoz(r[7],r[8])}</span>
@@ -1503,6 +1529,43 @@ class Component extends DCLogic {
     return `<div class="tile"><div class="thead2"><span class="ttl">Assigned properties · 14</span><span class="loz" style="background:#e2f1da;color:#3a7d2c">All opted in</span><div style="flex:1"></div><button data-act="assignOpen" class="btn-pri"><span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px;margin-right:2px">add</span>Assign property</button></div><div style="overflow-x:auto"><div style="min-width:1040px">${head}${body}</div></div><div style="padding:12px 16px;border-top:1px solid #ebf1f5;font-size:13px;color:#8a9aa8">5 of 14 properties shown · assigning this template auto-opts a property into Fee Transparency.</div></div>`;
   }
 
+  kindChip(kind){
+    const m={ override:['#e5f3fb','#0071aa','Override'], addition:['#e2f1da','#3a7d2c','Local addition'], exclusion:['#fdeedd','#b35a00','Exclusion'] }[kind];
+    return `<span class="loz" style="background:${m[0]};color:${m[1]};text-transform:none;letter-spacing:0;white-space:nowrap">${m[2]}</span>`;
+  }
+  exceptionsBody(){
+    const s=this.state;
+    const all=this.exceptions();
+    const propOf=(e)=>e.scope.split(' · ')[0];
+    const props=['All',...Array.from(new Set(all.map(propOf)))];
+    const fees=['All',...Array.from(new Set(all.map(e=>e.fee)))];
+    const kinds=['All','override','addition','exclusion'];
+    const rows=all.filter(e=> (s.exProp==='All'||propOf(e)===s.exProp) && (s.exFee==='All'||e.fee===s.exFee) && (s.exKind==='All'||e.kind===s.exKind));
+    const onch=`onchange="this.dataset.arg=this.value;this.dispatchEvent(new MouseEvent('click',{bubbles:true}))"`;
+    const cap=(x)=>x==='All'?'All':x.charAt(0).toUpperCase()+x.slice(1);
+    const sel=(label,act,opts,val,fmt)=>`<div style="display:flex;flex-direction:column;gap:4px;min-width:170px"><span style="font-size:13px;color:#666">${label}</span><select data-act="${act}" class="fld" style="height:36px" ${onch}>${opts.map(o=>`<option value="${o}"${o===val?' selected':''}>${fmt?fmt(o):o}</option>`).join('')}</select></div>`;
+    const cols='120px 150px minmax(170px,1fr) 190px 130px 105px minmax(160px,1fr) 110px';
+    const heads=['Kind','Fee','Scope','Change','Changed by','Date','Reason','Bulk ref'];
+    const head=`<div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${heads.map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>`;
+    const change=(e)=>`<span style="white-space:nowrap"><span style="color:#b3b3b3${e.tmpl==='—'?'':';text-decoration:line-through'}">${e.tmpl}</span> <span style="color:#8a9aa8">→</span> <span style="color:${e.local==='Excluded'?'#b35a00':'#13314c'};font-weight:600">${e.local}</span></span>`;
+    const cell=(c,i)=>`<span style="display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:8px 12px${i===0?' 8px 16px':''};font-size:14px;color:#13314c">${c}</span>`;
+    const body=rows.length?rows.map(e=>{
+      const cells=[this.kindChip(e.kind), `<span style="font-weight:500">${e.fee}</span>`, e.scope, change(e), e.by, e.date, `<span style="color:#666">${e.reason?'“'+e.reason+'”':'—'}</span>`, e.bulk?`<span class="mono" style="font-size:12px;color:#666">${e.bulk}</span>`:`<span style="color:#b3b3b3">—</span>`];
+      return `<div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #ebf1f5">${cells.map(cell).join('')}</div>`;
+    }).join(''):`<div style="padding:20px 16px;text-align:center;font-size:14px;font-style:italic;color:#b3b3b3">No exceptions match these filters.</div>`;
+    let h='';
+    h+=this.banner('Every deviation from this template at an assigned property — overrides, local additions, and exclusions. The template stays the source of truth; these are the differences.','');
+    h+=`<div class="tile"><div style="padding:14px 16px;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;border-bottom:1px solid #cedbe7">
+      ${sel('Property','exprop',props,s.exProp)}
+      ${sel('Fee','exfee',fees,s.exFee)}
+      ${sel('Exception kind','exkind',kinds,s.exKind,cap)}
+      <div style="flex:1"></div>
+      ${(s.exProp!=='All'||s.exFee!=='All'||s.exKind!=='All')?`<a data-act="exdrill" data-arg="All" style="font-size:13px;padding-bottom:8px">Clear filters</a>`:''}
+    </div>
+    <div style="padding:10px 16px;font-size:13px;color:#8a9aa8">${rows.length} exception${rows.length===1?'':'s'}${(s.exProp!=='All'||s.exFee!=='All'||s.exKind!=='All')?' (filtered)':''} · ${all.length} total across ${new Set(all.map(propOf)).size} properties</div>
+    <div style="overflow-x:auto"><div style="min-width:1140px">${head}${body}</div></div></div>`;
+    return h;
+  }
   chBody(){
     const rows=[['Jul 10, 2025','Ali Ferryman','Trash · Recurring','$28 → $32','2BR/2BA unit type','BU-2025-041'],['Jul 10, 2025','Ali Ferryman','Water · Recurring','$38 → $45','2BR/2BA unit type','BU-2025-041'],['Jul 8, 2025','Rachel H.','Application fee','$50 → $0 waived','2BR/2BA unit type','—'],['Jul 5, 2025','Admin','Move-in special','Added · 1 month free','All units','—'],['Jun 28, 2025','Ali Ferryman','Trash · Recurring','$25 → $28','All units','BU-2025-039'],['Jun 15, 2025','Admin','Standard Apartment','Profile created','—','—']];
     const cols='120px 130px 1fr 160px 150px 130px 110px';
@@ -1549,6 +1612,7 @@ class Component extends DCLogic {
     else if (t === 'Unit Fees') return `<div style="flex:1;min-height:0;display:flex;flex-direction:column">${this.ufBody()}</div>`;
     else if (t === 'Listing Preview') inner = this.lpBody();
     else if (t === 'Assigned Properties') inner = this.apBody();
+    else if (t === 'Exceptions') inner = this.exceptionsBody();
     else inner = this.chBody();
     return `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden"><div style="flex:1;min-width:0;overflow-y:auto;display:flex;flex-direction:column"><div style="flex:1;min-width:0;padding:16px;display:flex;flex-direction:column;gap:16px;max-width:1500px;width:100%;box-sizing:border-box;margin:0 auto">${inner}</div></div>${this.rail()}</div>`;
   }
@@ -1670,7 +1734,7 @@ class Component extends DCLogic {
     if (s.view === 'profile') {
       out += this.ctx('Rental Fee Templates', [{ label:'Standard Apartment' }], '1 of 3', 'navRegister');
       out += this.profileScoreboard();
-      out += this.tabRow(['Overview','Property Fees','Unit Type Fees','Unit Fees','Listing Preview','Amenities','Assigned Properties','Change History'], s.profileTab, 'ptab');
+      out += this.tabRow(['Overview','Property Fees','Unit Type Fees','Unit Fees','Listing Preview','Amenities','Assigned Properties','Exceptions','Change History'], s.profileTab, 'ptab');
       out += this.profileBody();
       out += this.footer(s.profileTab === 'Unit Fees' ? 'Save unit fees' : 'Save template');
     } else if (s.view === 'property') {
@@ -1715,8 +1779,28 @@ class Component extends DCLogic {
     out += this.modalHTML();
     out += this.assignModalHTML();
     out += this.petImportHTML();
+    out += this.ovPopHTML();
     out += this.toastHTML();
     return out;
+  }
+  ovPopHTML(){
+    const p = this.state.ovPop; if (!p) return '';
+    const rows = this.overridesForCode(p.code);
+    const fee = rows.length ? rows[0].fee : p.code;
+    const left = Math.max(8, Math.min(p.x, 1000));
+    const list = rows.map(o=>`<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #ebf1f5">
+      <span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5);margin-top:1px">home_work</span>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px"><span style="font-size:13px;font-weight:500;color:#13314c">${o.scope}</span><span style="font-size:13px;white-space:nowrap"><span style="color:#b3b3b3;text-decoration:line-through">${o.tmpl}</span> <span style="color:#b35a00;font-weight:600">${o.local}</span></span></div>
+        <div style="font-size:12px;color:#8a9aa8">${o.by} · ${o.date}${o.bulk?` · ${o.bulk}`:''}</div>
+        ${o.reason?`<div style="font-size:12px;color:#666;font-style:italic;margin-top:2px">“${o.reason}”</div>`:''}
+      </div></div>`).join('');
+    return `<div data-act="ovpopclose" style="position:fixed;inset:0;z-index:150"></div>
+      <div style="position:fixed;left:${left}px;top:${p.y}px;width:340px;max-width:92vw;background:#fff;border:1px solid #cedbe7;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.22);z-index:160;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid #cedbe7"><span style="font-size:14px;font-weight:600;color:#13314c">${fee} — differs at ${rows.length} propert${rows.length===1?'y':'ies'}</span><span data-act="ovpopclose" class="material-symbols-outlined" style="font-size:18px;color:#666;cursor:pointer">close</span></div>
+        <div style="padding:2px 14px 10px;max-height:280px;overflow-y:auto">${list}</div>
+        <div style="padding:8px 14px;border-top:1px solid #ebf1f5;background:#f5f8fa"><a data-act="exdrill" data-arg="All" style="font-size:13px">View all exceptions →</a></div>
+      </div>`;
   }
 
   renderVals(){
