@@ -401,6 +401,7 @@ class Component extends DCLogic {
       amount = ((this.q('#m-amount') || {}).value || '').trim() || '$0.00';
     }
     const ctype = ((this.q('#m-ctype') || {}).value || '').trim();
+    const ctypeDesc = ((this.q('#m-ctype-desc') || {}).value || '').trim();
     const req = (this.q('#m-req') || {}).value || '';
     const cond = req === 'Required' ? '' : ((this.q('#m-cond') || {}).value || '').trim();
     const level = (this.q('#m-level') || {}).value || 'Property';
@@ -419,7 +420,7 @@ class Component extends DCLogic {
       const root = this.rootEl || document;
       const checked = (sel) => [...root.querySelectorAll(sel)].map(x => x.value);
       const code = (ctype || name).replace(/\s+/g,'').toUpperCase().slice(0,10) || 'CUSTOM';
-      const mk = (ctx, app) => ({ ctx, group, code, desc: desc||name, amount: amount.replace(/^\$/,''), cat: ctype || 'Custom', app, active: ils, cond: cond||undefined });
+      const mk = (ctx, app) => ({ ctx, group, code, desc: desc||name, amount: amount.replace(/^\$/,''), cat: ctypeDesc || ctype || 'Custom', app, active: ils, cond: cond||undefined });
       let charges = [], scopeUpdate = null;
       if (appKind === 'Unit Type') {
         const t = ((this.q('#m-appt-ut-in') || {}).value || '').trim() || '—';
@@ -519,6 +520,29 @@ class Component extends DCLogic {
     return `<div class="eyebrow" style="margin-top:8px">Other rentable items (ORI)</div><div class="tile"><div class="thead2"><span class="ttl">ORI charges</span><span class="loz" style="background:#e5f3fb;color:#0071aa">Property level</span><div style="flex:1"></div><button data-act="addopen" data-arg="ori" class="btn-out">Add ORI</button></div><div style="padding:10px 16px;border-bottom:1px solid #ebf1f5;font-size:12px;color:#8a9aa8">Each item carries a default rent. ORI appear as selectable optional add-ons in rent quotes and move-in.</div><div style="overflow-x:auto"><div style="min-width:700px">${head}${body}</div></div></div>`;
   }
 
+  // Required-recurring charges for a unit across all levels, deduped by charge type.
+  // Most specific level wins (Unit > Unit type > Property) — specificity trickles down.
+  lpReqStack(unit){
+    const ck=(x)=>(x||'').toString().toLowerCase().replace(/[^a-z0-9]/g,'');
+    const rank={ 'Property':0, 'Unit type':1, 'Unit':2 };
+    const items=[];
+    // Property required recurring (ILS-visible, resolved for this unit, excluding base Rent)
+    this.state.propFees.filter(f=>!f.excluded && f.ils && f.group==='req-rec' && f.name!=='Rent').forEach(f=>{
+      let amount=f.amount, excluded=false;
+      (f.overrides||[]).forEach(o=>{ if(o.scope===unit.type || o.scope==='Unit '+unit.u){ if(o.excluded) excluded=true; else amount=o.amount; } });
+      if(!excluded) items.push({ name:f.name, amount, level:'Property', key:ck(f.mits||f.name) });
+    });
+    this.addedFor('prop','req-rec').filter(f=>f.active).forEach(f=>items.push({ name:f.desc, amount:'$'+f.amount, level:'Property', key:ck(f.code) }));
+    const ut=this.utData().find(t=>t.name===unit.type);
+    if(ut)(ut.reqRec||[]).filter(r=>r.active).forEach(r=>items.push({ name:r.desc, amount:'$'+r.amount, level:'Unit type', key:ck(r.code) }));
+    this.addedFor('ut:'+unit.type,'req-rec').filter(f=>f.active).forEach(f=>items.push({ name:f.desc, amount:'$'+f.amount, level:'Unit type', key:ck(f.code) }));
+    this.addedFor('uf:'+unit.u,'req-rec').filter(f=>f.active).forEach(f=>items.push({ name:f.desc, amount:'$'+f.amount, level:'Unit', key:ck(f.code) }));
+    const winner={};
+    items.forEach(e=>{ if(!winner[e.key] || rank[e.level]>rank[winner[e.key].level]) winner[e.key]=e; });
+    const kept=items.filter(e=>winner[e.key]===e);
+    const superseded=items.filter(e=>winner[e.key]!==e);
+    return { kept, superseded };
+  }
   lpBody(){
     const s=this.state;
     const all=this.ufUnits();
@@ -535,14 +559,14 @@ class Component extends DCLogic {
       return { name:f.name, amount, cond:f.cond, overridden:amount!==f.amount, excluded };
     };
     const pf=s.propFees.filter(f=>!f.excluded && f.ils && f.name!=='Rent');
-    const mand=pf.filter(f=>f.group==='req-rec').map(resolve).filter(f=>!f.excluded);
     const oneTime=pf.filter(f=>f.group==='req-one').map(resolve).filter(f=>!f.excluded);
     const opt=pf.filter(f=>f.group==='opt-rec'||f.group==='sit-rec').map(resolve).filter(f=>!f.excluded);
     const ut=this.utData().find(t=>t.name===unit.type);
-    const utReq=ut?(ut.reqRec||[]).filter(r=>r.active).map(r=>({name:r.desc,amount:'$'+r.amount})):[];
     const utOpt=ut?(ut.optRec||[]).filter(r=>r.active).map(r=>({name:r.desc,amount:'$'+r.amount})):[];
     const unitFees=(unit.fees||[]).filter(r=>r.active).map(r=>({name:r.desc,amount:'$'+r.amount}));
-    let monthly=mr; mand.concat(utReq).forEach(f=>{ monthly+=this.parseAmt(f.amount); });
+    // Required recurring across all levels, deduped by charge type (most specific wins).
+    const { kept, superseded } = this.lpReqStack(unit);
+    let monthly=mr; kept.forEach(f=>{ monthly+=this.parseAmt(f.amount); });
     const chip=(nm,amt,cond,flag)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px dashed #e4ebf1"><span style="font-size:13px;color:#2b3a48">${nm}${cond?` <span style="font-size:11px;color:#b35a00">· ${cond}</span>`:''}${flag?` <span style="font-size:11px;color:#0071aa">· ${flag}</span>`:''}</span><span style="font-size:13px;color:#13314c;font-weight:500">${amt}</span></div>`;
     const onch=`onchange="this.dataset.arg=this.value;this.dispatchEvent(new MouseEvent('click',{bubbles:true}))"`;
     const sel=(label,act,opts)=>`<div style="display:flex;flex-direction:column;gap:4px;width:260px"><span style="font-size:13px;color:#666">${label}</span><select data-act="${act}" class="fld" style="height:36px" ${onch}>${opts.join('')}</select></div>`;
@@ -560,7 +584,8 @@ class Component extends DCLogic {
             <div style="display:flex;align-items:baseline;gap:8px;margin:4px 0 2px"><span style="font-size:32px;font-weight:700;color:#13314c">${this.money(monthly)}</span><span style="font-size:14px;color:#8a9aa8">/mo</span></div>
             <div style="font-size:12px;color:#8a9aa8;margin-bottom:14px">Rent + required monthly fees</div>
             <div style="font-size:12px;font-weight:600;color:#4a5b6b;margin-bottom:2px">Included every month</div>
-            ${chip('Base rent',this.money(mr))}${mand.map(f=>chip(f.name,f.amount,'',f.overridden?unit.type+' override':'')).join('')}${utReq.map(f=>chip(f.name,f.amount,'',unit.type)).join('')}
+            ${chip('Base rent',this.money(mr))}${kept.map(f=>chip(f.name,f.amount,'',f.level==='Property'?'':f.level)).join('')}
+            ${superseded.length?`<div style="display:flex;align-items:flex-start;gap:6px;margin-top:6px;font-size:11px;color:#8a9aa8;line-height:1.4"><span class="material-symbols-outlined" style="font-size:14px;color:#b35a00">arrow_downward</span><span>${superseded.length} property charge${superseded.length>1?'s':''} replaced by a more specific charge of the same type (${[...new Set(superseded.map(x=>x.name))].join(', ')}).</span></div>`:''}
             <div style="font-size:12px;font-weight:600;color:#4a5b6b;margin:14px 0 2px">Due at move-in</div>
             ${oneTime.map(f=>chip(f.name,f.amount)).join('')||'<div style="font-size:13px;color:#b3b3b3;padding:7px 0">None listed</div>'}
           </div>
@@ -1812,6 +1837,14 @@ class Component extends DCLogic {
     const utNames = this.utData().map(t=>t.name);
     const utOpts = (utDefault && utNames.indexOf(utDefault)<0) ? [utDefault].concat(utNames) : utNames;
     const unitList = ['1A','1B','2A','4C','4D','5A'];
+    // Charge Type typeahead (searchable dropdown of master charge types).
+    const ctypeList=[['ADMIN','Administrative Fee'],['AMENITY','Amenity Fee'],['APPFEE','Application Fee'],['CABLE','Cable Utility'],['CAM','Common Area Maintenance'],['CLEAN','Cleaning Fee'],['COVPARK','Covered Parking'],['DEP','Security Deposit'],['ELEC','Electric Utility'],['EPAYAJ','ePay Refund Adjustment'],['EPD','Early Payment Discount'],['FMR',"First Month's Rent Charge"],['GARAGE','Garage Fee'],['GARBAG','Garbage Fee'],['GAS','Gas Utility'],['H2O','Water Utility'],['HO4','Renters Insurance Charge'],['HO7','Homeowners insurance'],['HOA','HOA Fee'],['KEY','Key & Fob Deposit'],['LATE','Late Fee'],['LMR',"Last Month's Rent"],['NSF','NSF Fee'],['PARK','Parking'],['PET','Pet Rent'],['PETDP','Pet Deposit'],['RC','Rent'],['SEWER','Sewer Utility'],['STORAGE','Storage Fee'],['TRASH','Trash Valet'],['UTIL','Utility']];
+    const ctItems=ctypeList.map(([c,d])=>`<div data-code="${c}" data-desc="${d}" data-ct="${(c+' '+d).toLowerCase()}" onmousedown="document.getElementById('m-ctype').value=this.getAttribute('data-code');document.getElementById('m-ctype-desc').value=this.getAttribute('data-desc');var n=document.getElementById('m-name');if(n&&!n.value)n.value=this.getAttribute('data-desc');document.getElementById('m-ctype-panel').style.display='none'" style="padding:8px 12px;cursor:pointer" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''"><div style="font-size:15px;color:#13314c">${c}</div><div style="font-size:13px;color:#8a9aa8">${d}</div></div>`).join('');
+    const ctypeField=`<div style="position:relative">
+      <div style="display:flex;align-items:center;gap:4px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">search</span><input id="m-ctype" autocomplete="off" placeholder="Search charge types" onfocus="document.getElementById('m-ctype-panel').style.display='block'" onblur="var p=document.getElementById('m-ctype-panel');setTimeout(function(){p.style.display='none'},200)" oninput="var q=this.value.toLowerCase();document.getElementById('m-ctype-panel').style.display='block';document.getElementById('m-ctype-list').querySelectorAll('[data-ct]').forEach(function(el){el.style.display=(el.getAttribute('data-ct').indexOf(q)>=0?'block':'none')})" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:#13314c"></div>
+      <input type="hidden" id="m-ctype-desc">
+      <div id="m-ctype-panel" style="display:none;position:absolute;left:0;right:0;top:40px;z-index:20;background:#fff;border:1px solid #cedbe7;border-radius:4px;box-shadow:0 3px 6px rgba(0,0,0,0.15);max-height:260px;overflow-y:auto"><div id="m-ctype-list">${ctItems}</div></div>
+    </div>`;
     // Inline multi-select checklist dropdown (Property/User Selector): select-all, search, checkboxes, "N selected".
     const msField=(id,options,selected)=>{
       const listId=id+'-list', panelId=id+'-panel', sumId=id+'-sum', cntId=id+'-cnt';
@@ -1848,7 +1881,7 @@ class Component extends DCLogic {
     const general = `
       <div style="display:flex;gap:8px">
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Name *')}<input id="m-name" class="fld" style="height:36px;box-sizing:border-box"></div>
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Type *',true)}<div style="display:flex;align-items:center;gap:4px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">search</span><input id="m-ctype" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:#13314c"></div></div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Type *',true)}${ctypeField}</div>
       </div>
       ${chargeApp}
       <div style="display:flex;flex-direction:column;gap:4px">${lab('Description')}<textarea id="m-desc" class="fld" style="height:56px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif"></textarea></div>`;
