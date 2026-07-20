@@ -95,6 +95,7 @@ class Component extends DCLogic {
     ovPop: null,
     feeScope: {}, applyModal: null,
     feeOverrides: {}, ovModal: null, rowMenu: null,
+    excMenu: null, excEdit: null, excEdits: {}, excDismissed: [],
     exProp: 'All', exFee: 'All', exKind: 'All',
     nextOvId: 3,
     modal: null,
@@ -156,20 +157,25 @@ class Component extends DCLogic {
     const out=[], defs=this.propChargeDefs();
     const info=(code)=>{const d=defs.find(x=>x.code===code)||{}; return { fee:d.desc||code, tmpl:d.amount?(/[a-z]/i.test(d.amount)?d.amount:'$'+d.amount):'—' }; };
     const ov=this.state.feeOverrides||{};
-    Object.keys(ov).forEach(code=>{const i=info(code);Object.keys(ov[code]).forEach(prop=>out.push({ kind:'override', code, fee:i.fee, scope:prop, scopeType:'Property', tmpl:i.tmpl, local:ov[code][prop], by:'You', date:'Recent', reason:'' }));});
+    Object.keys(ov).forEach(code=>{const i=info(code);Object.keys(ov[code]).forEach(prop=>out.push({ id:'ov|'+code+'|'+prop, kind:'override', code, fee:i.fee, scope:prop, scopeType:'Property', tmpl:i.tmpl, local:ov[code][prop], by:'You', date:'Recent', reason:'' }));});
     const sc=this.state.feeScope||{};
-    Object.keys(sc).forEach(code=>{const i=info(code);this.propNames().filter(p=>!sc[code].includes(p)).forEach(prop=>out.push({ kind:'exclusion', code, fee:i.fee, scope:prop, scopeType:'Property', tmpl:i.tmpl, local:'Excluded', by:'You', date:'Recent', reason:'' }));});
+    Object.keys(sc).forEach(code=>{const i=info(code);this.propNames().filter(p=>!sc[code].includes(p)).forEach(prop=>out.push({ id:'ex|'+code+'|'+prop, kind:'exclusion', code, fee:i.fee, scope:prop, scopeType:'Property', tmpl:i.tmpl, local:'Excluded', by:'You', date:'Recent', reason:'' }));});
     return out;
   }
   exceptions(){
-    return this.realExceptions().concat([
+    const demo=[
       { kind:'override', code:'GARBAG', fee:'Trash', scope:'Riverview Apartments', scopeType:'Property', tmpl:'$28.00', local:'$32.00', by:'Ali Ferryman', date:'Jul 10, 2025', reason:'Higher haul cost', bulk:'BU-2025-041' },
       { kind:'override', code:'WATER', fee:'Water', scope:'Riverview Apartments', scopeType:'Property', tmpl:'$38.00', local:'$45.00', by:'Ali Ferryman', date:'Jul 10, 2025', reason:'', bulk:'BU-2025-041' },
       { kind:'override', code:'ADMIN', fee:'Admin fee', scope:'Riverview Apartments', scopeType:'Property', tmpl:'$150.00', local:'$175.00', by:'Rachel H.', date:'Jul 8, 2025', reason:'Market adjustment', bulk:'' },
       { kind:'override', code:'GARBAG', fee:'Trash', scope:'Sunrise Heights', scopeType:'Property', tmpl:'$28.00', local:'$30.00', by:'Admin', date:'Jun 15, 2025', reason:'', bulk:'' },
       { kind:'exclusion', code:'COVPARK', fee:'Covered parking', scope:'Riverview Apartments · Unit 1A', scopeType:'Unit', tmpl:'$75–125', local:'Excluded', by:'Ali Ferryman', date:'Jul 10, 2025', reason:'No parking at 1A', bulk:'' },
       { kind:'exclusion', code:'HOLD', fee:'Hold fee', scope:'Bradford House', scopeType:'Property', tmpl:'$200.00', local:'Excluded', by:'Admin', date:'Jul 1, 2025', reason:'', bulk:'' },
-    ]);
+    ].map((e,i)=>Object.assign({ id:'demo|'+i }, e));
+    const dismissed=this.state.excDismissed||[];
+    const edits=this.state.excEdits||{};
+    return this.realExceptions().concat(demo)
+      .filter(e=>dismissed.indexOf(e.id)<0)
+      .map(e=>edits[e.id]?Object.assign({}, e, edits[e.id]):e);
   }
   overridesForCode(code){ return this.exceptions().filter(e=>e.kind==='override' && e.code===code); }
   overridePropCount(code){ return new Set(this.overridesForCode(code).map(e=>e.scope)).size; }
@@ -273,6 +279,12 @@ class Component extends DCLogic {
       case 'rowMenuClose': this.setState({ rowMenu: null }); break;
       case 'rowDetails': this.setState({ rowMenu: null }); this.flash('Charge details'); break;
       case 'rowDelete': this.setState({ rowMenu: null }); this.flash('Delete charge'); break;
+      case 'excMenu': { const r = el.getBoundingClientRect(); this.setState({ excMenu: { id: arg, x: r.right, y: r.bottom + 4 } }); break; }
+      case 'excMenuClose': this.setState({ excMenu: null }); break;
+      case 'excDetails': { const e = this.exceptions().find(x => x.id === arg); this.setState({ excMenu: null, excEdit: e ? Object.assign({}, e) : null }); break; }
+      case 'excEditClose': this.setState({ excEdit: null }); break;
+      case 'excSave': { const m = this.state.excEdit; if (!m) break; const local = ((this.q('#exc-amt') || {}).value || m.local || '').trim(); const reason = ((this.q('#exc-reason') || {}).value || '').trim(); const val = (m.kind === 'override' && /^[\d.,]+$/.test(local.replace(/^\$/,''))) ? (local.charAt(0)==='$'?local:'$'+local) : local; const edits = Object.assign({}, this.state.excEdits, { [m.id]: { local: val, reason } }); const st = { excEdits: edits, excEdit: null }; if (m.kind === 'override' && m.id.indexOf('ov|') === 0) { const parts = m.id.split('|'); const fo = Object.assign({}, this.state.feeOverrides); if (fo[parts[1]]) { fo[parts[1]] = Object.assign({}, fo[parts[1]], { [parts[2]]: val }); st.feeOverrides = fo; } } this.setState(st); this.flash('Exception updated'); break; }
+      case 'excDelete': { const id = arg; const st = {}; if (id.indexOf('ov|') === 0) { const p = id.split('|'); const fo = Object.assign({}, this.state.feeOverrides); if (fo[p[1]]) { const m2 = Object.assign({}, fo[p[1]]); delete m2[p[2]]; if (Object.keys(m2).length) fo[p[1]] = m2; else delete fo[p[1]]; st.feeOverrides = fo; } } else if (id.indexOf('ex|') === 0) { const p = id.split('|'); const applied = this.feeAppliesTo(p[1]).slice(); if (applied.indexOf(p[2]) < 0) applied.push(p[2]); const sc = Object.assign({}, this.state.feeScope); if (applied.length >= this.propNames().length) delete sc[p[1]]; else sc[p[1]] = applied; st.feeScope = sc; } else { st.excDismissed = (this.state.excDismissed || []).concat([id]); } st.excMenu = null; st.excEdit = null; this.setState(st); this.flash('Exception deleted'); break; }
       case 'ovOpen': { const def = this.propChargeDefs().find(d => d.code === arg); this.setState({ rowMenu: null, ovModal: { code: arg, name: def ? def.desc : arg, tmpl: def ? (/[a-z]/i.test(def.amount) ? def.amount : '$' + def.amount) : '—', sel: [], mode: 'override', amount: '' } }); break; }
       case 'ovModalClose': this.setState({ ovModal: null }); break;
       case 'excMode': this.setState(s => { const amount = ((this.q('#ov-amount') || {}).value != null ? this.q('#ov-amount').value : (s.ovModal.amount || '')); return { ovModal: Object.assign({}, s.ovModal, { mode: arg, amount }) }; }); break;
@@ -1700,14 +1712,15 @@ class Component extends DCLogic {
     const onch=`onchange="this.dataset.arg=this.value;this.dispatchEvent(new MouseEvent('click',{bubbles:true}))"`;
     const cap=(x)=>x==='All'?'All':x.charAt(0).toUpperCase()+x.slice(1);
     const sel=(label,act,opts,val,fmt)=>`<div style="display:flex;flex-direction:column;gap:4px;min-width:170px"><span style="font-size:13px;color:#666">${label}</span><select data-act="${act}" class="fld" style="height:36px" ${onch}>${opts.map(o=>`<option value="${o}"${o===val?' selected':''}>${fmt?fmt(o):o}</option>`).join('')}</select></div>`;
-    const cols='120px 150px minmax(170px,1fr) 190px 130px 105px minmax(160px,1fr)';
-    const heads=['Kind','Fee','Scope','Change','Changed by','Date','Reason'];
+    const cols='120px 150px minmax(170px,1fr) 190px 130px 105px minmax(160px,1fr) 56px';
+    const heads=['Kind','Fee','Scope','Change','Changed by','Date','Reason',''];
     const head=`<div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${heads.map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>`;
     const change=(e)=>`<span style="white-space:nowrap"><span style="color:#b3b3b3${e.tmpl==='—'?'':';text-decoration:line-through'}">${e.tmpl}</span> <span style="color:#8a9aa8">→</span> <span style="color:${e.local==='Excluded'?'#b35a00':'#13314c'};font-weight:600">${e.local}</span></span>`;
     const cell=(c,i)=>`<span style="display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:8px 12px${i===0?' 8px 16px':''};font-size:14px;color:#13314c">${c}</span>`;
+    const kebab=(id)=>`<span style="display:flex;align-items:center;justify-content:center;min-height:44px"><span data-act="excMenu" data-arg="${id}" style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;cursor:pointer" onmouseover="this.style.background='#f0f6fb';this.style.borderRadius='4px'" onmouseout="this.style.background=''"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">more_vert</span></span></span>`;
     const body=rows.length?rows.map(e=>{
       const cells=[this.kindChip(e.kind), `<span style="font-weight:500">${e.fee}</span>`, e.scope, change(e), e.by, e.date, `<span style="color:#666">${e.reason?'“'+e.reason+'”':'—'}</span>`];
-      return `<div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #ebf1f5">${cells.map(cell).join('')}</div>`;
+      return `<div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #ebf1f5">${cells.map(cell).join('')}${kebab(e.id)}</div>`;
     }).join(''):`<div style="padding:20px 16px;text-align:center;font-size:14px;font-style:italic;color:#b3b3b3">No exceptions match these filters.</div>`;
     let h='';
     h+=this.banner('Every deviation from this template at an assigned property — overrides and exclusions. The template stays the source of truth; these are the differences.','');
@@ -1719,8 +1732,37 @@ class Component extends DCLogic {
       ${(s.exProp!=='All'||s.exFee!=='All'||s.exKind!=='All')?`<a data-act="exdrill" data-arg="All" style="font-size:13px;padding-bottom:8px">Clear filters</a>`:''}
     </div>
     <div style="padding:10px 16px;font-size:13px;color:#8a9aa8">${rows.length} exception${rows.length===1?'':'s'}${(s.exProp!=='All'||s.exFee!=='All'||s.exKind!=='All')?' (filtered)':''} · ${all.length} total across ${new Set(all.map(propOf)).size} properties</div>
-    <div style="overflow-x:auto"><div style="min-width:1140px">${head}${body}</div></div></div>`;
+    <div style="overflow-x:auto"><div style="min-width:1196px">${head}${body}</div></div></div>`;
     return h;
+  }
+  excMenuHTML(){
+    const p=this.state.excMenu; if(!p) return '';
+    const left=Math.max(8, p.x-180);
+    const item=(label,act)=>`<div data-act="${act}" data-arg="${p.id}" style="display:flex;align-items:center;height:36px;box-sizing:border-box;padding:8px 16px;cursor:pointer;font-size:14px;line-height:20px;color:var(--ac,#008dd5)" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''">${label}</div>`;
+    return `<div data-act="excMenuClose" style="position:fixed;inset:0;z-index:150"></div>
+      <div style="position:fixed;left:${left}px;top:${p.y}px;width:180px;background:#fff;border-radius:4px;box-shadow:0 3px 6px rgba(0,0,0,0.15);z-index:151;overflow:hidden">
+        ${item('Details','excDetails')}
+        ${item('Delete','excDelete')}
+      </div>`;
+  }
+  excEditHTML(){
+    const m=this.state.excEdit; if(!m) return '';
+    const isOv=m.kind==='override';
+    return `<div data-act="excEditClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:100"><div data-act="noop" style="width:480px;max-width:94vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.28);display:flex;flex-direction:column;overflow:hidden">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #cedbe7;flex:none"><div><div style="font-size:18px;line-height:24px;color:#13314c">Exception details</div><div style="font-size:13px;color:#8a9aa8;margin-top:2px">${m.fee} · ${m.scope}</div></div><span data-act="excEditClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span></div>
+      <div style="padding:16px 20px;display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;gap:24px;flex-wrap:wrap">
+          <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:12px;color:#8a9aa8">Kind</span>${this.kindChip(m.kind)}</div>
+          <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:12px;color:#8a9aa8">Template value</span><span style="font-size:14px;color:#13314c">${m.tmpl}</span></div>
+          <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:12px;color:#8a9aa8">Changed by</span><span style="font-size:14px;color:#13314c">${m.by} · ${m.date}</span></div>
+        </div>
+        ${isOv
+          ? `<div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:14px;color:#666">Override amount</span><input id="exc-amt" class="fld" value="${(m.local||'').replace(/^\$/,'')}" style="height:36px;box-sizing:border-box;max-width:180px"></div>`
+          : `<div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:14px;color:#666">Current value</span><span style="font-size:14px;color:#b35a00;font-weight:600">Excluded at this scope</span></div>`}
+        <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:14px;color:#666">Reason</span><textarea id="exc-reason" class="fld" style="height:56px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${m.reason||''}</textarea></div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 20px;border-top:1px solid #cedbe7;background:#f5f8fa;flex:none"><button data-act="excDelete" data-arg="${m.id}" class="btn-out" style="padding:8px 16px;font-size:14px;border-radius:4px;color:#d02830;border-color:#e6a2a5">Delete exception</button><div style="display:flex;gap:12px"><button data-act="excEditClose" class="btn-out" style="padding:8px 20px;font-size:14px;border-radius:4px">Cancel</button><button data-act="excSave" class="btn-pri" style="padding:8px 20px;font-size:14px;border-radius:4px">Save changes</button></div></div>
+    </div></div>`;
   }
   chBody(){
     const rows=[['Jul 10, 2025','Ali Ferryman','Trash · Recurring','$28 → $32','2BR/2BA unit type','BU-2025-041'],['Jul 10, 2025','Ali Ferryman','Water · Recurring','$38 → $45','2BR/2BA unit type','BU-2025-041'],['Jul 8, 2025','Rachel H.','Application fee','$50 → $0 waived','2BR/2BA unit type','—'],['Jul 5, 2025','Admin','Move-in special','Added · 1 month free','All units','—'],['Jun 28, 2025','Ali Ferryman','Trash · Recurring','$25 → $28','All units','BU-2025-039'],['Jun 15, 2025','Admin','Standard Apartment','Profile created','—','—']];
@@ -1997,6 +2039,8 @@ class Component extends DCLogic {
     out += this.applyModalHTML();
     out += this.ovModalHTML();
     out += this.rowMenuHTML();
+    out += this.excMenuHTML();
+    out += this.excEditHTML();
     out += this.petImportHTML();
     out += this.ovPopHTML();
     out += this.toastHTML();
