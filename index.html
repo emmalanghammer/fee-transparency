@@ -1796,18 +1796,22 @@ class Component extends DCLogic {
     const dd=(id,opts,selVal)=>`<select id="${id}" class="fld" style="height:36px">${opts.map(o=>`<option${o===selVal?' selected':''}>${o}</option>`).join('')}</select>`;
     const radio=(label,value,blk,checked,extra)=>`<label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#666;cursor:pointer"><input type="radio" name="m-amt-r" value="${value}" data-blk="${blk}" ${checked?'checked':''} onchange="var b=this.getAttribute('data-blk');document.getElementById('m-source').value=this.value;['flat','range','ref','calc'].forEach(function(k){document.getElementById('m-blk-'+k).style.display=(k===b?'flex':'none')})" style="accent-color:var(--ac,#008dd5);width:16px;height:16px;margin:0">${label}</label>${extra||''}`;
     const refOpts=['Field: Market Rent','Property UDF: School District','Property UDF: Trash Pick-Up Day','Property UDF: County','Property UDF: Property CAM Notes','Property UDF: Property TAX Notes','Property UDF: Property INSURANCE Notes','Property UDF: parcelnum','Property UDF: Blue Moon Serial Number (OH19032550)','Property UDF: Blue Moon Property ID (107171)','Property UDF: *test2','Property UDF: Jaystest','Property UDF: JON','Property UDF: Text (Test)','Property UDF: Text No Value','Unit UDF: House Tag I.D.','Unit UDF: Parking Spot #','Unit UDF: Storage Unit #'];
-    const searchFld=(id,val)=>`<div style="display:flex;align-items:center;gap:4px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">search</span><input id="${id}" value="${val||''}" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:#13314c"></div>`;
     const appKindDefault = m.ctx==='prop' ? 'Property' : (m.ctx && m.ctx.indexOf('ut:')===0 ? 'Unit Type' : (m.ctx && m.ctx.indexOf('uf:')===0 ? 'Unit' : 'Property'));
     const utDefault = m.ctx && m.ctx.indexOf('ut:')===0 ? m.ctx.slice(3) : '';
     const unitDefault = m.ctx && m.ctx.indexOf('uf:')===0 ? m.ctx.slice(3) : '';
+    const propOpts = ['All assigned properties'].concat(this.propNames());
+    const utNames = this.utData().map(t=>t.name);
+    const utOpts = (utDefault && utNames.indexOf(utDefault)<0) ? [utDefault].concat(utNames) : utNames;
+    const unitList = ['1A','1B','2A','2B','3A','3B','4C','4D','5A'];
+    const unitOpts = (unitDefault && unitList.indexOf(unitDefault)<0) ? [unitDefault].concat(unitList) : unitList;
     const appToggle="var v=this.value;['prop','ut','unit'].forEach(function(k){document.getElementById('m-appt-'+k).style.display='none'});document.getElementById('m-appt-'+(v==='Property'?'prop':v==='Unit Type'?'ut':'unit')).style.display='flex'";
     const chargeApp = `
       <div style="display:flex;gap:8px">
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Application *')}<select id="m-app" class="fld" style="height:36px" onchange="${appToggle}">${['Property','Unit Type','Unit'].map(o=>`<option${o===appKindDefault?' selected':''}>${o}</option>`).join('')}</select></div>
         <div style="flex:1;min-width:0">
-          <div id="m-appt-prop" style="display:${appKindDefault==='Property'?'flex':'none'};flex-direction:column;gap:4px">${lab('Properties *')}${searchFld('m-appt-prop-in','All assigned properties')}</div>
-          <div id="m-appt-ut" style="display:${appKindDefault==='Unit Type'?'flex':'none'};flex-direction:column;gap:4px">${lab('Unit Type *')}${searchFld('m-appt-ut-in',utDefault)}</div>
-          <div id="m-appt-unit" style="display:${appKindDefault==='Unit'?'flex':'none'};flex-direction:column;gap:4px">${lab('Unit *')}${searchFld('m-appt-unit-in',unitDefault)}</div>
+          <div id="m-appt-prop" style="display:${appKindDefault==='Property'?'flex':'none'};flex-direction:column;gap:4px">${lab('Properties *')}${dd('m-appt-prop-in',propOpts,'All assigned properties')}</div>
+          <div id="m-appt-ut" style="display:${appKindDefault==='Unit Type'?'flex':'none'};flex-direction:column;gap:4px">${lab('Unit Type *')}${dd('m-appt-ut-in',utOpts,utDefault||utNames[0])}</div>
+          <div id="m-appt-unit" style="display:${appKindDefault==='Unit'?'flex':'none'};flex-direction:column;gap:4px">${lab('Unit *')}${dd('m-appt-unit-in',unitOpts,unitDefault||unitList[0])}</div>
         </div>
       </div>`;
     const general = `
