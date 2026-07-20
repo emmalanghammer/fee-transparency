@@ -367,9 +367,19 @@ class Component extends DCLogic {
     const m = this.state.modal; if (!m) return;
     const name = ((this.q('#m-name') || {}).value || '').trim();
     if (!name) { this.flash('Name is required'); return; }
-    const amount = ((this.q('#m-amount') || {}).value || '').trim() || '$0.00';
     const desc = ((this.q('#m-desc') || {}).value || '').trim();
     const source = (this.q('#m-source') || {}).value || 'Flat';
+    let amount;
+    if (source === 'Range') {
+      const lo = ((this.q('#m-amount-min') || {}).value || '').trim(), hi = ((this.q('#m-amount-max') || {}).value || '').trim();
+      amount = (lo || hi) ? `${lo || '0'}–${hi || '0'}` : '$0.00';
+    } else if (source === 'Reference') {
+      amount = ((this.q('#m-ref') || {}).value || '').replace(/^Field:\s*/, '') || 'Reference';
+    } else if (source === 'Calculation') {
+      amount = 'Calculated';
+    } else {
+      amount = ((this.q('#m-amount') || {}).value || '').trim() || '$0.00';
+    }
     const ctype = ((this.q('#m-ctype') || {}).value || '').trim();
     const req = (this.q('#m-req') || {}).value || '';
     const cond = req === 'Required' ? '' : ((this.q('#m-cond') || {}).value || '').trim();
@@ -1722,7 +1732,8 @@ class Component extends DCLogic {
     const sect=(t,inner)=>`<div style="display:flex;flex-direction:column;gap:12px"><span style="font-size:16px;font-weight:600;color:#13314c">${t}</span><div style="border:1px solid #cedbe7;border-radius:4px;padding:16px;display:flex;flex-direction:column;gap:12px">${inner}</div></div>`;
     const lab=(t,info)=>`<span style="display:inline-flex;align-items:center;gap:4px;font-size:14px;color:#666">${t}${info?`<span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5)">info</span>`:''}</span>`;
     const dd=(id,opts,selVal)=>`<select id="${id}" class="fld" style="height:36px">${opts.map(o=>`<option${o===selVal?' selected':''}>${o}</option>`).join('')}</select>`;
-    const radio=(label,value,checked,extra)=>`<label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#666;cursor:pointer"><input type="radio" name="m-amt-r" value="${value}" ${checked?'checked':''} onchange="document.getElementById('m-source').value=this.value" style="accent-color:var(--ac,#008dd5);width:16px;height:16px;margin:0">${label}</label>${extra||''}`;
+    const radio=(label,value,blk,checked,extra)=>`<label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#666;cursor:pointer"><input type="radio" name="m-amt-r" value="${value}" data-blk="${blk}" ${checked?'checked':''} onchange="var b=this.getAttribute('data-blk');document.getElementById('m-source').value=this.value;['flat','range','ref','calc'].forEach(function(k){document.getElementById('m-blk-'+k).style.display=(k===b?'flex':'none')})" style="accent-color:var(--ac,#008dd5);width:16px;height:16px;margin:0">${label}</label>${extra||''}`;
+    const refOpts=['Field: Market Rent','Property UDF: School District','Property UDF: Trash Pick-Up Day','Property UDF: County','Property UDF: Property CAM Notes','Property UDF: Property TAX Notes','Property UDF: Property INSURANCE Notes','Property UDF: parcelnum','Property UDF: Blue Moon Serial Number (OH19032550)','Property UDF: Blue Moon Property ID (107171)','Property UDF: *test2','Property UDF: Jaystest','Property UDF: JON','Property UDF: Text (Test)','Property UDF: Text No Value','Unit UDF: House Tag I.D.','Unit UDF: Parking Spot #','Unit UDF: Storage Unit #'];
     const general = `
       <div style="display:flex;gap:8px">
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Name *')}<input id="m-name" class="fld" style="height:36px;box-sizing:border-box"></div>
@@ -1731,10 +1742,21 @@ class Component extends DCLogic {
       <div style="display:flex;flex-direction:column;gap:4px">${lab('Description')}<textarea id="m-desc" class="fld" style="height:56px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif"></textarea></div>`;
     const amount = `
       <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
-        ${radio('Flat Amount','Flat',true)}${radio('Range','Range')}${radio('Reference Amount','Reference')}${radio('Calculation','Calculation',false,`<span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5);margin-left:-8px">edit</span>`)}
+        ${radio('Flat Amount','Flat','flat',true)}${radio('Range','Range','range')}${radio('Reference Amount','Reference','ref')}${radio('Calculation','Calculation','calc',false,`<span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5);margin-left:-8px">edit</span>`)}
       </div>
       <input type="hidden" id="m-source" value="Flat">
-      <div style="padding-left:24px"><input id="m-amount" class="fld" placeholder="00.00" style="height:36px;box-sizing:border-box"></div>
+      <div style="padding-left:24px">
+        <div id="m-blk-flat" style="display:flex;flex-direction:column"><input id="m-amount" class="fld" placeholder="00.00" style="height:36px;box-sizing:border-box"></div>
+        <div id="m-blk-range" style="display:none;flex-direction:column;gap:4px">
+          <div style="display:flex;gap:12px;align-items:flex-end">
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Minimum')}<input id="m-amount-min" class="fld" placeholder="00.00" style="height:36px;box-sizing:border-box"></div>
+            <span style="padding-bottom:8px;color:#8a9aa8">–</span>
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Maximum')}<input id="m-amount-max" class="fld" placeholder="00.00" style="height:36px;box-sizing:border-box"></div>
+          </div>
+        </div>
+        <div id="m-blk-ref" style="display:none;flex-direction:column;gap:4px">${lab('Reference field')}${dd('m-ref',refOpts,'Field: Market Rent')}</div>
+        <div id="m-blk-calc" style="display:none;flex-direction:column;gap:4px">${lab('Calculation')}<div style="display:flex;align-items:center;gap:8px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 12px"><span style="flex:1;min-width:0;font-size:14px;color:#8a9aa8;font-style:italic">Build a calculation…</span><span data-act="toast" data-arg="Open calculation builder" class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);cursor:pointer">edit</span></div></div>
+      </div>
       ${isRec?`<div style="border-top:1px solid #cedbe7;width:100%"></div>
       <div style="display:flex;flex-direction:column;gap:4px">${lab('Frequency')}${dd('m-freq',['Monthly','Weekly','Every 2 weeks','Quarterly','Annually'],'Monthly')}</div>`:''}`;
     const condVisible = reqDefault !== 'Required';
