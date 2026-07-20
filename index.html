@@ -150,7 +150,7 @@ class Component extends DCLogic {
       { name:"Becky's RV Campground", loc:'Mason OH', units:64, pre:false, assignedTo:'RV / Campground Standard' }
     ];
   }
-  // Deviations from the template at assigned properties — overrides, local additions, exclusions.
+  // Deviations from the template at assigned properties — overrides and exclusions.
   // Real user-created deviations (overrides via the row menu, exclusions via scope) derived from state.
   realExceptions(){
     const out=[], defs=this.propChargeDefs();
@@ -169,9 +169,6 @@ class Component extends DCLogic {
       { kind:'override', code:'GARBAG', fee:'Trash', scope:'Sunrise Heights', scopeType:'Property', tmpl:'$28.00', local:'$30.00', by:'Admin', date:'Jun 15, 2025', reason:'', bulk:'' },
       { kind:'exclusion', code:'COVPARK', fee:'Covered parking', scope:'Riverview Apartments · Unit 1A', scopeType:'Unit', tmpl:'$75–125', local:'Excluded', by:'Ali Ferryman', date:'Jul 10, 2025', reason:'No parking at 1A', bulk:'' },
       { kind:'exclusion', code:'HOLD', fee:'Hold fee', scope:'Bradford House', scopeType:'Property', tmpl:'$200.00', local:'Excluded', by:'Admin', date:'Jul 1, 2025', reason:'', bulk:'' },
-      { kind:'addition', code:'VALET', fee:'Valet trash', scope:'Riverview Apartments', scopeType:'Property', tmpl:'—', local:'$12.00', by:'Ali Ferryman', date:'Jul 12, 2025', reason:'Added valet service', bulk:'' },
-      { kind:'addition', code:'EVCHG', fee:'EV charging', scope:'Oakwood Commons', scopeType:'Property', tmpl:'—', local:'$25.00', by:'Admin', date:'Jun 20, 2025', reason:'', bulk:'' },
-      { kind:'addition', code:'STOR', fee:'Storage', scope:'Riverview Apartments · Unit 4C', scopeType:'Unit', tmpl:'—', local:'$40.00', by:'Marcus Lee', date:'Jul 5, 2025', reason:'Corner unit', bulk:'' },
     ]);
   }
   overridesForCode(code){ return this.exceptions().filter(e=>e.kind==='override' && e.code===code); }
@@ -274,11 +271,16 @@ class Component extends DCLogic {
       case 'applyOpen': { const def = this.propChargeDefs().find(d => d.code === arg); this.setState({ rowMenu: null, applyModal: { code: arg, name: def ? def.desc : arg, sel: this.feeAppliesTo(arg).slice() } }); break; }
       case 'rowMenu': { const r = el.getBoundingClientRect(); this.setState({ rowMenu: { code: arg, x: r.right, y: r.bottom + 4 } }); break; }
       case 'rowMenuClose': this.setState({ rowMenu: null }); break;
-      case 'ovOpen': { const def = this.propChargeDefs().find(d => d.code === arg); this.setState({ rowMenu: null, ovModal: { code: arg, name: def ? def.desc : arg, tmpl: def ? (/[a-z]/i.test(def.amount) ? def.amount : '$' + def.amount) : '—', sel: [] } }); break; }
+      case 'rowDetails': this.setState({ rowMenu: null }); this.flash('Charge details'); break;
+      case 'rowDelete': this.setState({ rowMenu: null }); this.flash('Delete charge'); break;
+      case 'ovOpen': { const def = this.propChargeDefs().find(d => d.code === arg); this.setState({ rowMenu: null, ovModal: { code: arg, name: def ? def.desc : arg, tmpl: def ? (/[a-z]/i.test(def.amount) ? def.amount : '$' + def.amount) : '—', sel: [], mode: 'override', amount: '' } }); break; }
       case 'ovModalClose': this.setState({ ovModal: null }); break;
+      case 'excMode': this.setState(s => { const amount = ((this.q('#ov-amount') || {}).value != null ? this.q('#ov-amount').value : (s.ovModal.amount || '')); return { ovModal: Object.assign({}, s.ovModal, { mode: arg, amount }) }; }); break;
       case 'ovModalToggle': this.setState(s => { const amount = ((this.q('#ov-amount') || {}).value != null ? this.q('#ov-amount').value : (s.ovModal.amount || '')); const sel = s.ovModal.sel.slice(); const i = sel.indexOf(arg); if (i >= 0) sel.splice(i, 1); else sel.push(arg); return { ovModal: Object.assign({}, s.ovModal, { sel, amount }) }; }); break;
       case 'ovModalAll': this.setState(s => { const amount = ((this.q('#ov-amount') || {}).value != null ? this.q('#ov-amount').value : (s.ovModal.amount || '')); const all = this.propNames(); const sel = s.ovModal.sel.length === all.length ? [] : all.slice(); return { ovModal: Object.assign({}, s.ovModal, { sel, amount }) }; }); break;
-      case 'ovModalSave': { const m = this.state.ovModal; const raw = (((this.q('#ov-amount') || {}).value || m.amount || '')).trim(); if (!raw) { this.flash('Enter an override amount'); break; } if (!m.sel.length) { this.flash('Select at least one property'); break; } const amt = /^[\d.,]+$/.test(raw) ? '$' + raw : raw; const fo = Object.assign({}, this.state.feeOverrides); const cur = Object.assign({}, fo[m.code] || {}); m.sel.forEach(p => cur[p] = amt); fo[m.code] = cur; this.setState({ feeOverrides: fo, ovModal: null }); this.flash('Override set for ' + m.sel.length + ' propert' + (m.sel.length === 1 ? 'y' : 'ies')); break; }
+      case 'ovModalSave': { const m = this.state.ovModal; if (!m.sel.length) { this.flash('Select at least one property'); break; }
+        if (m.mode === 'exclude') { const applied = this.feeAppliesTo(m.code).filter(p => !m.sel.includes(p)); const scope = Object.assign({}, this.state.feeScope); if (applied.length >= this.propNames().length) delete scope[m.code]; else scope[m.code] = applied; this.setState({ feeScope: scope, ovModal: null }); this.flash('Excluded at ' + m.sel.length + ' propert' + (m.sel.length === 1 ? 'y' : 'ies')); break; }
+        const raw = (((this.q('#ov-amount') || {}).value || m.amount || '')).trim(); if (!raw) { this.flash('Enter an override amount'); break; } const amt = /^[\d.,]+$/.test(raw) ? '$' + raw : raw; const fo = Object.assign({}, this.state.feeOverrides); const cur = Object.assign({}, fo[m.code] || {}); m.sel.forEach(p => cur[p] = amt); fo[m.code] = cur; this.setState({ feeOverrides: fo, ovModal: null }); this.flash('Override set for ' + m.sel.length + ' propert' + (m.sel.length === 1 ? 'y' : 'ies')); break; }
       case 'applyClose': this.setState({ applyModal: null }); break;
       case 'applyToggle': this.setState(s => { const sel = s.applyModal.sel.slice(); const i = sel.indexOf(arg); if (i >= 0) sel.splice(i, 1); else sel.push(arg); return { applyModal: Object.assign({}, s.applyModal, { sel }) }; }); break;
       case 'applyAll': this.setState(s => { const all = this.propNames(); const sel = s.applyModal.sel.length === all.length ? [] : all.slice(); return { applyModal: Object.assign({}, s.applyModal, { sel }) }; }); break;
@@ -619,28 +621,37 @@ class Component extends DCLogic {
   // Per-fee-row action menu (Property Fees tab) — quick exclude/override exceptions.
   rowMenuHTML(){
     const p=this.state.rowMenu; if(!p) return '';
-    const left=Math.max(8, p.x-224);
-    const item=(icon,label,sub,act)=>`<div data-act="${act}" data-arg="${p.code}" style="display:flex;align-items:flex-start;gap:10px;padding:10px 14px;cursor:pointer" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);margin-top:1px">${icon}</span><span style="min-width:0"><span style="display:block;font-size:14px;color:#13314c">${label}</span><span style="display:block;font-size:12px;color:#8a9aa8">${sub}</span></span></div>`;
+    const left=Math.max(8, p.x-180);
+    const item=(label,act)=>`<div data-act="${act}" data-arg="${p.code}" style="display:flex;align-items:center;height:36px;box-sizing:border-box;padding:8px 16px;cursor:pointer;font-size:14px;line-height:20px;color:var(--ac,#008dd5)" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''">${label}</div>`;
     return `<div data-act="rowMenuClose" style="position:fixed;inset:0;z-index:150"></div>
-      <div style="position:fixed;left:${left}px;top:${p.y}px;width:224px;background:#fff;border:1px solid #cedbe7;border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,0.18);z-index:151;overflow:hidden;padding:4px 0">
-        ${item('price_change','Override amount','Set a different amount at specific properties','ovOpen')}
-        ${item('block','Exclude at properties','Stop this fee applying at some properties','applyOpen')}
+      <div style="position:fixed;left:${left}px;top:${p.y}px;width:180px;background:#fff;border-radius:4px;box-shadow:0 3px 6px rgba(0,0,0,0.15);z-index:151;overflow:hidden">
+        ${item('Details','rowDetails')}
+        ${item('Make Exception','ovOpen')}
+        ${item('Delete','rowDelete')}
       </div>`;
   }
   ovModalHTML(){
     const m=this.state.ovModal; if(!m) return '';
+    const mode=m.mode||'override';
     const props=this.properties(), sel=m.sel, allOn=sel.length===props.length;
     const cbox=(on)=>`<span style="width:20px;height:20px;border-radius:4px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${on?'background:#f58220;border:1px solid #f58220':'background:#fff;border:1px solid #b3b3b3'}">${on?'<span class="material-symbols-outlined" style="font-size:15px;color:#fff;font-weight:600">check</span>':''}</span>`;
+    const radio=(val,label)=>`<label data-act="excMode" data-arg="${val}" style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;color:#13314c"><span style="width:18px;height:18px;border-radius:50%;box-sizing:border-box;border:2px solid ${mode===val?'var(--ac,#008dd5)':'#b3b3b3'};display:flex;align-items:center;justify-content:center;flex:none">${mode===val?'<span style="width:8px;height:8px;border-radius:50%;background:var(--ac,#008dd5)"></span>':''}</span>${label}</label>`;
     const cur=this.state.feeOverrides[m.code]||{};
-    const rows=props.map(p=>{const on=sel.includes(p[0]); const has=cur[p[0]];
-      return `<label data-act="ovModalToggle" data-arg="${p[0]}" style="display:flex;align-items:center;gap:12px;padding:9px 12px;border-bottom:1px solid #ebf1f5;cursor:pointer">${cbox(on)}<span style="flex:1;min-width:0;font-size:14px;color:#13314c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p[0]}</span>${has?`<span style="font-size:12px;color:#b35a00;flex:none">now ${has}</span>`:`<span style="font-size:12px;color:#8a9aa8;flex:none">${p[1]}</span>`}</label>`;}).join('');
+    const applied=this.feeAppliesTo(m.code);
+    const rows=props.map(p=>{const on=sel.includes(p[0]);
+      const note = mode==='override' ? (cur[p[0]]?`<span style="font-size:12px;color:#b35a00;flex:none">now ${cur[p[0]]}</span>`:`<span style="font-size:12px;color:#8a9aa8;flex:none">${p[1]}</span>`)
+        : (!applied.includes(p[0])?`<span style="font-size:12px;color:#b35a00;flex:none">excluded</span>`:`<span style="font-size:12px;color:#8a9aa8;flex:none">${p[1]}</span>`);
+      return `<label data-act="ovModalToggle" data-arg="${p[0]}" style="display:flex;align-items:center;gap:12px;padding:9px 12px;border-bottom:1px solid #ebf1f5;cursor:pointer">${cbox(on)}<span style="flex:1;min-width:0;font-size:14px;color:#13314c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p[0]}</span>${note}</label>`;}).join('');
+    const listLabel = mode==='override' ? 'Apply override to' : 'Exclude this fee at';
+    const saveLabel = mode==='override' ? 'Save override' : 'Save exclusion';
     return `<div data-act="ovModalClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:100"><div data-act="noop" style="width:520px;max-width:94vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.28);display:flex;flex-direction:column;overflow:hidden">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #cedbe7;flex:none"><div><div style="font-size:18px;line-height:24px;color:#13314c">Override amount</div><div style="font-size:13px;color:#8a9aa8;margin-top:2px">${m.name} · template ${m.tmpl}</div></div><span data-act="ovModalClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span></div>
-      <div style="padding:14px 20px 8px;flex:none;display:flex;flex-direction:column;gap:6px"><span style="font-size:14px;color:#666">New amount</span><input id="ov-amount" class="fld" placeholder="00.00" value="${m.amount||''}" style="height:36px;box-sizing:border-box;max-width:180px"></div>
-      <div style="padding:6px 20px 8px;flex:none"><span style="font-size:13px;color:#666;font-weight:600">Apply override to</span></div>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #cedbe7;flex:none"><div><div style="font-size:18px;line-height:24px;color:#13314c">Make exception</div><div style="font-size:13px;color:#8a9aa8;margin-top:2px">${m.name} · template ${m.tmpl}</div></div><span data-act="ovModalClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span></div>
+      <div style="padding:14px 20px 8px;flex:none;display:flex;gap:24px">${radio('override','Override amount')}${radio('exclude','Exclude at properties')}</div>
+      ${mode==='override'?`<div style="padding:0 20px 8px;flex:none;display:flex;flex-direction:column;gap:6px"><span style="font-size:14px;color:#666">New amount</span><input id="ov-amount" class="fld" placeholder="00.00" value="${m.amount||''}" style="height:36px;box-sizing:border-box;max-width:180px"></div>`:''}
+      <div style="padding:6px 20px 8px;flex:none"><span style="font-size:13px;color:#666;font-weight:600">${listLabel}</span></div>
       <div style="padding:0 20px 8px;flex:none"><label data-act="ovModalAll" style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;color:#13314c">${cbox(allOn)}Select all properties</label></div>
       <div style="flex:1;min-height:0;overflow-y:auto;padding:0 20px 4px"><div style="border:1px solid #cedbe7;border-radius:4px;overflow:hidden">${rows}</div></div>
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 20px;border-top:1px solid #cedbe7;background:#f5f8fa;flex:none"><span style="font-size:13px;color:#8a9aa8">${sel.length} of ${props.length} selected</span><div style="display:flex;gap:12px"><button data-act="ovModalClose" class="btn-out" style="padding:8px 20px;font-size:14px;border-radius:4px">Cancel</button><button data-act="ovModalSave" class="btn-pri" style="padding:8px 20px;font-size:14px;border-radius:4px">Save override</button></div></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 20px;border-top:1px solid #cedbe7;background:#f5f8fa;flex:none"><span style="font-size:13px;color:#8a9aa8">${sel.length} of ${props.length} selected</span><div style="display:flex;gap:12px"><button data-act="ovModalClose" class="btn-out" style="padding:8px 20px;font-size:14px;border-radius:4px">Cancel</button><button data-act="ovModalSave" class="btn-pri" style="padding:8px 20px;font-size:14px;border-radius:4px">${saveLabel}</button></div></div>
     </div></div>`;
   }
 
@@ -1340,7 +1351,7 @@ class Component extends DCLogic {
       const base = cond
         ? [r.code, descCell, `<span style="color:#666">${r.cond||''}</span>`, r.amount, `<span style="color:#666">${r.cat}</span>`, appCell, this.chk(r.active,kp+'-'+group+'-'+r.code,'#f58220')]
         : [r.code, descCell, r.amount, `<span style="color:#666">${r.cat}</span>`, appCell, this.chk(r.active,kp+'-'+group+'-'+r.code,'#f58220')];
-      return `<div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #ebf1f5">${base.map(td).join('')}${opts.propScope?menuKebab(r.code):kebab}</div>`;
+      return `<div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #ebf1f5">${base.map(td).join('')}${menuKebab(r.code)}</div>`;
     }).join('') : `<div style="padding:16px;text-align:center;font-size:14px;font-style:italic;color:#b3b3b3;border-bottom:1px solid #ebf1f5">${opts.empty||'No charges added.'}</div>`;
     const add=`<div data-act="addopen" data-arg="${group}" style="background:#f5f9fc;padding:9px 16px;cursor:pointer"><span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,#008dd5)"><span class="material-symbols-outlined" style="font-size:18px">add</span>Add ${label} Charge</span></div>`;
     return `<div style="font-size:13px;font-weight:600;color:#666;padding:12px 20px 8px">${label}</div><div style="padding:0 20px;overflow-x:auto"><div style="min-width:${cond?1120:1000}px;border:1px solid #cedbe7;border-radius:4px;overflow:hidden">${head}${body}${add}</div></div>`;
@@ -1629,7 +1640,7 @@ class Component extends DCLogic {
   }
 
   kindChip(kind){
-    const m={ override:['#e5f3fb','#0071aa','Override'], addition:['#e2f1da','#3a7d2c','Local addition'], exclusion:['#fdeedd','#b35a00','Exclusion'] }[kind];
+    const m={ override:['#e5f3fb','#0071aa','Override'], exclusion:['#fdeedd','#b35a00','Exclusion'] }[kind];
     return `<span class="loz" style="background:${m[0]};color:${m[1]};text-transform:none;letter-spacing:0;white-space:nowrap">${m[2]}</span>`;
   }
   exceptionsBody(){
@@ -1638,7 +1649,7 @@ class Component extends DCLogic {
     const propOf=(e)=>e.scope.split(' · ')[0];
     const props=['All',...Array.from(new Set(all.map(propOf)))];
     const fees=['All',...Array.from(new Set(all.map(e=>e.fee)))];
-    const kinds=['All','override','addition','exclusion'];
+    const kinds=['All','override','exclusion'];
     const rows=all.filter(e=> (s.exProp==='All'||propOf(e)===s.exProp) && (s.exFee==='All'||e.fee===s.exFee) && (s.exKind==='All'||e.kind===s.exKind));
     const onch=`onchange="this.dataset.arg=this.value;this.dispatchEvent(new MouseEvent('click',{bubbles:true}))"`;
     const cap=(x)=>x==='All'?'All':x.charAt(0).toUpperCase()+x.slice(1);
@@ -1653,7 +1664,7 @@ class Component extends DCLogic {
       return `<div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #ebf1f5">${cells.map(cell).join('')}</div>`;
     }).join(''):`<div style="padding:20px 16px;text-align:center;font-size:14px;font-style:italic;color:#b3b3b3">No exceptions match these filters.</div>`;
     let h='';
-    h+=this.banner('Every deviation from this template at an assigned property — overrides, local additions, and exclusions. The template stays the source of truth; these are the differences.','');
+    h+=this.banner('Every deviation from this template at an assigned property — overrides and exclusions. The template stays the source of truth; these are the differences.','');
     h+=`<div class="tile"><div style="padding:14px 16px;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;border-bottom:1px solid #cedbe7">
       ${sel('Property','exprop',props,s.exProp)}
       ${sel('Fee','exfee',fees,s.exFee)}
