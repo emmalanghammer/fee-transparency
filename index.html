@@ -1342,10 +1342,17 @@ class Component extends DCLogic {
       </div>`;
     const req=(n)=>chip('Required',n,'#fdeaea','#d02830'), opt=(n)=>chip('Optional',n,'#e5f3fb','#0071aa'), sit=(n)=>chip('Situational',n,'#fdeedd','#b35a00');
     const c=this.templateChargeCounts();
+    const total=this.properties().length;
+    const pDefs=this.propChargeDefs().filter(d=>d.app==='Property');
+    const scoped=pDefs.filter(d=>{const s=this.state.feeScope[d.code]; return s && s.length<total;}).length;
+    const pDesc=scoped
+      ? `Base fees applied at the property level. ${scoped} appl${scoped===1?'ies':'y'} to only specific properties; the rest apply to all ${total} assigned properties.`
+      : `Base fees applied at the property level, to all ${total} assigned properties by default.`;
+    const pFoot=scoped?`${scoped} scoped to specific properties`:`Applies to all ${total} properties`;
     let h='';
     h+=`<div class="eyebrow" style="margin-top:4px">Fee structure</div>`;
     h+=`<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:stretch">
-      ${card({tab:'Property Fees',icon:'apartment',bg:'#eef1f4',fg:'#4a5b6b',title:'Property Fees',scope:'All units · every property',count:c.property,desc:'Base fees applied to every unit at all 14 assigned properties.',chips:req(c.pReq)+opt(c.pOpt)+sit(c.pSit),foot:'Applies at property level'})}
+      ${card({tab:'Property Fees',icon:'apartment',bg:'#eef1f4',fg:'#4a5b6b',title:'Property Fees',scope:'All units · property level',count:c.property,desc:pDesc,chips:req(c.pReq)+opt(c.pOpt)+sit(c.pSit),foot:pFoot})}
       ${card({tab:'Unit Type Fees',icon:'__unittype__',bg:'#e5f3fb',fg:'#0071aa',title:'Unit Type Fees',scope:'5 unit types',count:c.unittype,desc:'Additive fees for a unit type (e.g. 2BR/2BA), on top of property fees.',chips:req(c.uReq)+opt(c.uOpt)+sit(c.uSit),foot:'2 of 5 types have fees'})}
       ${card({tab:'Unit Fees',icon:'door_front',bg:'#fdeedd',fg:'#b35a00',title:'Unit Fees',scope:'Per specific unit',count:c.unit,desc:'One-off fees for a single unit, on top of property and unit type fees.',chips:req(c.nReq)+opt(c.nOpt)+sit(c.nSit),foot:'1 unit customized'})}
     </div>`;
