@@ -284,14 +284,17 @@ class Component extends DCLogic {
       case 'excDetails': { const e = this.exceptions().find(x => x.id === arg); this.setState({ excMenu: null, excEdit: e ? Object.assign({}, e) : null }); break; }
       case 'excEditClose': this.setState({ excEdit: null }); break;
       case 'excEditMode': this.setState(s => { const q = (id) => { const el = this.q(id); return el ? el.value : undefined; }; const local = q('#exc-amt') != null ? q('#exc-amt') : (s.excEdit.local || ''); const reason = q('#exc-comment') != null ? q('#exc-comment') : (s.excEdit.reason || ''); return { excEdit: Object.assign({}, s.excEdit, { kind: arg, local, reason }) }; }); break;
-      case 'excSave': { const m = this.state.excEdit; if (!m) break; const kind = m.kind || 'override'; const reason = ((this.q('#exc-comment') || {}).value || '').trim(); let val = m.local; if (kind === 'override') { const raw = ((this.q('#exc-amt') || {}).value || m.local || '').trim(); val = /^[\d.,]+$/.test(raw.replace(/^\$/,'')) ? (raw.charAt(0)==='$'?raw:'$'+raw) : raw; } else { val = 'Excluded'; } const edits = Object.assign({}, this.state.excEdits, { [m.id]: { local: val, reason } }); const st = { excEdits: edits, excEdit: null }; if (kind === 'override' && m.id.indexOf('ov|') === 0) { const parts = m.id.split('|'); const fo = Object.assign({}, this.state.feeOverrides); if (fo[parts[1]]) { fo[parts[1]] = Object.assign({}, fo[parts[1]], { [parts[2]]: val }); st.feeOverrides = fo; } } this.setState(st); this.flash('Exception updated'); break; }
+      case 'excSave': { const m = this.state.excEdit; if (!m) break; const isExclude = (m.kind === 'exclude' || m.kind === 'exclusion'); const reason = ((this.q('#exc-comment') || {}).value || '').trim(); const edits = Object.assign({}, this.state.excEdits); const st = { excEdit: null };
+        if (isExclude) { edits[m.id] = { kind: 'exclusion', local: 'Excluded', reason }; }
+        else { const raw = ((this.q('#exc-amt') || {}).value || m.local || '').trim(); const val = /^[\d.,]+$/.test(raw.replace(/^\$/,'')) ? (raw.charAt(0)==='$'?raw:'$'+raw) : raw; edits[m.id] = { kind: 'override', local: val, reason }; if (m.id.indexOf('ov|') === 0) { const parts = m.id.split('|'); const fo = Object.assign({}, this.state.feeOverrides); if (fo[parts[1]]) { fo[parts[1]] = Object.assign({}, fo[parts[1]], { [parts[2]]: val }); st.feeOverrides = fo; } } }
+        st.excEdits = edits; this.setState(st); this.flash('Exception updated'); break; }
       case 'excDelete': { const id = arg; const st = {}; if (id.indexOf('ov|') === 0) { const p = id.split('|'); const fo = Object.assign({}, this.state.feeOverrides); if (fo[p[1]]) { const m2 = Object.assign({}, fo[p[1]]); delete m2[p[2]]; if (Object.keys(m2).length) fo[p[1]] = m2; else delete fo[p[1]]; st.feeOverrides = fo; } } else if (id.indexOf('ex|') === 0) { const p = id.split('|'); const applied = this.feeAppliesTo(p[1]).slice(); if (applied.indexOf(p[2]) < 0) applied.push(p[2]); const sc = Object.assign({}, this.state.feeScope); if (applied.length >= this.propNames().length) delete sc[p[1]]; else sc[p[1]] = applied; st.feeScope = sc; } else { st.excDismissed = (this.state.excDismissed || []).concat([id]); } st.excMenu = null; st.excEdit = null; this.setState(st); this.flash('Exception deleted'); break; }
       case 'ovOpen': { const def = this.propChargeDefs().find(d => d.code === arg); this.setState({ rowMenu: null, ovModal: { code: arg, name: def ? def.desc : arg, tmpl: def ? (/[a-z]/i.test(def.amount) ? def.amount : '$' + def.amount) : '—', applyTo: this.propNames()[0], mode: 'override', amount: '', comment: '' } }); break; }
       case 'ovModalClose': this.setState({ ovModal: null }); break;
       case 'excMode': this.setState(s => { const q = (id) => { const el = this.q(id); return el ? el.value : undefined; }; const amount = q('#exc-amt') != null ? q('#exc-amt') : (s.ovModal.amount || ''); const comment = q('#exc-comment') != null ? q('#exc-comment') : (s.ovModal.comment || ''); const applyTo = q('#exc-apply') != null ? q('#exc-apply') : s.ovModal.applyTo; return { ovModal: Object.assign({}, s.ovModal, { mode: arg, amount, comment, applyTo }) }; }); break;
-      case 'ovModalSave': { const m = this.state.ovModal; const prop = ((this.q('#exc-apply') || {}).value || m.applyTo || '').trim(); const comment = ((this.q('#exc-comment') || {}).value || '').trim(); if (!prop) { this.flash('Select a property'); break; }
-        if (m.mode === 'exclude') { const applied = this.feeAppliesTo(m.code).filter(p => p !== prop); const scope = Object.assign({}, this.state.feeScope); if (applied.length >= this.propNames().length) delete scope[m.code]; else scope[m.code] = applied; const edits = Object.assign({}, this.state.excEdits, { ['ex|' + m.code + '|' + prop]: { reason: comment } }); this.setState({ feeScope: scope, excEdits: edits, ovModal: null }); this.flash('Excluded at ' + prop); break; }
-        const raw = (((this.q('#exc-amt') || {}).value || m.amount || '')).trim(); if (!raw) { this.flash('Enter an override amount'); break; } const amt = /^[\d.,]+$/.test(raw.replace(/^\$/,'')) ? (raw.charAt(0)==='$'?raw:'$' + raw) : raw; const fo = Object.assign({}, this.state.feeOverrides); const cur = Object.assign({}, fo[m.code] || {}); cur[prop] = amt; fo[m.code] = cur; const edits = Object.assign({}, this.state.excEdits, { ['ov|' + m.code + '|' + prop]: { reason: comment } }); this.setState({ feeOverrides: fo, excEdits: edits, ovModal: null }); this.flash('Override set for ' + prop); break; }
+      case 'ovModalSave': { const m = this.state.ovModal; const comment = ((this.q('#exc-comment') || {}).value || '').trim(); const root = this.rootEl || document;
+        if (m.mode === 'exclude') { const props = [...root.querySelectorAll('#exc-mprops-list input:checked')].map(x => x.value); if (!props.length) { this.flash('Select at least one property'); break; } let applied = this.feeAppliesTo(m.code).slice(); props.forEach(p => { applied = applied.filter(x => x !== p); }); const scope = Object.assign({}, this.state.feeScope); if (applied.length >= this.propNames().length) delete scope[m.code]; else scope[m.code] = applied; const edits = Object.assign({}, this.state.excEdits); props.forEach(p => { edits['ex|' + m.code + '|' + p] = { reason: comment }; }); this.setState({ feeScope: scope, excEdits: edits, ovModal: null }); this.flash('Excluded at ' + props.length + ' propert' + (props.length === 1 ? 'y' : 'ies')); break; }
+        const prop = ((this.q('#exc-apply') || {}).value || m.applyTo || '').trim(); if (!prop) { this.flash('Select a property'); break; } const raw = (((this.q('#exc-amt') || {}).value || m.amount || '')).trim(); if (!raw) { this.flash('Enter an override amount'); break; } const amt = /^[\d.,]+$/.test(raw.replace(/^\$/,'')) ? (raw.charAt(0)==='$'?raw:'$' + raw) : raw; const fo = Object.assign({}, this.state.feeOverrides); const cur = Object.assign({}, fo[m.code] || {}); cur[prop] = amt; fo[m.code] = cur; const edits = Object.assign({}, this.state.excEdits, { ['ov|' + m.code + '|' + prop]: { reason: comment } }); this.setState({ feeOverrides: fo, excEdits: edits, ovModal: null }); this.flash('Override set for ' + prop); break; }
       case 'applyClose': this.setState({ applyModal: null }); break;
       case 'applyToggle': this.setState(s => { const sel = s.applyModal.sel.slice(); const i = sel.indexOf(arg); if (i >= 0) sel.splice(i, 1); else sel.push(arg); return { applyModal: Object.assign({}, s.applyModal, { sel }) }; }); break;
       case 'applyAll': this.setState(s => { const all = this.propNames(); const sel = s.applyModal.sel.length === all.length ? [] : all.slice(); return { applyModal: Object.assign({}, s.applyModal, { sel }) }; }); break;
@@ -499,6 +502,27 @@ class Component extends DCLogic {
   }
   utIcon(size){ return `<img src="assets/icon-unit-type.svg" alt="" style="width:${size}px;height:${size}px;object-fit:contain;flex:none;display:block">`; }
   feeIcon(kind,size){ const src={ property:'assets/icon-fee-property.svg', unittype:'assets/icon-fee-unittype.svg', unit:'assets/icon-fee-unit.svg' }[kind]; return `<img src="${src}" alt="" style="width:${size}px;height:${size}px;object-fit:contain;flex:none;display:block">`; }
+  // Reusable multi-select checklist dropdown (summary + overlay panel with search, select-all, checkboxes).
+  multiSelect(id, options, selected){
+    const listId=id+'-list', panelId=id+'-panel', sumId=id+'-sum', cntId=id+'-cnt';
+    const total=options.length, nSel=selected.length;
+    const summary = nSel===total ? `All ${total} selected` : (nSel ? `${nSel} selected` : 'Select…');
+    const upd=`var l=document.getElementById('${listId}');var n=l.querySelectorAll('input:checked').length;var t=l.querySelectorAll('input').length;document.getElementById('${sumId}').textContent=(n===t?('All '+t+' selected'):(n?(n+' selected'):'Select…'));document.getElementById('${cntId}').textContent=(n+' of '+t+' selected');var sa=document.getElementById('${id}-all');if(sa)sa.checked=(n===t)`;
+    const selAll=`var l=document.getElementById('${listId}');var c=this.checked;l.querySelectorAll('input').forEach(function(x){x.checked=c});${upd}`;
+    const filter=`var q=this.value.toLowerCase();document.getElementById('${listId}').querySelectorAll('label').forEach(function(l){l.style.display=(l.textContent.toLowerCase().indexOf(q)>=0?'flex':'none')})`;
+    const rows=options.map(o=>`<label style="display:flex;align-items:center;gap:10px;padding:6px 2px;cursor:pointer;font-size:14px;color:#13314c"><input type="checkbox" value="${o}" ${selected.includes(o)?'checked':''} onchange="${upd}" style="accent-color:#f58220;width:16px;height:16px;margin:0;flex:none">${o}</label>`).join('');
+    return `<div style="position:relative">
+      <div onclick="var p=document.getElementById('${panelId}');p.style.display=(p.style.display==='none'?'block':'none')" style="display:flex;align-items:center;justify-content:space-between;gap:4px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 4px 0 12px;cursor:pointer"><span id="${sumId}" style="flex:1;min-width:0;font-size:14px;color:#13314c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${summary}</span><span class="material-symbols-outlined" style="font-size:20px;color:#666">arrow_drop_down</span></div>
+      <div id="${panelId}" style="display:none;position:absolute;left:0;right:0;top:40px;z-index:20;border:1px solid #cedbe7;border-radius:4px;background:#fff;box-shadow:0 3px 6px rgba(0,0,0,0.15);overflow:hidden">
+        <div style="padding:8px 10px;border-bottom:1px solid #ebf1f5;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;gap:6px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:32px;padding:0 8px"><span class="material-symbols-outlined" style="font-size:18px;color:#666">search</span><input oninput="${filter}" placeholder="Search" style="flex:1;min-width:0;border:none;outline:none;background:transparent;font:400 14px Roboto,sans-serif;color:#13314c"></div>
+          <label style="display:inline-flex;align-items:center;gap:8px;font-size:13px;color:#13314c;cursor:pointer"><input id="${id}-all" type="checkbox" ${nSel===total?'checked':''} onchange="${selAll}" style="accent-color:#f58220;width:16px;height:16px;margin:0">Select all</label>
+        </div>
+        <div id="${listId}" style="max-height:180px;overflow-y:auto;padding:6px 10px">${rows}</div>
+        <div style="padding:6px 10px;border-top:1px solid #ebf1f5;font-size:12px;color:#8a9aa8"><span id="${cntId}">${nSel} of ${total} selected</span></div>
+      </div>
+    </div>`;
+  }
   levelPill(level){
     const m={ 'Property':'background:#eef1f4;color:#4a5b6b', 'Unit type':'background:#e5f3fb;color:#0071aa', 'Unit':'background:#fdeedd;color:#b35a00' };
     const ic={ 'Property':'apartment', 'Unit type':'category', 'Unit':'door_front' };
@@ -691,7 +715,9 @@ class Component extends DCLogic {
       <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #cedbe7">${['Charge Type','Description','Amount','Charge Application'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:600;color:#13314c">${x}</span>`).join('')}</div>
       <div style="display:grid;grid-template-columns:${cols};align-items:center"><span style="padding:10px 12px 10px 16px;font-size:14px;color:#13314c">${o.code}</span><span style="padding:10px 12px;font-size:14px;color:#13314c">${o.desc}</span><span style="padding:10px 12px;font-size:14px;color:#13314c">${(o.tmpl||'').replace(/^\$/,'')}</span><span style="padding:8px 12px"><span style="display:inline-block;background:#e8eaed;color:#4a5b6b;border-radius:4px;padding:3px 10px;font-size:13px;white-space:nowrap">${o.appChip}</span></span></div>
     </div>`;
-    const applyDd=`<select id="exc-apply" class="fld" style="height:36px">${o.applyOptions.map(p=>`<option${p===o.applySel?' selected':''}>${p}</option>`).join('')}</select>`;
+    const applyDd = isOv
+      ? `<select id="exc-apply" class="fld" style="height:36px">${o.applyOptions.map(p=>`<option${p===o.applySel?' selected':''}>${p}</option>`).join('')}</select>`
+      : this.multiSelect('exc-mprops', o.applyOptions, o.mselected||[o.applySel]);
     return `<div data-act="${o.closeAct}" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:100"><div data-act="noop" style="width:640px;max-width:94vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.28);display:flex;flex-direction:column;overflow:hidden">
       <div style="display:flex;align-items:center;justify-content:space-between;height:52px;box-sizing:border-box;padding:8px 20px;border-bottom:1px solid #cedbe7;flex:none"><span style="font-size:20px;line-height:28px;color:#13314c">${o.title}</span><span style="display:inline-flex;align-items:center;gap:10px"><span data-act="toast" data-arg="Help" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">help</span><span data-act="${o.closeAct}" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span></span></div>
       <div style="flex:1;min-height:0;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:16px">
@@ -711,7 +737,7 @@ class Component extends DCLogic {
     return this.excModalShell({
       title:'Make Exception', code:m.code, desc:m.name, tmpl:m.tmpl, appChip:this.excAppChip(m.code),
       mode:m.mode||'override', amount:m.amount, comment:m.comment,
-      applyOptions:this.propNames(), applySel:m.applyTo||this.propNames()[0],
+      applyOptions:this.propNames(), applySel:m.applyTo||this.propNames()[0], mselected:[m.applyTo||this.propNames()[0]],
       modeAct:'excMode', saveAct:'ovModalSave', closeAct:'ovModalClose'
     });
   }
@@ -1721,7 +1747,7 @@ class Component extends DCLogic {
     const cap=(x)=>x==='All'?'All':x.charAt(0).toUpperCase()+x.slice(1);
     const sel=(label,act,opts,val,fmt)=>`<div style="display:flex;flex-direction:column;gap:4px;min-width:170px"><span style="font-size:13px;color:#666">${label}</span><select data-act="${act}" class="fld" style="height:36px" ${onch}>${opts.map(o=>`<option value="${o}"${o===val?' selected':''}>${fmt?fmt(o):o}</option>`).join('')}</select></div>`;
     const cols='120px 150px minmax(170px,1fr) 190px 130px 105px minmax(160px,1fr) 56px';
-    const heads=['Kind','Fee','Scope','Change','Changed by','Date','Reason',''];
+    const heads=['Type','Fee','Scope','Change','Changed by','Date','Reason',''];
     const head=`<div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${heads.map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>`;
     const change=(e)=>`<span style="white-space:nowrap"><span style="color:#b3b3b3${e.tmpl==='—'?'':';text-decoration:line-through'}">${e.tmpl}</span> <span style="color:#8a9aa8">→</span> <span style="color:${e.local==='Excluded'?'#b35a00':'#13314c'};font-weight:600">${e.local}</span></span>`;
     const cell=(c,i)=>`<span style="display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:8px 12px${i===0?' 8px 16px':''};font-size:14px;color:#13314c">${c}</span>`;
@@ -1735,7 +1761,7 @@ class Component extends DCLogic {
     h+=`<div class="tile"><div style="padding:14px 16px;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;border-bottom:1px solid #cedbe7">
       ${sel('Property','exprop',props,s.exProp)}
       ${sel('Fee','exfee',fees,s.exFee)}
-      ${sel('Exception kind','exkind',kinds,s.exKind,cap)}
+      ${sel('Exception type','exkind',kinds,s.exKind,cap)}
       <div style="flex:1"></div>
       ${(s.exProp!=='All'||s.exFee!=='All'||s.exKind!=='All')?`<a data-act="exdrill" data-arg="All" style="font-size:13px;padding-bottom:8px">Clear filters</a>`:''}
     </div>
@@ -1757,10 +1783,11 @@ class Component extends DCLogic {
     const m=this.state.excEdit; if(!m) return '';
     const props=this.propNames();
     const applyOptions = props.indexOf(m.scope)<0 ? [m.scope].concat(props) : props;
+    const mode = (m.kind==='exclusion'||m.kind==='exclude') ? 'exclude' : 'override';
     return this.excModalShell({
       title:'Exception details', code:m.code, desc:m.fee, tmpl:m.tmpl, appChip:this.excAppChip(m.code),
-      mode:m.kind||'override', amount:m.local, comment:m.reason,
-      applyOptions, applySel:m.scope,
+      mode, amount:m.local, comment:m.reason,
+      applyOptions, applySel:m.scope, mselected:[m.scope],
       modeAct:'excEditMode', saveAct:'excSave', closeAct:'excEditClose'
     });
   }
@@ -1893,27 +1920,8 @@ class Component extends DCLogic {
       <input type="hidden" id="m-ctype-desc">
       <div id="m-ctype-panel" style="display:none;position:absolute;left:0;right:0;top:40px;z-index:20;background:#fff;border:1px solid #cedbe7;border-radius:4px;box-shadow:0 3px 6px rgba(0,0,0,0.15);max-height:260px;overflow-y:auto"><div id="m-ctype-list">${ctItems}</div></div>
     </div>`;
-    // Inline multi-select checklist dropdown (Property/User Selector): select-all, search, checkboxes, "N selected".
-    const msField=(id,options,selected)=>{
-      const listId=id+'-list', panelId=id+'-panel', sumId=id+'-sum', cntId=id+'-cnt';
-      const total=options.length, nSel=selected.length;
-      const summary = nSel===total ? `All ${total} selected` : (nSel ? `${nSel} selected` : 'Select…');
-      const upd=`var l=document.getElementById('${listId}');var n=l.querySelectorAll('input:checked').length;var t=l.querySelectorAll('input').length;document.getElementById('${sumId}').textContent=(n===t?('All '+t+' selected'):(n?(n+' selected'):'Select…'));document.getElementById('${cntId}').textContent=(n+' of '+t+' selected');var sa=document.getElementById('${id}-all');if(sa)sa.checked=(n===t)`;
-      const selAll=`var l=document.getElementById('${listId}');var c=this.checked;l.querySelectorAll('input').forEach(function(x){x.checked=c});${upd}`;
-      const filter=`var q=this.value.toLowerCase();document.getElementById('${listId}').querySelectorAll('label').forEach(function(l){l.style.display=(l.textContent.toLowerCase().indexOf(q)>=0?'flex':'none')})`;
-      const rows=options.map(o=>`<label style="display:flex;align-items:center;gap:10px;padding:6px 2px;cursor:pointer;font-size:14px;color:#13314c"><input type="checkbox" value="${o}" ${selected.includes(o)?'checked':''} onchange="${upd}" style="accent-color:#f58220;width:16px;height:16px;margin:0;flex:none">${o}</label>`).join('');
-      return `<div style="position:relative">
-        <div onclick="var p=document.getElementById('${panelId}');p.style.display=(p.style.display==='none'?'block':'none')" style="display:flex;align-items:center;justify-content:space-between;gap:4px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 4px 0 12px;cursor:pointer"><span id="${sumId}" style="flex:1;min-width:0;font-size:14px;color:#13314c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${summary}</span><span class="material-symbols-outlined" style="font-size:20px;color:#666">arrow_drop_down</span></div>
-        <div id="${panelId}" style="display:none;position:absolute;left:0;right:0;top:40px;z-index:20;border:1px solid #cedbe7;border-radius:4px;background:#fff;box-shadow:0 3px 6px rgba(0,0,0,0.15);overflow:hidden">
-          <div style="padding:8px 10px;border-bottom:1px solid #ebf1f5;display:flex;flex-direction:column;gap:8px">
-            <div style="display:flex;align-items:center;gap:6px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:32px;padding:0 8px"><span class="material-symbols-outlined" style="font-size:18px;color:#666">search</span><input oninput="${filter}" placeholder="Search" style="flex:1;min-width:0;border:none;outline:none;background:transparent;font:400 14px Roboto,sans-serif;color:#13314c"></div>
-            <label style="display:inline-flex;align-items:center;gap:8px;font-size:13px;color:#13314c;cursor:pointer"><input id="${id}-all" type="checkbox" ${nSel===total?'checked':''} onchange="${selAll}" style="accent-color:#f58220;width:16px;height:16px;margin:0">Select all</label>
-          </div>
-          <div id="${listId}" style="max-height:180px;overflow-y:auto;padding:6px 10px">${rows}</div>
-          <div style="padding:6px 10px;border-top:1px solid #ebf1f5;font-size:12px;color:#8a9aa8"><span id="${cntId}">${nSel} of ${total} selected</span></div>
-        </div>
-      </div>`;
-    };
+    // Inline multi-select checklist dropdown (shared with the exception modal).
+    const msField=(id,options,selected)=>this.multiSelect(id,options,selected);
     const propSelected = this.propNames();
     const unitSelected = [unitDefault || unitList[0]];
     const appToggle="var v=this.value;['prop','ut','unit'].forEach(function(k){document.getElementById('m-appt-'+k).style.display='none'});document.getElementById('m-appt-'+(v==='Property'?'prop':v==='Unit Type'?'ut':'unit')).style.display='flex'";
