@@ -487,6 +487,7 @@ class Component extends DCLogic {
     return `<span style="display:inline-flex;align-items:center;gap:5px;background:#e2f1da;color:#3a7d2c;border:1px solid #b6ddaa;border-radius:999px;padding:3px 11px 3px 8px;font-size:12px;font-weight:500"><span class="material-symbols-outlined" style="font-size:15px">verified_user</span>Fee Transparency: On</span>`;
   }
   utIcon(size){ return `<img src="assets/icon-unit-type.svg" alt="" style="width:${size}px;height:${size}px;object-fit:contain;flex:none;display:block">`; }
+  feeIcon(kind,size){ const src={ property:'assets/icon-fee-property.svg', unittype:'assets/icon-fee-unittype.svg', unit:'assets/icon-fee-unit.svg' }[kind]; return `<img src="${src}" alt="" style="width:${size}px;height:${size}px;object-fit:contain;flex:none;display:block">`; }
   levelPill(level){
     const m={ 'Property':'background:#eef1f4;color:#4a5b6b', 'Unit type':'background:#e5f3fb;color:#0071aa', 'Unit':'background:#fdeedd;color:#b35a00' };
     const ic={ 'Property':'apartment', 'Unit type':'category', 'Unit':'door_front' };
@@ -889,7 +890,7 @@ class Component extends DCLogic {
         <span style="font-size:20px;line-height:28px;color:#13314c">Standard Apartment</span>
         <div style="display:flex;align-items:center;gap:32px;font-size:14px;color:#13314c;white-space:nowrap;flex-wrap:wrap">
           ${item('Created by:','Admin')}${item('Last modified:','07/10/2025')}
-          <span style="display:inline-flex;align-items:center;gap:8px"><span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5)">home</span><a data-act="ptab" data-arg="Assigned Properties" style="font-size:14px">Riverview Apartments</a><span data-act="ptab" data-arg="Assigned Properties" style="display:inline-flex;align-items:center;background:#fff;border:1px solid var(--ac,#008dd5);border-radius:12px;padding-left:8px;color:var(--ac,#008dd5);font-size:13px;line-height:20px;cursor:pointer">+13<span class="material-symbols-outlined" style="font-size:20px">arrow_drop_down</span></span></span>
+          <span style="display:inline-flex;align-items:center;gap:8px">${this.feeIcon('property',16)}<a data-act="ptab" data-arg="Assigned Properties" style="font-size:14px">Riverview Apartments</a><span data-act="ptab" data-arg="Assigned Properties" style="display:inline-flex;align-items:center;background:#fff;border:1px solid var(--ac,#008dd5);border-radius:12px;padding-left:8px;color:var(--ac,#008dd5);font-size:13px;line-height:20px;cursor:pointer">+13<span class="material-symbols-outlined" style="font-size:20px">arrow_drop_down</span></span></span>
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:32px">
@@ -1469,13 +1470,13 @@ class Component extends DCLogic {
       ${card({tab:'Unit Fees',iconSrc:'assets/icon-fee-unit.svg',title:'Unit Fees',scope:'Per specific unit',count:c.unit,desc:'One-off fees for a single unit, on top of property and unit type fees.',chips:req(c.nReq)+opt(c.nOpt)+sit(c.nSit),foot:'1 unit customized'})}
     </div>`;
     // How fees stack
-    const layer=(title,sub,bg,fg,icon)=>`<div style="flex:1;min-width:150px;background:${bg};border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:6px">${icon==='__unittype__'?this.utIcon(20):`<span class="material-symbols-outlined" style="font-size:20px;color:${fg}">${icon}</span>`}<span style="font-size:14px;font-weight:600;color:#13314c">${title}</span><span style="font-size:12px;color:#666">${sub}</span></div>`;
+    const layer=(title,sub,bg,kind)=>`<div style="flex:1;min-width:150px;background:${bg};border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:6px">${this.feeIcon(kind,20)}<span style="font-size:14px;font-weight:600;color:#13314c">${title}</span><span style="font-size:12px;color:#666">${sub}</span></div>`;
     const op=(s)=>`<span style="font-size:20px;font-weight:600;color:#8a9aa8;align-self:center;flex:none">${s}</span>`;
     h+=`<div class="tile"><div class="thead2"><span class="ttl">How fees stack at quote time</span></div>
       <div style="padding:20px;display:flex;align-items:stretch;gap:12px;flex-wrap:wrap">
-        ${layer('Property fees','All units','#eef1f4','#4a5b6b','apartment')}${op('+')}
-        ${layer('Unit type fees','By unit type','#e5f3fb','#0071aa','__unittype__')}${op('+')}
-        ${layer('Unit fees','Per unit','#fdeedd','#b35a00','door_front')}${op('=')}
+        ${layer('Property fees','All units','#eef1f4','property')}${op('+')}
+        ${layer('Unit type fees','By unit type','#e5f3fb','unittype')}${op('+')}
+        ${layer('Unit fees','Per unit','#fdeedd','unit')}${op('=')}
         <div style="flex:1;min-width:170px;background:#13314c;border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:6px;justify-content:center"><span style="font-size:12px;color:#b3c2cf">Resident sees on quote</span><span style="font-size:14px;font-weight:600;color:#fff">Full stacked total</span><a data-act="ptab" data-arg="Pricing Preview" style="font-size:12px;color:#7fc4ec">Preview a unit →</a></div>
       </div>
       <div style="padding:0 20px 16px;font-size:12px;color:#8a9aa8;line-height:1.5">Fees are additive — a resident's quote combines every applicable level. Toggle a fee's <b>Active</b> switch on any level to include or hide it, and use per-property overrides on the Assigned Properties tab.</div>
@@ -1587,7 +1588,7 @@ class Component extends DCLogic {
     </div>`;
   }
   propAssocMid(){
-    return `<span style="display:inline-flex;align-items:center;gap:8px"><span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5)">home</span><a data-act="ptab" data-arg="Assigned Properties" style="font-size:14px">Riverview Apartments</a><span data-act="ptab" data-arg="Assigned Properties" style="display:inline-flex;align-items:center;background:#fff;border:1px solid var(--ac,#008dd5);border-radius:12px;padding-left:8px;color:var(--ac,#008dd5);font-size:13px;line-height:20px;cursor:pointer">+11<span class="material-symbols-outlined" style="font-size:20px">arrow_drop_down</span></span></span>`;
+    return `<span style="display:inline-flex;align-items:center;gap:8px">${this.feeIcon('property',16)}<a data-act="ptab" data-arg="Assigned Properties" style="font-size:14px">Riverview Apartments</a><span data-act="ptab" data-arg="Assigned Properties" style="display:inline-flex;align-items:center;background:#fff;border:1px solid var(--ac,#008dd5);border-radius:12px;padding-left:8px;color:var(--ac,#008dd5);font-size:13px;line-height:20px;cursor:pointer">+11<span class="material-symbols-outlined" style="font-size:20px">arrow_drop_down</span></span></span>`;
   }
   utFees(t){ return (t.reqRec||[]).concat(t.optRec||[]); }
   utBody(){
@@ -1610,7 +1611,7 @@ class Component extends DCLogic {
     } else {
       const t=data.find(x=>x.name===sel)||data[2];
       m+=this.banner(`Unit type fees are additive — they stack on top of property-level fees for all units of this type. A ${t.name} unit receives both property fees and ${t.name} fees on their quote.`,'');
-      m+=this.scopeHeader(`<span style="display:inline-flex;align-items:center;gap:8px">${this.utIcon(18)}${t.name}</span>`, this.propAssocMid(), [['Unit Count:', t.units],['Occupants:', t.occ]]);
+      m+=this.scopeHeader(`<span style="display:inline-flex;align-items:center;gap:8px">${this.feeIcon('unittype',18)}${t.name}</span>`, this.propAssocMid(), [['Unit Count:', t.units],['Occupants:', t.occ]]);
       m+=this.chargeAccordion('utreq','Required Charges','',t.reqRec,[],{ctx:'ut:'+t.name,keyPrefix:'ut',recGroup:'req-rec',oneGroup:'req-one',recEmpty:`No required recurring charges added on ${t.name} unit type.`,oneEmpty:`No required one-time charges added on ${t.name} unit type.`});
       m+=this.chargeAccordion('utopt','Optional Charges','Tenant selects',t.optRec,[],{ctx:'ut:'+t.name,keyPrefix:'ut',recGroup:'opt-rec',oneGroup:'opt-one',recEmpty:`No optional recurring charges added on ${t.name} unit type.`,oneEmpty:`No optional one-time charges added on ${t.name} unit type.`});
       m+=this.chargeAccordion('utsit','Situational Charges','Applies when a condition exists',[],[],{ctx:'ut:'+t.name,keyPrefix:'ut',condition:true,recGroup:'sit-rec',oneGroup:'sit-one',recEmpty:`No situational recurring charges added on ${t.name} unit type.`,oneEmpty:`No situational one-time charges added on ${t.name} unit type.`});
@@ -1652,8 +1653,8 @@ class Component extends DCLogic {
       m+=this.banner('No units match the current filters — adjust the property or unit type filter to see units.','');
     } else {
       m+=this.banner(`Unit fees are additive — they stack on top of both property fees and unit type fees for this specific unit. Unit ${sel.u} receives property fees + ${sel.type} fees + these unit fees on their quote.`,'');
-      const typeChip=`<span style="display:inline-flex;align-items:center;gap:6px;background:#e5f3fb;color:#0071aa;border-radius:12px;padding:2px 10px;font-size:12px;white-space:nowrap">${this.utIcon(12)}${sel.type}</span>`;
-      const unitMid=`<span style="display:inline-flex;align-items:center;gap:8px"><span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5)">home</span><a data-act="navProperty" data-arg="${sel.prop}" style="font-size:14px">${sel.prop}</a></span>${typeChip}`;
+      const typeChip=`<span style="display:inline-flex;align-items:center;gap:6px;background:#e5f3fb;color:#0071aa;border-radius:12px;padding:2px 10px;font-size:12px;white-space:nowrap">${this.feeIcon('unittype',12)}${sel.type}</span>`;
+      const unitMid=`<span style="display:inline-flex;align-items:center;gap:8px">${this.feeIcon('property',16)}<a data-act="navProperty" data-arg="${sel.prop}" style="font-size:14px">${sel.prop}</a></span>${typeChip}`;
       const previewBtn=`<button data-act="previewUnit" data-arg="${sel.prop}::${sel.u}" class="btn-out" style="height:36px;min-height:36px;padding:8px 14px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap"><span class="material-symbols-outlined" style="font-size:18px">visibility</span>Preview pricing</button>`;
       m+=this.scopeHeader(`Unit ${sel.u}`, unitMid, [['Market rent:', sel.rent||'—'],['Tenant:', sel.tenant||'—']], previewBtn);
       const uEmpty=(what)=>`No ${what} charges added on Unit ${sel.u}.`;
