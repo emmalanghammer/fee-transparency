@@ -1587,13 +1587,13 @@ class Component extends DCLogic {
     const onch=`onchange="this.dataset.arg=this.value;this.dispatchEvent(new MouseEvent('click',{bubbles:true}))"`;
     const cap=(x)=>x==='All'?'All':x.charAt(0).toUpperCase()+x.slice(1);
     const sel=(label,act,opts,val,fmt)=>`<div style="display:flex;flex-direction:column;gap:4px;min-width:170px"><span style="font-size:13px;color:#666">${label}</span><select data-act="${act}" class="fld" style="height:36px" ${onch}>${opts.map(o=>`<option value="${o}"${o===val?' selected':''}>${fmt?fmt(o):o}</option>`).join('')}</select></div>`;
-    const cols='120px 150px minmax(170px,1fr) 190px 130px 105px minmax(160px,1fr) 110px';
-    const heads=['Kind','Fee','Scope','Change','Changed by','Date','Reason','Bulk ref'];
+    const cols='120px 150px minmax(170px,1fr) 190px 130px 105px minmax(160px,1fr)';
+    const heads=['Kind','Fee','Scope','Change','Changed by','Date','Reason'];
     const head=`<div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${heads.map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>`;
     const change=(e)=>`<span style="white-space:nowrap"><span style="color:#b3b3b3${e.tmpl==='—'?'':';text-decoration:line-through'}">${e.tmpl}</span> <span style="color:#8a9aa8">→</span> <span style="color:${e.local==='Excluded'?'#b35a00':'#13314c'};font-weight:600">${e.local}</span></span>`;
     const cell=(c,i)=>`<span style="display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:8px 12px${i===0?' 8px 16px':''};font-size:14px;color:#13314c">${c}</span>`;
     const body=rows.length?rows.map(e=>{
-      const cells=[this.kindChip(e.kind), `<span style="font-weight:500">${e.fee}</span>`, e.scope, change(e), e.by, e.date, `<span style="color:#666">${e.reason?'“'+e.reason+'”':'—'}</span>`, e.bulk?`<span class="mono" style="font-size:12px;color:#666">${e.bulk}</span>`:`<span style="color:#b3b3b3">—</span>`];
+      const cells=[this.kindChip(e.kind), `<span style="font-weight:500">${e.fee}</span>`, e.scope, change(e), e.by, e.date, `<span style="color:#666">${e.reason?'“'+e.reason+'”':'—'}</span>`];
       return `<div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #ebf1f5">${cells.map(cell).join('')}</div>`;
     }).join(''):`<div style="padding:20px 16px;text-align:center;font-size:14px;font-style:italic;color:#b3b3b3">No exceptions match these filters.</div>`;
     let h='';
@@ -1611,10 +1611,10 @@ class Component extends DCLogic {
   }
   chBody(){
     const rows=[['Jul 10, 2025','Ali Ferryman','Trash · Recurring','$28 → $32','2BR/2BA unit type','BU-2025-041'],['Jul 10, 2025','Ali Ferryman','Water · Recurring','$38 → $45','2BR/2BA unit type','BU-2025-041'],['Jul 8, 2025','Rachel H.','Application fee','$50 → $0 waived','2BR/2BA unit type','—'],['Jul 5, 2025','Admin','Move-in special','Added · 1 month free','All units','—'],['Jun 28, 2025','Ali Ferryman','Trash · Recurring','$25 → $28','All units','BU-2025-039'],['Jun 15, 2025','Admin','Standard Apartment','Profile created','—','—']];
-    const cols='120px 130px 1fr 160px 150px 130px 110px';
-    const head=`<div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Date','Changed by','Fee','Change','Scope','Bulk ref','Actions'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>`;
-    const body=rows.map(r=>`<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5"><span class="td" style="border:none;padding-left:16px;white-space:nowrap">${r[0]}</span><span class="td name" style="border:none">${r[1]}</span><span class="td" style="border:none">${r[2]}</span><span class="td num" style="border:none">${r[3]}</span><span class="td" style="border:none">${r[4]}</span><span class="td mono" style="border:none;font-size:12px">${r[5]}</span><span class="td" style="border:none"><a data-act="toast" data-arg="View diff" style="font-size:13px">View diff →</a></span></div>`).join('');
-    const log=`<div class="tile"><div class="thead2"><span class="ttl">Change log</span><span style="font-size:12px;color:#8a9aa8;margin-left:4px">Chronological</span></div><div style="overflow-x:auto"><div style="min-width:940px">${head}${body}</div></div></div>`;
+    const cols='120px 130px 1fr 160px 150px 110px';
+    const head=`<div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Date','Changed by','Fee','Change','Scope','Actions'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>`;
+    const body=rows.map(r=>`<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5"><span class="td" style="border:none;padding-left:16px;white-space:nowrap">${r[0]}</span><span class="td name" style="border:none">${r[1]}</span><span class="td" style="border:none">${r[2]}</span><span class="td num" style="border:none">${r[3]}</span><span class="td" style="border:none">${r[4]}</span><span class="td" style="border:none"><a data-act="toast" data-arg="View diff" style="font-size:13px">View diff →</a></span></div>`).join('');
+    const log=`<div class="tile"><div class="thead2"><span class="ttl">Change log</span><span style="font-size:12px;color:#8a9aa8;margin-left:4px">Chronological</span></div><div style="overflow-x:auto"><div style="min-width:820px">${head}${body}</div></div></div>`;
 
     // amount history by fee
     const fcols='170px 110px 90px 120px 150px 130px 70px';
@@ -1836,7 +1836,7 @@ class Component extends DCLogic {
       <span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5);margin-top:1px">home_work</span>
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px"><span style="font-size:13px;font-weight:500;color:#13314c">${o.scope}</span><span style="font-size:13px;white-space:nowrap"><span style="color:#b3b3b3;text-decoration:line-through">${o.tmpl}</span> <span style="color:#b35a00;font-weight:600">${o.local}</span></span></div>
-        <div style="font-size:12px;color:#8a9aa8">${o.by} · ${o.date}${o.bulk?` · ${o.bulk}`:''}</div>
+        <div style="font-size:12px;color:#8a9aa8">${o.by} · ${o.date}</div>
         ${o.reason?`<div style="font-size:12px;color:#666;font-style:italic;margin-top:2px">“${o.reason}”</div>`:''}
       </div></div>`).join('');
     return `<div data-act="ovpopclose" style="position:fixed;inset:0;z-index:150"></div>
