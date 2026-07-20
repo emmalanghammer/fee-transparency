@@ -413,10 +413,15 @@ class Component extends DCLogic {
       else if (req.startsWith('Situational')) group = 'sit-' + suffix;
     }
     if (m.ctx) {
-      // New charge-table tabs (Property Fees / Unit Type Fees / Unit Fees)
+      // New charge-table tabs (Property Fees / Unit Type Fees / Unit Fees).
+      // Charge Application field drives where the charge lands + its app label.
+      const appKind = (this.q('#m-app') || {}).value || 'Property';
+      let ctx, app;
+      if (appKind === 'Unit Type') { const t = ((this.q('#m-appt-ut-in') || {}).value || '').trim() || '—'; ctx = 'ut:' + t; app = 'Unit Type: ' + t; }
+      else if (appKind === 'Unit') { const u = ((this.q('#m-appt-unit-in') || {}).value || '').trim() || '—'; ctx = 'uf:' + u; app = 'Unit · ' + u; }
+      else { ctx = 'prop'; app = 'Property'; }
       const code = (ctype || name).replace(/\s+/g,'').toUpperCase().slice(0,10) || 'CUSTOM';
-      const app = m.ctx==='prop' ? 'Property' : (m.ctx.indexOf('ut:')===0 ? 'Unit Type: '+m.ctx.slice(3) : 'Unit · '+m.ctx.slice(3));
-      const charge = { ctx:m.ctx, group, code, desc: desc||name, amount: amount.replace(/^\$/,''), cat: ctype || 'Custom', app, active: ils, cond: cond||undefined };
+      const charge = { ctx, group, code, desc: desc||name, amount: amount.replace(/^\$/,''), cat: ctype || 'Custom', app, active: ils, cond: cond||undefined };
       this.setState(s => ({ modal: null, addedFees: [...s.addedFees, charge] }));
       this.flash('Charge added');
       return;
@@ -1791,11 +1796,26 @@ class Component extends DCLogic {
     const dd=(id,opts,selVal)=>`<select id="${id}" class="fld" style="height:36px">${opts.map(o=>`<option${o===selVal?' selected':''}>${o}</option>`).join('')}</select>`;
     const radio=(label,value,blk,checked,extra)=>`<label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#666;cursor:pointer"><input type="radio" name="m-amt-r" value="${value}" data-blk="${blk}" ${checked?'checked':''} onchange="var b=this.getAttribute('data-blk');document.getElementById('m-source').value=this.value;['flat','range','ref','calc'].forEach(function(k){document.getElementById('m-blk-'+k).style.display=(k===b?'flex':'none')})" style="accent-color:var(--ac,#008dd5);width:16px;height:16px;margin:0">${label}</label>${extra||''}`;
     const refOpts=['Field: Market Rent','Property UDF: School District','Property UDF: Trash Pick-Up Day','Property UDF: County','Property UDF: Property CAM Notes','Property UDF: Property TAX Notes','Property UDF: Property INSURANCE Notes','Property UDF: parcelnum','Property UDF: Blue Moon Serial Number (OH19032550)','Property UDF: Blue Moon Property ID (107171)','Property UDF: *test2','Property UDF: Jaystest','Property UDF: JON','Property UDF: Text (Test)','Property UDF: Text No Value','Unit UDF: House Tag I.D.','Unit UDF: Parking Spot #','Unit UDF: Storage Unit #'];
+    const searchFld=(id,val)=>`<div style="display:flex;align-items:center;gap:4px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">search</span><input id="${id}" value="${val||''}" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:#13314c"></div>`;
+    const appKindDefault = m.ctx==='prop' ? 'Property' : (m.ctx && m.ctx.indexOf('ut:')===0 ? 'Unit Type' : (m.ctx && m.ctx.indexOf('uf:')===0 ? 'Unit' : 'Property'));
+    const utDefault = m.ctx && m.ctx.indexOf('ut:')===0 ? m.ctx.slice(3) : '';
+    const unitDefault = m.ctx && m.ctx.indexOf('uf:')===0 ? m.ctx.slice(3) : '';
+    const appToggle="var v=this.value;['prop','ut','unit'].forEach(function(k){document.getElementById('m-appt-'+k).style.display='none'});document.getElementById('m-appt-'+(v==='Property'?'prop':v==='Unit Type'?'ut':'unit')).style.display='flex'";
+    const chargeApp = `
+      <div style="display:flex;gap:8px">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Application *')}<select id="m-app" class="fld" style="height:36px" onchange="${appToggle}">${['Property','Unit Type','Unit'].map(o=>`<option${o===appKindDefault?' selected':''}>${o}</option>`).join('')}</select></div>
+        <div style="flex:1;min-width:0">
+          <div id="m-appt-prop" style="display:${appKindDefault==='Property'?'flex':'none'};flex-direction:column;gap:4px">${lab('Properties *')}${searchFld('m-appt-prop-in','All assigned properties')}</div>
+          <div id="m-appt-ut" style="display:${appKindDefault==='Unit Type'?'flex':'none'};flex-direction:column;gap:4px">${lab('Unit Type *')}${searchFld('m-appt-ut-in',utDefault)}</div>
+          <div id="m-appt-unit" style="display:${appKindDefault==='Unit'?'flex':'none'};flex-direction:column;gap:4px">${lab('Unit *')}${searchFld('m-appt-unit-in',unitDefault)}</div>
+        </div>
+      </div>`;
     const general = `
       <div style="display:flex;gap:8px">
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Name *')}<input id="m-name" class="fld" style="height:36px;box-sizing:border-box"></div>
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Type *',true)}<div style="display:flex;align-items:center;gap:4px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">search</span><input id="m-ctype" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:#13314c"></div></div>
       </div>
+      ${chargeApp}
       <div style="display:flex;flex-direction:column;gap:4px">${lab('Description')}<textarea id="m-desc" class="fld" style="height:56px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif"></textarea></div>`;
     const amount = `
       <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
