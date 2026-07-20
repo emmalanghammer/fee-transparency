@@ -1436,18 +1436,23 @@ class Component extends DCLogic {
     return h;
   }
   overviewFeeSummary(){
-    const chip=(label,n,bg,fg)=>n?`<span style="background:${bg};color:${fg};border-radius:999px;font-size:11px;padding:2px 9px;white-space:nowrap">${label} ${n}</span>`:'';
-    const card=(o)=>`<div data-act="ptab" data-arg="${o.tab}" style="flex:1;min-width:260px;background:#fff;border:1px solid #cedbe7;border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:12px;cursor:pointer;box-shadow:2px 2px 12px -5px rgba(76,76,76,0.08)">
-        <div style="display:flex;align-items:center;gap:10px">
-          <span style="width:36px;height:36px;border-radius:8px;background:${o.bg};display:inline-flex;align-items:center;justify-content:center;flex:none">${o.icon==='__unittype__'?this.utIcon(20):`<span class="material-symbols-outlined" style="font-size:20px;color:${o.fg}">${o.icon}</span>`}</span>
-          <div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:600;color:#13314c">${o.title}</div><div style="font-size:12px;color:#8a9aa8">${o.scope}</div></div>
-          <div style="text-align:right"><div style="font-size:22px;font-weight:700;color:#13314c;line-height:1">${o.count}</div><div style="font-size:11px;color:#8a9aa8">charge${o.count===1?'':'s'}</div></div>
+    const chip=(label,n,bg)=>`<span style="display:inline-flex;align-items:center;height:24px;box-sizing:border-box;padding:4px 8px;border-radius:4px;font-size:14px;color:#13314c;white-space:nowrap;background:${bg}${n===0?';opacity:0.5':''}">${label} ${n}</span>`;
+    const card=(o)=>`<div data-act="ptab" data-arg="${o.tab}" style="flex:1;min-width:260px;background:#fff;border:1px solid #cedbe7;border-radius:4px;padding:16px;display:flex;flex-direction:column;gap:20px;cursor:pointer">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <div style="display:flex;align-items:center;gap:12px;min-width:0">
+            <span style="background:#f5f8fa;border-radius:4px;padding:10px;display:inline-flex;align-items:center;justify-content:center;flex:none"><img src="${o.iconSrc}" alt="" style="width:16px;height:16px;object-fit:contain;display:block"></span>
+            <div style="min-width:0"><div style="font-size:16px;font-weight:600;color:#13314c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${o.title}</div><div style="font-size:12px;color:#666">${o.scope}</div></div>
+          </div>
+          <div style="text-align:right;white-space:nowrap"><div style="font-size:16px;font-weight:600;color:#13314c">${o.count}</div><div style="font-size:12px;color:#666">charge${o.count===1?'':'s'}</div></div>
         </div>
-        <div style="font-size:13px;color:#666;line-height:1.45;min-height:38px">${o.desc}</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;min-height:20px">${o.chips}</div>
-        <div style="border-top:1px solid #ebf1f5;padding-top:10px;display:flex;align-items:center;justify-content:space-between"><span style="font-size:12px;color:#8a9aa8">${o.foot}</span><span style="font-size:13px;color:var(--ac,#008dd5);display:inline-flex;align-items:center;gap:2px">Manage<span class="material-symbols-outlined" style="font-size:16px">chevron_right</span></span></div>
+        <div style="font-size:14px;color:#666;line-height:1.4;min-height:40px">${o.desc}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">${o.chips}</div>
+        <div style="margin-top:auto;display:flex;flex-direction:column;gap:20px">
+          <div style="height:1px;background:#ebf1f5;width:100%"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span style="font-size:12px;color:#666">${o.foot}</span><span style="font-size:14px;color:var(--ac,#008dd5)">Manage Fees</span></div>
+        </div>
       </div>`;
-    const req=(n)=>chip('Required',n,'#fdeaea','#d02830'), opt=(n)=>chip('Optional',n,'#e5f3fb','#0071aa'), sit=(n)=>chip('Situational',n,'#fdeedd','#b35a00');
+    const req=(n)=>chip('Required',n,'#fbd6d8'), opt=(n)=>chip('Optional',n,'#cce8f7'), sit=(n)=>chip('Situational',n,'#feedd2');
     const c=this.templateChargeCounts();
     const total=this.properties().length;
     const pDefs=this.propChargeDefs().filter(d=>d.app==='Property');
@@ -1459,9 +1464,9 @@ class Component extends DCLogic {
     let h='';
     h+=`<div class="eyebrow" style="margin-top:4px">Fee structure</div>`;
     h+=`<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:stretch">
-      ${card({tab:'Property Fees',icon:'apartment',bg:'#eef1f4',fg:'#4a5b6b',title:'Property Fees',scope:'All units · property level',count:c.property,desc:pDesc,chips:req(c.pReq)+opt(c.pOpt)+sit(c.pSit),foot:pFoot})}
-      ${card({tab:'Unit Type Fees',icon:'__unittype__',bg:'#e5f3fb',fg:'#0071aa',title:'Unit Type Fees',scope:'5 unit types',count:c.unittype,desc:'Additive fees for a unit type (e.g. 2BR/2BA), on top of property fees.',chips:req(c.uReq)+opt(c.uOpt)+sit(c.uSit),foot:'2 of 5 types have fees'})}
-      ${card({tab:'Unit Fees',icon:'door_front',bg:'#fdeedd',fg:'#b35a00',title:'Unit Fees',scope:'Per specific unit',count:c.unit,desc:'One-off fees for a single unit, on top of property and unit type fees.',chips:req(c.nReq)+opt(c.nOpt)+sit(c.nSit),foot:'1 unit customized'})}
+      ${card({tab:'Property Fees',iconSrc:'assets/icon-fee-property.svg',title:'Property Fees',scope:'All units · property level',count:c.property,desc:pDesc,chips:req(c.pReq)+opt(c.pOpt)+sit(c.pSit),foot:pFoot})}
+      ${card({tab:'Unit Type Fees',iconSrc:'assets/icon-fee-unittype.svg',title:'Unit Type Fees',scope:'5 unit types',count:c.unittype,desc:'Additive fees for a unit type, on top of property fees.',chips:req(c.uReq)+opt(c.uOpt)+sit(c.uSit),foot:'2 of 5 types have fees'})}
+      ${card({tab:'Unit Fees',iconSrc:'assets/icon-fee-unit.svg',title:'Unit Fees',scope:'Per specific unit',count:c.unit,desc:'One-off fees for a single unit, on top of property and unit type fees.',chips:req(c.nReq)+opt(c.nOpt)+sit(c.nSit),foot:'1 unit customized'})}
     </div>`;
     // How fees stack
     const layer=(title,sub,bg,fg,icon)=>`<div style="flex:1;min-width:150px;background:${bg};border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:6px">${icon==='__unittype__'?this.utIcon(20):`<span class="material-symbols-outlined" style="font-size:20px;color:${fg}">${icon}</span>`}<span style="font-size:14px;font-weight:600;color:#13314c">${title}</span><span style="font-size:12px;color:#666">${sub}</span></div>`;
