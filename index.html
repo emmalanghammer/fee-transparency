@@ -65,6 +65,7 @@ class Component extends DCLogic {
   state = {
     view: 'register',
     profileTab: 'Overview',
+    accOpen: {},
     utSel: '2BR/2BA',
     ufProp: 'Riverview Apartments',
     ufType: 'All',
@@ -258,7 +259,8 @@ class Component extends DCLogic {
     const arg = el.getAttribute('data-arg');
     if (el.tagName === 'A') e.preventDefault();
     switch (act) {
-      case 'navProfile': this.go('profile', { template: arg || 'Standard Apartment' }); break;
+      case 'navProfile': this.go('profile', { template: arg || 'Standard Apartment', accOpen: {} }); break;
+      case 'accToggle': { const ao = Object.assign({}, this.state.accOpen); ao[arg] = !ao[arg]; this.setState({ accOpen: ao }); break; }
       case 'navRegister': this.go('register'); break;
       case 'ovpop': { const r = el.getBoundingClientRect(); this.setState({ ovPop: { code: arg, x: r.left, y: r.bottom + 6 } }); break; }
       case 'ovpopclose': this.setState({ ovPop: null }); break;
@@ -1102,9 +1104,9 @@ class Component extends DCLogic {
   propFeesBody(){
     let h = '';
     h += this.banner('Fees for this property are managed in the Standard Apartment template.','Open template →','navProfile');
-    h += this.acc('Required Charges','', this.feeTable('req-rec','Recurring') + this.feeTable('req-one','One-Time') + this.manageLink());
-    h += this.acc('Optional Charges','Tenant selects', this.feeTable('opt-rec','Recurring') + this.feeTable('opt-one','One-Time') + this.manageLink());
-    h += this.acc('Situational Charges','Applies when a condition exists', this.feeTable('sit-rec','Recurring') + this.feeTable('sit-one','One-Time') + this.manageLink());
+    h += this.acc('Required Charges','', this.feeTable('req-rec','Recurring') + this.feeTable('req-one','One-Time') + this.manageLink(), null, 'ro-req');
+    h += this.acc('Optional Charges','Tenant selects', this.feeTable('opt-rec','Recurring') + this.feeTable('opt-one','One-Time') + this.manageLink(), null, 'ro-opt');
+    h += this.acc('Situational Charges','Applies when a condition exists', this.feeTable('sit-rec','Recurring') + this.feeTable('sit-one','One-Time') + this.manageLink(), null, 'ro-sit');
     h += this.legacyTiles();
     return h;
   }
@@ -1491,11 +1493,11 @@ class Component extends DCLogic {
     return `<div style="font-size:13px;font-weight:600;color:#666;padding:12px 20px 8px">${label}</div><div style="padding:0 20px;overflow-x:auto"><div style="min-width:${cond?1120:1000}px;border:1px solid #cedbe7;border-radius:4px;overflow:hidden">${head}${body}${add}</div></div>`;
   }
   addedFor(ctx, group){ return ctx ? this.state.addedFees.filter(f=>f.ctx===ctx&&f.group===group) : []; }
-  acc(title, sub, inner, count){
-    const collapsed = count===0;
+  acc(title, sub, inner, count, key){
+    const collapsed = !(this.state.accOpen && this.state.accOpen[key]);
     const countLine = (count==null) ? '' : `<span class="acc-count" style="display:${collapsed?'block':'none'};font-size:12px;color:#666">${count} charge${count===1?'':'s'}</span>`;
     return `<div class="tile" style="overflow:hidden">
-      <div onclick="var b=this.parentElement.querySelector('.acc-body');var c=this.querySelector('.acc-chev');var n=this.querySelector('.acc-count');var open=b.style.display!=='none';b.style.display=open?'none':'block';c.textContent=open?'expand_more':'expand_less';if(n)n.style.display=open?'block':'none'" style="display:flex;align-items:center;gap:8px;padding:16px;cursor:pointer">
+      <div data-act="accToggle" data-arg="${key}" style="display:flex;align-items:center;gap:8px;padding:16px;cursor:pointer">
         <span class="material-symbols-outlined acc-chev" style="font-size:20px;color:#666">${collapsed?'expand_more':'expand_less'}</span>
         <div style="display:flex;flex-direction:column;gap:2px;min-width:0">
           <span><span style="font-size:14px;font-weight:600;color:#13314c">${title}</span>${sub?`<span style="font-size:13px;color:#8a9aa8;font-style:italic;margin-left:8px">${sub}</span>`:''}</span>
@@ -1510,7 +1512,7 @@ class Component extends DCLogic {
     const one = oneRows.concat(this.addedFor(opts.ctx, opts.oneGroup));
     const inner = this.chargeTable('Recurring', rec, opts.recGroup, {condition:opts.condition, empty:opts.recEmpty, keyPrefix:opts.keyPrefix, showOverrides:opts.showOverrides, propScope:opts.propScope})
       + this.chargeTable('One-Time', one, opts.oneGroup, {empty:opts.oneEmpty||'No one-time charges added.', keyPrefix:opts.keyPrefix, showOverrides:opts.showOverrides, propScope:opts.propScope});
-    return this.acc(title, sub, inner, rec.length + one.length);
+    return this.acc(title, sub, inner, rec.length + one.length, (opts.ctx?opts.ctx+'-':'')+id);
   }
   overviewBody(){
     const orangeChk=(t,on,id)=>`<span style="display:inline-flex;align-items:flex-start;gap:8px;font-size:14px;color:#424e5b">${this.chk(on,id,'#f58220')}<span style="line-height:18px">${t}</span></span>`;
