@@ -96,6 +96,7 @@ class Component extends DCLogic {
     feeScope: {}, applyModal: null,
     feeOverrides: {}, ovModal: null, rowMenu: null,
     excMenu: null, excEdit: null, excEdits: {}, excDismissed: [],
+    propPop: null,
     exProp: 'All', exFee: 'All', exKind: 'All',
     nextOvId: 3,
     modal: null,
@@ -279,6 +280,8 @@ class Component extends DCLogic {
       case 'rowMenuClose': this.setState({ rowMenu: null }); break;
       case 'rowDetails': this.setState({ rowMenu: null }); this.flash('Charge details'); break;
       case 'rowDelete': this.setState({ rowMenu: null }); this.flash('Delete charge'); break;
+      case 'propPopOpen': { const r = el.getBoundingClientRect(); this.setState({ propPop: { x: r.left, y: r.bottom + 6 } }); break; }
+      case 'propPopClose': this.setState({ propPop: null }); break;
       case 'excMenu': { const r = el.getBoundingClientRect(); this.setState({ excMenu: { id: arg, x: r.right, y: r.bottom + 4 } }); break; }
       case 'excMenuClose': this.setState({ excMenu: null }); break;
       case 'excDetails': { const e = this.exceptions().find(x => x.id === arg); this.setState({ excMenu: null, excEdit: e ? Object.assign({}, e) : null }); break; }
@@ -936,7 +939,7 @@ class Component extends DCLogic {
         <span style="font-size:20px;line-height:28px;color:#13314c">Standard Apartment</span>
         <div style="display:flex;align-items:center;gap:32px;font-size:14px;color:#13314c;white-space:nowrap;flex-wrap:wrap">
           ${item('Created by:','Admin')}${item('Last modified:','07/10/2025')}
-          <span style="display:inline-flex;align-items:center;gap:8px">${this.feeIcon('property',16)}<a data-act="ptab" data-arg="Assigned Properties" style="font-size:14px">Riverview Apartments</a><span data-act="ptab" data-arg="Assigned Properties" style="display:inline-flex;align-items:center;background:#fff;border:1px solid var(--ac,#008dd5);border-radius:12px;padding-left:8px;color:var(--ac,#008dd5);font-size:13px;line-height:20px;cursor:pointer">+13<span class="material-symbols-outlined" style="font-size:20px">arrow_drop_down</span></span></span>
+          <span style="display:inline-flex;align-items:center;gap:8px">${this.feeIcon('property',16)}<a data-act="ptab" data-arg="Assigned Properties" style="font-size:14px">Riverview Apartments</a><span data-act="propPopOpen" style="display:inline-flex;align-items:center;background:#fff;border:1px solid var(--ac,#008dd5);border-radius:12px;padding-left:8px;color:var(--ac,#008dd5);font-size:13px;line-height:20px;cursor:pointer">+13<span class="material-symbols-outlined" style="font-size:20px">arrow_drop_down</span></span></span>
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:32px">
@@ -1634,7 +1637,7 @@ class Component extends DCLogic {
     </div>`;
   }
   propAssocMid(){
-    return `<span style="display:inline-flex;align-items:center;gap:8px">${this.feeIcon('property',16)}<a data-act="ptab" data-arg="Assigned Properties" style="font-size:14px">Riverview Apartments</a><span data-act="ptab" data-arg="Assigned Properties" style="display:inline-flex;align-items:center;background:#fff;border:1px solid var(--ac,#008dd5);border-radius:12px;padding-left:8px;color:var(--ac,#008dd5);font-size:13px;line-height:20px;cursor:pointer">+11<span class="material-symbols-outlined" style="font-size:20px">arrow_drop_down</span></span></span>`;
+    return `<span style="display:inline-flex;align-items:center;gap:8px">${this.feeIcon('property',16)}<a data-act="ptab" data-arg="Assigned Properties" style="font-size:14px">Riverview Apartments</a><span data-act="propPopOpen" style="display:inline-flex;align-items:center;background:#fff;border:1px solid var(--ac,#008dd5);border-radius:12px;padding-left:8px;color:var(--ac,#008dd5);font-size:13px;line-height:20px;cursor:pointer">+11<span class="material-symbols-outlined" style="font-size:20px">arrow_drop_down</span></span></span>`;
   }
   utFees(t){ return (t.reqRec||[]).concat(t.optRec||[]); }
   utBody(){
@@ -1768,6 +1771,14 @@ class Component extends DCLogic {
     <div style="padding:10px 16px;font-size:13px;color:#8a9aa8">${rows.length} exception${rows.length===1?'':'s'}${(s.exProp!=='All'||s.exFee!=='All'||s.exKind!=='All')?' (filtered)':''} · ${all.length} total across ${new Set(all.map(propOf)).size} properties</div>
     <div style="overflow-x:auto"><div style="min-width:1196px">${head}${body}</div></div></div>`;
     return h;
+  }
+  propPopHTML(){
+    const p=this.state.propPop; if(!p) return '';
+    const names=this.properties().map(r=>r[0]);
+    const left=Math.max(8, Math.min(p.x, 900));
+    const items=names.map(n=>`<div data-act="navProperty" data-arg="${n}" style="padding:12px 20px;font-size:15px;color:#13314c;cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''">${n}</div>`).join('');
+    return `<div data-act="propPopClose" style="position:fixed;inset:0;z-index:150"></div>
+      <div style="position:fixed;left:${left}px;top:${p.y}px;min-width:300px;max-width:380px;max-height:440px;overflow-y:auto;background:#fff;border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,0.18);z-index:151;padding:8px 0">${items}</div>`;
   }
   excMenuHTML(){
     const p=this.state.excMenu; if(!p) return '';
@@ -2049,6 +2060,7 @@ class Component extends DCLogic {
     out += this.rowMenuHTML();
     out += this.excMenuHTML();
     out += this.excEditHTML();
+    out += this.propPopHTML();
     out += this.petImportHTML();
     out += this.ovPopHTML();
     out += this.toastHTML();
