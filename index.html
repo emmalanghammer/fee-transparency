@@ -264,7 +264,7 @@ class Component extends DCLogic {
       case 'applyOpen': { const def = this.propChargeDefs().find(d => d.code === arg); this.setState({ rowMenu: null, applyModal: { code: arg, name: def ? def.desc : arg, sel: this.feeAppliesTo(arg).slice() } }); break; }
       case 'rowMenu': { const r = el.getBoundingClientRect(); this.setState({ rowMenu: { code: arg, x: r.right, y: r.bottom + 4 } }); break; }
       case 'rowMenuClose': this.setState({ rowMenu: null }); break;
-      case 'rowDetails': this.setState({ rowMenu: null }); this.flash('Charge details'); break;
+      case 'rowDetails': { const c=this.findCharge(arg); if(!c){ this.setState({ rowMenu:null }); this.flash('Charge details'); break; } this.setState({ rowMenu:null, modal:{ group:c.group||'req-rec', ctx:'prop', edit:c }, toggles:Object.assign({},this.state.toggles,{ modalIls:c.active!==false }) }); break; }
       case 'rowDelete': this.setState({ rowMenu: null }); this.flash('Delete charge'); break;
       case 'propPopOpen': { const r = el.getBoundingClientRect(); this.setState({ propPop: { x: r.left, y: r.bottom + 6 } }); break; }
       case 'propPopClose': this.setState({ propPop: null }); break;
@@ -391,6 +391,7 @@ class Component extends DCLogic {
 
   saveFee(){
     const m = this.state.modal; if (!m) return;
+    if (m.edit) { this.setState({ modal: null }); this.flash('Charge updated'); return; }
     const name = ((this.q('#m-name') || {}).value || '').trim();
     if (!name) { this.flash('Name is required'); return; }
     const desc = ((this.q('#m-desc') || {}).value || '').trim();
@@ -1658,6 +1659,12 @@ class Component extends DCLogic {
   templateUnits(name){ const c=this.templatesData()[name]; if(!c) return []; return c.units_src==='STD' ? this.stdUfUnits() : (c.unitList||[]); }
   configCharges(name){ const c=this.templatesData()[name]; if(!c) return 0; let n=(c.propDefs||[]).filter(f=>f.app==='Property').length; (c.unitTypes||[]).forEach(t=>{ n+=(t.reqRec||[]).length+(t.optRec||[]).length; }); this.templateUnits(name).forEach(u=>{ n+=(u.fees||[]).length; }); return n; }
   propChargeDefs(){ return this.activeTpl().propDefs; }
+  findCharge(code){
+    let f=this.propChargeDefs().find(x=>x.code===code); if(f) return f;
+    for(const t of this.utData()){ const r=(t.reqRec||[]).find(x=>x.code===code); if(r) return Object.assign({group:'req-rec'}, r); const o=(t.optRec||[]).find(x=>x.code===code); if(o) return Object.assign({group:'opt-rec'}, o); }
+    for(const u of this.ufUnits()){ const uf=(u.fees||[]).find(x=>x.code===code); if(uf) return Object.assign({group:'opt-rec'}, uf); }
+    return this.state.addedFees.find(x=>x.code===code) || null;
+  }
   chargeActive(kp,group,code,def){ const id=kp+'-'+group+'-'+code; return (id in this.state.toggles)?this.state.toggles[id]:def; }
   // Every distinct charge definition in the template across property + unit type + unit levels.
   templateCharges(){
@@ -2036,17 +2043,23 @@ class Component extends DCLogic {
   // ================= MODAL / TOAST =================
   modalHTML(){
     const m = this.state.modal; if (!m) return '';
-    const title = { 'req-rec':'Add Recurring Charge', 'opt-rec':'Add Recurring Charge', 'sit-rec':'Add Situational Charge', 'req-one':'Add One-time Charge', 'opt-one':'Add One-time Charge', 'deposit':'Add Deposit', 'ori':'Add Rentable Item' }[m.group] || 'Add Charge';
+    const ed = m.edit || null;
+    const title = ed ? 'Charge Details' : ({ 'req-rec':'Add Recurring Charge', 'opt-rec':'Add Recurring Charge', 'sit-rec':'Add Situational Charge', 'req-one':'Add One-time Charge', 'opt-one':'Add One-time Charge', 'deposit':'Add Deposit', 'ori':'Add Rentable Item' }[m.group] || 'Add Charge');
     const isRec = /rec$/.test(m.group) || m.group==='ori';
-    const reqDefault = /^opt-/.test(m.group) ? 'Optional — tenant selects' : (m.group==='sit-rec' ? 'Situational' : 'Required');
+    const reqDefault = ed ? (String(ed.group||'').indexOf('opt')===0 ? 'Optional — tenant selects' : (String(ed.group||'').indexOf('sit')===0 ? 'Situational' : 'Required')) : (/^opt-/.test(m.group) ? 'Optional — tenant selects' : (m.group==='sit-rec' ? 'Situational' : 'Required'));
     const sect=(t,inner)=>`<div style="display:flex;flex-direction:column;gap:12px"><span style="font-size:16px;font-weight:600;color:#13314c">${t}</span><div style="border:1px solid #cedbe7;border-radius:4px;padding:16px;display:flex;flex-direction:column;gap:12px">${inner}</div></div>`;
     const lab=(t,info)=>`<span style="display:inline-flex;align-items:center;gap:4px;font-size:14px;color:#666">${t}${info?`<span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5)">info</span>`:''}</span>`;
     const dd=(id,opts,selVal)=>`<select id="${id}" class="fld" style="height:36px">${opts.map(o=>`<option${o===selVal?' selected':''}>${o}</option>`).join('')}</select>`;
     const radio=(label,value,blk,checked,extra)=>`<label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#666;cursor:pointer"><input type="radio" name="m-amt-r" value="${value}" data-blk="${blk}" ${checked?'checked':''} onchange="var b=this.getAttribute('data-blk');document.getElementById('m-source').value=this.value;['flat','range','ref','calc'].forEach(function(k){document.getElementById('m-blk-'+k).style.display=(k===b?'flex':'none')})" style="accent-color:var(--ac,#008dd5);width:16px;height:16px;margin:0">${label}</label>${extra||''}`;
     const refOpts=['Field: Market Rent','Property UDF: School District','Property UDF: Trash Pick-Up Day','Property UDF: County','Property UDF: Property CAM Notes','Property UDF: Property TAX Notes','Property UDF: Property INSURANCE Notes','Property UDF: parcelnum','Property UDF: Blue Moon Serial Number (OH19032550)','Property UDF: Blue Moon Property ID (107171)','Property UDF: *test2','Property UDF: Jaystest','Property UDF: JON','Property UDF: Text (Test)','Property UDF: Text No Value','Unit UDF: House Tag I.D.','Unit UDF: Parking Spot #','Unit UDF: Storage Unit #'];
-    const appKindDefault = m.ctx==='prop' ? 'Property' : (m.ctx && m.ctx.indexOf('ut:')===0 ? 'Unit Type' : (m.ctx && m.ctx.indexOf('uf:')===0 ? 'Unit' : 'Property'));
-    const utDefault = m.ctx && m.ctx.indexOf('ut:')===0 ? m.ctx.slice(3) : '';
-    const unitDefault = m.ctx && m.ctx.indexOf('uf:')===0 ? m.ctx.slice(3) : '';
+    const appKindDefault = ed ? (ed.app==='Property'?'Property':(/^Unit Type/.test(ed.app||'')?'Unit Type':'Unit')) : (m.ctx==='prop' ? 'Property' : (m.ctx && m.ctx.indexOf('ut:')===0 ? 'Unit Type' : (m.ctx && m.ctx.indexOf('uf:')===0 ? 'Unit' : 'Property')));
+    const utDefault = ed ? (/^Unit Type: /.test(ed.app||'')?ed.app.replace('Unit Type: ',''):'') : (m.ctx && m.ctx.indexOf('ut:')===0 ? m.ctx.slice(3) : '');
+    const unitDefault = ed ? (/^Unit · /.test(ed.app||'')?ed.app.replace('Unit · ',''):'') : (m.ctx && m.ctx.indexOf('uf:')===0 ? m.ctx.slice(3) : '');
+    let amtSource='Flat', amtFlat='', amtMin='', amtMax='', amtRef='Field: Market Rent';
+    if(ed){ const a=(ed.amount||'').toString().trim();
+      if(/market rent/i.test(a)){ amtSource='Reference'; amtRef='Field: Market Rent'; }
+      else if(/\d\s*[–-]\s*\d/.test(a)){ amtSource='Range'; const p=a.replace(/[$,]/g,'').split(/[–-]/); amtMin=(p[0]||'').trim(); amtMax=(p[1]||'').trim(); }
+      else { amtFlat=a.replace(/^\$/,''); } }
     const utNames = this.utData().map(t=>t.name);
     const utOpts = (utDefault && utNames.indexOf(utDefault)<0) ? [utDefault].concat(utNames) : utNames;
     const unitList = ['1A','1B','2A','4C','4D','5A'];
@@ -2054,8 +2067,8 @@ class Component extends DCLogic {
     const ctypeList=[['ADMIN','Administrative Fee'],['AMENITY','Amenity Fee'],['APPFEE','Application Fee'],['CABLE','Cable Utility'],['CAM','Common Area Maintenance'],['CLEAN','Cleaning Fee'],['COVPARK','Covered Parking'],['DEP','Security Deposit'],['ELEC','Electric Utility'],['EPAYAJ','ePay Refund Adjustment'],['EPD','Early Payment Discount'],['FMR',"First Month's Rent Charge"],['GARAGE','Garage Fee'],['GARBAG','Garbage Fee'],['GAS','Gas Utility'],['H2O','Water Utility'],['HO4','Renters Insurance Charge'],['HO7','Homeowners insurance'],['HOA','HOA Fee'],['KEY','Key & Fob Deposit'],['LATE','Late Fee'],['LMR',"Last Month's Rent"],['NSF','NSF Fee'],['PARK','Parking'],['PET','Pet Rent'],['PETDP','Pet Deposit'],['RC','Rent'],['SEWER','Sewer Utility'],['STORAGE','Storage Fee'],['TRASH','Trash Valet'],['UTIL','Utility']];
     const ctItems=ctypeList.map(([c,d])=>`<div data-code="${c}" data-desc="${d}" data-ct="${(c+' '+d).toLowerCase()}" onmousedown="document.getElementById('m-ctype').value=this.getAttribute('data-code');document.getElementById('m-ctype-desc').value=this.getAttribute('data-desc');var n=document.getElementById('m-name');if(n&&!n.value)n.value=this.getAttribute('data-desc');document.getElementById('m-ctype-panel').style.display='none'" style="padding:8px 12px;cursor:pointer" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''"><div style="font-size:15px;color:#13314c">${c}</div><div style="font-size:13px;color:#8a9aa8">${d}</div></div>`).join('');
     const ctypeField=`<div style="position:relative">
-      <div style="display:flex;align-items:center;gap:4px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">search</span><input id="m-ctype" autocomplete="off" placeholder="Search charge types" onfocus="document.getElementById('m-ctype-panel').style.display='block'" onblur="var p=document.getElementById('m-ctype-panel');setTimeout(function(){p.style.display='none'},200)" oninput="var q=this.value.toLowerCase();document.getElementById('m-ctype-panel').style.display='block';document.getElementById('m-ctype-list').querySelectorAll('[data-ct]').forEach(function(el){el.style.display=(el.getAttribute('data-ct').indexOf(q)>=0?'block':'none')})" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:#13314c"></div>
-      <input type="hidden" id="m-ctype-desc">
+      <div style="display:flex;align-items:center;gap:4px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">search</span><input id="m-ctype" autocomplete="off" placeholder="Search charge types" value="${ed?(ed.code||''):''}" onfocus="document.getElementById('m-ctype-panel').style.display='block'" onblur="var p=document.getElementById('m-ctype-panel');setTimeout(function(){p.style.display='none'},200)" oninput="var q=this.value.toLowerCase();document.getElementById('m-ctype-panel').style.display='block';document.getElementById('m-ctype-list').querySelectorAll('[data-ct]').forEach(function(el){el.style.display=(el.getAttribute('data-ct').indexOf(q)>=0?'block':'none')})" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:#13314c"></div>
+      <input type="hidden" id="m-ctype-desc" value="${ed?(ed.cat||'').replace(/"/g,'&quot;'):''}">
       <div id="m-ctype-panel" style="display:none;position:absolute;left:0;right:0;top:40px;z-index:20;background:#fff;border:1px solid #cedbe7;border-radius:4px;box-shadow:0 3px 6px rgba(0,0,0,0.15);max-height:260px;overflow-y:auto"><div id="m-ctype-list">${ctItems}</div></div>
     </div>`;
     // Inline multi-select checklist dropdown (shared with the exception modal).
@@ -2074,27 +2087,27 @@ class Component extends DCLogic {
       </div>`;
     const general = `
       <div style="display:flex;gap:8px">
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Name *')}<input id="m-name" class="fld" style="height:36px;box-sizing:border-box"></div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Name *')}<input id="m-name" class="fld" value="${ed?(ed.desc||'').replace(/"/g,'&quot;'):''}" style="height:36px;box-sizing:border-box"></div>
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Type *',true)}${ctypeField}</div>
       </div>
       ${chargeApp}
-      <div style="display:flex;flex-direction:column;gap:4px">${lab('Description')}<textarea id="m-desc" class="fld" style="height:56px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif"></textarea></div>`;
+      <div style="display:flex;flex-direction:column;gap:4px">${lab('Description')}<textarea id="m-desc" class="fld" style="height:56px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${ed?(ed.desc||''):''}</textarea></div>`;
     const amount = `
       <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
-        ${radio('Flat Amount','Flat','flat',true)}${radio('Range','Range','range')}${radio('Reference Amount','Reference','ref')}${radio('Calculation','Calculation','calc',false,`<span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5);margin-left:-8px">edit</span>`)}
+        ${radio('Flat Amount','Flat','flat',amtSource==='Flat')}${radio('Range','Range','range',amtSource==='Range')}${radio('Reference Amount','Reference','ref',amtSource==='Reference')}${radio('Calculation','Calculation','calc',amtSource==='Calculation',`<span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5);margin-left:-8px">edit</span>`)}
       </div>
-      <input type="hidden" id="m-source" value="Flat">
+      <input type="hidden" id="m-source" value="${amtSource}">
       <div style="padding-left:24px">
-        <div id="m-blk-flat" style="display:flex;flex-direction:column"><input id="m-amount" class="fld" placeholder="00.00" style="height:36px;box-sizing:border-box"></div>
-        <div id="m-blk-range" style="display:none;flex-direction:column;gap:4px">
+        <div id="m-blk-flat" style="display:${amtSource==='Flat'?'flex':'none'};flex-direction:column"><input id="m-amount" class="fld" placeholder="00.00" value="${amtFlat}" style="height:36px;box-sizing:border-box"></div>
+        <div id="m-blk-range" style="display:${amtSource==='Range'?'flex':'none'};flex-direction:column;gap:4px">
           <div style="display:flex;gap:12px;align-items:flex-end">
-            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Minimum')}<input id="m-amount-min" class="fld" placeholder="00.00" style="height:36px;box-sizing:border-box"></div>
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Minimum')}<input id="m-amount-min" class="fld" placeholder="00.00" value="${amtMin}" style="height:36px;box-sizing:border-box"></div>
             <span style="padding-bottom:8px;color:#8a9aa8">–</span>
-            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Maximum')}<input id="m-amount-max" class="fld" placeholder="00.00" style="height:36px;box-sizing:border-box"></div>
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Maximum')}<input id="m-amount-max" class="fld" placeholder="00.00" value="${amtMax}" style="height:36px;box-sizing:border-box"></div>
           </div>
         </div>
-        <div id="m-blk-ref" style="display:none;flex-direction:column;gap:4px">${lab('Reference field')}${dd('m-ref',refOpts,'Field: Market Rent')}</div>
-        <div id="m-blk-calc" style="display:none;flex-direction:column;gap:4px">${lab('Calculation')}<div style="display:flex;align-items:center;gap:8px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 12px"><span style="flex:1;min-width:0;font-size:14px;color:#8a9aa8;font-style:italic">Build a calculation…</span><span data-act="toast" data-arg="Open calculation builder" class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);cursor:pointer">edit</span></div></div>
+        <div id="m-blk-ref" style="display:${amtSource==='Reference'?'flex':'none'};flex-direction:column;gap:4px">${lab('Reference field')}${dd('m-ref',refOpts,amtRef)}</div>
+        <div id="m-blk-calc" style="display:${amtSource==='Calculation'?'flex':'none'};flex-direction:column;gap:4px">${lab('Calculation')}<div style="display:flex;align-items:center;gap:8px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 12px"><span style="flex:1;min-width:0;font-size:14px;color:#8a9aa8;font-style:italic">Build a calculation…</span><span data-act="toast" data-arg="Open calculation builder" class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);cursor:pointer">edit</span></div></div>
       </div>
       ${isRec?`<div style="border-top:1px solid #cedbe7;width:100%"></div>
       <div style="display:flex;flex-direction:column;gap:4px">${lab('Frequency')}${dd('m-freq',['Monthly','Weekly','Every 2 weeks','Quarterly','Annually'],'Monthly')}</div>`:''}`;
@@ -2102,7 +2115,7 @@ class Component extends DCLogic {
     const reqs = `
       <div style="display:flex;gap:8px">
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Requirement')}<select id="m-req" class="fld" style="height:36px" onchange="document.getElementById('m-cond-wrap').style.display=this.value==='Required'?'none':'flex'">${['Required','Optional — tenant selects','Situational'].map(o=>`<option${o===reqDefault?' selected':''}>${o}</option>`).join('')}</select></div>
-        <div id="m-cond-wrap" style="flex:1;min-width:0;display:${condVisible?'flex':'none'};flex-direction:column;gap:4px">${lab('Charge Condition')}<input id="m-cond" class="fld" style="height:36px;box-sizing:border-box"></div>
+        <div id="m-cond-wrap" style="flex:1;min-width:0;display:${condVisible?'flex':'none'};flex-direction:column;gap:4px">${lab('Charge Condition')}<input id="m-cond" class="fld" value="${ed?(ed.cond||'').replace(/"/g,'&quot;'):''}" style="height:36px;box-sizing:border-box"></div>
       </div>
       <div style="display:flex;gap:8px">
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('What lease term(s) does this charge apply to?')}${dd('m-terms',['All Selected','12 month','6 month','Month-to-month'],'All Selected')}</div>
