@@ -96,7 +96,7 @@ class Component extends DCLogic {
     ovPop: null,
     feeScope: {}, applyModal: null,
     feeOverrides: {}, ovModal: null, rowMenu: null,
-    excMenu: null, excEdit: null, excEdits: {}, excDismissed: [],
+    excMenu: null, excEdit: null, excEdits: {}, excDismissed: [], feeExc: [],
     propPop: null,
     addTpl: null, addedTemplates: [],
     exProp: 'All', exFee: 'All', exKind: 'All',
@@ -163,6 +163,7 @@ class Component extends DCLogic {
     Object.keys(ov).forEach(code=>{const i=info(code);Object.keys(ov[code]).forEach(prop=>out.push({ id:'ov|'+code+'|'+prop, kind:'override', code, fee:i.fee, scope:prop, scopeType:'Property', tmpl:i.tmpl, local:ov[code][prop], by:'You', date:'Recent', reason:'' }));});
     const sc=this.state.feeScope||{};
     Object.keys(sc).forEach(code=>{const i=info(code);this.propNames().filter(p=>!sc[code].includes(p)).forEach(prop=>out.push({ id:'ex|'+code+'|'+prop, kind:'exclusion', code, fee:i.fee, scope:prop, scopeType:'Property', tmpl:i.tmpl, local:'Excluded', by:'You', date:'Recent', reason:'' }));});
+    (this.state.feeExc||[]).forEach(e=>{const i=info(e.code);out.push({ id:'exx|'+e.code+'|'+e.scope, kind:'exclusion', code:e.code, fee:i.fee, scope:e.scope, scopeType:/^Unit /.test(e.scope)?'Unit':'Unit Type', tmpl:i.tmpl, local:'Excluded', by:'You', date:'Recent', reason:e.reason||'' });});
     return out;
   }
   exceptions(){
@@ -275,18 +276,24 @@ class Component extends DCLogic {
       case 'excMenuClose': this.setState({ excMenu: null }); break;
       case 'excDetails': { const e = this.exceptions().find(x => x.id === arg); this.setState({ excMenu: null, excEdit: e ? Object.assign({}, e) : null }); break; }
       case 'excEditClose': this.setState({ excEdit: null }); break;
-      case 'excEditMode': this.setState(s => { const q = (id) => { const el = this.q(id); return el ? el.value : undefined; }; const local = q('#exc-amt') != null ? q('#exc-amt') : (s.excEdit.local || ''); const reason = q('#exc-comment') != null ? q('#exc-comment') : (s.excEdit.reason || ''); return { excEdit: Object.assign({}, s.excEdit, { kind: arg, local, reason }) }; }); break;
+      case 'excEditMode': this.setState(s => { const q = (id) => { const el = this.q(id); return el ? el.value : undefined; }; const local = q('#exc-amt') != null ? q('#exc-amt') : (s.excEdit.local || ''); const reason = q('#exc-comment') != null ? q('#exc-comment') : (s.excEdit.reason || ''); const appkind = q('#exc-appkind') != null ? q('#exc-appkind') : s.excEdit.appkind; const tv = { 'Property': q('#exc-tprop'), 'Unit Type': q('#exc-tut'), 'Unit': q('#exc-tunit') }[appkind]; const target = tv != null ? tv : s.excEdit.target; return { excEdit: Object.assign({}, s.excEdit, { kind: arg, local, reason, appkind, target }) }; }); break;
       case 'excSave': { const m = this.state.excEdit; if (!m) break; const isExclude = (m.kind === 'exclude' || m.kind === 'exclusion'); const reason = ((this.q('#exc-comment') || {}).value || '').trim(); const edits = Object.assign({}, this.state.excEdits); const st = { excEdit: null };
         if (isExclude) { edits[m.id] = { kind: 'exclusion', local: 'Excluded', reason }; }
         else { const raw = ((this.q('#exc-amt') || {}).value || m.local || '').trim(); const val = /^[\d.,]+$/.test(raw.replace(/^\$/,'')) ? (raw.charAt(0)==='$'?raw:'$'+raw) : raw; edits[m.id] = { kind: 'override', local: val, reason }; if (m.id.indexOf('ov|') === 0) { const parts = m.id.split('|'); const fo = Object.assign({}, this.state.feeOverrides); if (fo[parts[1]]) { fo[parts[1]] = Object.assign({}, fo[parts[1]], { [parts[2]]: val }); st.feeOverrides = fo; } } }
         st.excEdits = edits; this.setState(st); this.flash('Exception updated'); break; }
-      case 'excDelete': { const id = arg; const st = {}; if (id.indexOf('ov|') === 0) { const p = id.split('|'); const fo = Object.assign({}, this.state.feeOverrides); if (fo[p[1]]) { const m2 = Object.assign({}, fo[p[1]]); delete m2[p[2]]; if (Object.keys(m2).length) fo[p[1]] = m2; else delete fo[p[1]]; st.feeOverrides = fo; } } else if (id.indexOf('ex|') === 0) { const p = id.split('|'); const applied = this.feeAppliesTo(p[1]).slice(); if (applied.indexOf(p[2]) < 0) applied.push(p[2]); const sc = Object.assign({}, this.state.feeScope); if (applied.length >= this.propNames().length) delete sc[p[1]]; else sc[p[1]] = applied; st.feeScope = sc; } else { st.excDismissed = (this.state.excDismissed || []).concat([id]); } st.excMenu = null; st.excEdit = null; this.setState(st); this.flash('Exception deleted'); break; }
-      case 'ovOpen': { const def = this.propChargeDefs().find(d => d.code === arg); this.setState({ rowMenu: null, ovModal: { code: arg, name: def ? def.desc : arg, tmpl: def ? (/[a-z]/i.test(def.amount) ? def.amount : '$' + def.amount) : '—', applyTo: this.propNames()[0], mode: 'override', amount: '', comment: '' } }); break; }
+      case 'excDelete': { const id = arg; const st = {}; if (id.indexOf('ov|') === 0) { const p = id.split('|'); const fo = Object.assign({}, this.state.feeOverrides); if (fo[p[1]]) { const m2 = Object.assign({}, fo[p[1]]); delete m2[p[2]]; if (Object.keys(m2).length) fo[p[1]] = m2; else delete fo[p[1]]; st.feeOverrides = fo; } } else if (id.indexOf('ex|') === 0) { const p = id.split('|'); const applied = this.feeAppliesTo(p[1]).slice(); if (applied.indexOf(p[2]) < 0) applied.push(p[2]); const sc = Object.assign({}, this.state.feeScope); if (applied.length >= this.propNames().length) delete sc[p[1]]; else sc[p[1]] = applied; st.feeScope = sc; } else if (id.indexOf('exx|') === 0) { st.feeExc = (this.state.feeExc || []).filter(e => ('exx|' + e.code + '|' + e.scope) !== id); } else { st.excDismissed = (this.state.excDismissed || []).concat([id]); } st.excMenu = null; st.excEdit = null; this.setState(st); this.flash('Exception deleted'); break; }
+      case 'ovOpen': { const c = this.findCharge(arg) || {}; this.setState({ rowMenu: null, ovModal: { code: arg, name: c.desc || arg, tmpl: c.amount ? (/[a-z]/i.test(c.amount) ? c.amount : '$' + c.amount) : '—', app: c.app || 'Property', mode: 'override', amount: '', comment: '' } }); break; }
       case 'ovModalClose': this.setState({ ovModal: null }); break;
-      case 'excMode': this.setState(s => { const q = (id) => { const el = this.q(id); return el ? el.value : undefined; }; const amount = q('#exc-amt') != null ? q('#exc-amt') : (s.ovModal.amount || ''); const comment = q('#exc-comment') != null ? q('#exc-comment') : (s.ovModal.comment || ''); const applyTo = q('#exc-apply') != null ? q('#exc-apply') : s.ovModal.applyTo; return { ovModal: Object.assign({}, s.ovModal, { mode: arg, amount, comment, applyTo }) }; }); break;
-      case 'ovModalSave': { const m = this.state.ovModal; const comment = ((this.q('#exc-comment') || {}).value || '').trim(); const root = this.rootEl || document;
-        if (m.mode === 'exclude') { const props = [...root.querySelectorAll('#exc-mprops-list input:checked')].map(x => x.value); if (!props.length) { this.flash('Select at least one property'); break; } let applied = this.feeAppliesTo(m.code).slice(); props.forEach(p => { applied = applied.filter(x => x !== p); }); const scope = Object.assign({}, this.state.feeScope); if (applied.length >= this.propNames().length) delete scope[m.code]; else scope[m.code] = applied; const edits = Object.assign({}, this.state.excEdits); props.forEach(p => { edits['ex|' + m.code + '|' + p] = { reason: comment }; }); this.setState({ feeScope: scope, excEdits: edits, ovModal: null }); this.flash('Excluded at ' + props.length + ' propert' + (props.length === 1 ? 'y' : 'ies')); break; }
-        const prop = ((this.q('#exc-apply') || {}).value || m.applyTo || '').trim(); if (!prop) { this.flash('Select a property'); break; } const raw = (((this.q('#exc-amt') || {}).value || m.amount || '')).trim(); if (!raw) { this.flash('Enter an override amount'); break; } const amt = /^[\d.,]+$/.test(raw.replace(/^\$/,'')) ? (raw.charAt(0)==='$'?raw:'$' + raw) : raw; const fo = Object.assign({}, this.state.feeOverrides); const cur = Object.assign({}, fo[m.code] || {}); cur[prop] = amt; fo[m.code] = cur; const edits = Object.assign({}, this.state.excEdits, { ['ov|' + m.code + '|' + prop]: { reason: comment } }); this.setState({ feeOverrides: fo, excEdits: edits, ovModal: null }); this.flash('Override set for ' + prop); break; }
+      case 'excMode': this.setState(s => { const q = (id) => { const el = this.q(id); return el ? el.value : undefined; }; const amount = q('#exc-amt') != null ? q('#exc-amt') : (s.ovModal.amount || ''); const comment = q('#exc-comment') != null ? q('#exc-comment') : (s.ovModal.comment || ''); const appkind = q('#exc-appkind') != null ? q('#exc-appkind') : s.ovModal.appkind; const tv = { 'Property': q('#exc-tprop'), 'Unit Type': q('#exc-tut'), 'Unit': q('#exc-tunit') }[appkind]; const target = tv != null ? tv : s.ovModal.target; return { ovModal: Object.assign({}, s.ovModal, { mode: arg, amount, comment, appkind, target }) }; }); break;
+      case 'ovModalSave': { const m = this.state.ovModal; const comment = ((this.q('#exc-comment') || {}).value || '').trim();
+        const appkind = ((this.q('#exc-appkind') || {}).value || 'Property'); const target = ((this.q(appkind === 'Property' ? '#exc-tprop' : appkind === 'Unit Type' ? '#exc-tut' : '#exc-tunit') || {}).value || '').trim(); if (!target) { this.flash('Select a target'); break; }
+        const scope = appkind === 'Property' ? target : (appkind === 'Unit Type' ? target + ' unit type' : 'Unit ' + target);
+        if (m.mode === 'exclude') {
+          if (appkind === 'Property') { let applied = this.feeAppliesTo(m.code).slice().filter(x => x !== target); const sc = Object.assign({}, this.state.feeScope); if (applied.length >= this.propNames().length) delete sc[m.code]; else sc[m.code] = applied; const edits = Object.assign({}, this.state.excEdits, { ['ex|' + m.code + '|' + target]: { reason: comment } }); this.setState({ feeScope: sc, excEdits: edits, ovModal: null }); }
+          else { const fe = (this.state.feeExc || []).concat([{ code: m.code, scope, reason: comment }]); this.setState({ feeExc: fe, ovModal: null }); }
+          this.flash('Exception added'); break;
+        }
+        const raw = (((this.q('#exc-amt') || {}).value || m.amount || '')).trim(); if (!raw) { this.flash('Enter an override amount'); break; } const amt = /^[\d.,]+$/.test(raw.replace(/^\$/,'')) ? (raw.charAt(0)==='$'?raw:'$' + raw) : raw; const fo = Object.assign({}, this.state.feeOverrides); const cur = Object.assign({}, fo[m.code] || {}); cur[scope] = amt; fo[m.code] = cur; const edits = Object.assign({}, this.state.excEdits, { ['ov|' + m.code + '|' + scope]: { reason: comment } }); this.setState({ feeOverrides: fo, excEdits: edits, ovModal: null }); this.flash('Exception added'); break; }
       case 'applyClose': this.setState({ applyModal: null }); break;
       case 'applyToggle': this.setState(s => { const sel = s.applyModal.sel.slice(); const i = sel.indexOf(arg); if (i >= 0) sel.splice(i, 1); else sel.push(arg); return { applyModal: Object.assign({}, s.applyModal, { sel }) }; }); break;
       case 'applyAll': this.setState(s => { const all = this.propNames(); const sel = s.applyModal.sel.length === all.length ? [] : all.slice(); return { applyModal: Object.assign({}, s.applyModal, { sel }) }; }); break;
@@ -702,15 +709,31 @@ class Component extends DCLogic {
   // Shared "Add Exception" / "Exception details" modal shell (matches Figma).
   excModalShell(o){
     const mode=o.mode||'override', isOv=mode!=='exclude';
-    const cols='120px minmax(150px,1fr) 90px 190px';
+    const cols='120px minmax(150px,1fr) 90px 220px';
+    const dd=(id,opts,sel)=>`<select id="${id}" class="fld" style="height:36px">${opts.map(x=>`<option${x===sel?' selected':''}>${x}</option>`).join('')}</select>`;
     const radio=(val,label)=>`<label data-act="${o.modeAct}" data-arg="${val}" style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;color:#13314c"><span style="width:18px;height:18px;border-radius:50%;box-sizing:border-box;border:2px solid ${mode===val?'var(--ac,#008dd5)':'#b3b3b3'};display:flex;align-items:center;justify-content:center;flex:none">${mode===val?'<span style="width:8px;height:8px;border-radius:50%;background:var(--ac,#008dd5)"></span>':''}</span>${label}</label>`;
+    const appCell=`<span style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#13314c;min-width:0"><span style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.primary}</span>${o.more>0?`<span style="display:inline-flex;align-items:center;background:#fff;border:1px solid var(--ac,#008dd5);border-radius:12px;padding-left:8px;color:var(--ac,#008dd5);font-size:13px;line-height:20px;white-space:nowrap">+${o.more}<span class="material-symbols-outlined" style="font-size:20px">arrow_drop_down</span></span>`:''}</span>`;
     const infoTable=`<div style="border:1px solid #cedbe7;border-radius:4px;overflow:hidden">
       <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #cedbe7">${['Charge Type','Description','Amount','Charge Application'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:600;color:#13314c">${x}</span>`).join('')}</div>
-      <div style="display:grid;grid-template-columns:${cols};align-items:center"><span style="padding:10px 12px 10px 16px;font-size:14px;color:#13314c">${o.code}</span><span style="padding:10px 12px;font-size:14px;color:#13314c">${o.desc}</span><span style="padding:10px 12px;font-size:14px;color:#13314c">${(o.tmpl||'').replace(/^\$/,'')}</span><span style="padding:8px 12px"><span style="display:inline-block;background:#e8eaed;color:#4a5b6b;border-radius:4px;padding:3px 10px;font-size:13px;white-space:nowrap">${o.appChip}</span></span></div>
+      <div style="display:grid;grid-template-columns:${cols};align-items:center"><span style="padding:10px 12px 10px 16px;font-size:14px;color:#13314c">${o.code}</span><span style="padding:10px 12px;font-size:14px;color:#13314c">${o.desc}</span><span style="padding:10px 12px;font-size:14px;color:#13314c">${(o.tmpl||'').replace(/^\$/,'')}</span><span style="padding:8px 12px">${appCell}</span></div>
     </div>`;
-    const applyDd = isOv
-      ? `<select id="exc-apply" class="fld" style="height:36px">${o.applyOptions.map(p=>`<option${p===o.applySel?' selected':''}>${p}</option>`).join('')}</select>`
-      : this.multiSelect('exc-mprops', o.applyOptions, o.mselected||[o.applySel]);
+    const appkind=o.appkind||'Property';
+    const propOpts=this.propNames(), utOpts=this.utData().map(t=>t.name), unitOpts=this.ufUnits().map(u=>u.u);
+    const tprop = appkind==='Property'?(o.target||propOpts[0]):propOpts[0];
+    const tut = appkind==='Unit Type'?(o.target||utOpts[0]):utOpts[0];
+    const tunit = appkind==='Unit'?(o.target||unitOpts[0]):unitOpts[0];
+    const appToggle="var v=this.value;['prop','ut','unit'].forEach(function(k){document.getElementById('exc-tgt-'+k).style.display='none'});document.getElementById('exc-tgt-'+(v==='Property'?'prop':v==='Unit Type'?'ut':'unit')).style.display='flex'";
+    const scopeSection=`
+      <div style="height:1px;background:#ebf1f5;width:100%"></div>
+      <div style="font-size:14px;color:#666">What do you want to ${isOv?'override':'exclude'} this charge? *</div>
+      <div style="display:flex;gap:16px;align-items:flex-start">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px"><span style="font-size:14px;color:#666">Charge Application</span><select id="exc-appkind" class="fld" style="height:36px" onchange="${appToggle}">${['Property','Unit Type','Unit'].map(k=>`<option${k===appkind?' selected':''}>${k}</option>`).join('')}</select></div>
+        <div style="flex:1;min-width:0">
+          <div id="exc-tgt-prop" style="display:${appkind==='Property'?'flex':'none'};flex-direction:column;gap:4px"><span style="font-size:14px;color:#666">Property</span>${dd('exc-tprop',propOpts,tprop)}</div>
+          <div id="exc-tgt-ut" style="display:${appkind==='Unit Type'?'flex':'none'};flex-direction:column;gap:4px"><span style="font-size:14px;color:#666">Unit Type</span>${dd('exc-tut',utOpts,tut)}</div>
+          <div id="exc-tgt-unit" style="display:${appkind==='Unit'?'flex':'none'};flex-direction:column;gap:4px"><span style="font-size:14px;color:#666">Unit</span>${dd('exc-tunit',unitOpts,tunit)}</div>
+        </div>
+      </div>`;
     return `<div data-act="${o.closeAct}" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:100"><div data-act="noop" style="width:640px;max-width:94vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.28);display:flex;flex-direction:column;overflow:hidden">
       <div style="display:flex;align-items:center;justify-content:space-between;height:52px;box-sizing:border-box;padding:8px 20px;border-bottom:1px solid #cedbe7;flex:none"><span style="font-size:20px;line-height:28px;color:#13314c">${o.title}</span><span style="display:inline-flex;align-items:center;gap:10px"><span data-act="toast" data-arg="Help" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">help</span><span data-act="${o.closeAct}" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span></span></div>
       <div style="flex:1;min-height:0;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:16px">
@@ -718,19 +741,23 @@ class Component extends DCLogic {
         <div style="height:1px;background:#ebf1f5;width:100%"></div>
         <div style="display:flex;gap:40px">${radio('override','Override amount')}${radio('exclude','Exclude amount')}</div>
         ${isOv?`<div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:14px;color:#666">New Amount *</span><input id="exc-amt" class="fld" placeholder="00.00" value="${(o.amount||'').replace(/^\$/,'')}" style="height:36px;box-sizing:border-box"></div>`:''}
-        <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:14px;color:#666">${isOv?'Apply override to *':'Exclude amount from *'}</span>${applyDd}</div>
         <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:14px;color:#666">Comment</span><input id="exc-comment" class="fld" value="${(o.comment||'').replace(/"/g,'&quot;')}" style="height:36px;box-sizing:border-box"></div>
+        ${scopeSection}
       </div>
       <div style="display:flex;justify-content:flex-end;gap:12px;padding:12px 20px;border-top:1px solid #cedbe7;background:#f5f8fa;flex:none"><button data-act="${o.saveAct}" class="btn-pri" style="padding:8px 20px;font-size:14px;border-radius:4px">Save</button><button data-act="${o.closeAct}" class="btn-out" style="padding:8px 20px;font-size:14px;border-radius:4px">Cancel</button></div>
     </div></div>`;
   }
-  excAppChip(code){ const d=this.propChargeDefs().find(x=>x.code===code); if(!d) return 'All Properties Assigned'; return d.app==='Property' ? 'All Properties Assigned' : d.app; }
+  excScopeParts(app){ if(/^Unit Type: /.test(app||'')) return {appkind:'Unit Type', target:app.replace('Unit Type: ','')}; if(/^Unit · /.test(app||'')) return {appkind:'Unit', target:app.replace('Unit · ','')}; if(/ · Unit /.test(app||'')) return {appkind:'Unit', target:app.split('· Unit ')[1]}; return {appkind:'Property', target:app}; }
   ovModalHTML(){
     const m=this.state.ovModal; if(!m) return '';
+    const t=this.activeTpl();
+    const p=this.excScopeParts(m.app);
+    const propScope = (m.app==='Property');
     return this.excModalShell({
-      title:'Add Exception', code:m.code, desc:m.name, tmpl:m.tmpl, appChip:this.excAppChip(m.code),
+      title:'Add Exception', code:m.code, desc:m.name, tmpl:m.tmpl,
+      primary: propScope ? t.primary : (p.appkind==='Unit Type'?p.target:(p.appkind==='Unit'?('Unit '+p.target):m.app)), more: propScope ? t.more : 0,
       mode:m.mode||'override', amount:m.amount, comment:m.comment,
-      applyOptions:this.propNames(), applySel:m.applyTo||this.propNames()[0], mselected:[m.applyTo||this.propNames()[0]],
+      appkind: m.appkind || p.appkind, target: m.target || (p.appkind==='Property'?t.primary:p.target),
       modeAct:'excMode', saveAct:'ovModalSave', closeAct:'ovModalClose'
     });
   }
@@ -1926,13 +1953,13 @@ class Component extends DCLogic {
   }
   excEditHTML(){
     const m=this.state.excEdit; if(!m) return '';
-    const props=this.propNames();
-    const applyOptions = props.indexOf(m.scope)<0 ? [m.scope].concat(props) : props;
+    const p=this.excScopeParts(m.scope);
     const mode = (m.kind==='exclusion'||m.kind==='exclude') ? 'exclude' : 'override';
     return this.excModalShell({
-      title:'Exception details', code:m.code, desc:m.fee, tmpl:m.tmpl, appChip:this.excAppChip(m.code),
+      title:'Exception details', code:m.code, desc:m.fee, tmpl:m.tmpl,
+      primary:m.scope, more:0,
       mode, amount:m.local, comment:m.reason,
-      applyOptions, applySel:m.scope, mselected:[m.scope],
+      appkind:m.appkind||p.appkind, target:m.target||p.target,
       modeAct:'excEditMode', saveAct:'excSave', closeAct:'excEditClose'
     });
   }
