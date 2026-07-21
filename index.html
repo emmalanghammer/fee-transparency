@@ -523,6 +523,33 @@ class Component extends DCLogic {
       </div>
     </div>`;
   }
+  // Searchable single-select dropdown. options: array of strings OR {value,label}.
+  // opt.act -> framework action (dispatched with data-arg=value on select); otherwise a hidden <input id> holds the value.
+  // opt.js  -> extra inline JS run after select; `_v` holds the chosen value.
+  singleSelect(id, options, selected, opt){
+    opt = opt || {};
+    const act = opt.act || '', extraJs = opt.js || '';
+    const esc = s => (''+s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+    const O = options.map(o => (o && typeof o === 'object') ? { v:''+o.value, l:''+(o.label!=null?o.label:o.value) } : { v:''+o, l:''+o });
+    const selV = (selected!=null && selected!=='') ? (''+selected) : (O[0]?O[0].v:'');
+    const selL = (O.find(x=>x.v===selV) || O[0] || {l:''}).l;
+    const panelId=id+'-pnl', dispId=id+'-disp', listId=id+'-lst';
+    const onPick = act
+      ? `this.setAttribute('data-arg',_v);this.setAttribute('data-act','${act}');this.dispatchEvent(new MouseEvent('click',{bubbles:true}));`
+      : `var h=document.getElementById('${esc(id)}');if(h)h.value=_v;`;
+    const rowJs = `var _v=this.getAttribute('data-v');var pnl=document.getElementById('${panelId}');if(pnl)pnl.style.display='none';var dsp=document.getElementById('${dispId}');if(dsp)dsp.textContent=this.getAttribute('data-l');var lst=document.getElementById('${listId}');if(lst)lst.querySelectorAll('[data-v]').forEach(function(r){r.setAttribute('data-sel','0');r.style.background='#fff';r.style.color='#13314c'});this.setAttribute('data-sel','1');this.style.background='#4a90e2';this.style.color='#fff';${onPick}${extraJs}`;
+    const filter = `var q=this.value.toLowerCase();document.getElementById('${listId}').querySelectorAll('[data-v]').forEach(function(r){r.style.display=(r.getAttribute('data-l').toLowerCase().indexOf(q)>=0?'flex':'none')})`;
+    const hover = `onmouseenter="if(this.getAttribute('data-sel')!=='1')this.style.background='#eaf4fb'" onmouseleave="if(this.getAttribute('data-sel')!=='1')this.style.background='#fff'"`;
+    const rows = O.map(o=>`<div data-v="${esc(o.v)}" data-l="${esc(o.l)}" data-sel="${o.v===selV?'1':'0'}" ${hover} onclick="${rowJs}" style="display:flex;align-items:center;padding:9px 14px;cursor:pointer;font-size:14px;color:${o.v===selV?'#fff':'#13314c'};background:${o.v===selV?'#4a90e2':'#fff'}">${o.l}</div>`).join('');
+    return `<div style="position:relative">
+      ${act?'':`<input type="hidden" id="${esc(id)}" value="${esc(selV)}">`}
+      <div onclick="var p=document.getElementById('${panelId}');if(p.style.display==='block'){p.style.display='none';return}var r=this.getBoundingClientRect();var below=window.innerHeight-r.bottom;if(below<300&&r.top>below){p.style.top='auto';p.style.bottom='40px'}else{p.style.top='40px';p.style.bottom='auto'}p.style.display='block'" style="display:flex;align-items:center;justify-content:space-between;gap:4px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 4px 0 12px;cursor:pointer"><span id="${dispId}" style="flex:1;min-width:0;font-size:14px;color:#13314c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${selL}</span><span class="material-symbols-outlined" style="font-size:20px;color:#666">arrow_drop_down</span></div>
+      <div id="${panelId}" style="display:none;position:absolute;left:0;right:0;top:40px;z-index:40;border-radius:8px;background:#fff;box-shadow:0 6px 20px rgba(0,0,0,0.18);overflow:hidden">
+        <div style="padding:10px;border-bottom:1px solid #ebf1f5"><div style="display:flex;align-items:center;gap:8px;background:#f7f9fb;border:1px solid #cedbe7;border-radius:6px;height:38px;padding:0 12px"><span class="material-symbols-outlined" style="font-size:20px;color:#4a90e2">search</span><input oninput="${filter}" placeholder="Search" style="flex:1;min-width:0;border:none;outline:none;background:transparent;font:400 14px Roboto,sans-serif;color:#13314c"></div></div>
+        <div id="${listId}" style="max-height:260px;overflow-y:auto">${rows}</div>
+      </div>
+    </div>`;
+  }
   levelPill(level){
     const m={ 'Property':'background:#eef1f4;color:#4a5b6b', 'Unit type':'background:#e5f3fb;color:#0071aa', 'Unit':'background:#fdeedd;color:#b35a00' };
     const ic={ 'Property':'apartment', 'Unit type':'category', 'Unit':'door_front' };
@@ -604,13 +631,12 @@ class Component extends DCLogic {
     const { kept, superseded } = this.lpReqStack(unit);
     let monthly=mr; kept.forEach(f=>{ monthly+=this.parseAmt(f.amount); });
     const chip=(nm,amt,cond,flag)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px dashed #e4ebf1"><span style="font-size:13px;color:#2b3a48">${nm}${cond?` <span style="font-size:11px;color:#b35a00">· ${cond}</span>`:''}${flag?` <span style="font-size:11px;color:#0071aa">· ${flag}</span>`:''}</span><span style="font-size:13px;color:#13314c;font-weight:500">${amt}</span></div>`;
-    const onch=`onchange="this.dataset.arg=this.value;this.dispatchEvent(new MouseEvent('click',{bubbles:true}))"`;
-    const sel=(label,act,opts)=>`<div style="display:flex;flex-direction:column;gap:4px;width:260px"><span style="font-size:13px;color:#666">${label}</span><select data-act="${act}" class="fld" style="height:36px" ${onch}>${opts.join('')}</select></div>`;
+    const sel=(label,id,act,opts,selVal)=>`<div style="display:flex;flex-direction:column;gap:4px;width:260px"><span style="font-size:13px;color:#666">${label}</span>${this.singleSelect(id,opts,selVal,{act})}</div>`;
     let h='';
     h+=this.banner('Preview exactly the pricing a prospect sees for any property and unit this template covers. The stack updates with property fees, unit type fees, overrides, and unit-specific fees.','');
     h+=`<div class="tile"><div style="padding:14px 16px;display:flex;gap:16px;flex-wrap:wrap">
-      ${sel('Property','lpprop',props.map(p=>`<option${p===prop?' selected':''}>${p}</option>`))}
-      ${sel('Unit','lpunit',units.map(x=>`<option value="${x.u}"${x.u===unit.u?' selected':''}>Unit ${x.u} · ${x.type}</option>`))}
+      ${sel('Property','lp-prop','lpprop',props,prop)}
+      ${sel('Unit','lp-unit','lpunit',units.map(x=>({value:x.u,label:'Unit '+x.u+' · '+x.type})),unit.u)}
     </div></div>`;
     h+=`<div class="tile" style="overflow:hidden">
         <div style="display:flex;align-items:center;gap:8px;padding:12px 16px;background:#13314c"><span class="material-symbols-outlined" style="font-size:18px;color:#fff">travel_explore</span><span style="font-size:14px;font-weight:500;color:#fff">Pricing a prospect sees (ILS)</span><div style="flex:1"></div><span style="font-size:12px;color:#b3c2cf">${prop} · Unit ${unit.u} · ${unit.type}</span></div>
@@ -722,16 +748,16 @@ class Component extends DCLogic {
     const tprop = appkind==='Property'?(o.target||propOpts[0]):propOpts[0];
     const tut = appkind==='Unit Type'?(o.target||utOpts[0]):utOpts[0];
     const tunit = appkind==='Unit'?(o.target||unitOpts[0]):unitOpts[0];
-    const appToggle="var v=this.value;['prop','ut','unit'].forEach(function(k){document.getElementById('exc-tgt-'+k).style.display='none'});document.getElementById('exc-tgt-'+(v==='Property'?'prop':v==='Unit Type'?'ut':'unit')).style.display='flex'";
+    const appToggle="var v=_v;['prop','ut','unit'].forEach(function(k){document.getElementById('exc-tgt-'+k).style.display='none'});document.getElementById('exc-tgt-'+(v==='Property'?'prop':v==='Unit Type'?'ut':'unit')).style.display='flex'";
     const scopeSection=`
       <div style="height:1px;background:#ebf1f5;width:100%"></div>
       <div style="font-size:14px;color:#666">What do you want to ${isOv?'override':'exclude'} this charge? *</div>
       <div style="display:flex;gap:16px;align-items:flex-start">
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px"><span style="font-size:14px;color:#666">Charge Application</span><select id="exc-appkind" class="fld" style="height:36px" onchange="${appToggle}">${['Property','Unit Type','Unit'].map(k=>`<option${k===appkind?' selected':''}>${k}</option>`).join('')}</select></div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px"><span style="font-size:14px;color:#666">Charge Application</span>${this.singleSelect('exc-appkind',['Property','Unit Type','Unit'],appkind,{js:appToggle})}</div>
         <div style="flex:1;min-width:0">
-          <div id="exc-tgt-prop" style="display:${appkind==='Property'?'flex':'none'};flex-direction:column;gap:4px"><span style="font-size:14px;color:#666">Property</span>${dd('exc-tprop',propOpts,tprop)}</div>
-          <div id="exc-tgt-ut" style="display:${appkind==='Unit Type'?'flex':'none'};flex-direction:column;gap:4px"><span style="font-size:14px;color:#666">Unit Type</span>${dd('exc-tut',utOpts,tut)}</div>
-          <div id="exc-tgt-unit" style="display:${appkind==='Unit'?'flex':'none'};flex-direction:column;gap:4px"><span style="font-size:14px;color:#666">Unit</span>${dd('exc-tunit',unitOpts,tunit)}</div>
+          <div id="exc-tgt-prop" style="display:${appkind==='Property'?'flex':'none'};flex-direction:column;gap:4px"><span style="font-size:14px;color:#666">Property</span>${this.singleSelect('exc-tprop',propOpts,tprop)}</div>
+          <div id="exc-tgt-ut" style="display:${appkind==='Unit Type'?'flex':'none'};flex-direction:column;gap:4px"><span style="font-size:14px;color:#666">Unit Type</span>${this.singleSelect('exc-tut',utOpts,tut)}</div>
+          <div id="exc-tgt-unit" style="display:${appkind==='Unit'?'flex':'none'};flex-direction:column;gap:4px"><span style="font-size:14px;color:#666">Unit</span>${this.singleSelect('exc-tunit',unitOpts,tunit)}</div>
         </div>
       </div>`;
     return `<div data-act="${o.closeAct}" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:100"><div data-act="noop" style="width:640px;max-width:94vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.28);display:flex;flex-direction:column;overflow:hidden">
@@ -1189,8 +1215,8 @@ class Component extends DCLogic {
       h+=`<div class="tile"><div class="thead2"><span class="ttl">Draft template</span><span class="loz loz-camp" style="display:inline-flex;align-items:center;gap:4px"><span class="material-symbols-outlined" style="font-size:13px">auto_awesome</span>AI-generated draft</span></div>
         <div style="padding:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
           <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:13px;color:#666">Template name</span><input id="imp-name" class="fld" value="Riverview — Lease-derived" style="height:34px;box-sizing:border-box"></div>
-          <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:13px;color:#666">Property type</span><select class="fld" style="height:34px">${this.ptOpts('Multi Family')}</select></div>
-          <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:13px;color:#666">Apply extracted fees at</span><select class="fld" style="height:34px"><option>Property level</option><option>Unit type level</option></select></div>
+          <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:13px;color:#666">Property type</span>${this.singleSelect('imp-ptype',['Single Family','Multi Family','Manufactured Housing','Commercial','Storage','Apartment','Duplex','Association','RV / Campground','Short Term Rental'],'Multi Family')}</div>
+          <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:13px;color:#666">Apply extracted fees at</span>${this.singleSelect('imp-applyat',['Property level','Unit type level'],'Property level')}</div>
         </div></div>`;
       h+=`<div style="display:flex;align-items:center;gap:8px;background:#fff8ee;border:1px solid #f3d9b0;border-radius:4px;padding:10px 16px"><span class="material-symbols-outlined" style="font-size:18px;color:#b35a00">flag</span><span style="font-size:13px;color:#7a5220">2 charges need review — a variable late fee and an ambiguous utility amount were flagged Medium/Low confidence. Confirm or edit them before creating the template.</span></div>`;
       this.importRows().forEach(g=>{ if(g.eyebrow) h+=`<div class="eyebrow" style="margin-top:8px">${g.eyebrow}</div>`; h+=table(g); });
@@ -1823,9 +1849,9 @@ class Component extends DCLogic {
     const items=list.map(x=>this.ufItem(x.u, x.fees.length>0, !!sel&&x.u===sel.u)).join('')||`<div style="padding:12px;font-size:13px;font-style:italic;color:#b3b3b3">No units match these filters</div>`;
     const sb=`<div style="width:263px;flex:none;background:#fff;border:1px solid #cedbe7;border-radius:4px;overflow:hidden;align-self:stretch;min-height:100%;box-sizing:border-box;padding:12px 0">
       <div class="eyebrow" style="padding:0 12px">Filter by property</div>
-      <div style="padding:6px 12px 12px"><select data-act="ufprop" class="fld" onchange="this.dataset.arg=this.value;this.dispatchEvent(new MouseEvent('click',{bubbles:true}))">${props.map(p=>`<option${p===prop?' selected':''}>${p}</option>`).join('')}</select></div>
+      <div style="padding:6px 12px 12px">${this.singleSelect('uf-prop-f',props,prop,{act:'ufprop'})}</div>
       <div class="eyebrow" style="padding:0 12px">Filter by unit type</div>
-      <div style="padding:6px 12px 12px"><select data-act="uftype" class="fld" onchange="this.dataset.arg=this.value;this.dispatchEvent(new MouseEvent('click',{bubbles:true}))">${types.map(t=>`<option value="${t}"${t===uftype?' selected':''}>${t==='All'?'All unit types':t}</option>`).join('')}</select></div>
+      <div style="padding:6px 12px 12px">${this.singleSelect('uf-type-f',types.map(t=>({value:t,label:t==='All'?'All unit types':t})),uftype,{act:'uftype'})}</div>
       <div class="eyebrow" style="padding:0 12px">Units</div>
       <div style="padding:6px 12px 8px"><div style="display:flex;align-items:center;gap:8px;height:32px;box-sizing:border-box;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;padding:0 8px"><span style="flex:1;min-width:0;font-style:italic;color:#b3b3b3;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Search units</span><span class="material-symbols-outlined" style="font-size:20px;color:#666;flex:none">search</span></div></div>
       <div style="display:flex;flex-direction:column">${items}</div>
@@ -1882,9 +1908,8 @@ class Component extends DCLogic {
     const fees=['All',...Array.from(new Set(all.map(e=>e.fee)))];
     const kinds=['All','override','exclusion'];
     const rows=all.filter(e=> (s.exProp==='All'||propOf(e)===s.exProp) && (s.exFee==='All'||e.fee===s.exFee) && (s.exKind==='All'||e.kind===s.exKind));
-    const onch=`onchange="this.dataset.arg=this.value;this.dispatchEvent(new MouseEvent('click',{bubbles:true}))"`;
     const cap=(x)=>x==='All'?'All':x.charAt(0).toUpperCase()+x.slice(1);
-    const sel=(label,act,opts,val,fmt)=>`<div style="display:flex;flex-direction:column;gap:4px;min-width:170px"><span style="font-size:13px;color:#666">${label}</span><select data-act="${act}" class="fld" style="height:36px" ${onch}>${opts.map(o=>`<option value="${o}"${o===val?' selected':''}>${fmt?fmt(o):o}</option>`).join('')}</select></div>`;
+    const sel=(label,act,opts,val,fmt)=>`<div style="display:flex;flex-direction:column;gap:4px;min-width:170px"><span style="font-size:13px;color:#666">${label}</span>${this.singleSelect(act+'-f',opts.map(o=>({value:o,label:fmt?fmt(o):o})),val,{act})}</div>`;
     const cols='120px 150px minmax(170px,1fr) 190px 130px 105px minmax(160px,1fr) 56px';
     const heads=['Type','Fee','Scope','Change','Changed by','Date','Comment',''];
     const head=`<div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${heads.map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>`;
@@ -1932,7 +1957,7 @@ class Component extends DCLogic {
           ${radio('blank','Blank template',true)}
           ${radio('existing','Existing template',false)}
           <div id="atpl-existing" style="display:none;flex-direction:column;gap:12px;padding:2px 0 0 24px">
-            <select id="atpl-source" class="fld" style="height:36px">${sources.map(s=>`<option>${s}</option>`).join('')}</select>
+            ${this.singleSelect('atpl-source',sources,sources[0])}
             ${chk('atpl-inactive','Include inactive charges')}
             ${chk('atpl-open','Open template after creation')}
           </div>
@@ -2076,7 +2101,7 @@ class Component extends DCLogic {
     const reqDefault = ed ? (String(ed.group||'').indexOf('opt')===0 ? 'Optional — tenant selects' : (String(ed.group||'').indexOf('sit')===0 ? 'Situational' : 'Required')) : (/^opt-/.test(m.group) ? 'Optional — tenant selects' : (m.group==='sit-rec' ? 'Situational' : 'Required'));
     const sect=(t,inner)=>`<div style="display:flex;flex-direction:column;gap:12px"><span style="font-size:16px;font-weight:600;color:#13314c">${t}</span><div style="border:1px solid #cedbe7;border-radius:4px;padding:16px;display:flex;flex-direction:column;gap:12px">${inner}</div></div>`;
     const lab=(t,info)=>`<span style="display:inline-flex;align-items:center;gap:4px;font-size:14px;color:#666">${t}${info?`<span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5)">info</span>`:''}</span>`;
-    const dd=(id,opts,selVal)=>`<select id="${id}" class="fld" style="height:36px">${opts.map(o=>`<option${o===selVal?' selected':''}>${o}</option>`).join('')}</select>`;
+    const dd=(id,opts,selVal)=>this.singleSelect(id,opts,selVal);
     const radio=(label,value,blk,checked,extra)=>`<label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#666;cursor:pointer"><input type="radio" name="m-amt-r" value="${value}" data-blk="${blk}" ${checked?'checked':''} onchange="var b=this.getAttribute('data-blk');document.getElementById('m-source').value=this.value;['flat','range','ref','calc'].forEach(function(k){document.getElementById('m-blk-'+k).style.display=(k===b?'flex':'none')})" style="accent-color:var(--ac,#008dd5);width:16px;height:16px;margin:0">${label}</label>${extra||''}`;
     const refOpts=['Field: Market Rent','Property UDF: School District','Property UDF: Trash Pick-Up Day','Property UDF: County','Property UDF: Property CAM Notes','Property UDF: Property TAX Notes','Property UDF: Property INSURANCE Notes','Property UDF: parcelnum','Property UDF: Blue Moon Serial Number (OH19032550)','Property UDF: Blue Moon Property ID (107171)','Property UDF: *test2','Property UDF: Jaystest','Property UDF: JON','Property UDF: Text (Test)','Property UDF: Text No Value','Unit UDF: House Tag I.D.','Unit UDF: Parking Spot #','Unit UDF: Storage Unit #'];
     const appKindDefault = ed ? (ed.app==='Property'?'Property':(/^Unit Type/.test(ed.app||'')?'Unit Type':'Unit')) : (m.ctx==='prop' ? 'Property' : (m.ctx && m.ctx.indexOf('ut:')===0 ? 'Unit Type' : (m.ctx && m.ctx.indexOf('uf:')===0 ? 'Unit' : 'Property')));
@@ -2102,10 +2127,10 @@ class Component extends DCLogic {
     const msField=(id,options,selected)=>this.multiSelect(id,options,selected);
     const propSelected = this.propNames();
     const unitSelected = [unitDefault || unitList[0]];
-    const appToggle="var v=this.value;['prop','ut','unit'].forEach(function(k){document.getElementById('m-appt-'+k).style.display='none'});document.getElementById('m-appt-'+(v==='Property'?'prop':v==='Unit Type'?'ut':'unit')).style.display='flex'";
+    const appToggle="var v=_v;['prop','ut','unit'].forEach(function(k){document.getElementById('m-appt-'+k).style.display='none'});document.getElementById('m-appt-'+(v==='Property'?'prop':v==='Unit Type'?'ut':'unit')).style.display='flex'";
     const chargeApp = `
       <div style="display:flex;gap:8px;align-items:flex-start">
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Application *')}<select id="m-app" class="fld" style="height:36px" onchange="${appToggle}">${['Property','Unit Type','Unit'].map(o=>`<option${o===appKindDefault?' selected':''}>${o}</option>`).join('')}</select></div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Application *')}${this.singleSelect('m-app',['Property','Unit Type','Unit'],appKindDefault,{js:appToggle})}</div>
         <div style="flex:1;min-width:0">
           <div id="m-appt-prop" style="display:${appKindDefault==='Property'?'flex':'none'};flex-direction:column;gap:4px">${lab('Properties *')}${msField('m-appt-prop-in',this.propNames(),propSelected)}</div>
           <div id="m-appt-ut" style="display:${appKindDefault==='Unit Type'?'flex':'none'};flex-direction:column;gap:4px">${lab('Unit Type *')}${dd('m-appt-ut-in',utOpts,utDefault||utNames[0])}</div>
@@ -2141,7 +2166,7 @@ class Component extends DCLogic {
     const condVisible = reqDefault !== 'Required';
     const reqs = `
       <div style="display:flex;gap:8px">
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Requirement')}<select id="m-req" class="fld" style="height:36px" onchange="document.getElementById('m-cond-wrap').style.display=this.value==='Required'?'none':'flex'">${['Required','Optional — tenant selects','Situational'].map(o=>`<option${o===reqDefault?' selected':''}>${o}</option>`).join('')}</select></div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Requirement')}${this.singleSelect('m-req',['Required','Optional — tenant selects','Situational'],reqDefault,{js:"document.getElementById('m-cond-wrap').style.display=(_v==='Required'?'none':'flex')"})}</div>
         <div id="m-cond-wrap" style="flex:1;min-width:0;display:${condVisible?'flex':'none'};flex-direction:column;gap:4px">${lab('Charge Condition')}<input id="m-cond" class="fld" value="${ed?(ed.cond||'').replace(/"/g,'&quot;'):''}" style="height:36px;box-sizing:border-box"></div>
       </div>
       <div style="display:flex;gap:8px">
