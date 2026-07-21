@@ -273,7 +273,7 @@ class Component extends DCLogic {
       case 'propPopClose': this.setState({ propPop: null }); break;
       case 'addTplOpen': this.setState({ addTpl: true }); break;
       case 'addTplClose': this.setState({ addTpl: null }); break;
-      case 'addTplCreate': { const name = ((this.q('#atpl-name') || {}).value || '').trim(); if (!name) { this.flash('Template name is required'); break; } const desc = ((this.q('#atpl-desc') || {}).value || '').trim(); const root = this.rootEl || document; const fromEl = root.querySelector('input[name="atpl-from"]:checked'); const from = fromEl ? fromEl.value : 'blank'; const openAfter = !!(this.q('#atpl-open') || {}).checked; let charges = 0, descFinal = desc; if (from === 'existing') { const src = ((this.q('#atpl-source') || {}).value || ''); const row = this.baseTemplates().find(t => t.name === src); charges = row ? row.charges : 0; if (!descFinal) descFinal = 'Copied from ' + src; } else if (!descFinal) descFinal = 'New template'; const d = new Date(); const upd = ('0'+(d.getMonth()+1)).slice(-2)+'/'+('0'+d.getDate()).slice(-2)+'/'+(''+d.getFullYear()).slice(-2); const tpl = { name, desc: descFinal, prop: 'No properties assigned', more: 0, units: 0, charges, updated: upd }; this.setState(s => ({ addedTemplates: [...s.addedTemplates, tpl], addTpl: null })); this.flash('Template "' + name + '" created'); if (openAfter) this.go('profile'); break; }
+      case 'addTplCreate': { const name = ((this.q('#atpl-name') || {}).value || '').trim(); if (!name) { this.flash('Template name is required'); break; } const desc = ((this.q('#atpl-desc') || {}).value || '').trim(); const root = this.rootEl || document; const fromEl = root.querySelector('input[name="atpl-from"]:checked'); const from = fromEl ? fromEl.value : 'blank'; let charges = 0, descFinal = desc; if (from === 'existing') { const src = ((this.q('#atpl-source') || {}).value || ''); const row = this.baseTemplates().find(t => t.name === src); charges = row ? row.charges : 0; if (!descFinal) descFinal = 'Copied from ' + src; } else if (!descFinal) descFinal = 'New template'; const d = new Date(); const upd = ('0'+(d.getMonth()+1)).slice(-2)+'/'+('0'+d.getDate()).slice(-2)+'/'+(''+d.getFullYear()).slice(-2); const tpl = { name, desc: descFinal, prop: 'No properties assigned', more: 0, units: 0, charges, updated: upd }; this.setState(s => ({ addedTemplates: [...s.addedTemplates, tpl], addTpl: null })); this.flash('Template "' + name + '" created'); this.go('profile', { template: name, accOpen: {} }); break; }
       case 'excMenu': { const r = el.getBoundingClientRect(); this.setState({ excMenu: { id: arg, x: r.right, y: r.bottom + 4 } }); break; }
       case 'excMenuClose': this.setState({ excMenu: null }); break;
       case 'excDetails': { const e = this.exceptions().find(x => x.id === arg); this.setState({ excMenu: null, excEdit: e ? Object.assign({}, e) : null }); break; }
@@ -1961,11 +1961,10 @@ class Component extends DCLogic {
           <div id="atpl-existing" style="display:none;flex-direction:column;gap:12px;padding:2px 0 0 24px">
             ${this.singleSelect('atpl-source',sources,sources[0])}
             ${chk('atpl-inactive','Include inactive charges')}
-            ${chk('atpl-open','Open template after creation')}
           </div>
         </div>
       </div>
-      <div style="display:flex;justify-content:flex-end;gap:12px;padding:12px 20px;border-top:1px solid #cedbe7;background:#f5f8fa;flex:none"><button data-act="addTplCreate" class="btn-pri" style="padding:8px 20px;font-size:14px;border-radius:4px">Create</button><button data-act="addTplClose" class="btn-out" style="padding:8px 20px;font-size:14px;border-radius:4px">Cancel</button></div>
+      <div style="display:flex;justify-content:flex-end;gap:12px;padding:12px 20px;border-top:1px solid #cedbe7;background:#f5f8fa;flex:none"><button data-act="addTplCreate" class="btn-pri" style="padding:8px 20px;font-size:14px;border-radius:4px">Add</button><button data-act="addTplClose" class="btn-out" style="padding:8px 20px;font-size:14px;border-radius:4px">Cancel</button></div>
     </div></div>`;
   }
   excMenuHTML(){
