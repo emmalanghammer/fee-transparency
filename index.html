@@ -98,6 +98,7 @@ class Component extends DCLogic {
     feeOverrides: {}, ovModal: null, rowMenu: null,
     excMenu: null, excEdit: null, excEdits: {}, excDismissed: [],
     propPop: null,
+    addTpl: null, addedTemplates: [],
     exProp: 'All', exFee: 'All', exKind: 'All',
     nextOvId: 3,
     modal: null,
@@ -283,6 +284,9 @@ class Component extends DCLogic {
       case 'rowDelete': this.setState({ rowMenu: null }); this.flash('Delete charge'); break;
       case 'propPopOpen': { const r = el.getBoundingClientRect(); this.setState({ propPop: { x: r.left, y: r.bottom + 6 } }); break; }
       case 'propPopClose': this.setState({ propPop: null }); break;
+      case 'addTplOpen': this.setState({ addTpl: true }); break;
+      case 'addTplClose': this.setState({ addTpl: null }); break;
+      case 'addTplCreate': { const name = ((this.q('#atpl-name') || {}).value || '').trim(); if (!name) { this.flash('Template name is required'); break; } const desc = ((this.q('#atpl-desc') || {}).value || '').trim(); const root = this.rootEl || document; const fromEl = root.querySelector('input[name="atpl-from"]:checked'); const from = fromEl ? fromEl.value : 'blank'; const openAfter = !!(this.q('#atpl-open') || {}).checked; let charges = 0, descFinal = desc; if (from === 'existing') { const src = ((this.q('#atpl-source') || {}).value || ''); const row = this.baseTemplates().find(t => t.name === src); charges = row ? row.charges : 0; if (!descFinal) descFinal = 'Copied from ' + src; } else if (!descFinal) descFinal = 'New template'; const d = new Date(); const upd = ('0'+(d.getMonth()+1)).slice(-2)+'/'+('0'+d.getDate()).slice(-2)+'/'+(''+d.getFullYear()).slice(-2); const tpl = { name, desc: descFinal, prop: 'No properties assigned', more: 0, units: 0, charges, updated: upd }; this.setState(s => ({ addedTemplates: [...s.addedTemplates, tpl], addTpl: null })); this.flash('Template "' + name + '" created'); if (openAfter) this.go('profile'); break; }
       case 'excMenu': { const r = el.getBoundingClientRect(); this.setState({ excMenu: { id: arg, x: r.right, y: r.bottom + 4 } }); break; }
       case 'excMenuClose': this.setState({ excMenu: null }); break;
       case 'excDetails': { const e = this.exceptions().find(x => x.id === arg); this.setState({ excMenu: null, excEdit: e ? Object.assign({}, e) : null }); break; }
@@ -1206,14 +1210,18 @@ class Component extends DCLogic {
     return `<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:#fff;border-top:1px solid #cedbe7;flex:none">${left}<div style="flex:1"></div>${right}</div>`;
   }
 
-  registerBody(){
+  baseTemplates(){
     const chg = this.templateChargeCounts().total;
-    const rows=[
+    return [
       { name:'Standard Apartment', desc:'Standard fee set for apartment communities', prop:'Riverview Apartments', more:13, units:210, charges:chg, updated:'07/10/25', act:'navProfile' },
       { name:'Luxury Apartment', desc:'Premium fees for luxury and high-end apartment communities', prop:'Clearcreek Apartments', more:3, units:96, charges:24, updated:'03/03/26' },
       { name:'Townhome Community', desc:'Fee structure for townhome communities', prop:'Waterstone Townhomes', more:1, units:48, charges:10, updated:'11/05/25' },
     ];
+  }
+  registerBody(){
+    const rows=this.baseTemplates();
     if(this.state.importedTemplate) rows.push({ name:'Riverview — Lease-derived', desc:'Drafted from lease & addendum documents by Rent Manager AI', prop:'Riverview Apartments', more:0, units:49, charges:this.state.importedCount, updated:'07/16/26' });
+    (this.state.addedTemplates||[]).forEach(t=>rows.push(t));
     const cols='minmax(180px,1.2fr) minmax(280px,2fr) minmax(240px,1.5fr) 110px 120px 120px 40px';
     const pill=(n)=>n?`<span style="display:inline-flex;align-items:center;background:#fff;border:1px solid var(--ac,#008dd5);border-radius:12px;padding-left:8px;color:var(--ac,#008dd5);font-size:13px;line-height:20px">+${n}<span class="material-symbols-outlined" style="font-size:20px">arrow_drop_down</span></span>`:'';
     const hcell=(t)=>`<span style="display:flex;align-items:center;height:28px;box-sizing:border-box;padding:4px 8px;font-size:12px;font-weight:500;letter-spacing:1px;color:#fff;border-right:1px solid rgba(255,255,255,0.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>`;
@@ -1242,7 +1250,7 @@ class Component extends DCLogic {
         </div>
         <div style="display:flex;align-items:flex-end;gap:8px">
           <button data-act="importOpen" class="btn-pri" style="height:36px;padding:8px 16px 8px 8px;border-radius:4px;font:400 14px Roboto,sans-serif;display:inline-flex;align-items:center;gap:8px"><span class="material-symbols-outlined" style="font-size:20px">download</span>Import Rental Fee Template</button>
-          <button data-act="toast" data-arg="Add Rental Fee Template" class="btn-pri" style="height:36px;padding:8px 16px 8px 8px;border-radius:4px;font:400 14px Roboto,sans-serif;display:inline-flex;align-items:center;gap:8px"><span class="material-symbols-outlined" style="font-size:20px">add_circle</span>Add Rental Fee Template</button>
+          <button data-act="addTplOpen" class="btn-pri" style="height:36px;padding:8px 16px 8px 8px;border-radius:4px;font:400 14px Roboto,sans-serif;display:inline-flex;align-items:center;gap:8px"><span class="material-symbols-outlined" style="font-size:20px">add_circle</span>Add Rental Fee Template</button>
         </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px">
@@ -1784,6 +1792,31 @@ class Component extends DCLogic {
     return `<div data-act="propPopClose" style="position:fixed;inset:0;z-index:150"></div>
       <div style="position:fixed;left:${left}px;top:${p.y}px;min-width:240px;max-width:340px;max-height:400px;overflow-y:auto;background:#fff;border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,0.18);z-index:151;padding:6px 0">${items}</div>`;
   }
+  addTplHTML(){
+    if(!this.state.addTpl) return '';
+    const sources=this.baseTemplates().map(t=>t.name);
+    const toggle="var ex=document.getElementById('atpl-existing');ex.style.display=(this.value==='existing'?'flex':'none')";
+    const radio=(val,label,checked)=>`<label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#13314c;cursor:pointer"><input type="radio" name="atpl-from" value="${val}" ${checked?'checked':''} onchange="${toggle}" style="accent-color:var(--ac,#008dd5);width:16px;height:16px;margin:0">${label}</label>`;
+    const chk=(id,label)=>`<label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#13314c;cursor:pointer"><input id="${id}" type="checkbox" style="width:16px;height:16px;margin:0">${label}</label>`;
+    return `<div data-act="addTplClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:100"><div data-act="noop" style="width:520px;max-width:94vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.28);display:flex;flex-direction:column;overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;height:52px;box-sizing:border-box;padding:8px 20px;border-bottom:1px solid #cedbe7;flex:none"><span style="font-size:20px;color:#13314c">Add Rental Fee Template</span><span data-act="addTplClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span></div>
+      <div style="flex:1;min-height:0;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:16px">
+        <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:14px;color:#666">Template Name *</span><input id="atpl-name" class="fld" style="height:36px;box-sizing:border-box"></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:14px;color:#666">Template Description</span><textarea id="atpl-desc" class="fld" style="height:72px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif"></textarea></div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <span style="font-size:14px;color:#666;font-weight:600">Create from</span>
+          ${radio('blank','Blank template',true)}
+          ${radio('existing','Existing template',false)}
+          <div id="atpl-existing" style="display:none;flex-direction:column;gap:12px;padding:2px 0 0 24px">
+            <select id="atpl-source" class="fld" style="height:36px">${sources.map(s=>`<option>${s}</option>`).join('')}</select>
+            ${chk('atpl-inactive','Include inactive charges')}
+            ${chk('atpl-open','Open template after creation')}
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:12px;padding:12px 20px;border-top:1px solid #cedbe7;background:#f5f8fa;flex:none"><button data-act="addTplCreate" class="btn-pri" style="padding:8px 20px;font-size:14px;border-radius:4px">Create</button><button data-act="addTplClose" class="btn-out" style="padding:8px 20px;font-size:14px;border-radius:4px">Cancel</button></div>
+    </div></div>`;
+  }
   excMenuHTML(){
     const p=this.state.excMenu; if(!p) return '';
     const left=Math.max(8, p.x-180);
@@ -2065,6 +2098,7 @@ class Component extends DCLogic {
     out += this.excMenuHTML();
     out += this.excEditHTML();
     out += this.propPopHTML();
+    out += this.addTplHTML();
     out += this.petImportHTML();
     out += this.ovPopHTML();
     out += this.toastHTML();
