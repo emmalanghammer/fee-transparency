@@ -265,11 +265,12 @@ class Component extends DCLogic {
       case 'ovpop': { const r = el.getBoundingClientRect(); this.setState({ ovPop: { code: arg, x: r.left, y: r.bottom + 6 } }); break; }
       case 'ovpopclose': this.setState({ ovPop: null }); break;
       case 'applyOpen': { const def = this.propChargeDefs().find(d => d.code === arg); this.setState({ rowMenu: null, applyModal: { code: arg, name: def ? def.desc : arg, sel: this.feeAppliesTo(arg).slice() } }); break; }
-      case 'rowMenu': { const r = el.getBoundingClientRect(); this.setState({ rowMenu: { code: arg, x: r.right, y: r.bottom + 4 } }); break; }
+      case 'rowMenu': { const r = el.getBoundingClientRect(); this.setState({ rowMenu: { code: arg, x: r.right, y: r.bottom + 4, prop: el.getAttribute('data-prop') === '1' } }); break; }
       case 'rowMenuClose': this.setState({ rowMenu: null }); break;
       case 'rowDetails': { const c=this.findCharge(arg); if(!c){ this.setState({ rowMenu:null }); this.flash('Charge details'); break; } this.setState({ rowMenu:null, modal:{ group:c.group||'req-rec', ctx:'prop', edit:c }, toggles:Object.assign({},this.state.toggles,{ modalIls:c.active!==false }) }); break; }
       case 'rowDelete': this.setState({ rowMenu: null }); this.flash('Delete charge'); break;
       case 'propPopOpen': { const r = el.getBoundingClientRect(); this.setState({ propPop: { x: r.left, y: r.bottom + 6 } }); break; }
+      case 'scopePopOpen': { const r = el.getBoundingClientRect(); this.setState({ propPop: { x: r.left, y: r.bottom + 6, code: arg } }); break; }
       case 'propPopClose': this.setState({ propPop: null }); break;
       case 'addTplOpen': this.setState({ addTpl: true }); break;
       case 'addTplClose': this.setState({ addTpl: null }); break;
@@ -730,6 +731,7 @@ class Component extends DCLogic {
     return `<div data-act="rowMenuClose" style="position:fixed;inset:0;z-index:150"></div>
       <div style="position:fixed;left:${left}px;top:${p.y}px;width:180px;background:#fff;border-radius:4px;box-shadow:0 3px 6px rgba(0,0,0,0.15);z-index:151;overflow:hidden">
         ${item('Details','rowDetails')}
+        ${p.prop?item('Edit properties','applyOpen'):''}
         ${item('Add Exception','ovOpen')}
         ${item('Delete','rowDelete')}
       </div>`;
@@ -1462,12 +1464,16 @@ class Component extends DCLogic {
   }
   propNames(){ return this.properties().map(r=>r[0]); }
   feeAppliesTo(code){ const s=this.state.feeScope[code]; return s?s:this.propNames(); }
-  // Clickable "applies to N properties" chip for property-level fees (Property Fees tab).
+  // Applied-properties cell for property-level fees (Property Fees tab).
+  // Shows the first applied property as a link (click → that property) plus a
+  // "+N" pill that opens a popup listing the rest, each navigating to its property.
   scopeChip(code){
-    const total=this.properties().length, applied=this.feeAppliesTo(code).length, all=applied>=total;
-    const style=all?'background:#e8eaed;color:#4a5b6b':'background:#fdeedd;color:#b35a00';
-    const label=all?`All ${total} properties`:`${applied} of ${total} properties`;
-    return `<span data-act="applyOpen" data-arg="${code}" style="display:inline-flex;align-items:center;gap:3px;${style};border-radius:4px;padding:3px 6px 3px 10px;font-size:13px;white-space:nowrap;cursor:pointer">${label}<span class="material-symbols-outlined" style="font-size:16px">expand_more</span></span>`;
+    const applied=this.feeAppliesTo(code);
+    if(!applied.length) return `<span style="font-size:13px;color:#8a9aa8;font-style:italic">No properties</span>`;
+    const primary=applied[0], more=applied.length-1;
+    const link=`<a data-act="navProperty" data-arg="${primary}" style="font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${primary}</a>`;
+    const pill=more>0?`<span data-act="scopePopOpen" data-arg="${code}" style="display:inline-flex;align-items:center;background:#fff;border:1px solid var(--ac,#008dd5);border-radius:12px;padding-left:8px;color:var(--ac,#008dd5);font-size:13px;line-height:20px;cursor:pointer;flex:none">+${more}<span class="material-symbols-outlined" style="font-size:20px">arrow_drop_down</span></span>`:'';
+    return `<span style="display:inline-flex;align-items:center;gap:8px;min-width:0">${this.feeIcon('property',16)}${link}${pill}</span>`;
   }
   ovBadge(code){ const n=this.overridePropCount(code); if(!n) return ''; return `<span data-act="ovpop" data-arg="${code}" style="display:inline-flex;align-items:center;gap:3px;margin-left:8px;background:#fdeedd;color:#b35a00;border-radius:999px;font-size:11px;padding:2px 8px;white-space:nowrap;cursor:pointer"><span class="material-symbols-outlined" style="font-size:12px">alt_route</span>${n} propert${n===1?'y':'ies'} differ${n===1?'s':''}</span>`; }
   chargeTable(label, rows, group, opts){
@@ -1478,7 +1484,7 @@ class Component extends DCLogic {
     const th=(x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:600;color:#13314c;white-space:nowrap">${x}</span>`;
     const head=`<div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #cedbe7">${heads.map(th).join('')}</div>`;
     const kebab=`<span data-act="toast" data-arg="Row actions" style="display:flex;align-items:center;justify-content:center;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">more_vert</span></span>`;
-    const menuKebab=(code)=>`<span data-act="rowMenu" data-arg="${code}" style="display:flex;align-items:center;justify-content:center;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">more_vert</span></span>`;
+    const menuKebab=(code)=>`<span data-act="rowMenu" data-arg="${code}" data-prop="${opts.propScope?1:0}" style="display:flex;align-items:center;justify-content:center;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">more_vert</span></span>`;
     const td=(c,i)=>`<span style="display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:8px 12px${i===0?' 8px 16px':''};font-size:14px;color:#13314c">${c}</span>`;
     const kp=opts.keyPrefix||'ov';
     const body = rows.length ? rows.map(r=>{
@@ -1937,7 +1943,7 @@ class Component extends DCLogic {
   }
   propPopHTML(){
     const p=this.state.propPop; if(!p) return '';
-    const names=this.properties().map(r=>r[0]);
+    const names=p.code ? this.feeAppliesTo(p.code) : this.properties().map(r=>r[0]);
     const left=Math.max(8, Math.min(p.x, 900));
     const items=names.map(n=>`<div data-act="navProperty" data-arg="${n}" style="padding:8px 16px;font-size:14px;color:#13314c;cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''">${n}</div>`).join('');
     return `<div data-act="propPopClose" style="position:fixed;inset:0;z-index:150"></div>
