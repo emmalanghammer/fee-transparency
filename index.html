@@ -37,6 +37,7 @@
     .btn-out { background:#fff; color:var(--ac,#008dd5); border:1px solid var(--ac,#008dd5); border-radius:4px; padding:6px 14px; font:500 13px Roboto,sans-serif; cursor:pointer; }
     .btn-pri { background:var(--ac,#008dd5); color:#fff; border:none; border-radius:4px; padding:6px 14px; font:500 13px Roboto,sans-serif; cursor:pointer; }
     .fld { padding:7px 10px; border:1px solid #cedbe7; background:#f5f8fa; border-radius:4px; font:400 14px Roboto,sans-serif; color:#424e5b; width:100%; box-sizing:border-box; }
+    input[type="checkbox"] { accent-color:#f58220; }
     .flabel { font-size:12px; color:#666; }
     .eyebrow { font-size:11px; font-weight:500; color:#8a9aa8; text-transform:uppercase; letter-spacing:0.06em; }
     .icon-edit { font-size:17px; color:var(--ac,#008dd5); cursor:pointer; }
@@ -469,7 +470,7 @@ class Component extends DCLogic {
   }
   chk(def, id, color){
     id = id || ('t' + (this._tid++));
-    color = color || 'var(--ac,#008dd5)';
+    color = color || '#f58220';
     const on = (id in this.state.toggles) ? this.state.toggles[id] : def;
     return `<span data-act="tog" data-arg="${id}" data-def="${def?1:0}" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;box-sizing:border-box;border-radius:3px;cursor:pointer;vertical-align:middle;${on?`background:${color};border:1px solid ${color}`:'background:#fff;border:1px solid #b3b3b3'}">${on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span>`;
   }
@@ -747,7 +748,7 @@ class Component extends DCLogic {
 
   petImportHTML(){
     if(!this.state.petImport) return '';
-    const rows=this.petSetup().map((p,i)=>{const on=(('pi'+i) in this.state.toggles)?this.state.toggles['pi'+i]:false;return `<label data-act="tog" data-arg="pi${i}" data-def="0" style="display:grid;grid-template-columns:24px 1fr 90px 90px;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid #ebf1f5;cursor:pointer"><span style="width:18px;height:18px;border-radius:4px;border:1px solid ${on?'var(--ac,#008dd5)':'#cedbe7'};background:${on?'var(--ac,#008dd5)':'#fff'};display:flex;align-items:center;justify-content:center">${on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff">check</span>':''}</span><span style="font-size:14px;color:#13314c;font-weight:500">${p.type}</span><span style="font-size:13px;color:#666">${p.rent}/mo</span><span style="font-size:13px;color:#666">${p.deposit} dep</span></label>`;}).join('');
+    const rows=this.petSetup().map((p,i)=>{const on=(('pi'+i) in this.state.toggles)?this.state.toggles['pi'+i]:false;return `<label data-act="tog" data-arg="pi${i}" data-def="0" style="display:grid;grid-template-columns:24px 1fr 90px 90px;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid #ebf1f5;cursor:pointer"><span style="width:18px;height:18px;border-radius:4px;border:1px solid ${on?'#f58220':'#cedbe7'};background:${on?'#f58220':'#fff'};display:flex;align-items:center;justify-content:center">${on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff">check</span>':''}</span><span style="font-size:14px;color:#13314c;font-weight:500">${p.type}</span><span style="font-size:13px;color:#666">${p.rent}/mo</span><span style="font-size:13px;color:#666">${p.deposit} dep</span></label>`;}).join('');
     return `<div data-act="petImportClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:100"><div data-act="noop" style="width:560px;max-width:94vw;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.28);overflow:hidden">
       <div style="display:flex;align-items:center;padding:16px 20px;border-bottom:1px solid #cedbe7"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5);margin-right:8px">pets</span><span style="font-size:16px;font-weight:500;color:#13314c">Pull from existing pet fee setup</span><div style="flex:1"></div><span data-act="petImportClose" class="material-symbols-outlined" style="font-size:20px;color:#666;cursor:pointer">close</span></div>
       <div style="padding:16px 20px 8px;font-size:13px;color:#666">These pet fees are configured on this property's existing setup. Select the ones to convert into <span style="font-weight:600;color:#13314c">situational template charges</span> (per pet type, applied only when a pet exists).</div>
@@ -764,7 +765,7 @@ class Component extends DCLogic {
     const eff = this.qAmt(l.name, l.base);
     const open = s.qOverrideOpen === l.name;
     const cols = opts.check ? '26px 150px 150px 1fr 150px' : '150px 150px 1fr 150px';
-    const check = opts.check ? `<span data-act="qinc" data-arg="${l.name}" style="width:18px;height:18px;border-radius:4px;border:1px solid ${opts.on?'var(--ac,#008dd5)':'#cedbe7'};background:${opts.on?'var(--ac,#008dd5)':'#fff'};display:flex;align-items:center;justify-content:center;cursor:pointer;align-self:center">${opts.on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff">check</span>':''}</span>` : '';
+    const check = opts.check ? `<span data-act="qinc" data-arg="${l.name}" style="width:18px;height:18px;border-radius:4px;border:1px solid ${opts.on?'#f58220':'#cedbe7'};background:${opts.on?'#f58220':'#fff'};display:flex;align-items:center;justify-content:center;cursor:pointer;align-self:center">${opts.on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff">check</span>':''}</span>` : '';
     const dim = (opts.check && !opts.on) ? 'opacity:0.55' : '';
     const amtCell = l.rent
       ? `<span style="font-size:14px;color:#8a9aa8">Market — see terms below</span>`
@@ -1237,7 +1238,7 @@ class Component extends DCLogic {
               <span class="material-symbols-outlined" style="font-size:20px;color:#666;flex:none">keyboard_arrow_down</span>
             </div>
           </div>
-          <label style="display:inline-flex;align-items:center;gap:8px;height:36px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer"><input type="checkbox" style="width:18px;height:18px;accent-color:var(--ac,#008dd5);margin:0">Show Inactive</label>
+          <label style="display:inline-flex;align-items:center;gap:8px;height:36px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer"><input type="checkbox" style="width:18px;height:18px;accent-color:#f58220;margin:0">Show Inactive</label>
         </div>
         <div style="display:flex;align-items:flex-end;gap:8px">
           <button data-act="importOpen" class="btn-pri" style="height:36px;padding:8px 16px 8px 8px;border-radius:4px;font:400 14px Roboto,sans-serif;display:inline-flex;align-items:center;gap:8px"><span class="material-symbols-outlined" style="font-size:20px">download</span>Import Rental Fee Template</button>
