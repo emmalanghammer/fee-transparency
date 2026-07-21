@@ -1438,16 +1438,17 @@ class Component extends DCLogic {
   }
   addedFor(ctx, group){ return ctx ? this.state.addedFees.filter(f=>f.ctx===ctx&&f.group===group) : []; }
   acc(title, sub, inner, count){
-    const countLine = (count==null) ? '' : `<span class="acc-count" style="display:none;font-size:12px;color:#666">${count} charge${count===1?'':'s'}</span>`;
+    const collapsed = count===0;
+    const countLine = (count==null) ? '' : `<span class="acc-count" style="display:${collapsed?'block':'none'};font-size:12px;color:#666">${count} charge${count===1?'':'s'}</span>`;
     return `<div class="tile" style="overflow:hidden">
       <div onclick="var b=this.parentElement.querySelector('.acc-body');var c=this.querySelector('.acc-chev');var n=this.querySelector('.acc-count');var open=b.style.display!=='none';b.style.display=open?'none':'block';c.textContent=open?'expand_more':'expand_less';if(n)n.style.display=open?'block':'none'" style="display:flex;align-items:center;gap:8px;padding:16px;cursor:pointer">
-        <span class="material-symbols-outlined acc-chev" style="font-size:20px;color:#666">expand_less</span>
+        <span class="material-symbols-outlined acc-chev" style="font-size:20px;color:#666">${collapsed?'expand_more':'expand_less'}</span>
         <div style="display:flex;flex-direction:column;gap:2px;min-width:0">
           <span><span style="font-size:14px;font-weight:600;color:#13314c">${title}</span>${sub?`<span style="font-size:13px;color:#8a9aa8;font-style:italic;margin-left:8px">${sub}</span>`:''}</span>
           ${countLine}
         </div>
       </div>
-      <div class="acc-body" style="padding-bottom:12px">${inner}</div></div>`;
+      <div class="acc-body" style="${collapsed?'display:none;':''}padding-bottom:12px">${inner}</div></div>`;
   }
   chargeAccordion(id, title, sub, recRows, oneRows, opts){
     opts=opts||{};
