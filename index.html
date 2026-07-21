@@ -1711,7 +1711,7 @@ class Component extends DCLogic {
   }
   activeName(){ return this.state.template || 'Standard Apartment'; }
   activeTpl(){ const T=this.templatesData(); return T[this.activeName()] || T['Standard Apartment']; }
-  templateUnits(name){ const c=this.templatesData()[name]; if(!c) return []; return c.units_src==='STD' ? this.stdUfUnits() : (c.unitList||[]); }
+  templateUnits(name){ const T=this.templatesData(); const c=T[name]||T['Standard Apartment']; return c.units_src==='STD' ? this.stdUfUnits() : (c.unitList||[]); }
   configCharges(name){ const c=this.templatesData()[name]; if(!c) return 0; let n=(c.propDefs||[]).filter(f=>f.app==='Property').length; (c.unitTypes||[]).forEach(t=>{ n+=(t.reqRec||[]).length+(t.optRec||[]).length; }); this.templateUnits(name).forEach(u=>{ n+=(u.fees||[]).length; }); return n; }
   propChargeDefs(){ return this.activeTpl().propDefs; }
   findCharge(code){
