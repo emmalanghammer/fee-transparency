@@ -1390,22 +1390,21 @@ class Component extends DCLogic {
         ['Regional Portfolio','Southwest Ohio']]));
 
     const rec = this.state.propFees.filter(f=>!f.excluded && f.group==='req-rec');
-    const lvlBar=(color)=>`<span style="display:inline-block;width:6px;height:20px;border-radius:2px;background:${color};vertical-align:-4px;margin-right:10px"></span>`;
-    const recCols='150px 1fr 130px 120px 120px 120px';
-    const recHead=`<div style="display:grid;grid-template-columns:${recCols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Charge type','Comment','Frequency','From date','To date','Amount'].map((h,i)=>`<span style="padding:8px 12px;font-size:12px;font-weight:500;color:#666;${i===5?'text-align:right':''}">${h}</span>`).join('')}</div>`;
-    const recRows=rec.map(f=>{
-      const tenant=/rent/i.test(f.name);
-      return `<div style="display:grid;grid-template-columns:${recCols};align-items:center;border-bottom:1px solid #ebf1f5">
-        <span class="td" style="border:none">${lvlBar(tenant?'#0071aa':'#425a70')}<span style="font-weight:500;color:#13314c">${f.name}</span></span>
-        <span class="td" style="border:none;color:#666">${f.desc}</span>
-        <span class="td" style="border:none">Monthly</span>
-        <span class="td" style="border:none">01/01/2026</span>
-        <span class="td" style="border:none;color:#b3b3b3">—</span>
-        <span class="td" style="border:none;text-align:right;justify-content:flex-end">${f.amount}</span></div>`;
+    const lvlMap={ 'Property':{c:'#1570ef',l:'Property'}, 'Unit type':{c:'#d92d20',l:'Unit Type'}, 'Unit':{c:'#099250',l:'Unit'}, 'Tenant':{c:'#98a2b3',l:'Tenant'} };
+    const recCols='32px 94px minmax(120px,1fr) minmax(120px,1fr) 91px 100px 100px 92px';
+    const rh=(t,align)=>`<span style="display:flex;align-items:center;height:32px;box-sizing:border-box;padding:0 8px;font-size:12px;font-weight:500;letter-spacing:0.5px;color:#13314c;background:#fff;border-bottom:1px solid #cedbe7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${align==='right'?'justify-content:flex-end;text-align:right':''}">${t}</span>`;
+    const recHead=`<div style="display:grid;grid-template-columns:${recCols}">${rh('')}${rh('')}${rh('Charge Type')}${rh('Comment')}${rh('Frequency','right')}${rh('From Date')}${rh('To Date')}${rh('Amount','right')}</div>`;
+    const recRows=rec.map((f,i)=>{
+      const lv=lvlMap[f.level]||lvlMap['Property'];
+      const rowBg = (i%2===1) ? '#f5f8fa' : '#fff';
+      const cell=(t,align,color)=>`<span style="display:flex;align-items:center;height:36px;box-sizing:border-box;padding:0 8px;font-size:14px;color:${color||'#13314c'};border-bottom:1px solid #ebf1f5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${align==='right'?'justify-content:flex-end;text-align:right':''}">${t}</span>`;
+      const barCell=`<span style="display:flex;justify-content:center;height:36px;box-sizing:border-box;border-bottom:1px solid #ebf1f5"><span style="width:10px;background:${lv.c}"></span></span>`;
+      return `<div style="display:grid;grid-template-columns:${recCols};background:${rowBg}">${barCell}${cell(lv.l)}${cell(f.mits)}${cell(f.desc,'','#666')}${cell('Monthly','right')}${cell('01/01/2026')}${cell('—','','#b3b3b3')}${cell(f.amount,'right')}</div>`;
     }).join('');
-    const recurring = tile('Recurring Charges', `<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#8a9aa8"><span class="material-symbols-outlined" style="font-size:16px">lock</span>Read-only</span>`,
-      `<div style="border:1px solid #ebf1f5;border-radius:4px;overflow:hidden">${recHead}${recRows}</div>`
-      + `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-size:13px;color:#8a9aa8">Charges come from the assigned rental fee template and can't be edited here.</span><div style="flex:1"></div><a data-act="navProfile" style="font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:4px">Open template<span class="material-symbols-outlined" style="font-size:16px">arrow_forward</span></a></div>`);
+    const recurring = `<div class="tile">
+      <div class="thead2" style="border-bottom-color:var(--ac,#008dd5)"><span class="ttl">Recurring Charges</span><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5)">info</span><div style="flex:1"></div><a data-act="navProfile" style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,#008dd5)">Open Rental Fee Template<span class="material-symbols-outlined" style="font-size:18px">open_in_new</span></a></div>
+      <div style="padding:16px"><div style="border:1px solid #cedbe7;border-radius:4px;overflow:hidden"><div style="overflow-x:auto">${recHead}${recRows}</div></div></div>
+    </div>`;
 
     const emptyReg=(t,heads)=>tile(t,'',`${gtable(heads.map(()=>'1fr').join(' '),heads,[heads.map(()=>'<span style="color:#b3b3b3">—</span>')])}<span style="font-size:13px;font-style:italic;color:#b3b3b3">No transactions in the current period</span>`);
     const files = tile('Property Files', `<a data-act="toast" data-arg="Upload file" style="font-size:13px">Upload file</a>`,
