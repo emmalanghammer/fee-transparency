@@ -174,6 +174,7 @@ class Component extends DCLogic {
       { kind:'exclusion', code:'COVPARK', fee:'Covered parking', scope:'Riverview Apartments · Unit 1A', scopeType:'Unit', tmpl:'$75–125', local:'Excluded', by:'Ali Ferryman', date:'Jul 10, 2025', reason:'No parking at 1A', bulk:'' },
       { kind:'exclusion', code:'HOLD', fee:'Hold fee', scope:'Bradford House', scopeType:'Property', tmpl:'$200.00', local:'Excluded', by:'Admin', date:'Jul 1, 2025', reason:'', bulk:'' },
     ].map((e,i)=>Object.assign({ id:'demo|'+i }, e));
+    if(this.activeName()!=='Standard Apartment') demo.length=0;
     const dismissed=this.state.excDismissed||[];
     const edits=this.state.excEdits||{};
     return this.realExceptions().concat(demo)
@@ -222,24 +223,7 @@ class Component extends DCLogic {
   }
   unitInfo(u){ return this.units().find(x => x.u === u) || this.units()[1]; }
 
-  properties() {
-    return [
-      ['Riverview Apartments','Loveland OH','Apartment','49','71%','Jun 1, 2025','3 overrides','Active','green'],
-      ['Oakwood Commons','Cincinnati OH','Multi Family','72','88%','Jun 1, 2025','0','Active','green'],
-      ['Sunrise Heights','Fairfield OH','Multi Family','38','65%','Jun 15, 2025','1 override','Active','green'],
-      ['Bradford House','Cincinnati OH','Duplex','24','50%','Jul 1, 2025','0','Inactive','gray'],
-      ['Elmwood Park','Columbus OH','Single Family','56','79%','—','—','Inactive','gray'],
-      ['Maple Ridge Apartments','Mason OH','Apartment','64','82%','Jun 1, 2025','2 overrides','Active','green'],
-      ['Cedar Point Flats','West Chester OH','Multi Family','48','74%','Jun 20, 2025','0','Active','green'],
-      ['Willow Creek Townhomes','Hamilton OH','Townhome','30','60%','Jul 1, 2025','0','Inactive','gray'],
-      ['Brookside Manor','Blue Ash OH','Apartment','52','85%','Jun 5, 2025','1 override','Active','green'],
-      ['Harborview Lofts','Norwood OH','Apartment','40','90%','Jun 1, 2025','0','Active','green'],
-      ['Stonegate Village','Milford OH','Multi Family','58','68%','Jul 10, 2025','0','Inactive','gray'],
-      ['Pinehurst Court','Middletown OH','Duplex','20','55%','—','—','Inactive','gray'],
-      ['Lakeshore Commons','Springboro OH','Apartment','66','80%','Jun 12, 2025','0','Active','green'],
-      ['Ashford Place','Kettering OH','Multi Family','44','72%','Jun 1, 2025','0','Active','green']
-    ];
-  }
+  properties() { return this.activeTpl().assigned; }
 
   // ---------- theming ----------
   setRoot = (el) => { this.rootEl = el; this.applyVars(); };
@@ -273,7 +257,7 @@ class Component extends DCLogic {
     const arg = el.getAttribute('data-arg');
     if (el.tagName === 'A') e.preventDefault();
     switch (act) {
-      case 'navProfile': this.go('profile'); break;
+      case 'navProfile': this.go('profile', { template: arg || 'Standard Apartment' }); break;
       case 'navRegister': this.go('register'); break;
       case 'ovpop': { const r = el.getBoundingClientRect(); this.setState({ ovPop: { code: arg, x: r.left, y: r.bottom + 6 } }); break; }
       case 'ovpopclose': this.setState({ ovPop: null }); break;
@@ -936,20 +920,21 @@ class Component extends DCLogic {
   }
 
   profileScoreboard(){
+    const t=this.activeTpl();
     const totalCharges=this.templateChargeCounts().total;
     const item=(l,v)=>`<span style="display:inline-flex;align-items:center;gap:8px"><span style="color:#666">${l}</span><span>${v}</span></span>`;
     const stat=(l,v)=>`<span style="display:inline-flex;align-items:baseline;justify-content:flex-end;gap:20px;white-space:nowrap"><span style="color:#666">${l}</span><span style="font-weight:600;color:#13314c">${v}</span></span>`;
     return `<div style="padding:16px 20px 0;flex:none"><div style="display:flex;align-items:center;justify-content:space-between;gap:32px;flex-wrap:wrap;min-height:64px;background:#fff;border:1px solid #cedbe7;border-radius:4px;padding:16px 20px;box-shadow:2px 2px 12px -5px rgba(76,76,76,0.08),0 4px 15px -5px rgba(76,76,76,0.08),0 -1px 20px -5px rgba(76,76,76,0.02)">
       <div style="display:flex;flex-direction:column;gap:12px;justify-content:center;min-width:0">
-        <span style="font-size:20px;line-height:28px;color:#13314c">Standard Apartment</span>
+        <span style="font-size:20px;line-height:28px;color:#13314c">${this.activeName()}</span>
         <div style="display:flex;align-items:center;gap:32px;font-size:14px;color:#13314c;white-space:nowrap;flex-wrap:wrap">
-          ${item('Created by:','Admin')}${item('Last modified:','07/10/2025')}
-          <span style="display:inline-flex;align-items:center;gap:8px">${this.feeIcon('property',16)}<a data-act="ptab" data-arg="Assigned Properties" style="font-size:14px">Riverview Apartments</a><span data-act="propPopOpen" style="display:inline-flex;align-items:center;background:#fff;border:1px solid var(--ac,#008dd5);border-radius:12px;padding-left:8px;color:var(--ac,#008dd5);font-size:13px;line-height:20px;cursor:pointer">+13<span class="material-symbols-outlined" style="font-size:20px">arrow_drop_down</span></span></span>
+          ${item('Created by:',t.created)}${item('Last modified:',t.modified)}
+          <span style="display:inline-flex;align-items:center;gap:8px">${this.feeIcon('property',16)}<a data-act="ptab" data-arg="Assigned Properties" style="font-size:14px">${t.primary}</a>${t.more>0?`<span data-act="propPopOpen" style="display:inline-flex;align-items:center;background:#fff;border:1px solid var(--ac,#008dd5);border-radius:12px;padding-left:8px;color:var(--ac,#008dd5);font-size:13px;line-height:20px;cursor:pointer">+${t.more}<span class="material-symbols-outlined" style="font-size:20px">arrow_drop_down</span></span>`:''}</span>
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:32px">
         <div style="display:flex;flex-direction:column;gap:10px;font-size:16px">
-          ${stat('Total Units:','210')}${stat('Total Charges:',totalCharges)}
+          ${stat('Total Units:',t.units)}${stat('Total Charges:',totalCharges)}
         </div>
         <div style="display:flex;flex-direction:column;gap:8px;align-items:stretch">
           <button data-act="toast" data-arg="Bulk update fees" class="btn-pri" style="height:36px;min-height:36px;padding:8px 16px;border-radius:4px;font:400 14px Roboto,sans-serif">Bulk Update Fees</button>
@@ -1211,12 +1196,8 @@ class Component extends DCLogic {
   }
 
   baseTemplates(){
-    const chg = this.templateChargeCounts().total;
-    return [
-      { name:'Standard Apartment', desc:'Standard fee set for apartment communities', prop:'Riverview Apartments', more:13, units:210, charges:chg, updated:'07/10/25', act:'navProfile' },
-      { name:'Luxury Apartment', desc:'Premium fees for luxury and high-end apartment communities', prop:'Clearcreek Apartments', more:3, units:96, charges:24, updated:'03/03/26' },
-      { name:'Townhome Community', desc:'Fee structure for townhome communities', prop:'Waterstone Townhomes', more:1, units:48, charges:10, updated:'11/05/25' },
-    ];
+    const T=this.templatesData();
+    return Object.keys(T).map(name=>{ const c=T[name]; return { name, desc:c.desc, prop:c.primary, more:c.more, units:c.units, charges:this.configCharges(name), updated:c.updated, act:'navProfile' }; });
   }
   registerBody(){
     const rows=this.baseTemplates();
@@ -1226,7 +1207,7 @@ class Component extends DCLogic {
     const pill=(n)=>n?`<span style="display:inline-flex;align-items:center;background:#fff;border:1px solid var(--ac,#008dd5);border-radius:12px;padding-left:8px;color:var(--ac,#008dd5);font-size:13px;line-height:20px">+${n}<span class="material-symbols-outlined" style="font-size:20px">arrow_drop_down</span></span>`:'';
     const hcell=(t)=>`<span style="display:flex;align-items:center;height:28px;box-sizing:border-box;padding:4px 8px;font-size:12px;font-weight:500;letter-spacing:1px;color:#fff;border-right:1px solid rgba(255,255,255,0.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>`;
     const header=`<div style="display:grid;grid-template-columns:${cols};background:#737373">${['Template Name','Description','Assigned Properties','Total Units','Total Charges','Last Updated'].map(hcell).join('')}<span style="display:flex;align-items:center;justify-content:center;height:28px"><span class="material-symbols-outlined" style="font-size:20px;color:#fff">view_column</span></span></div>`;
-    const body=rows.map(r=>`<div data-act="${r.act||'toast'}"${r.act?'':` data-arg="Only Standard Apartment is mocked in this prototype"`} style="display:grid;grid-template-columns:${cols};align-items:center;background:#fff;border-bottom:1px solid #ebf1f5;cursor:pointer" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background='#fff'">
+    const body=rows.map(r=>`<div data-act="${r.act||'navProfile'}" data-arg="${r.name}" style="display:grid;grid-template-columns:${cols};align-items:center;background:#fff;border-bottom:1px solid #ebf1f5;cursor:pointer" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background='#fff'">
       <span style="padding:8px;font-size:14px;color:#13314c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.name}</span>
       <span style="padding:8px;font-size:14px;color:#13314c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.desc}</span>
       <span style="padding:8px;display:flex;align-items:center;gap:12px;min-width:0"><span style="font-size:14px;color:#13314c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.prop}</span>${pill(r.more)}</span>
@@ -1479,8 +1460,8 @@ class Component extends DCLogic {
     h+=`<div class="tile"><div class="thead2"><span class="ttl">Template Settings</span></div><div style="display:flex;align-items:stretch;flex-wrap:wrap">
       <div style="flex:1;min-width:320px;padding:16px;display:flex;flex-direction:column;gap:14px">
         ${orangeChk('Active',true,'tset-active')}
-        <div style="display:flex;flex-direction:column;gap:4px"><span class="flabel">Template Name</span><input class="fld" value="Standard Apartment" style="height:36px;box-sizing:border-box"></div>
-        <div style="display:flex;flex-direction:column;gap:4px"><span class="flabel">Description</span><input class="fld" value="Use this as the default" style="height:36px;box-sizing:border-box"></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><span class="flabel">Template Name</span><input class="fld" value="${this.activeName()}" style="height:36px;box-sizing:border-box"></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><span class="flabel">Description</span><input class="fld" value="${this.activeTpl().desc}" style="height:36px;box-sizing:border-box"></div>
       </div>
       <div style="width:1px;background:#cedbe7"></div>
       <div style="flex:1;min-width:320px;padding:16px;display:flex;flex-direction:column;gap:14px">
@@ -1542,25 +1523,136 @@ class Component extends DCLogic {
     return h;
   }
   // ---- template charge definitions: single source of truth for counts + tables ----
-  propChargeDefs(){
-    return [
-      {group:'req-rec',code:'RC',desc:'Base rent',amount:'Market Rent',cat:'Rent',app:'Property',active:true},
-      {group:'req-rec',code:'GARBAG',desc:'Trash collection',amount:'28.00',cat:'Utility',app:'Property',active:true},
-      {group:'req-rec',code:'WATER',desc:'Water service',amount:'38.00',cat:'Utility',app:'Property',active:true},
-      {group:'req-rec',code:'GARBAGFEE',desc:'Additional trash valet',amount:'4.00',cat:'Utility',app:'Unit Type: 2BR/2BA',active:true},
-      {group:'req-one',code:'ADMIN',desc:'Administrative fee',amount:'150.00',cat:'ADMIN',app:'Property',active:true},
-      {group:'req-one',code:'APPFEE',desc:'Application fee',amount:'50.00',cat:'APPLICATION',app:'Property',active:true},
-      {group:'req-one',code:'DP',desc:'Security deposit',amount:'500.00',cat:'SECDEP',app:'Property',active:true},
-      {group:'req-one',code:'PETDP',desc:'Pet Deposit - Dog',amount:'300.00',cat:'PET',app:'Property',active:true},
-      {group:'req-one',code:'LMR',desc:"Last month's rent",amount:'1,350.00',cat:'LMR',app:'Property',active:true},
-      {group:'req-one',code:'KEY',desc:'Key & fob deposit',amount:'50.00',cat:'KEY',app:'Property',active:true},
-      {group:'opt-rec',code:'SF',desc:'Storage unit',amount:'40.00',cat:'STORAGE',app:'Property',active:true},
-      {group:'opt-rec',code:'AMENFEE',desc:'Pool & fitness access',amount:'45.00',cat:'AMENITY',app:'Unit Type: 2BR/2BA',active:true},
-      {group:'opt-one',code:'HOLD',desc:'Unit reservation fee',amount:'200.00',cat:'HOLD',app:'Property',active:true},
-      {group:'sit-rec',code:'PETFEE',desc:'Pet rent, per pet',cond:'If resident has a pet',amount:'45.00',cat:'PET',app:'Property',active:true},
-      {group:'sit-rec',code:'COVPARK',desc:'Reserved covered parking',cond:'If parking rented',amount:'75-125',cat:'PARKING',app:'Property',active:true},
-    ];
+  // ---- per-template mock data (Standard / Luxury / Townhome) ----
+  templatesData(){
+    return {
+      'Standard Apartment': {
+        desc:'Standard fee set for apartment communities', created:'Admin', modified:'07/10/2025', updated:'07/10/25',
+        primary:'Riverview Apartments', more:13, units:'210', units_src:'STD',
+        propDefs:[
+          {group:'req-rec',code:'RC',desc:'Base rent',amount:'Market Rent',cat:'Rent',app:'Property',active:true},
+          {group:'req-rec',code:'GARBAG',desc:'Trash collection',amount:'28.00',cat:'Utility',app:'Property',active:true},
+          {group:'req-rec',code:'WATER',desc:'Water service',amount:'38.00',cat:'Utility',app:'Property',active:true},
+          {group:'req-rec',code:'GARBAGFEE',desc:'Additional trash valet',amount:'4.00',cat:'Utility',app:'Unit Type: 2BR/2BA',active:true},
+          {group:'req-one',code:'ADMIN',desc:'Administrative fee',amount:'150.00',cat:'ADMIN',app:'Property',active:true},
+          {group:'req-one',code:'APPFEE',desc:'Application fee',amount:'50.00',cat:'APPLICATION',app:'Property',active:true},
+          {group:'req-one',code:'DP',desc:'Security deposit',amount:'500.00',cat:'SECDEP',app:'Property',active:true},
+          {group:'req-one',code:'PETDP',desc:'Pet Deposit - Dog',amount:'300.00',cat:'PET',app:'Property',active:true},
+          {group:'req-one',code:'LMR',desc:"Last month's rent",amount:'1,350.00',cat:'LMR',app:'Property',active:true},
+          {group:'req-one',code:'KEY',desc:'Key & fob deposit',amount:'50.00',cat:'KEY',app:'Property',active:true},
+          {group:'opt-rec',code:'SF',desc:'Storage unit',amount:'40.00',cat:'STORAGE',app:'Property',active:true},
+          {group:'opt-rec',code:'AMENFEE',desc:'Pool & fitness access',amount:'45.00',cat:'AMENITY',app:'Unit Type: 2BR/2BA',active:true},
+          {group:'opt-one',code:'HOLD',desc:'Unit reservation fee',amount:'200.00',cat:'HOLD',app:'Property',active:true},
+          {group:'sit-rec',code:'PETFEE',desc:'Pet rent, per pet',cond:'If resident has a pet',amount:'45.00',cat:'PET',app:'Property',active:true},
+          {group:'sit-rec',code:'COVPARK',desc:'Reserved covered parking',cond:'If parking rented',amount:'75-125',cat:'PARKING',app:'Property',active:true},
+        ],
+        unitTypes:[
+          { name:'Studio', units:8, occ:6, reqRec:[], optRec:[] },
+          { name:'1BR/1BA', units:12, occ:9, reqRec:[], optRec:[] },
+          { name:'2BR/2BA', units:18, occ:13,
+            reqRec:[{code:'GARBAGFEE',desc:'Additional trash valet',amount:'4.00',cat:'Utility',app:'Unit Type: 2BR/2BA',active:true}],
+            optRec:[{code:'AMENFEE',desc:'Pool & fitness access',amount:'45.00',cat:'AMENITY',app:'Unit Type: 2BR/2BA',active:true}] },
+          { name:'3BR/2BA', units:11, occ:8, reqRec:[],
+            optRec:[{code:'AMENFEE',desc:'Pool & fitness access',amount:'45.00',cat:'AMENITY',app:'Unit Type: 3BR/2BA',active:true}] },
+          { name:'4BR/2BA', units:6, occ:4, reqRec:[], optRec:[] },
+        ],
+        assigned:[
+          ['Riverview Apartments','Loveland OH','Apartment','49','71%','Jun 1, 2025','3 overrides','Active','green'],
+          ['Oakwood Commons','Cincinnati OH','Multi Family','72','88%','Jun 1, 2025','0','Active','green'],
+          ['Sunrise Heights','Fairfield OH','Multi Family','38','65%','Jun 15, 2025','1 override','Active','green'],
+          ['Bradford House','Cincinnati OH','Duplex','24','50%','Jul 1, 2025','0','Inactive','gray'],
+          ['Elmwood Park','Columbus OH','Single Family','56','79%','—','—','Inactive','gray'],
+          ['Maple Ridge Apartments','Mason OH','Apartment','64','82%','Jun 1, 2025','2 overrides','Active','green'],
+          ['Cedar Point Flats','West Chester OH','Multi Family','48','74%','Jun 20, 2025','0','Active','green'],
+          ['Willow Creek Townhomes','Hamilton OH','Townhome','30','60%','Jul 1, 2025','0','Inactive','gray'],
+          ['Brookside Manor','Blue Ash OH','Apartment','52','85%','Jun 5, 2025','1 override','Active','green'],
+          ['Harborview Lofts','Norwood OH','Apartment','40','90%','Jun 1, 2025','0','Active','green'],
+          ['Stonegate Village','Milford OH','Multi Family','58','68%','Jul 10, 2025','0','Inactive','gray'],
+          ['Pinehurst Court','Middletown OH','Duplex','20','55%','—','—','Inactive','gray'],
+          ['Lakeshore Commons','Springboro OH','Apartment','66','80%','Jun 12, 2025','0','Active','green'],
+          ['Ashford Place','Kettering OH','Multi Family','44','72%','Jun 1, 2025','0','Active','green']
+        ]
+      },
+      'Luxury Apartment': {
+        desc:'Premium fees for luxury and high-end apartment communities', created:'Admin', modified:'03/03/2026', updated:'03/03/26',
+        primary:'Clearcreek Apartments', more:3, units:'96',
+        propDefs:[
+          {group:'req-rec',code:'RC',desc:'Base rent',amount:'Market Rent',cat:'Rent',app:'Property',active:true},
+          {group:'req-rec',code:'VALET',desc:'Valet trash',amount:'25.00',cat:'Utility',app:'Property',active:true},
+          {group:'req-rec',code:'WATER',desc:'Water & sewer',amount:'45.00',cat:'Utility',app:'Property',active:true},
+          {group:'req-rec',code:'TECH',desc:'Smart-home technology',amount:'30.00',cat:'Technology',app:'Property',active:true},
+          {group:'req-rec',code:'SPAFEE',desc:'Spa & pool access',amount:'75.00',cat:'AMENITY',app:'Unit Type: 2BR/2BA Premier',active:true},
+          {group:'req-one',code:'ADMIN',desc:'Administrative fee',amount:'250.00',cat:'ADMIN',app:'Property',active:true},
+          {group:'req-one',code:'APPFEE',desc:'Application fee',amount:'75.00',cat:'APPLICATION',app:'Property',active:true},
+          {group:'req-one',code:'DP',desc:'Security deposit',amount:'750.00',cat:'SECDEP',app:'Property',active:true},
+          {group:'req-one',code:'LMR',desc:"Last month's rent",amount:'2,200.00',cat:'LMR',app:'Property',active:true},
+          {group:'req-one',code:'AMENON',desc:'Amenity onboarding',amount:'200.00',cat:'AMENITY',app:'Property',active:true},
+          {group:'opt-rec',code:'SF',desc:'Storage unit',amount:'60.00',cat:'STORAGE',app:'Property',active:true},
+          {group:'opt-rec',code:'CONC',desc:'Concierge service',amount:'50.00',cat:'SERVICE',app:'Property',active:true},
+          {group:'opt-one',code:'HOLD',desc:'Unit reservation fee',amount:'300.00',cat:'HOLD',app:'Property',active:true},
+          {group:'sit-rec',code:'PETFEE',desc:'Pet rent, per pet',cond:'If resident has a pet',amount:'60.00',cat:'PET',app:'Property',active:true},
+          {group:'sit-rec',code:'COVPARK',desc:'Reserved covered parking',cond:'If parking rented',amount:'150-250',cat:'PARKING',app:'Property',active:true},
+          {group:'sit-rec',code:'EVCHG',desc:'EV charging',cond:'If unit has EV charger',amount:'35.00',cat:'Utility',app:'Property',active:true},
+        ],
+        unitTypes:[
+          { name:'Studio Loft', units:20, occ:18, reqRec:[], optRec:[] },
+          { name:'1BR/1BA Deluxe', units:30, occ:27, reqRec:[], optRec:[] },
+          { name:'2BR/2BA Premier', units:32, occ:30,
+            reqRec:[{code:'SPAFEE',desc:'Spa & pool access',amount:'75.00',cat:'AMENITY',app:'Unit Type: 2BR/2BA Premier',active:true}],
+            optRec:[{code:'WINE',desc:'Wine locker',amount:'20.00',cat:'AMENITY',app:'Unit Type: 2BR/2BA Premier',active:true}] },
+          { name:'3BR Penthouse', units:14, occ:12,
+            reqRec:[{code:'ROOFTOP',desc:'Rooftop lounge access',amount:'90.00',cat:'AMENITY',app:'Unit Type: 3BR Penthouse',active:true}], optRec:[] },
+        ],
+        unitList:[
+          {u:'201',type:'2BR/2BA Premier',sqft:'1,150',rent:'$2,450',tenant:'Jordan Blake',st:'green',prop:'Clearcreek Apartments',fees:[]},
+          {u:'305',type:'3BR Penthouse',sqft:'1,780',rent:'$3,900',tenant:'Vacant',st:'gray',prop:'Clearcreek Apartments',fees:[{code:'CORNER',desc:'Corner premium',amount:'75.00',cat:'PREMIUM',app:'Unit · 305',active:true}]},
+          {u:'110',type:'1BR/1BA Deluxe',sqft:'820',rent:'$1,850',tenant:'Priya Anand',st:'green',prop:'Clearcreek Apartments',fees:[]},
+          {u:'S02',type:'Studio Loft',sqft:'610',rent:'$1,500',tenant:'Vacant',st:'gray',prop:'Clearcreek Apartments',fees:[]},
+        ],
+        assigned:[
+          ['Clearcreek Apartments','Cincinnati OH','Apartment','32','93%','Feb 1, 2026','2 overrides','Active','green'],
+          ['Summit Ridge Residences','Mason OH','Apartment','28','88%','Feb 1, 2026','0','Active','green'],
+          ['The Hawthorne','Blue Ash OH','Apartment','22','95%','Feb 10, 2026','0','Active','green'],
+          ['Bayview Luxury Flats','Cincinnati OH','Apartment','14','90%','Mar 1, 2026','0','Active','green']
+        ]
+      },
+      'Townhome Community': {
+        desc:'Fee structure for townhome communities', created:'Admin', modified:'11/05/2025', updated:'11/05/25',
+        primary:'Waterstone Townhomes', more:1, units:'48',
+        propDefs:[
+          {group:'req-rec',code:'RC',desc:'Base rent',amount:'Market Rent',cat:'Rent',app:'Property',active:true},
+          {group:'req-rec',code:'HOA',desc:'HOA dues',amount:'85.00',cat:'HOA',app:'Property',active:true},
+          {group:'req-rec',code:'TRASH',desc:'Trash & recycling',amount:'22.00',cat:'Utility',app:'Property',active:true},
+          {group:'req-one',code:'ADMIN',desc:'Administrative fee',amount:'125.00',cat:'ADMIN',app:'Property',active:true},
+          {group:'req-one',code:'APPFEE',desc:'Application fee',amount:'50.00',cat:'APPLICATION',app:'Property',active:true},
+          {group:'req-one',code:'DP',desc:'Security deposit',amount:'600.00',cat:'SECDEP',app:'Property',active:true},
+          {group:'opt-rec',code:'PARKPAD',desc:'Extra parking pad',amount:'35.00',cat:'PARKING',app:'Property',active:true},
+          {group:'opt-one',code:'HOLD',desc:'Unit reservation fee',amount:'150.00',cat:'HOLD',app:'Property',active:true},
+          {group:'sit-rec',code:'PETFEE',desc:'Pet rent, per pet',cond:'If resident has a pet',amount:'40.00',cat:'PET',app:'Property',active:true},
+          {group:'sit-rec',code:'LAWN',desc:'Lawn care surcharge',cond:'If premium lot',amount:'30.00',cat:'SERVICE',app:'Property',active:true},
+        ],
+        unitTypes:[
+          { name:'2BR Townhome', units:20, occ:16, reqRec:[], optRec:[] },
+          { name:'3BR Townhome', units:20, occ:16, reqRec:[], optRec:[] },
+          { name:'3BR End Unit', units:8, occ:6, reqRec:[], optRec:[] },
+        ],
+        unitList:[
+          {u:'A1',type:'2BR Townhome',sqft:'1,200',rent:'$1,650',tenant:'Marcus Lee',st:'green',prop:'Waterstone Townhomes',fees:[]},
+          {u:'B4',type:'3BR Townhome',sqft:'1,550',rent:'$1,950',tenant:'Vacant',st:'gray',prop:'Waterstone Townhomes',fees:[]},
+          {u:'C2',type:'3BR End Unit',sqft:'1,700',rent:'$2,150',tenant:'Dana Whitfield',st:'green',prop:'Waterstone Townhomes',fees:[]},
+        ],
+        assigned:[
+          ['Waterstone Townhomes','Loveland OH','Townhome','30','80%','Oct 1, 2025','1 override','Active','green'],
+          ['Maple Court Townhomes','Fairfield OH','Townhome','18','72%','Oct 15, 2025','0','Active','green']
+        ]
+      }
+    };
   }
+  activeName(){ return this.state.template || 'Standard Apartment'; }
+  activeTpl(){ const T=this.templatesData(); return T[this.activeName()] || T['Standard Apartment']; }
+  templateUnits(name){ const c=this.templatesData()[name]; if(!c) return []; return c.units_src==='STD' ? this.stdUfUnits() : (c.unitList||[]); }
+  configCharges(name){ const c=this.templatesData()[name]; if(!c) return 0; let n=(c.propDefs||[]).filter(f=>f.app==='Property').length; (c.unitTypes||[]).forEach(t=>{ n+=(t.reqRec||[]).length+(t.optRec||[]).length; }); this.templateUnits(name).forEach(u=>{ n+=(u.fees||[]).length; }); return n; }
+  propChargeDefs(){ return this.activeTpl().propDefs; }
   chargeActive(kp,group,code,def){ const id=kp+'-'+group+'-'+code; return (id in this.state.toggles)?this.state.toggles[id]:def; }
   // Every distinct charge definition in the template across property + unit type + unit levels.
   templateCharges(){
@@ -1623,18 +1715,7 @@ class Component extends DCLogic {
   }
   emptyFees(text, group){ return `<div style="padding:20px 16px;display:flex;flex-direction:column;gap:12px;align-items:flex-start"><span style="font-style:italic;color:#b3b3b3;font-size:14px">${text}</span><a data-act="addopen" data-arg="${group}" style="display:inline-block;border:1px dashed #cedbe7;border-radius:4px;padding:8px 16px;font-size:13px">+ Add fee</a></div>`; }
 
-  utData(){
-    return [
-      { name:'Studio', units:8, occ:6, reqRec:[], optRec:[] },
-      { name:'1BR/1BA', units:12, occ:9, reqRec:[], optRec:[] },
-      { name:'2BR/2BA', units:18, occ:13,
-        reqRec:[{code:'GARBAGFEE',desc:'Additional trash valet',amount:'4.00',cat:'Utility',app:'Unit Type: 2BR/2BA',active:true}],
-        optRec:[{code:'AMENFEE',desc:'Pool & fitness access',amount:'45.00',cat:'AMENITY',app:'Unit Type: 2BR/2BA',active:true}] },
-      { name:'3BR/2BA', units:11, occ:8, reqRec:[],
-        optRec:[{code:'AMENFEE',desc:'Pool & fitness access',amount:'45.00',cat:'AMENITY',app:'Unit Type: 3BR/2BA',active:true}] },
-      { name:'4BR/2BA', units:6, occ:4, reqRec:[], optRec:[] },
-    ];
-  }
+  utData(){ return this.activeTpl().unitTypes; }
   // Selected-scope header row (mirrors the property scoreboard) used by the Unit Type Fees and Unit Fees tabs.
   scopeHeader(title, mid, stats, action){
     const stat=(l,v)=>`<span style="display:inline-flex;align-items:baseline;gap:10px;white-space:nowrap"><span style="color:#666">${l}</span><span style="font-weight:600;color:#13314c">${v}</span></span>`;
@@ -1682,7 +1763,8 @@ class Component extends DCLogic {
     const b=custom?`<span style="background:#e5e5e5;color:#13314c;border-radius:4px;font-size:13px;padding:3px 8px;white-space:nowrap;flex:none">Custom fees</span>`:`<span style="font-size:12px;color:#b3b3b3;flex:none">Inherited</span>`;
     return `<div data-act="ufsel" data-arg="${name}" style="padding:8px 8px 8px 12px;${bg}cursor:pointer;display:flex;align-items:center;gap:8px;justify-content:space-between"><span style="font-size:14px;color:#13314c">Unit ${name}</span>${b}</div>`;
   }
-  ufUnits(){
+  ufUnits(){ return this.templateUnits(this.activeName()); }
+  stdUfUnits(){
     const custom={ '4C':[{code:'SF',desc:'Corner storage unit — unique to 4C',amount:'40.00',cat:'STORAGE',app:'Unit · 4C',active:true}] };
     const riv=['1A','1B','2A','4C','4D','5A'].map(u=>Object.assign({}, this.unitInfo(u), { prop:'Riverview Apartments', fees: custom[u]||[] }));
     const oak=[{u:'1C',type:'1BR/1BA',rent:'$1,295'},{u:'2D',type:'2BR/2BA',rent:'$1,540'},{u:'3E',type:'2BR/2BA',rent:'$1,540'},{u:'4A',type:'Studio',rent:'$965'}].map(x=>Object.assign(x,{prop:'Oakwood Commons',fees:[]}));
@@ -1743,7 +1825,7 @@ class Component extends DCLogic {
         <span class="td" style="border:none">${r[1]}</span><span class="td num" style="border:none">${r[3]}</span><span class="td num" style="border:none">${r[4]}</span><span class="td" style="border:none">${r[5]}</span><span class="td" style="border:none">${ovc}</span>
         <span class="td" style="border:none">${this.tog(r[8]==='green','ils_'+r[0].replace(/\s+/g,'_'))}</span></div>`;
     }).join('');
-    return `<div class="tile"><div class="thead2"><span class="ttl">Assigned properties · 14</span><div style="flex:1"></div><button data-act="assignOpen" class="btn-pri">Assign property</button></div><div style="overflow-x:auto"><div style="min-width:900px">${head}${body}</div></div></div>`;
+    return `<div class="tile"><div class="thead2"><span class="ttl">Assigned properties · ${this.properties().length}</span><div style="flex:1"></div><button data-act="assignOpen" class="btn-pri">Assign property</button></div><div style="overflow-x:auto"><div style="min-width:900px">${head}${body}</div></div></div>`;
   }
 
   kindChip(kind){
@@ -2046,7 +2128,7 @@ class Component extends DCLogic {
     const s = this.state;
     let out = this.header();
     if (s.view === 'profile') {
-      out += this.ctx('Rental Fee Templates', [{ label:'Standard Apartment' }], '1 of 3', 'navRegister');
+      out += this.ctx('Rental Fee Templates', [{ label: this.activeName() }], ((n)=>{const i=['Standard Apartment','Luxury Apartment','Townhome Community'].indexOf(n); return i>=0?((i+1)+' of 3'):'';})(this.activeName()), 'navRegister');
       out += this.profileScoreboard();
       out += this.tabRow(['Overview','Property Fees','Unit Type Fees','Unit Fees','Pricing Preview','Assigned Properties','Exceptions','Change History'], s.profileTab, 'ptab');
       out += this.profileBody();
