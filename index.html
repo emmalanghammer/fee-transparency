@@ -422,7 +422,7 @@ class Component extends DCLogic {
     } else if (source === 'Reference') {
       amount = ((this.q('#m-ref') || {}).value || '').replace(/^Field:\s*/, '') || 'Reference';
     } else if (source === 'Calculation') {
-      amount = 'Calculated';
+      amount = ((this.q('#m-calc') || {}).value || '').trim() || 'Calculated';
     } else {
       amount = ((this.q('#m-amount') || {}).value || '').trim() || '$0.00';
     }
@@ -2248,7 +2248,7 @@ class Component extends DCLogic {
           </div>
         </div>
         <div id="m-blk-ref" style="display:${amtSource==='Reference'?'flex':'none'};flex-direction:column;gap:4px">${lab('Reference field')}${dd('m-ref',refOpts,amtRef)}</div>
-        <div id="m-blk-calc" style="display:${amtSource==='Calculation'?'flex':'none'};flex-direction:column;gap:4px">${lab('Calculation')}<div style="display:flex;align-items:center;gap:8px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 12px"><span style="flex:1;min-width:0;font-size:14px;color:#8a9aa8;font-style:italic">Build a calculation…</span><span data-act="toast" data-arg="Open calculation builder" class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);cursor:pointer">edit</span></div></div>
+        <div id="m-blk-calc" style="display:${amtSource==='Calculation'?'flex':'none'};flex-direction:column;gap:4px">${lab('Calculation')}<input id="m-calc" class="fld" placeholder="" style="height:36px;box-sizing:border-box"></div>
       </div>
       ${isRec?`<div style="border-top:1px solid #cedbe7;width:100%"></div>
       <div style="display:flex;gap:8px;align-items:flex-start">
