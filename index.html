@@ -361,7 +361,8 @@ class Component extends DCLogic {
       case 'ovsave': this.saveOverride(); break;
       case 'addopen': { let ctx=null; if(this.state.view==='profile'){ const pt=this.state.profileTab; if(pt==='Unit Type Fees') ctx='ut:'+this.state.utSel; else if(pt==='Unit Fees') ctx='uf:'+this.state.ufSel; else ctx='prop'; } this.setState({ modal: { group: arg, ctx }, toggles: Object.assign({}, this.state.toggles, { modalIls: true }) }); break; }
       case 'addclose': this.setState({ modal: null }); break;
-      case 'addsave': this.saveFee(); break;
+      case 'addsave': this.saveFee(false); break;
+      case 'addsavenew': this.saveFee(true); break;
       case 'histexp': this.setState(s => ({ histExp: Object.assign({}, s.histExp, { [arg]: !s.histExp[arg] }) })); break;
       case 'assignOpen': this.setState({ assign: { step:1, sel: this.candidateProps().filter(p=>p.pre).map(p=>p.name) } }); break;
       case 'assignToggle': this.setState(s => { const sel = s.assign.sel.includes(arg) ? s.assign.sel.filter(x=>x!==arg) : [...s.assign.sel, arg]; return { assign: Object.assign({}, s.assign, { sel }) }; }); break;
@@ -406,9 +407,10 @@ class Component extends DCLogic {
     this.flash('Override added');
   }
 
-  saveFee(){
+  saveFee(keepOpen){
     const m = this.state.modal; if (!m) return;
-    if (m.edit) { this.setState({ modal: null }); this.flash('Charge updated'); return; }
+    const reopen = keepOpen ? { group: m.group, ctx: m.ctx } : null;
+    if (m.edit) { this.setState({ modal: reopen }); this.flash('Charge updated'); return; }
     const name = ((this.q('#m-name') || {}).value || '').trim();
     if (!name) { this.flash('Name is required'); return; }
     const desc = ((this.q('#m-desc') || {}).value || '').trim();
@@ -418,18 +420,19 @@ class Component extends DCLogic {
       const lo = ((this.q('#m-amount-min') || {}).value || '').trim(), hi = ((this.q('#m-amount-max') || {}).value || '').trim();
       amount = (lo || hi) ? `${lo || '0'}–${hi || '0'}` : '$0.00';
     } else if (source === 'Reference') {
-      amount = ((this.q('#m-ref') || {}).value || '').replace(/^Field:\s*/, '') || 'Reference';
+      const pct = ((this.q('#m-refpct') || {}).value || '').trim(); const base = ((this.q('#m-refbase') || {}).value || 'Market rent').trim();
+      amount = (pct ? pct + '% of ' : '') + base;
     } else if (source === 'Calculation') {
-      amount = 'Calculated';
+      amount = ((this.q('#m-calcest') || {}).value || '').trim() || 'Calculated';
     } else {
       amount = ((this.q('#m-amount') || {}).value || '').trim() || '$0.00';
     }
     const ctype = ((this.q('#m-ctype') || {}).value || '').trim();
-    const ctypeDesc = ((this.q('#m-ctype-desc') || {}).value || '').trim();
+    const ctypeDesc = ((this.q('#m-cat') || {}).value || '').trim() || ((this.q('#m-ctype-desc') || {}).value || '').trim();
     const req = (this.q('#m-req') || {}).value || '';
-    const cond = req === 'Required' ? '' : ((this.q('#m-cond') || {}).value || '').trim();
+    const cond = req === 'Situational' ? ((this.q('#m-cond') || {}).value || '').trim() : '';
     const level = (this.q('#m-level') || {}).value || 'Property';
-    const ils = ('modalIls' in this.state.toggles) ? this.state.toggles.modalIls : true;
+    const ils = ((this.q('#m-ils') || {}).value !== '0');
     let group = m.group;
     if (/^(req|opt|sit)-/.test(group)) {
       const suffix = group.endsWith('-one') ? 'one' : 'rec';
@@ -457,12 +460,12 @@ class Component extends DCLogic {
         charges = [mk('prop', 'Property')];
         if (sel.length && sel.length < all.length) scopeUpdate = { code, sel };
       }
-      this.setState(s => { const st = { modal: null, addedFees: [...s.addedFees, ...charges] }; if (scopeUpdate) st.feeScope = Object.assign({}, s.feeScope, { [scopeUpdate.code]: scopeUpdate.sel }); return st; });
+      this.setState(s => { const st = { modal: reopen, addedFees: [...s.addedFees, ...charges] }; if (scopeUpdate) st.feeScope = Object.assign({}, s.feeScope, { [scopeUpdate.code]: scopeUpdate.sel }); return st; });
       this.flash(charges.length > 1 ? charges.length + ' charges added' : 'Charge added');
       return;
     }
     this.setState(s => ({
-      nextFeeId: s.nextFeeId + 1, modal: null,
+      nextFeeId: s.nextFeeId + 1, modal: reopen,
       propFees: [...s.propFees, { id: s.nextFeeId, group, name, desc, amount, source, mits: ctype ? ctype.toUpperCase() : 'CUSTOM', level, origin:'property', ils, excluded:false, overrides: [], expanded: false, cond: cond || undefined }]
     }));
     this.flash('Fee added');
@@ -2188,7 +2191,12 @@ class Component extends DCLogic {
     const unitList = ['1A','1B','2A','4C','4D','5A'];
     // Charge Type typeahead (searchable dropdown of master charge types).
     const ctypeList=[['ADMIN','Administrative Fee'],['AMENITY','Amenity Fee'],['APPFEE','Application Fee'],['CABLE','Cable Utility'],['CAM','Common Area Maintenance'],['CLEAN','Cleaning Fee'],['COVPARK','Covered Parking'],['DEP','Security Deposit'],['ELEC','Electric Utility'],['EPAYAJ','ePay Refund Adjustment'],['EPD','Early Payment Discount'],['FMR',"First Month's Rent Charge"],['GARAGE','Garage Fee'],['GARBAG','Garbage Fee'],['GAS','Gas Utility'],['H2O','Water Utility'],['HO4','Renters Insurance Charge'],['HO7','Homeowners insurance'],['HOA','HOA Fee'],['KEY','Key & Fob Deposit'],['LATE','Late Fee'],['LMR',"Last Month's Rent"],['NSF','NSF Fee'],['PARK','Parking'],['PET','Pet Rent'],['PETDP','Pet Deposit'],['RC','Rent'],['SEWER','Sewer Utility'],['STORAGE','Storage Fee'],['TRASH','Trash Valet'],['UTIL','Utility']];
-    const ctItems=ctypeList.map(([c,d])=>`<div data-code="${c}" data-desc="${d}" data-ct="${(c+' '+d).toLowerCase()}" onmousedown="document.getElementById('m-ctype').value=this.getAttribute('data-code');document.getElementById('m-ctype-desc').value=this.getAttribute('data-desc');var n=document.getElementById('m-name');if(n&&!n.value)n.value=this.getAttribute('data-desc');document.getElementById('m-ctype-panel').style.display='none'" style="padding:8px 12px;cursor:pointer" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''"><div style="font-size:15px;color:#13314c">${c}</div><div style="font-size:13px;color:#8a9aa8">${d}</div></div>`).join('');
+    // Derived charge category (syndicated to listings). Maps charge type code → category.
+    const catMap={ADMIN:'Administrative',AMENITY:'Amenity',APPFEE:'Application',CABLE:'Utility',CAM:'Common Area',CLEAN:'Cleaning',COVPARK:'Parking',DEP:'Deposit',ELEC:'Utility',EPAYAJ:'Adjustment',EPD:'Discount',FMR:'Rent',GARAGE:'Parking',GARBAG:'Utility',GAS:'Utility',H2O:'Utility',HO4:'Insurance',HO7:'Insurance',HOA:'Association',KEY:'Deposit',LATE:'Fee',LMR:'Rent',NSF:'Fee',PARK:'Parking',PET:'Pet',PETDP:'Deposit',RC:'Rent',SEWER:'Utility',STORAGE:'Storage',TRASH:'Utility',UTIL:'Utility'};
+    const catFor=(code)=>catMap[(code||'').toUpperCase()]||'';
+    const edCat = ed ? (catFor(ed.code) || '') : '';
+    const setCatJs = "document.getElementById('m-cat').value=this.getAttribute('data-cat');var chip=document.getElementById('m-cat-chip');chip.textContent=this.getAttribute('data-cat');chip.style.display='inline-flex';document.getElementById('m-cat-help').style.display='block';";
+    const ctItems=ctypeList.map(([c,d])=>`<div data-code="${c}" data-desc="${d}" data-cat="${catFor(c)}" data-ct="${(c+' '+d).toLowerCase()}" onmousedown="document.getElementById('m-ctype').value=this.getAttribute('data-code');document.getElementById('m-ctype-desc').value=this.getAttribute('data-desc');${setCatJs}var n=document.getElementById('m-name');if(n&&!n.value)n.value=this.getAttribute('data-desc');document.getElementById('m-ctype-panel').style.display='none'" style="padding:8px 12px;cursor:pointer" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''"><div style="font-size:15px;color:#13314c">${c}</div><div style="font-size:13px;color:#8a9aa8">${d}</div></div>`).join('');
     const ctypeField=`<div style="position:relative">
       <div style="display:flex;align-items:center;gap:4px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">search</span><input id="m-ctype" autocomplete="off" placeholder="Search charge types" value="${ed?(ed.code||''):''}" onfocus="document.getElementById('m-ctype-panel').style.display='block'" onblur="var p=document.getElementById('m-ctype-panel');setTimeout(function(){p.style.display='none'},200)" oninput="var q=this.value.toLowerCase();document.getElementById('m-ctype-panel').style.display='block';document.getElementById('m-ctype-list').querySelectorAll('[data-ct]').forEach(function(el){el.style.display=(el.getAttribute('data-ct').indexOf(q)>=0?'block':'none')})" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:#13314c"></div>
       <input type="hidden" id="m-ctype-desc" value="${ed?(ed.cat||'').replace(/"/g,'&quot;'):''}">
@@ -2208,20 +2216,31 @@ class Component extends DCLogic {
           <div id="m-appt-unit" style="display:${appKindDefault==='Unit'?'flex':'none'};flex-direction:column;gap:4px">${lab('Unit *')}${msField('m-appt-unit-in',unitList,unitSelected)}</div>
         </div>
       </div>`;
+    const isOne = /-one$/.test(m.group);
+    const help=(t)=>`<span style="font-size:12px;color:#8a9aa8">${t}</span>`;
+    // Charge Type field + derived category chip.
+    const chargeTypeCol = `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Type *',true)}${ctypeField}
+      <div style="display:flex;align-items:center;gap:8px"><span id="m-cat-chip" style="display:${edCat?'inline-flex':'none'};align-items:center;background:#e5f3fb;color:#0071aa;border-radius:4px;padding:2px 10px;font-size:12px">${edCat}</span></div>
+      <span id="m-cat-help" style="display:${edCat?'block':'none'};font-size:12px;color:#8a9aa8">Syndicates to listings under this category.</span>
+      <input type="hidden" id="m-cat" value="${edCat}"></div>`;
     const general = `
-      <div style="display:flex;gap:8px">
+      <div style="display:flex;gap:8px;align-items:flex-start">
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Name *')}<input id="m-name" class="fld" value="${ed?(ed.desc||'').replace(/"/g,'&quot;'):''}" style="height:36px;box-sizing:border-box"></div>
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Type *',true)}${ctypeField}</div>
+        ${chargeTypeCol}
       </div>
       ${chargeApp}
-      <div style="display:flex;flex-direction:column;gap:4px">${lab('Description')}<textarea id="m-desc" class="fld" style="height:56px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${ed?(ed.desc||''):''}</textarea></div>`;
+      <div style="display:flex;flex-direction:column;gap:4px">${lab('Description (shown to renters)')}<textarea id="m-desc" class="fld" style="height:56px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${ed?(ed.desc||''):''}</textarea></div>`;
+    const perDD = this.singleSelect('m-per',['unit','pet','applicant','leaseholder','person'],'unit');
     const amount = `
       <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
-        ${radio('Flat Amount','Flat','flat',amtSource==='Flat')}${radio('Range','Range','range',amtSource==='Range')}${radio('Reference Amount','Reference','ref',amtSource==='Reference')}${radio('Calculation','Calculation','calc',amtSource==='Calculation',`<span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5);margin-left:-8px">edit</span>`)}
+        ${radio('Flat','Flat','flat',amtSource==='Flat')}${radio('Range','Range','range',amtSource==='Range')}${radio('Reference','Reference','ref',amtSource==='Reference')}${radio('Calculation','Calculation','calc',amtSource==='Calculation')}
       </div>
       <input type="hidden" id="m-source" value="${amtSource}">
-      <div style="padding-left:24px">
-        <div id="m-blk-flat" style="display:${amtSource==='Flat'?'flex':'none'};flex-direction:column"><input id="m-amount" class="fld" placeholder="00.00" value="${amtFlat}" style="height:36px;box-sizing:border-box"></div>
+      <div>
+        <div id="m-blk-flat" style="display:${amtSource==='Flat'?'flex':'none'};gap:12px;align-items:flex-end">
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Amount')}<input id="m-amount" class="fld" placeholder="00.00" value="${amtFlat}" style="height:36px;box-sizing:border-box"></div>
+          <div style="width:150px;display:flex;flex-direction:column;gap:4px">${lab('per')}${perDD}</div>
+        </div>
         <div id="m-blk-range" style="display:${amtSource==='Range'?'flex':'none'};flex-direction:column;gap:4px">
           <div style="display:flex;gap:12px;align-items:flex-end">
             <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Minimum')}<input id="m-amount-min" class="fld" placeholder="00.00" value="${amtMin}" style="height:36px;box-sizing:border-box"></div>
@@ -2229,20 +2248,51 @@ class Component extends DCLogic {
             <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Maximum')}<input id="m-amount-max" class="fld" placeholder="00.00" value="${amtMax}" style="height:36px;box-sizing:border-box"></div>
           </div>
         </div>
-        <div id="m-blk-ref" style="display:${amtSource==='Reference'?'flex':'none'};flex-direction:column;gap:4px">${lab('Reference field')}${dd('m-ref',refOpts,amtRef)}</div>
-        <div id="m-blk-calc" style="display:${amtSource==='Calculation'?'flex':'none'};flex-direction:column;gap:4px">${lab('Calculation')}<div style="display:flex;align-items:center;gap:8px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 12px"><span style="flex:1;min-width:0;font-size:14px;color:#8a9aa8;font-style:italic">Build a calculation…</span><span data-act="toast" data-arg="Open calculation builder" class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);cursor:pointer">edit</span></div></div>
+        <div id="m-blk-ref" style="display:${amtSource==='Reference'?'flex':'none'};gap:12px;align-items:flex-end">
+          <div style="width:120px;display:flex;flex-direction:column;gap:4px">${lab('% of')}<input id="m-refpct" class="fld" placeholder="100" style="height:36px;box-sizing:border-box"></div>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('of')}${this.singleSelect('m-refbase',['Market rent','Base rent','Another charge type'],'Market rent')}</div>
+        </div>
+        <div id="m-blk-calc" style="display:${amtSource==='Calculation'?'flex':'none'};flex-direction:column;gap:8px">
+          <div style="display:flex;gap:12px;align-items:flex-end">
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Estimated amount')}<input id="m-calcest" class="fld" placeholder="00.00" style="height:36px;box-sizing:border-box"></div>
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Estimation basis')}<input id="m-calcbasis" class="fld" placeholder="e.g. avg. utility bill" style="height:36px;box-sizing:border-box"></div>
+          </div>
+          ${help("Calculated charges appear on listings as estimates — e.g. 'avg. utility bill'.")}
+        </div>
       </div>
       ${isRec?`<div style="border-top:1px solid #cedbe7;width:100%"></div>
-      <div style="display:flex;flex-direction:column;gap:4px">${lab('Frequency')}${dd('m-freq',['Monthly','Weekly','Every 2 weeks','Quarterly','Annually'],'Monthly')}</div>`:''}`;
-    const condVisible = reqDefault !== 'Required';
+      <div style="display:flex;gap:8px;align-items:flex-start">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Frequency')}${this.singleSelect('m-freq',['Monthly','Weekly','Bi-weekly','Quarterly','Semi-annually','Annually','Every N months…'],'Monthly',{js:"document.getElementById('m-freq-n').style.display=(_v==='Every N months…'?'flex':'none')"})}</div>
+        <div id="m-freq-n" style="width:150px;display:none;flex-direction:column;gap:4px">${lab('Every N months')}<input id="m-freq-num" class="fld" placeholder="3" style="height:36px;box-sizing:border-box"></div>
+      </div>`:''}
+      ${isOne?`<label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#13314c;cursor:pointer"><input type="checkbox" id="m-refund" style="width:16px;height:16px;margin:0;accent-color:var(--ac,#008dd5)">Refundable</label>`:''}`;
+    // Requirements section (visible): requirement + condition (Situational), first due, show on listings.
+    const condVisible = reqDefault === 'Situational';
+    const ilsWarn="document.getElementById('m-ils-warn').style.display=((document.getElementById('m-req').value==='Required'&&document.getElementById('m-ils').value!=='1')?'flex':'none')";
     const reqs = `
-      <div style="display:flex;gap:8px">
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Requirement')}${this.singleSelect('m-req',['Required','Optional — tenant selects','Situational'],reqDefault,{js:"document.getElementById('m-cond-wrap').style.display=(_v==='Required'?'none':'flex')"})}</div>
-        <div id="m-cond-wrap" style="flex:1;min-width:0;display:${condVisible?'flex':'none'};flex-direction:column;gap:4px">${lab('Charge Condition')}<input id="m-cond" class="fld" value="${ed?(ed.cond||'').replace(/"/g,'&quot;'):''}" style="height:36px;box-sizing:border-box"></div>
+      <div style="display:flex;gap:8px;align-items:flex-start">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Requirement')}${this.singleSelect('m-req',['Required','Optional','Situational'],reqDefault,{js:"document.getElementById('m-cond-wrap').style.display=(_v==='Situational'?'flex':'none');"+ilsWarn})}</div>
+        <div id="m-cond-wrap" style="flex:1;min-width:0;display:${condVisible?'flex':'none'};flex-direction:column;gap:4px">${lab('Condition')}<input id="m-cond" class="fld" placeholder="If pet" value="${ed?(ed.cond||'').replace(/"/g,'&quot;'):''}" style="height:36px;box-sizing:border-box">${help('Shown to prospects next to this fee.')}</div>
       </div>
-      <div style="display:flex;gap:8px">
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('What lease term(s) does this charge apply to?')}${dd('m-terms',['All Selected','12 month','6 month','Month-to-month'],'All Selected')}</div>
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Fee Due')}${dd('m-due',['Move In','First of month','At posting'],'Move In')}</div>
+      <div style="display:flex;flex-direction:column;gap:4px">${lab('First due')}${this.singleSelect('m-due',['First posting cycle','At move-in'],'First posting cycle')}${help('Recurring charges bill during the lease term; this only sets when the first occurrence posts.')}</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <label style="display:inline-flex;align-items:center;gap:10px;cursor:pointer"><span id="m-ils-sw" onclick="var on=this.getAttribute('data-on')==='1';on=!on;this.setAttribute('data-on',on?'1':'0');document.getElementById('m-ils').value=on?'1':'0';this.style.background=on?'var(--ac,#008dd5)':'#cedbe7';this.firstElementChild.style.left=on?'16px':'2px';${ilsWarn}" data-on="1" style="display:inline-block;width:32px;height:18px;border-radius:999px;background:var(--ac,#008dd5);position:relative;flex:none"><span style="position:absolute;top:2px;left:16px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left 120ms ease-out"></span></span><span style="font-size:14px;color:#13314c">Show on listings (ILS)</span></label>
+        <input type="hidden" id="m-ils" value="1">
+        <div id="m-ils-warn" style="display:none;align-items:center;gap:8px;background:#fdeedd;border:1px solid #f2c99a;border-radius:4px;padding:8px 12px"><span class="material-symbols-outlined" style="font-size:18px;color:#b35a00">warning</span><span style="font-size:13px;color:#b35a00">Required fees must be disclosed on listings when Fee Transparency is on.</span></div>
+      </div>`;
+    // More options (collapsed): non-MITS operational fields.
+    const moreOptions = `
+      <div style="border:1px solid #cedbe7;border-radius:4px">
+        <div onclick="var b=document.getElementById('m-more-body');var open=b.style.display!=='none';b.style.display=open?'none':'flex';this.querySelector('.chev').textContent=open?'expand_more':'expand_less'" style="display:flex;align-items:center;gap:6px;padding:12px 16px;cursor:pointer;font-size:14px;font-weight:600;color:#13314c"><span class="material-symbols-outlined chev" style="font-size:20px;color:#666">expand_more</span>More options</div>
+        <div id="m-more-body" style="display:none;flex-direction:column;gap:12px;padding:0 16px 16px">
+          <div style="display:flex;gap:12px">
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('From date')}<input id="m-from" class="fld" placeholder="mm/dd/yyyy" style="height:36px;box-sizing:border-box"></div>
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('To date')}<input id="m-to" class="fld" placeholder="mm/dd/yyyy" style="height:36px;box-sizing:border-box"></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px">${lab('Lease term(s)')}${this.singleSelect('m-terms',['All Selected','12 month','6 month','Month-to-month'],'All Selected')}</div>
+          <div style="display:flex;flex-direction:column;gap:4px">${lab('Internal comment (ledger memo)')}<textarea id="m-memo" class="fld" style="height:52px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif"></textarea></div>
+          <label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#13314c;cursor:pointer"><input type="checkbox" id="m-postzero" style="width:16px;height:16px;margin:0;accent-color:var(--ac,#008dd5)">Post even when $0</label>
+        </div>
       </div>`;
     return `<div style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:100">
       <div style="width:759px;max-width:94vw;max-height:92vh;background:#fff;border:1px solid #cedbe7;border-radius:4px;box-shadow:0 3px 12px rgba(0,0,0,0.2);display:flex;flex-direction:column;overflow:hidden">
@@ -2255,11 +2305,13 @@ class Component extends DCLogic {
         </div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:20px">
           ${sect('General Details',general)}
-          ${sect('Fee Amount & Schedule',amount)}
+          ${sect(isOne?'Fee Amount':'Fee Amount & Schedule',amount)}
           ${sect('Requirements',reqs)}
+          ${moreOptions}
         </div>
-        <div style="display:flex;justify-content:flex-end;gap:16px;padding:8px 16px;border-top:1px solid #cedbe7;background:#f5f8fa;flex:none">
-          <button data-act="addsave" class="btn-pri" style="height:36px;padding:8px 16px;font-size:14px;border-radius:4px">Save</button>
+        <div style="display:flex;justify-content:flex-end;gap:12px;padding:8px 16px;border-top:1px solid #cedbe7;background:#f5f8fa;flex:none">
+          <button data-act="addsavenew" class="btn-out" style="height:36px;padding:8px 16px;font-size:14px;border-radius:4px;box-sizing:border-box">Save &amp; New</button>
+          <button data-act="addsave" class="btn-pri" style="height:36px;padding:8px 16px;font-size:14px;border-radius:4px">Save &amp; Close</button>
           <button data-act="addclose" class="btn-out" style="height:36px;padding:8px 16px;font-size:14px;border-radius:4px;box-sizing:border-box">Cancel</button>
         </div>
       </div></div>`;
