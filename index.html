@@ -586,6 +586,9 @@ class Component extends DCLogic {
     return `<span style="font-size:12px;color:${col};font-weight:500">${hist[0][1]} → ${hist[hist.length-1][1]} (${up?'+':''}${pct}%)</span>`;
   }
 
+  oriBody(){
+    return this.banner('Other Rentable Items (ORI) are add-on rentables — parking, garages, storage — offered on top of the lease. Each carries a default rent and appears as a selectable optional add-on in rent quotes and move-in.','') + this.oriTile();
+  }
   oriTile(){
     const rows=this.oriItems();
     const cols='minmax(160px,1fr) 120px 120px 140px 70px 90px';
@@ -2101,6 +2104,7 @@ class Component extends DCLogic {
     else if (t === 'Amenities') return `<div style="flex:1;min-height:0;display:flex;flex-direction:column">${this.amenitiesBody()}</div>`;
     else if (t === 'Unit Type Fees') return `<div style="flex:1;min-height:0;display:flex;flex-direction:column">${this.utBody()}</div>`;
     else if (t === 'Unit Fees') return `<div style="flex:1;min-height:0;display:flex;flex-direction:column">${this.ufBody()}</div>`;
+    else if (t === "ORI's") inner = this.oriBody();
     else if (t === 'Pricing Preview') inner = this.lpBody();
     else if (t === 'Assigned Properties') inner = this.apBody();
     else if (t === 'Exceptions') inner = this.exceptionsBody();
@@ -2319,7 +2323,7 @@ class Component extends DCLogic {
     if (s.view === 'profile') {
       out += this.ctx('Rental Fee Templates', [{ label: this.activeName() }], ((n)=>{const i=['Standard Apartment','Luxury Apartment','Townhome Community'].indexOf(n); return i>=0?((i+1)+' of 3'):'';})(this.activeName()), 'navRegister');
       out += this.profileScoreboard();
-      out += this.tabRow(['Overview','Property Fees','Unit Type Fees','Unit Fees','Pricing Preview','Assigned Properties','Exceptions','Change History'], s.profileTab, 'ptab');
+      out += this.tabRow(['Overview','Property Fees','Unit Type Fees','Unit Fees',"ORI's",'Pricing Preview','Assigned Properties','Exceptions','Change History'], s.profileTab, 'ptab');
       out += this.profileBody();
       out += this.footer(s.profileTab === 'Unit Fees' ? 'Save unit fees' : 'Save template');
     } else if (s.view === 'property') {
