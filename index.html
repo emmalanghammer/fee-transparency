@@ -274,7 +274,10 @@ class Component extends DCLogic {
       case 'propPopClose': this.setState({ propPop: null }); break;
       case 'addTplOpen': this.setState({ addTpl: true }); break;
       case 'addTplClose': this.setState({ addTpl: null }); break;
-      case 'addTplCreate': { const name = ((this.q('#atpl-name') || {}).value || '').trim(); if (!name) { this.flash('Template name is required'); break; } const desc = ((this.q('#atpl-desc') || {}).value || '').trim(); const root = this.rootEl || document; const fromEl = root.querySelector('input[name="atpl-from"]:checked'); const from = fromEl ? fromEl.value : 'blank'; let charges = 0, descFinal = desc; if (from === 'existing') { const src = ((this.q('#atpl-source') || {}).value || ''); const row = this.baseTemplates().find(t => t.name === src); charges = row ? row.charges : 0; if (!descFinal) descFinal = 'Copied from ' + src; } else if (!descFinal) descFinal = 'New template'; const d = new Date(); const upd = ('0'+(d.getMonth()+1)).slice(-2)+'/'+('0'+d.getDate()).slice(-2)+'/'+(''+d.getFullYear()).slice(-2); const tpl = { name, desc: descFinal, prop: 'No properties assigned', more: 0, units: 0, charges, updated: upd }; this.setState(s => ({ addedTemplates: [...s.addedTemplates, tpl], addTpl: null })); this.flash('Template "' + name + '" created'); this.go('profile', { template: name, accOpen: {} }); break; }
+      case 'addTplCreate': { const name = ((this.q('#atpl-name') || {}).value || '').trim(); if (!name) { this.flash('Template name is required'); break; } const desc = ((this.q('#atpl-desc') || {}).value || '').trim(); const root = this.rootEl || document; const fromEl = root.querySelector('input[name="atpl-from"]:checked'); const from = fromEl ? fromEl.value : 'blank'; const d = new Date(); const upd = ('0'+(d.getMonth()+1)).slice(-2)+'/'+('0'+d.getDate()).slice(-2)+'/'+(''+d.getFullYear()).slice(-2); let cfg;
+        if (from === 'existing') { const src = ((this.q('#atpl-source') || {}).value || ''); const srcCfg = this.templatesData()[src] || this.templatesData()['Standard Apartment']; cfg = Object.assign({}, srcCfg, { desc: desc || ('Copied from ' + src), created: 'Admin', modified: upd, updated: upd }); }
+        else { cfg = { desc: desc || 'New template', created: 'Admin', modified: upd, updated: upd, primary: 'No properties assigned', more: 0, units: '0', units_src: null, propDefs: [], unitTypes: [], unitList: [], assigned: [] }; }
+        this.setState(s => ({ addedTemplates: [...s.addedTemplates, { name, cfg }], addTpl: null })); this.flash('Template "' + name + '" created'); this.go('profile', { template: name, accOpen: {} }); break; }
       case 'excMenu': { const r = el.getBoundingClientRect(); this.setState({ excMenu: { id: arg, x: r.right, y: r.bottom + 4 } }); break; }
       case 'excMenuClose': this.setState({ excMenu: null }); break;
       case 'excDetails': { const e = this.exceptions().find(x => x.id === arg); this.setState({ excMenu: null, excEdit: e ? Object.assign({}, e) : null }); break; }
@@ -998,7 +1001,7 @@ class Component extends DCLogic {
         <span style="font-size:20px;line-height:28px;color:#13314c">${this.activeName()}</span>
         <div style="display:flex;align-items:center;gap:32px;font-size:14px;color:#13314c;white-space:nowrap;flex-wrap:wrap">
           ${item('Created by:',t.created)}${item('Last modified:',t.modified)}
-          <span style="display:inline-flex;align-items:center;gap:8px">${this.feeIcon('property',16)}<a data-act="navProperty" data-arg="${t.primary}" style="font-size:14px">${t.primary}</a>${t.more>0?`<span data-act="propPopOpen" style="display:inline-flex;align-items:center;background:#fff;border:1px solid var(--ac,#008dd5);border-radius:12px;padding-left:8px;color:var(--ac,#008dd5);font-size:13px;line-height:20px;cursor:pointer">+${t.more}<span class="material-symbols-outlined" style="font-size:20px">arrow_drop_down</span></span>`:''}</span>
+          ${this.properties().length ? `<span style="display:inline-flex;align-items:center;gap:8px">${this.feeIcon('property',16)}<a data-act="navProperty" data-arg="${t.primary}" style="font-size:14px">${t.primary}</a>${t.more>0?`<span data-act="propPopOpen" style="display:inline-flex;align-items:center;background:#fff;border:1px solid var(--ac,#008dd5);border-radius:12px;padding-left:8px;color:var(--ac,#008dd5);font-size:13px;line-height:20px;cursor:pointer">+${t.more}<span class="material-symbols-outlined" style="font-size:20px">arrow_drop_down</span></span>`:''}</span>` : `<span style="font-size:14px;color:#8a9aa8;font-style:italic">No properties assigned</span>`}
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:32px">
@@ -1271,7 +1274,6 @@ class Component extends DCLogic {
   registerBody(){
     const rows=this.baseTemplates();
     if(this.state.importedTemplate) rows.push({ name:'Riverview — Lease-derived', desc:'Drafted from lease & addendum documents by Rent Manager AI', prop:'Riverview Apartments', more:0, units:49, charges:this.state.importedCount, updated:'07/16/26' });
-    (this.state.addedTemplates||[]).forEach(t=>rows.push(t));
     const cols='minmax(180px,1.2fr) minmax(280px,2fr) minmax(240px,1.5fr) 110px 120px 120px 40px';
     const pill=(n)=>n?`<span style="display:inline-flex;align-items:center;background:#fff;border:1px solid var(--ac,#008dd5);border-radius:12px;padding-left:8px;color:var(--ac,#008dd5);font-size:13px;line-height:20px">+${n}<span class="material-symbols-outlined" style="font-size:20px">arrow_drop_down</span></span>`:'';
     const hcell=(t)=>`<span style="display:flex;align-items:center;height:28px;box-sizing:border-box;padding:4px 8px;font-size:12px;font-weight:500;letter-spacing:1px;color:#fff;border-right:1px solid rgba(255,255,255,0.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>`;
@@ -1590,7 +1592,7 @@ class Component extends DCLogic {
   // ---- template charge definitions: single source of truth for counts + tables ----
   // ---- per-template mock data (Standard / Luxury / Townhome) ----
   templatesData(){
-    return {
+    const T = {
       'Standard Apartment': {
         desc:'Standard fee set for apartment communities', created:'Admin', modified:'07/10/2025', updated:'07/10/25',
         primary:'Riverview Apartments', more:13, units:'210', units_src:'STD',
@@ -1712,6 +1714,8 @@ class Component extends DCLogic {
         ]
       }
     };
+    (this.state.addedTemplates||[]).forEach(t=>{ if(t.cfg) T[t.name]=t.cfg; });
+    return T;
   }
   activeName(){ return this.state.template || 'Standard Apartment'; }
   activeTpl(){ const T=this.templatesData(); return T[this.activeName()] || T['Standard Apartment']; }
