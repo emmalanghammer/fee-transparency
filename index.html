@@ -97,7 +97,7 @@ class Component extends DCLogic {
     ovPop: null,
     feeScope: {}, applyModal: null,
     feeOverrides: {}, ovModal: null, rowMenu: null,
-    excMenu: null, excEdit: null, excEdits: {}, excDismissed: [], feeExc: [], recView: null,
+    excMenu: null, excEdit: null, excEdits: {}, excDismissed: [], feeExc: [], recView: null, recExcl: false,
     propPop: null,
     addTpl: null, addedTemplates: [],
     exProp: 'All', exFee: 'All', exKind: 'All',
@@ -327,8 +327,9 @@ class Component extends DCLogic {
       case 'importAssign': this.go('profile', { assign: { step:1, sel: this.candidateProps().filter(p=>p.pre).map(p=>p.name) } }); break;
       case 'navProperty': this.go('property', arg ? { property: arg, propTab: 'General' } : { propTab: 'General' }); break;
       case 'openTplFees': this.setState({ recView: null }); this.go('profile', { template: 'Standard Apartment', profileTab: 'Property Fees', accOpen: {} }); break;
-      case 'recViewOpen': this.setState({ recView: true }); break;
+      case 'recViewOpen': this.setState({ recView: true, recExcl: false }); break;
       case 'recViewClose': this.setState({ recView: null }); break;
+      case 'recExclToggle': this.setState({ recExcl: !this.state.recExcl }); break;
       case 'navUnit': this.go('unit', { unit: arg }); break;
       case 'ptab': this._resetScroll = true; this.setState({ profileTab: arg, ovPop: null }); break;
       case 'utsel': this.setState({ utSel: arg }); break;
@@ -1404,7 +1405,7 @@ class Component extends DCLogic {
 
     const recurring = `<div class="tile">
       <div class="thead2" style="border-bottom-color:var(--ac,#008dd5)"><span class="ttl">Recurring Charges</span><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5)">info</span><div style="flex:1"></div><a data-act="openTplFees" style="font-size:14px;color:var(--ac,#008dd5)">Open Rental Fee Template</a><span data-act="recViewOpen" class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);cursor:pointer" title="View recurring charges">open_in_new</span></div>
-      <div style="padding:16px">${this.recChargesTableHTML()}</div>
+      <div style="padding:16px">${this.recChargesTableHTML({override:true})}</div>
     </div>`;
 
     const emptyReg=(t,heads)=>tile(t,'',`${gtable(heads.map(()=>'1fr').join(' '),heads,[heads.map(()=>'<span style="color:#b3b3b3">—</span>')])}<span style="font-size:13px;font-style:italic;color:#b3b3b3">No transactions in the current period</span>`);
@@ -1954,17 +1955,25 @@ class Component extends DCLogic {
     const recHead=`<div style="display:grid;grid-template-columns:${recCols}">${rh('')}${rh('')}${rh('Charge Type')}${rh('Comment')}${rh('Frequency','right')}${rh('From Date')}${rh('To Date')}${rh('Amount','right')}</div>`;
     const cell=(t,align,color)=>`<span style="display:flex;align-items:center;height:36px;box-sizing:border-box;padding:0 8px;font-size:14px;color:${color||'#13314c'};border-bottom:1px solid #ebf1f5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${align==='right'?'justify-content:flex-end;text-align:right':''}">${t}</span>`;
     const barFor=(c)=>`<span style="display:flex;justify-content:center;height:36px;box-sizing:border-box;border-bottom:1px solid #ebf1f5"><span style="width:10px;background:${c}"></span></span>`;
-    const recRows=rec.map((f,i)=>{
-      const rowBg = (i%2===1) ? '#f5f8fa' : '#fff';
+    const row=(idx,bar,level,code,comment,amount,commentColor)=>{
+      const rowBg = (idx%2===1) ? '#f5f8fa' : '#fff';
+      return `<div style="display:grid;grid-template-columns:${recCols};background:${rowBg}">${barFor(bar)}${cell(level)}${cell(code)}${cell(comment,'',commentColor||'#666')}${cell('Monthly','right')}${cell('01/01/2026')}${cell('—','','#b3b3b3')}${cell(amount,'right')}</div>`;
+    };
+    let idx=0;
+    let recRows=rec.map((f)=>{
       const isOv = opts.override && /trash/i.test(f.desc||'');
       if(isOv){
         const cmt=`${f.desc}<span style="margin-left:8px;background:#fdeedd;color:#b35a00;border-radius:4px;padding:1px 8px;font-size:12px">Override</span>`;
         const amt=`<s style="color:#8a9aa8;font-size:12px">${f.amount}</s> <span style="color:#8a9aa8">→</span> <span style="font-weight:600;color:#b35a00">$32.00</span>`;
-        return `<div style="display:grid;grid-template-columns:${recCols};background:${rowBg}">${barFor(lvlMap['Unit'].c)}${cell('Unit')}${cell(f.mits)}${cell(cmt,'','#666')}${cell('Monthly','right')}${cell('01/01/2026')}${cell('—','','#b3b3b3')}${cell(amt,'right')}</div>`;
+        return row(idx++, lvlMap['Unit'].c, 'Unit', f.mits, cmt, amt);
       }
       const lv=lvlMap[f.level]||lvlMap['Property'];
-      return `<div style="display:grid;grid-template-columns:${recCols};background:${rowBg}">${barFor(lv.c)}${cell(lv.l)}${cell(f.mits)}${cell(f.desc,'','#666')}${cell('Monthly','right')}${cell('01/01/2026')}${cell('—','','#b3b3b3')}${cell(f.amount,'right')}</div>`;
+      return row(idx++, lv.c, lv.l, f.mits, f.desc, f.amount);
     }).join('');
+    if(opts.exclusion){
+      const excPill=`<span style="margin-left:8px;background:#eef1f4;color:#8a9aa8;border-radius:4px;padding:1px 8px;font-size:12px">Excluded</span>`;
+      recRows += row(idx++, lvlMap['Unit'].c, 'Unit', '<s style="color:#8a9aa8">PARKING</s>', `<s style="color:#8a9aa8">Covered parking</s>${excPill}`, '<s style="color:#8a9aa8">$75.00</s>', '#8a9aa8');
+    }
     return `<div style="border:1px solid #cedbe7;border-radius:4px;overflow:hidden"><div style="overflow-x:auto">${recHead}${recRows}</div></div>`;
   }
   // "View Recurring Charges" modal opened from the property tile's pop-out icon (Figma 2385-32329).
@@ -1972,13 +1981,14 @@ class Component extends DCLogic {
     if(!this.state.recView) return '';
     const prop=this.state.property||'Riverview Apartments';
     const cbox=(label)=>`<label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer"><input type="checkbox" style="width:16px;height:16px;margin:0;accent-color:#f58220">${label}</label>`;
+    const cboxAct=(label,act,on)=>`<label data-act="${act}" style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer"><span style="width:16px;height:16px;border-radius:3px;border:1px solid ${on?'#f58220':'#cedbe7'};background:${on?'#f58220':'#fff'};display:flex;align-items:center;justify-content:center;flex:none">${on?'<span class="material-symbols-outlined" style="font-size:12px;color:#fff">check</span>':''}</span>${label}</label>`;
     return `<div data-act="recViewClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:100"><div data-act="noop" style="width:1200px;max-width:96vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.28);display:flex;flex-direction:column;overflow:hidden">
       <div style="display:flex;align-items:center;justify-content:space-between;height:52px;box-sizing:border-box;padding:8px 20px;border-bottom:1px solid #cedbe7;flex:none"><span style="font-size:16px;font-weight:600;color:#666">View Recurring Charges</span><span data-act="recViewClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span></div>
       <div style="flex:1;min-height:0;overflow-y:auto;background:#f3f4f8;padding:16px 20px;display:flex;flex-direction:column;gap:16px">
         <div style="display:flex;align-items:center;gap:16px;background:#fff;border:1px solid #cedbe7;border-radius:4px;padding:16px 20px"><span style="display:inline-flex;align-items:center;gap:16px;font-size:14px;color:#13314c"><span style="font-weight:600">Charlie Apegian</span><span style="display:inline-flex;align-items:center;gap:6px">${this.feeIcon('property',16)}<span>${prop}</span></span><span style="display:inline-flex;align-items:center;gap:6px">${this.feeIcon('unit',16)}<span>1B</span></span></span><div style="flex:1"></div><span style="display:inline-flex;align-items:center;gap:16px"><span style="background:#e2f1da;color:#3a7d2c;border-radius:4px;padding:3px 12px;font-size:13px">Current</span><span style="font-size:14px;color:#13314c">Balance: <span style="font-weight:600">0.00</span></span></span></div>
-        <div style="display:flex;align-items:center;gap:20px">${cbox('Past')}${cbox('Future')}${cbox('Exceptions')}<div style="flex:1"></div><div style="display:inline-flex;align-items:stretch;border-radius:4px;overflow:hidden"><button data-act="toast" data-arg="Add charge" class="btn-pri" style="border-radius:0;padding:8px 16px;font-size:14px">Add Charge</button><button data-act="toast" data-arg="Add charge options" class="btn-pri" style="border-radius:0;padding:8px 4px;border-left:1px solid rgba(255,255,255,0.4);display:flex;align-items:center"><span class="material-symbols-outlined" style="font-size:18px">arrow_drop_down</span></button></div><button data-act="toast" data-arg="Print" class="btn-pri" style="padding:8px 16px;font-size:14px;display:inline-flex;align-items:center;gap:6px"><span class="material-symbols-outlined" style="font-size:18px">print</span>Print</button></div>
+        <div style="display:flex;align-items:center;gap:20px">${cbox('Past')}${cbox('Future')}${cboxAct('Exclusion','recExclToggle',!!this.state.recExcl)}<div style="flex:1"></div><div style="display:inline-flex;align-items:stretch;border-radius:4px;overflow:hidden"><button data-act="toast" data-arg="Add charge" class="btn-pri" style="border-radius:0;padding:8px 16px;font-size:14px">Add Charge</button><button data-act="toast" data-arg="Add charge options" class="btn-pri" style="border-radius:0;padding:8px 4px;border-left:1px solid rgba(255,255,255,0.4);display:flex;align-items:center"><span class="material-symbols-outlined" style="font-size:18px">arrow_drop_down</span></button></div><button data-act="toast" data-arg="Print" class="btn-pri" style="padding:8px 16px;font-size:14px;display:inline-flex;align-items:center;gap:6px"><span class="material-symbols-outlined" style="font-size:18px">print</span>Print</button></div>
         <div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #cedbe7;border-radius:4px;padding:12px 16px"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">info</span><span style="font-size:14px;color:#13314c">All charges are from the assigned rental fee template, and have to be changed in the template.</span><div style="flex:1"></div><a data-act="openTplFees" style="font-size:14px;color:var(--ac,#008dd5);white-space:nowrap">Open Rental Fee Template</a></div>
-        ${this.recChargesTableHTML({override:true})}
+        ${this.recChargesTableHTML({override:true, exclusion:!!this.state.recExcl})}
       </div>
     </div></div>`;
   }
