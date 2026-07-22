@@ -1405,7 +1405,7 @@ class Component extends DCLogic {
 
     const recurring = `<div class="tile">
       <div class="thead2" style="border-bottom-color:var(--ac,#008dd5)"><span class="ttl">Recurring Charges</span><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5)">info</span><div style="flex:1"></div><a data-act="openTplFees" style="font-size:14px;color:var(--ac,#008dd5)">Open Rental Fee Template</a><span data-act="recViewOpen" class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);cursor:pointer" title="View recurring charges">open_in_new</span></div>
-      <div style="padding:16px">${this.recChargesTableHTML({override:true})}</div>
+      <div style="padding:16px">${this.recChargesTableHTML({scope:'property'})}</div>
     </div>`;
 
     const emptyReg=(t,heads)=>tile(t,'',`${gtable(heads.map(()=>'1fr').join(' '),heads,[heads.map(()=>'<span style="color:#b3b3b3">—</span>')])}<span style="font-size:13px;font-style:italic;color:#b3b3b3">No transactions in the current period</span>`);
@@ -1944,10 +1944,12 @@ class Component extends DCLogic {
     <div style="overflow-x:auto"><div style="min-width:1196px">${head}${body}</div></div></div>`;
     return h;
   }
-  // Shared Recurring Charges table (used by the property tile and the View modal).
-  // opts.override renders one charge as overridden at the unit level (example for the modal).
+  // Shared Recurring Charges table.
+  // opts.scope 'property' (default) shows property-level charges only; 'unit' also shows
+  // unit-type and unit charges (they trickle down), including an override example.
   recChargesTableHTML(opts){
     opts=opts||{};
+    const unit = opts.scope==='unit';
     const rec = this.state.propFees.filter(f=>!f.excluded && f.group==='req-rec');
     const lvlMap={ 'Property':{c:'#1570ef',l:'Property'}, 'Unit type':{c:'#d92d20',l:'Unit Type'}, 'Unit':{c:'#099250',l:'Unit'}, 'Tenant':{c:'#98a2b3',l:'Tenant'} };
     const recCols='32px 94px minmax(110px,1fr) minmax(150px,1fr) 84px 96px 96px 124px';
@@ -1960,17 +1962,17 @@ class Component extends DCLogic {
       return `<div style="display:grid;grid-template-columns:${recCols};background:${rowBg}">${barFor(bar)}${cell(level)}${cell(code)}${cell(comment,'',commentColor||'#666')}${cell('Monthly','right')}${cell('01/01/2026')}${cell('—','','#b3b3b3')}${cell(amount,'right')}</div>`;
     };
     let idx=0;
-    let recRows=rec.map((f)=>{
-      const isOv = opts.override && /trash/i.test(f.desc||'');
-      if(isOv){
-        const cmt=`${f.desc}<span style="margin-left:8px;background:#fdeedd;color:#b35a00;border-radius:4px;padding:1px 8px;font-size:12px">Override</span>`;
-        const amt=`<s style="color:#8a9aa8;font-size:12px">${f.amount}</s> <span style="color:#8a9aa8">→</span> <span style="font-weight:600;color:#b35a00">$32.00</span>`;
-        return row(idx++, lvlMap['Unit'].c, 'Unit', f.mits, cmt, amt);
-      }
-      const lv=lvlMap[f.level]||lvlMap['Property'];
-      return row(idx++, lv.c, lv.l, f.mits, f.desc, f.amount);
-    }).join('');
-    if(opts.exclusion){
+    // Property-level charges (shown everywhere).
+    let recRows=rec.map((f)=>{ const lv=lvlMap[f.level]||lvlMap['Property']; return row(idx++, lv.c, lv.l, f.mits, f.desc, f.amount); }).join('');
+    if(unit){
+      // Unit type charge trickles down.
+      recRows += row(idx++, lvlMap['Unit type'].c, 'Unit Type', 'UTILITY', 'Additional trash valet', '$4.00');
+      // Unit-level override example.
+      const cmt=`Trash service<span style="margin-left:8px;background:#fdeedd;color:#b35a00;border-radius:4px;padding:1px 8px;font-size:12px">Override</span>`;
+      const amt=`<s style="color:#8a9aa8;font-size:12px">$28.00</s> <span style="color:#8a9aa8">→</span> <span style="font-weight:600;color:#b35a00">$32.00</span>`;
+      recRows += row(idx++, lvlMap['Unit'].c, 'Unit', 'UTILITY', cmt, amt);
+    }
+    if(unit && opts.exclusion){
       const excPill=`<span style="margin-left:8px;background:#eef1f4;color:#8a9aa8;border-radius:4px;padding:1px 8px;font-size:12px">Excluded</span>`;
       recRows += row(idx++, lvlMap['Unit'].c, 'Unit', '<s style="color:#8a9aa8">PARKING</s>', `<s style="color:#8a9aa8">Covered parking</s>${excPill}`, '<s style="color:#8a9aa8">$75.00</s>', '#8a9aa8');
     }
@@ -1988,7 +1990,7 @@ class Component extends DCLogic {
         <div style="display:flex;align-items:center;gap:16px;background:#fff;border:1px solid #cedbe7;border-radius:4px;padding:16px 20px"><span style="display:inline-flex;align-items:center;gap:16px;font-size:14px;color:#13314c"><span style="font-weight:600">Charlie Apegian</span><span style="display:inline-flex;align-items:center;gap:6px">${this.feeIcon('property',16)}<span>${prop}</span></span><span style="display:inline-flex;align-items:center;gap:6px">${this.feeIcon('unit',16)}<span>1B</span></span></span><div style="flex:1"></div><span style="display:inline-flex;align-items:center;gap:16px"><span style="background:#e2f1da;color:#3a7d2c;border-radius:4px;padding:3px 12px;font-size:13px">Current</span><span style="font-size:14px;color:#13314c">Balance: <span style="font-weight:600">0.00</span></span></span></div>
         <div style="display:flex;align-items:center;gap:20px">${cbox('Past')}${cbox('Future')}${cbFig('Exclusion',!!this.state.recExcl,'recExclToggle')}</div>
         <div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #cedbe7;border-radius:4px;padding:12px 16px"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">info</span><span style="font-size:14px;color:#13314c">All charges are from the assigned rental fee template, and have to be changed in the template.</span><div style="flex:1"></div><a data-act="openTplFees" style="font-size:14px;color:var(--ac,#008dd5);white-space:nowrap">Open Rental Fee Template</a></div>
-        ${this.recChargesTableHTML({override:true, exclusion:!!this.state.recExcl})}
+        ${this.recChargesTableHTML({scope:'unit', exclusion:!!this.state.recExcl})}
       </div>
     </div></div>`;
   }
