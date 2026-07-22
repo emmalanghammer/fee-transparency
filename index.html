@@ -544,7 +544,7 @@ class Component extends DCLogic {
   // opt.js  -> extra inline JS run after select; `_v` holds the chosen value.
   singleSelect(id, options, selected, opt){
     opt = opt || {};
-    const act = opt.act || '', extraJs = opt.js || '';
+    const act = opt.act || '', extraJs = opt.js || '', noSearch = !!opt.noSearch;
     const esc = s => (''+s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
     const O = options.map(o => (o && typeof o === 'object') ? { v:''+o.value, l:''+(o.label!=null?o.label:o.value) } : { v:''+o, l:''+o });
     const selV = (selected!=null && selected!=='') ? (''+selected) : (O[0]?O[0].v:'');
@@ -561,7 +561,7 @@ class Component extends DCLogic {
       ${act?'':`<input type="hidden" id="${esc(id)}" value="${esc(selV)}">`}
       <div onclick="var p=document.getElementById('${panelId}');if(p.style.display==='block'){p.style.display='none';return}var r=this.getBoundingClientRect();p.style.left=r.left+'px';p.style.width=r.width+'px';p.style.display='block';var ph=p.offsetHeight;var below=window.innerHeight-r.bottom;p.style.top=((below<ph+8&&r.top>below)?(r.top-ph-4):(r.bottom+4))+'px'" style="display:flex;align-items:center;justify-content:space-between;gap:4px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 4px 0 12px;cursor:pointer"><span id="${dispId}" style="flex:1;min-width:0;font-size:14px;color:#13314c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${selL}</span><span class="material-symbols-outlined" style="font-size:20px;color:#666">arrow_drop_down</span></div>
       <div id="${panelId}" style="display:none;position:fixed;z-index:1000;border-radius:8px;background:#fff;box-shadow:0 6px 20px rgba(0,0,0,0.18);overflow:hidden">
-        <div style="padding:10px;border-bottom:1px solid #ebf1f5"><div style="display:flex;align-items:center;gap:8px;background:#f7f9fb;border:1px solid #cedbe7;border-radius:6px;height:38px;padding:0 12px"><span class="material-symbols-outlined" style="font-size:20px;color:#4a90e2">search</span><input oninput="${filter}" placeholder="Search" style="flex:1;min-width:0;border:none;outline:none;background:transparent;font:400 14px Roboto,sans-serif;color:#13314c"></div></div>
+        ${noSearch?'':`<div style="padding:10px;border-bottom:1px solid #ebf1f5"><div style="display:flex;align-items:center;gap:8px;background:#f7f9fb;border:1px solid #cedbe7;border-radius:6px;height:38px;padding:0 12px"><span class="material-symbols-outlined" style="font-size:20px;color:#4a90e2">search</span><input oninput="${filter}" placeholder="Search" style="flex:1;min-width:0;border:none;outline:none;background:transparent;font:400 14px Roboto,sans-serif;color:#13314c"></div></div>`}
         <div id="${listId}" style="max-height:260px;overflow-y:auto">${rows}</div>
       </div>
     </div>`;
@@ -2271,7 +2271,7 @@ class Component extends DCLogic {
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Requirement')}${this.singleSelect('m-req',['Required','Optional','Situational'],reqDefault,{js:"document.getElementById('m-cond-wrap').style.display=(_v==='Situational'?'flex':'none');"+ilsWarn})}</div>
         <div id="m-cond-wrap" style="flex:1;min-width:0;display:${condVisible?'flex':'none'};flex-direction:column;gap:4px">${lab('Condition')}<input id="m-cond" class="fld" placeholder="If pet" value="${ed?(ed.cond||'').replace(/"/g,'&quot;'):''}" style="height:36px;box-sizing:border-box">${help('Shown to prospects next to this fee.')}</div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:4px">${lab('Fee due')}${this.singleSelect('m-due',['At application','At move-in','During term','Move out'],'At move-in')}</div>
+      <div style="display:flex;flex-direction:column;gap:4px">${lab('Fee due')}${this.singleSelect('m-due',['At application','At move-in','During term','Move out'],'At move-in',{noSearch:true})}</div>
       <div style="display:flex;flex-direction:column;gap:6px">
         <label style="display:inline-flex;align-items:center;gap:10px;cursor:pointer"><span id="m-ils-sw" onclick="var on=this.getAttribute('data-on')==='1';on=!on;this.setAttribute('data-on',on?'1':'0');document.getElementById('m-ils').value=on?'1':'0';this.style.background=on?'var(--ac,#008dd5)':'#cedbe7';this.firstElementChild.style.left=on?'16px':'2px';${ilsWarn}" data-on="1" style="display:inline-block;width:32px;height:18px;border-radius:999px;background:var(--ac,#008dd5);position:relative;flex:none"><span style="position:absolute;top:2px;left:16px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left 120ms ease-out"></span></span><span style="font-size:14px;color:#13314c">Show on listings (ILS)</span></label>
         <input type="hidden" id="m-ils" value="1">
