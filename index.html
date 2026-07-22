@@ -745,7 +745,7 @@ class Component extends DCLogic {
     const cols='120px minmax(150px,1fr) 90px 220px';
     const dd=(id,opts,sel)=>`<select id="${id}" class="fld" style="height:36px">${opts.map(x=>`<option${x===sel?' selected':''}>${x}</option>`).join('')}</select>`;
     const radio=(val,label)=>`<label data-act="${o.modeAct}" data-arg="${val}" style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;color:#13314c"><span style="width:18px;height:18px;border-radius:50%;box-sizing:border-box;border:2px solid ${mode===val?'var(--ac,#008dd5)':'#b3b3b3'};display:flex;align-items:center;justify-content:center;flex:none">${mode===val?'<span style="width:8px;height:8px;border-radius:50%;background:var(--ac,#008dd5)"></span>':''}</span>${label}</label>`;
-    const appCell=`<span style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#13314c;min-width:0"><span style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.primary}</span>${o.more>0?`<span style="display:inline-flex;align-items:center;background:#fff;border:1px solid var(--ac,#008dd5);border-radius:12px;padding-left:8px;color:var(--ac,#008dd5);font-size:13px;line-height:20px;white-space:nowrap">+${o.more}<span class="material-symbols-outlined" style="font-size:20px">arrow_drop_down</span></span>`:''}</span>`;
+    const appCell=this.feeAppCell(o.code, o.app || (this.findCharge(o.code)||{}).app || 'Property');
     const infoTable=`<div style="border:1px solid #cedbe7;border-radius:4px;overflow:hidden">
       <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #cedbe7">${['Charge Type','Description','Amount','Charge Application'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:600;color:#13314c">${x}</span>`).join('')}</div>
       <div style="display:grid;grid-template-columns:${cols};align-items:center"><span style="padding:10px 12px 10px 16px;font-size:14px;color:#13314c">${o.code}</span><span style="padding:10px 12px;font-size:14px;color:#13314c">${o.desc}</span><span style="padding:10px 12px;font-size:14px;color:#13314c">${(o.tmpl||'').replace(/^\$/,'')}</span><span style="padding:8px 12px">${appCell}</span></div>
@@ -781,14 +781,22 @@ class Component extends DCLogic {
     </div></div>`;
   }
   excScopeParts(app){ if(/^Unit Type: /.test(app||'')) return {appkind:'Unit Type', target:app.replace('Unit Type: ','')}; if(/^Unit · /.test(app||'')) return {appkind:'Unit', target:app.replace('Unit · ','')}; if(/ · Unit /.test(app||'')) return {appkind:'Unit', target:app.split('· Unit ')[1]}; return {appkind:'Property', target:app}; }
+  // Original charge application of a fee: icon (property/unit type/unit) + the specific application (e.g. "🏠 Riverview Apartments +13").
+  feeAppCell(code, app){
+    const parts=this.excScopeParts(app||'Property');
+    const wrap=(icon,label,more)=>`<span style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#13314c;min-width:0">${icon}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${label}</span>${more>0?`<span style="display:inline-flex;align-items:center;background:#fff;border:1px solid var(--ac,#008dd5);border-radius:12px;padding-left:8px;color:var(--ac,#008dd5);font-size:13px;line-height:20px;white-space:nowrap;flex:none">+${more}<span class="material-symbols-outlined" style="font-size:20px">arrow_drop_down</span></span>`:''}</span>`;
+    if(parts.appkind==='Unit Type') return wrap(this.feeIcon('unittype',16), parts.target, 0);
+    if(parts.appkind==='Unit') return wrap(this.feeIcon('unit',16), 'Unit '+parts.target, 0);
+    const applied=this.feeAppliesTo(code);
+    return wrap(this.feeIcon('property',16), applied[0]||'—', Math.max(0,applied.length-1));
+  }
   ovModalHTML(){
     const m=this.state.ovModal; if(!m) return '';
     const t=this.activeTpl();
     const p=this.excScopeParts(m.app);
     const propScope = (m.app==='Property');
     return this.excModalShell({
-      title:'Add Exception', code:m.code, desc:m.name, tmpl:m.tmpl,
-      primary: propScope ? t.primary : (p.appkind==='Unit Type'?p.target:(p.appkind==='Unit'?('Unit '+p.target):m.app)), more: propScope ? t.more : 0,
+      title:'Add Exception', code:m.code, desc:m.name, tmpl:m.tmpl, app:m.app,
       mode:m.mode||'override', amount:m.amount, comment:m.comment,
       appkind: m.appkind || p.appkind, target: m.target || (p.appkind==='Property'?t.primary:p.target),
       modeAct:'excMode', saveAct:'ovModalSave', closeAct:'ovModalClose'
@@ -2010,7 +2018,6 @@ class Component extends DCLogic {
     const mode = (m.kind==='exclusion'||m.kind==='exclude') ? 'exclude' : 'override';
     return this.excModalShell({
       title:'Exception details', code:m.code, desc:m.fee, tmpl:m.tmpl,
-      primary:m.scope, more:0,
       mode, amount:m.local, comment:m.reason,
       appkind:m.appkind||p.appkind, target:m.target||p.target,
       modeAct:'excEditMode', saveAct:'excSave', closeAct:'excEditClose'
