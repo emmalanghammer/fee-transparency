@@ -327,7 +327,7 @@ class Component extends DCLogic {
       case 'importAssign': this.go('profile', { assign: { step:1, sel: this.candidateProps().filter(p=>p.pre).map(p=>p.name) } }); break;
       case 'navProperty': this.go('property', arg ? { property: arg, propTab: 'General' } : { propTab: 'General' }); break;
       case 'openTplFees': this.setState({ recView: null }); this.go('profile', { template: 'Standard Apartment', profileTab: 'Property Fees', accOpen: {} }); break;
-      case 'recViewOpen': this.setState({ recView: true, recExcl: false }); break;
+      case 'recViewOpen': this.setState({ recView: (arg==='unit'?'unit':'property'), recExcl: false }); break;
       case 'recViewClose': this.setState({ recView: null }); break;
       case 'recExclToggle': this.setState({ recExcl: !this.state.recExcl }); break;
       case 'navUnit': this.go('unit', { unit: arg }); break;
@@ -1403,10 +1403,7 @@ class Component extends DCLogic {
         ['MITS Property ID','RIV-0125'],
         ['Regional Portfolio','Southwest Ohio']]));
 
-    const recurring = `<div class="tile">
-      <div class="thead2" style="border-bottom-color:var(--ac,#008dd5)"><span class="ttl">Recurring Charges</span><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5)">info</span><div style="flex:1"></div><a data-act="openTplFees" style="font-size:14px;color:var(--ac,#008dd5)">Open Rental Fee Template</a><span data-act="recViewOpen" class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);cursor:pointer" title="View recurring charges">open_in_new</span></div>
-      <div style="padding:16px">${this.recChargesTableHTML({scope:'property'})}</div>
-    </div>`;
+    const recurring = this.recChargesTile('property');
 
     const emptyReg=(t,heads)=>tile(t,'',`${gtable(heads.map(()=>'1fr').join(' '),heads,[heads.map(()=>'<span style="color:#b3b3b3">—</span>')])}<span style="font-size:13px;font-style:italic;color:#b3b3b3">No transactions in the current period</span>`);
     const files = tile('Property Files', `<a data-act="toast" data-arg="Upload file" style="font-size:13px">Upload file</a>`,
@@ -1944,6 +1941,13 @@ class Component extends DCLogic {
     <div style="overflow-x:auto"><div style="min-width:1196px">${head}${body}</div></div></div>`;
     return h;
   }
+  // Full Recurring Charges tile (header + table). scope 'property' | 'unit'.
+  recChargesTile(scope){
+    return `<div class="tile">
+      <div class="thead2" style="border-bottom-color:var(--ac,#008dd5)"><span class="ttl">Recurring Charges</span><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5)">info</span><div style="flex:1"></div><a data-act="openTplFees" style="font-size:14px;color:var(--ac,#008dd5)">Open Rental Fee Template</a><span data-act="recViewOpen" data-arg="${scope}" class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);cursor:pointer" title="View recurring charges">open_in_new</span></div>
+      <div style="padding:16px">${this.recChargesTableHTML({scope})}</div>
+    </div>`;
+  }
   // Shared Recurring Charges table.
   // opts.scope 'property' (default) shows property-level charges only; 'unit' also shows
   // unit-type and unit charges (they trickle down), including an override example.
@@ -1991,7 +1995,7 @@ class Component extends DCLogic {
         <div style="display:flex;align-items:center;gap:16px;background:#fff;border:1px solid #cedbe7;border-radius:4px;padding:16px 20px"><span style="display:inline-flex;align-items:center;gap:16px;font-size:14px;color:#13314c"><span style="font-weight:600">Charlie Apegian</span><span style="display:inline-flex;align-items:center;gap:6px">${this.feeIcon('property',16)}<span>${prop}</span></span><span style="display:inline-flex;align-items:center;gap:6px">${this.feeIcon('unit',16)}<span>1B</span></span></span><div style="flex:1"></div><span style="display:inline-flex;align-items:center;gap:16px"><span style="background:#e2f1da;color:#3a7d2c;border-radius:4px;padding:3px 12px;font-size:13px">Current</span><span style="font-size:14px;color:#13314c">Balance: <span style="font-weight:600">0.00</span></span></span></div>
         <div style="display:flex;align-items:center;gap:20px">${cbox('Past')}${cbox('Future')}${cbFig('Exclusion',!!this.state.recExcl,'recExclToggle')}</div>
         <div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #cedbe7;border-radius:4px;padding:12px 16px"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">info</span><span style="font-size:14px;color:#13314c">All charges are from the assigned rental fee template, and have to be changed in the template.</span><div style="flex:1"></div><a data-act="openTplFees" style="font-size:14px;color:var(--ac,#008dd5);white-space:nowrap">Open Rental Fee Template</a></div>
-        ${this.recChargesTableHTML({scope:'property', exclusion:!!this.state.recExcl})}
+        ${this.recChargesTableHTML({scope:(this.state.recView==='unit'?'unit':'property'), exclusion:!!this.state.recExcl})}
       </div>
     </div></div>`;
   }
@@ -2102,7 +2106,6 @@ class Component extends DCLogic {
   // ================= UNIT DETAIL =================
   unitBody(){
     const info = this.unitInfo(this.state.unit);
-    const rc = [['Property','CON','Concession','1','01/01/2026','—','100.00','#008dd5'],['Property','ELE','Electric','1','01/01/2026','—','200.00','#008dd5'],['Tenant','RC','Recurring rent','1','01/01/2026','—','1,170.00','#8a9aa8'],['Property','H2O','Water (from profile)','1','01/01/2026','—','40.00','#008dd5']];
     const imgCats = [['Kitchen',2],['Living Room',2],['Bedroom',2],['Bathroom',2],['Exterior',1]];
     let imgs = '';
     imgCats.forEach(([cat,n]) => { for (let i=0;i<n;i++) imgs += `<div style="display:flex;flex-direction:column;gap:6px;flex:none">${i===0?`<span style="font-size:12px;color:#666">${cat}</span>`:'<span style="font-size:12px;color:#666">&nbsp;</span>'}<div class="checker" style="width:150px;height:96px;border:1px solid #cedbe7;border-radius:4px;position:relative"><span style="position:absolute;top:4px;right:4px;width:18px;height:18px;border-radius:50%;background:var(--ac,#008dd5);color:#fff;display:flex;align-items:center;justify-content:center"><span class="material-symbols-outlined" style="font-size:13px">close</span></span></div></div>`; });
@@ -2128,6 +2131,8 @@ class Component extends DCLogic {
     // images
     h += `<div style="padding:16px 16px 0">${this.priceSummary(this.parseAmt(info.rent))}</div>`;
     h += `<div style="padding:16px 16px 0"><div class="tile"><div class="cardhd" style="border-bottom-color:#13314c"><span class="cardtt">Images</span><a data-act="toast" data-arg="Add Image" style="font-size:13px;display:inline-flex;align-items:center;gap:4px"><span class="material-symbols-outlined" style="font-size:16px">add</span>Add Image</a></div><div style="display:flex;align-items:center;gap:12px;padding:14px 16px;overflow-x:auto"><span class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer;flex:none">chevron_left</span>${imgs}<span class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer;flex:none">chevron_right</span></div></div></div>`;
+    // recurring charges (all levels trickle down to the unit)
+    h += `<div style="padding:16px 16px 0">${this.recChargesTile('unit')}</div>`;
     // grid
     const general = `<div class="card">${cardHead('General','Cancel')}<div style="padding:16px;display:flex;flex-direction:column;gap:14px">
       <div style="display:flex;gap:14px"><div style="flex:1;display:flex;flex-direction:column;gap:4px"><span class="flabel">Name</span><input class="fld" value="${info.u}"></div><div style="flex:1;display:flex;flex-direction:column;gap:4px"><span class="flabel">Unit Type</span><div class="fld" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">${info.type}<span class="material-symbols-outlined" style="font-size:20px;color:#666">arrow_drop_down</span></div></div></div>
@@ -2136,7 +2141,6 @@ class Component extends DCLogic {
     const addresses = `<div class="card">${cardHead('Addresses','',true)}<div style="display:flex;border-bottom:1px solid #cedbe7">${['Primary','Alternate','Forwarding'].map((t,i)=>`<span style="flex:1;text-align:center;padding:12px;font-size:14px;cursor:pointer;${i===0?'color:#13314c;font-weight:500;box-shadow:inset 0 -3px 0 #f58220':'color:#666'}">${t}</span>`).join('')}</div><div style="padding:16px;display:flex;flex-direction:column;gap:12px"><div class="fld" style="min-height:70px;background:#f0f6fb">1492 Loveland-Madeira Road Unit # 02<br>Loveland, OH 45140</div><label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#424e5b"><span style="width:16px;height:16px;border-radius:3px;background:#f58220;display:inline-flex;align-items:center;justify-content:center"><span class="material-symbols-outlined" style="font-size:13px;color:#fff">check</span></span>Default</label></div></div>`;
     const misc = `<div class="card">${cardHead('Miscellaneous','',true)}<div style="padding:16px;display:flex;flex-direction:column;gap:14px"><div style="display:flex;gap:14px"><div style="flex:1;display:flex;flex-direction:column;gap:4px"><span class="flabel">Bedrooms</span><input class="fld" value="${info.type[0]==='S'?'0':info.type[0]}"></div><div style="flex:1;display:flex;flex-direction:column;gap:4px"><span class="flabel">Bathrooms</span><input class="fld" value="1"></div></div><div style="display:flex;gap:14px"><div style="flex:1;display:flex;flex-direction:column;gap:4px"><span class="flabel">Max Occupancy</span><input class="fld" value="2"></div><div style="flex:1;display:flex;flex-direction:column;gap:4px"><span class="flabel">Square Footage</span><input class="fld" value="${info.sqft}"></div></div><div style="display:flex;flex-direction:column;gap:4px"><span class="flabel">Inspection Template</span><div class="fld" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">&nbsp;<span class="material-symbols-outlined" style="font-size:20px;color:#666">arrow_drop_down</span></div></div></div></div>`;
     const amenities = `<div class="card">${cardHead('Amenities','',true)}<div style="padding:16px;display:flex;gap:24px;flex-wrap:wrap"><span style="display:inline-flex;align-items:center;gap:8px;font-size:13px;color:#424e5b"><span class="material-symbols-outlined" style="font-size:17px;color:#4d8a2a">check</span>Appliances Included</span><span style="display:inline-flex;align-items:center;gap:8px;font-size:13px;color:#424e5b"><span class="material-symbols-outlined" style="font-size:17px;color:#4d8a2a">check</span>Pets Allowed</span></div></div>`;
-    const recurring = `<div class="card">${cardHead('Recurring Charges','',true)}<div style="display:grid;grid-template-columns:80px 60px 1fr 90px 110px 100px;background:#f5f8fa;border-bottom:1px solid #cedbe7">${['','Charge','','Freq','From','Amount'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>${rc.map(r=>`<div style="display:grid;grid-template-columns:80px 60px 1fr 90px 110px 100px;align-items:center;border-bottom:1px solid #ebf1f5"><span style="display:flex;align-items:center;gap:6px;padding-left:16px;font-size:13px;color:#666"><span style="width:4px;height:24px;background:${r[7]};border-radius:2px"></span>${r[0]}</span><span class="td mono" style="border:none;font-size:12px">${r[1]}</span><span class="td" style="border:none">${r[2]}</span><span class="td num" style="border:none;text-align:center">${r[3]}</span><span class="td" style="border:none">${r[4]}</span><span class="td num" style="border:none;text-align:right;padding-right:16px">${r[6]}</span></div>`).join('')}<div style="padding:12px 16px;display:flex;align-items:center;gap:12px"><a data-act="navProperty" data-arg="${this.state.property}" style="font-size:13px">Manage in rental fee template →</a><span style="font-size:13px;color:#8a9aa8">Property charges come from the assigned rental fee template.</span></div></div>`;
     const cards = [general, addresses, misc,
       `<div class="card">${cardHead('Unit Status','',true)}${emptyGrid(['Status','Since','Ready','Notice','Turn','Notes'])}</div>`,
       `<div class="card">${cardHead('Default Security Deposits','',true)}<div style="display:grid;grid-template-columns:96px 1fr 100px 90px;background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Origin','Deposit','Amount','Refund'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>${[['Security deposit','$500.00','Yes'],['Pet deposit','$300.00','Yes'],['Key & fob','$50.00','No']].map(r=>`<div style="display:grid;grid-template-columns:96px 1fr 100px 90px;align-items:center;border-bottom:1px solid #ebf1f5"><span style="display:flex;align-items:center;gap:6px;padding-left:16px"><span style="width:4px;height:22px;background:var(--ac,#008dd5);border-radius:2px"></span><span class="loz" style="background:#e5f3fb;color:#0071aa;text-transform:none;letter-spacing:0">Template</span></span><span class="td name" style="border:none">${r[0]}</span><span class="td num" style="border:none">${r[1]}</span><span class="td" style="border:none">${r[2]}</span></div>`).join('')}<div style="padding:10px 16px;font-size:12px;color:#8a9aa8">Defaults inherited from Standard Apartment.</div></div>`,
@@ -2144,7 +2148,6 @@ class Component extends DCLogic {
       `<div class="card">${cardHead('Assets','',true)}${emptyGrid(['Asset','Model','Serial','Installed','Warranty'])}</div>`,
       `<div class="card">${cardHead('Current Market Rent','',true)}<div style="padding:16px;display:flex;align-items:baseline;gap:10px"><span style="font-size:28px;font-weight:700;color:#13314c">${info.rent}</span><span style="font-size:13px;color:#8a9aa8">effective Jan 1, 2026</span></div></div>`,
       `<div class="card">${cardHead('History / Notes','Add Note',true)}${emptyGrid(['Date','User','Type','Note','Ref'])}</div>`,
-      recurring,
       `<div class="card">${cardHead('User Defined Fields','',true)}<div style="display:grid;grid-template-columns:1fr 1fr;background:#f5f8fa;border-bottom:1px solid #cedbe7"><span style="padding:8px 16px;font-size:12px;font-weight:500;color:#666">Name</span><span style="padding:8px 16px;font-size:12px;font-weight:500;color:#666">Value</span></div><div style="display:grid;grid-template-columns:1fr 1fr"><span class="td" style="border:none;padding-left:16px">Vendor Confirmation</span><span class="td" style="border:none">Yes</span></div></div>`,
       `<div class="card">${cardHead('Occupancy','',true)}${emptyGrid(['Resident','Move-in','Lease end','Status','Balance','Contact'])}</div>`
     ];
