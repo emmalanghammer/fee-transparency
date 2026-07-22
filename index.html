@@ -1944,18 +1944,26 @@ class Component extends DCLogic {
     return h;
   }
   // Shared Recurring Charges table (used by the property tile and the View modal).
-  recChargesTableHTML(){
+  // opts.override renders one charge as overridden at the unit level (example for the modal).
+  recChargesTableHTML(opts){
+    opts=opts||{};
     const rec = this.state.propFees.filter(f=>!f.excluded && f.group==='req-rec');
     const lvlMap={ 'Property':{c:'#1570ef',l:'Property'}, 'Unit type':{c:'#d92d20',l:'Unit Type'}, 'Unit':{c:'#099250',l:'Unit'}, 'Tenant':{c:'#98a2b3',l:'Tenant'} };
-    const recCols='32px 94px minmax(120px,1fr) minmax(120px,1fr) 91px 100px 100px 92px';
+    const recCols='32px 94px minmax(110px,1fr) minmax(150px,1fr) 84px 96px 96px 124px';
     const rh=(t,align)=>`<span style="display:flex;align-items:center;height:32px;box-sizing:border-box;padding:0 8px;font-size:12px;font-weight:500;letter-spacing:0.5px;color:#13314c;background:#fff;border-bottom:1px solid #cedbe7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${align==='right'?'justify-content:flex-end;text-align:right':''}">${t}</span>`;
     const recHead=`<div style="display:grid;grid-template-columns:${recCols}">${rh('')}${rh('')}${rh('Charge Type')}${rh('Comment')}${rh('Frequency','right')}${rh('From Date')}${rh('To Date')}${rh('Amount','right')}</div>`;
+    const cell=(t,align,color)=>`<span style="display:flex;align-items:center;height:36px;box-sizing:border-box;padding:0 8px;font-size:14px;color:${color||'#13314c'};border-bottom:1px solid #ebf1f5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${align==='right'?'justify-content:flex-end;text-align:right':''}">${t}</span>`;
+    const barFor=(c)=>`<span style="display:flex;justify-content:center;height:36px;box-sizing:border-box;border-bottom:1px solid #ebf1f5"><span style="width:10px;background:${c}"></span></span>`;
     const recRows=rec.map((f,i)=>{
-      const lv=lvlMap[f.level]||lvlMap['Property'];
       const rowBg = (i%2===1) ? '#f5f8fa' : '#fff';
-      const cell=(t,align,color)=>`<span style="display:flex;align-items:center;height:36px;box-sizing:border-box;padding:0 8px;font-size:14px;color:${color||'#13314c'};border-bottom:1px solid #ebf1f5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${align==='right'?'justify-content:flex-end;text-align:right':''}">${t}</span>`;
-      const barCell=`<span style="display:flex;justify-content:center;height:36px;box-sizing:border-box;border-bottom:1px solid #ebf1f5"><span style="width:10px;background:${lv.c}"></span></span>`;
-      return `<div style="display:grid;grid-template-columns:${recCols};background:${rowBg}">${barCell}${cell(lv.l)}${cell(f.mits)}${cell(f.desc,'','#666')}${cell('Monthly','right')}${cell('01/01/2026')}${cell('—','','#b3b3b3')}${cell(f.amount,'right')}</div>`;
+      const isOv = opts.override && /trash/i.test(f.desc||'');
+      if(isOv){
+        const cmt=`${f.desc}<span style="margin-left:8px;background:#fdeedd;color:#b35a00;border-radius:4px;padding:1px 8px;font-size:12px">Override</span>`;
+        const amt=`<s style="color:#8a9aa8;font-size:12px">${f.amount}</s> <span style="color:#8a9aa8">→</span> <span style="font-weight:600;color:#b35a00">$32.00</span>`;
+        return `<div style="display:grid;grid-template-columns:${recCols};background:${rowBg}">${barFor(lvlMap['Unit'].c)}${cell('Unit')}${cell(f.mits)}${cell(cmt,'','#666')}${cell('Monthly','right')}${cell('01/01/2026')}${cell('—','','#b3b3b3')}${cell(amt,'right')}</div>`;
+      }
+      const lv=lvlMap[f.level]||lvlMap['Property'];
+      return `<div style="display:grid;grid-template-columns:${recCols};background:${rowBg}">${barFor(lv.c)}${cell(lv.l)}${cell(f.mits)}${cell(f.desc,'','#666')}${cell('Monthly','right')}${cell('01/01/2026')}${cell('—','','#b3b3b3')}${cell(f.amount,'right')}</div>`;
     }).join('');
     return `<div style="border:1px solid #cedbe7;border-radius:4px;overflow:hidden"><div style="overflow-x:auto">${recHead}${recRows}</div></div>`;
   }
@@ -1970,7 +1978,7 @@ class Component extends DCLogic {
         <div style="display:flex;align-items:center;gap:16px;background:#fff;border:1px solid #cedbe7;border-radius:4px;padding:16px 20px"><span style="display:inline-flex;align-items:center;gap:16px;font-size:14px;color:#13314c"><span style="font-weight:600">Charlie Apegian</span><span style="display:inline-flex;align-items:center;gap:6px">${this.feeIcon('property',16)}<span>${prop}</span></span><span style="display:inline-flex;align-items:center;gap:6px">${this.feeIcon('unit',16)}<span>1B</span></span></span><div style="flex:1"></div><span style="display:inline-flex;align-items:center;gap:16px"><span style="background:#e2f1da;color:#3a7d2c;border-radius:4px;padding:3px 12px;font-size:13px">Current</span><span style="font-size:14px;color:#13314c">Balance: <span style="font-weight:600">0.00</span></span></span></div>
         <div style="display:flex;align-items:center;gap:20px">${cbox('Past')}${cbox('Future')}${cbox('Exceptions')}<div style="flex:1"></div><div style="display:inline-flex;align-items:stretch;border-radius:4px;overflow:hidden"><button data-act="toast" data-arg="Add charge" class="btn-pri" style="border-radius:0;padding:8px 16px;font-size:14px">Add Charge</button><button data-act="toast" data-arg="Add charge options" class="btn-pri" style="border-radius:0;padding:8px 4px;border-left:1px solid rgba(255,255,255,0.4);display:flex;align-items:center"><span class="material-symbols-outlined" style="font-size:18px">arrow_drop_down</span></button></div><button data-act="toast" data-arg="Print" class="btn-pri" style="padding:8px 16px;font-size:14px;display:inline-flex;align-items:center;gap:6px"><span class="material-symbols-outlined" style="font-size:18px">print</span>Print</button></div>
         <div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #cedbe7;border-radius:4px;padding:12px 16px"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">info</span><span style="font-size:14px;color:#13314c">All charges are from the assigned rental fee template, and have to be changed in the template.</span><div style="flex:1"></div><a data-act="openTplFees" style="font-size:14px;color:var(--ac,#008dd5);white-space:nowrap">Open Rental Fee Template</a></div>
-        ${this.recChargesTableHTML()}
+        ${this.recChargesTableHTML({override:true})}
       </div>
     </div></div>`;
   }
