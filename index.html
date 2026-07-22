@@ -2261,9 +2261,11 @@ class Component extends DCLogic {
         <div id="m-blk-calc" style="display:${amtSource==='Calculation'?'flex':'none'};flex-direction:column;gap:4px">${lab('Calculation')}<input id="m-calc" class="fld" placeholder="" style="height:36px;box-sizing:border-box"></div>
       </div>
       ${isRec?`<div style="border-top:1px solid #cedbe7;width:100%"></div>
-      <div style="display:flex;gap:8px;align-items:flex-start">
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Frequency')}${this.singleSelect('m-freq',['Monthly','Weekly','Bi-weekly','Quarterly','Semi-annually','Annually','Every N months…'],'Monthly',{noSearch:true,js:"document.getElementById('m-freq-n').style.display=(_v==='Every N months…'?'flex':'none')"})}</div>
-        <div id="m-freq-n" style="width:150px;display:none;flex-direction:column;gap:4px">${lab('Every N months')}<input id="m-freq-num" class="fld" placeholder="3" style="height:36px;box-sizing:border-box"></div>
+      <div style="display:flex;gap:12px;align-items:flex-end">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Frequency *')}${this.singleSelect('m-freq',['Monthly','Weekly','Daily'],'Monthly',{noSearch:true,js:"document.getElementById('m-freq-unit').textContent=({Monthly:'months',Weekly:'weeks',Daily:'days'}[_v]||'months')"})}</div>
+        <span style="display:flex;align-items:center;height:36px;font-size:14px;color:#666;white-space:nowrap">Every</span>
+        <input id="m-freq-num" class="fld" value="1" style="width:64px;height:36px;box-sizing:border-box;text-align:center;flex:none">
+        <span id="m-freq-unit" style="display:flex;align-items:center;height:36px;font-size:14px;color:#666;white-space:nowrap">months</span>
       </div>`:''}
       ${isOne?`<label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#13314c;cursor:pointer"><input type="checkbox" id="m-refund" style="width:16px;height:16px;margin:0;accent-color:var(--ac,#008dd5)">Refundable</label>`:''}`;
     // Requirements section (visible): requirement + condition (Situational), first due, show on listings.
