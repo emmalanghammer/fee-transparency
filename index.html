@@ -1955,16 +1955,19 @@ class Component extends DCLogic {
   recChargesTableHTML(opts){
     opts=opts||{};
     const unit = opts.scope==='unit';
+    const two = !!opts.twoComment;
     const rec = this.state.propFees.filter(f=>!f.excluded && f.group==='req-rec');
     const lvlMap={ 'Property':{c:'#1570ef',l:'Property'}, 'Unit type':{c:'#d92d20',l:'Unit Type'}, 'Unit':{c:'#099250',l:'Unit'}, 'Tenant':{c:'#98a2b3',l:'Tenant'} };
-    const recCols='32px 94px minmax(110px,1fr) minmax(150px,1fr) 84px 96px 96px 124px';
+    const recCols = two ? '32px 94px minmax(100px,1fr) minmax(120px,1fr) minmax(120px,1fr) 80px 92px 92px 110px' : '32px 94px minmax(110px,1fr) minmax(150px,1fr) 84px 96px 96px 124px';
     const rh=(t,align)=>`<span style="display:flex;align-items:center;height:32px;box-sizing:border-box;padding:0 8px;font-size:12px;font-weight:500;letter-spacing:0.5px;color:#13314c;background:#fff;border-bottom:1px solid #cedbe7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${align==='right'?'justify-content:flex-end;text-align:right':''}">${t}</span>`;
-    const recHead=`<div style="display:grid;grid-template-columns:${recCols}">${rh('')}${rh('')}${rh('Charge Type')}${rh('Comment')}${rh('Frequency','right')}${rh('From Date')}${rh('To Date')}${rh('Amount','right')}</div>`;
+    const heads = two ? [['',''],['',''],['Charge Type',''],['Comment',''],['Comment',''],['Frequency','right'],['From Date',''],['To Date',''],['Amount','right']] : [['',''],['',''],['Charge Type',''],['Comment',''],['Frequency','right'],['From Date',''],['To Date',''],['Amount','right']];
+    const recHead=`<div style="display:grid;grid-template-columns:${recCols}">${heads.map(h=>rh(h[0],h[1])).join('')}</div>`;
     const cell=(t,align,color)=>`<span style="display:flex;align-items:center;height:36px;box-sizing:border-box;padding:0 8px;font-size:14px;color:${color||'#13314c'};border-bottom:1px solid #ebf1f5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${align==='right'?'justify-content:flex-end;text-align:right':''}">${t}</span>`;
     const barFor=(c)=>`<span style="display:flex;justify-content:center;height:36px;box-sizing:border-box;border-bottom:1px solid #ebf1f5"><span style="width:10px;background:${c}"></span></span>`;
-    const row=(idx,bar,level,code,comment,amount,commentColor)=>{
+    const row=(idx,bar,level,code,comment,amount,commentColor,comment2)=>{
       const rowBg = (idx%2===1) ? '#f5f8fa' : '#fff';
-      return `<div style="display:grid;grid-template-columns:${recCols};background:${rowBg}">${barFor(bar)}${cell(level)}${cell(code)}${cell(comment,'',commentColor||'#666')}${cell('Monthly','right')}${cell('01/01/2026')}${cell('—','','#b3b3b3')}${cell(amount,'right')}</div>`;
+      const mid = two ? `${cell(comment,'',commentColor||'#666')}${cell(comment2||'','',commentColor||'#666')}` : cell(comment,'',commentColor||'#666');
+      return `<div style="display:grid;grid-template-columns:${recCols};background:${rowBg}">${barFor(bar)}${cell(level)}${cell(code)}${mid}${cell('Monthly','right')}${cell('01/01/2026')}${cell('—','','#b3b3b3')}${cell(amount,'right')}</div>`;
     };
     let idx=0;
     // Property-level charges (shown everywhere).
@@ -1995,10 +1998,9 @@ class Component extends DCLogic {
       <div style="display:flex;align-items:center;justify-content:space-between;height:52px;box-sizing:border-box;padding:8px 20px;border-bottom:1px solid #cedbe7;flex:none"><span style="font-size:16px;font-weight:600;color:#666">View Recurring Charges</span><span style="display:inline-flex;align-items:center;gap:16px"><button data-act="toast" data-arg="Print" class="btn-pri" style="padding:8px 16px;font-size:14px;display:inline-flex;align-items:center;gap:6px"><span class="material-symbols-outlined" style="font-size:18px">print</span>Print</button><span data-act="recViewClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span></span></div>
       <div style="flex:1;min-height:0;overflow-y:auto;background:#f3f4f8;padding:16px 20px;display:flex;flex-direction:column;gap:16px">
         <div style="display:flex;align-items:center;gap:16px;background:#fff;border:1px solid #cedbe7;border-radius:4px;padding:16px 20px"><span style="display:inline-flex;align-items:center;gap:16px;font-size:14px;color:#13314c"><span style="font-weight:600">Charlie Apegian</span><span style="display:inline-flex;align-items:center;gap:6px">${this.feeIcon('property',16)}<span>${prop}</span></span><span style="display:inline-flex;align-items:center;gap:6px">${this.feeIcon('unit',16)}<span>1B</span></span></span><div style="flex:1"></div><span style="display:inline-flex;align-items:center;gap:16px"><span style="background:#e2f1da;color:#3a7d2c;border-radius:4px;padding:3px 12px;font-size:13px">Current</span><span style="font-size:14px;color:#13314c">Balance: <span style="font-weight:600">0.00</span></span></span></div>
-        <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:13px;color:#666">Rental Fee Template</span><div style="display:flex;align-items:center;height:36px;box-sizing:border-box;padding:0 12px;background:#eef1f4;border:1px solid #cedbe7;border-radius:4px;font-size:14px;color:#13314c;max-width:360px">${tplName}</div></div>
-        <div style="display:flex;align-items:center;gap:20px">${cbox('Past')}${cbox('Future')}${cbFig('Exclusion',!!this.state.recExcl,'recExclToggle')}</div>
         <div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #cedbe7;border-radius:4px;padding:12px 16px"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">info</span><span style="font-size:14px;color:#13314c">All charges are from the assigned rental fee template, and have to be changed in the template.</span><div style="flex:1"></div><a data-act="openTplFees" style="font-size:14px;color:var(--ac,#008dd5);white-space:nowrap">Open Rental Fee Template</a></div>
-        ${this.recChargesTableHTML({scope:(this.state.recView==='unit'?'unit':'property'), exclusion:!!this.state.recExcl})}
+        <div style="display:flex;align-items:center;gap:16px"><span style="font-size:14px;color:#666">Rental Fee Template <span style="color:#13314c;font-weight:600">${tplName}</span></span><div style="flex:1"></div><div style="display:flex;align-items:center;gap:20px">${cbox('Past')}${cbox('Future')}${cbFig('Exclusion',!!this.state.recExcl,'recExclToggle')}</div></div>
+        ${this.recChargesTableHTML({scope:(this.state.recView==='unit'?'unit':'property'), exclusion:!!this.state.recExcl, twoComment:true})}
       </div>
     </div></div>`;
   }
