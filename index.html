@@ -454,8 +454,8 @@ class Component extends DCLogic {
       const mk = (ctx, app) => ({ ctx, group, code, desc: desc||name, amount: amount.replace(/^\$/,''), cat: ctypeDesc || ctype || 'Custom', app, active: active, ils, cond: cond||undefined });
       let charges = [], scopeUpdate = null;
       if (appKind === 'Unit Type') {
-        const t = ((this.q('#m-appt-ut-in') || {}).value || '').trim() || '—';
-        charges = [mk('ut:' + t, 'Unit Type: ' + t)];
+        const types = checked('#m-appt-ut-in-list input:checked'); const list = types.length ? types : ['—'];
+        charges = list.map(t => mk('ut:' + t, 'Unit Type: ' + t));
       } else if (appKind === 'Unit') {
         const units = checked('#m-appt-unit-in-list input:checked'); const list = units.length ? units : ['—'];
         charges = list.map(u => mk('uf:' + u, 'Unit · ' + u));
@@ -2217,13 +2217,14 @@ class Component extends DCLogic {
     const msField=(id,options,selected)=>this.multiSelect(id,options,selected);
     const propSelected = this.propNames();
     const unitSelected = [unitDefault || unitList[0]];
+    const utSelected = utDefault ? [utDefault] : utOpts.slice();
     const appToggle="var v=_v;['prop','ut','unit'].forEach(function(k){document.getElementById('m-appt-'+k).style.display='none'});document.getElementById('m-appt-'+(v==='Property'?'prop':v==='Unit Type'?'ut':'unit')).style.display='flex'";
     const chargeApp = `
       <div style="display:flex;gap:8px;align-items:flex-start">
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Application *')}${this.singleSelect('m-app',['Property','Unit Type','Unit'],appKindDefault,{js:appToggle})}</div>
         <div style="flex:1;min-width:0">
           <div id="m-appt-prop" style="display:${appKindDefault==='Property'?'flex':'none'};flex-direction:column;gap:4px">${lab('Properties *')}${msField('m-appt-prop-in',this.propNames(),propSelected)}</div>
-          <div id="m-appt-ut" style="display:${appKindDefault==='Unit Type'?'flex':'none'};flex-direction:column;gap:4px">${lab('Unit Type *')}${dd('m-appt-ut-in',utOpts,utDefault||utNames[0])}</div>
+          <div id="m-appt-ut" style="display:${appKindDefault==='Unit Type'?'flex':'none'};flex-direction:column;gap:4px">${lab('Unit Types *')}${msField('m-appt-ut-in',utOpts,utSelected)}</div>
           <div id="m-appt-unit" style="display:${appKindDefault==='Unit'?'flex':'none'};flex-direction:column;gap:4px">${lab('Unit *')}${msField('m-appt-unit-in',unitList,unitSelected)}</div>
         </div>
       </div>`;
