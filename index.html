@@ -348,8 +348,17 @@ class Component extends DCLogic {
       case 'convDest': this.setState(s => ({ convert: Object.assign({}, s.convert, { dest: arg }) })); break;
       case 'convPickTpl': this.setState(s => ({ convert: Object.assign({}, s.convert, { existing: arg }) })); break;
       case 'convScan': { const c = this.state.convert; const nn = (this.q('#cv-name') || {}).value; const nd = (this.q('#cv-desc') || {}).value; this.setState({ convert: Object.assign({}, c, { step: 'scan', newName: nn != null ? nn : c.newName, newDesc: nd != null ? nd : c.newDesc }) }); clearTimeout(this._cvt); this._cvt = setTimeout(() => this.setState(s => { if (!s.convert) return {}; const fs = this.convertFees(); let first = 0; for (let i = 0; i < fs.length; i++) { if (fs[i].kind !== 'exact') { first = i; break; } } return { convert: Object.assign({}, s.convert, { step: 3, idx: first }) }; }), 1400); break; }
-      case 'convGo': this.setState(s => ({ convert: Object.assign({}, s.convert, { idx: Math.max(0, Math.min(this.convertFees().length - 1, parseInt(arg, 10))) }) })); break;
-      case 'convDecide': { const c = this.state.convert; const fees = this.convertFees(); const f = fees[c.idx]; let dec; if (f.kind === 'match') { const r = (this.q('input[name=cv-match]:checked') || {}).value || 'use'; dec = { action: 'match-' + r }; if (r === 'edit') dec.amount = (this.q('#cv-editamt') || {}).value || ''; } else if (f.kind === 'deposit') { dec = { action: 'deposit', refund: (this.q('#cv-refund') || {}).value || 'Refundable', maxHeld: (this.q('#cv-maxheld') || {}).value || '' }; } else if (f.kind === 'concession') { dec = { action: 'concession', exp: (this.q('#cv-exp') || {}).value || '' }; } else if (f.kind === 'latefee') { dec = { action: 'latefee' }; } else { const cond = (this.q('#cv-cond') || {}).value || ''; if (arg === 'add' && f.req === 'Situational' && !cond.trim()) { const el = this.q('#cv-cond'); if (el) el.style.borderColor = '#d02830'; this.flash('Condition is required for situational charges'); break; } dec = { action: arg, cond }; } const decisions = Object.assign({}, c.decisions, { [f.id]: dec }); const visited = Object.assign({}, c.visited, { [f.id]: true }); let nextIdx = -1; for (let i = c.idx + 1; i < fees.length; i++) { if (fees[i].kind !== 'exact') { nextIdx = i; break; } } if (nextIdx === -1) this.setState({ convert: Object.assign({}, c, { decisions, visited, step: 4 }) }); else this.setState({ convert: Object.assign({}, c, { decisions, visited, idx: nextIdx }) }); break; }
+      case 'convGo': this.setState(s => ({ convert: Object.assign({}, s.convert, { idx: Math.max(0, Math.min(this.convertFees().length - 1, parseInt(arg, 10))), curMatchOpt: null, curMatchTpl: null }) })); break;
+      case 'convMatchOpt': this.setState(s => ({ convert: Object.assign({}, s.convert, { curMatchOpt: arg }) })); break;
+      case 'convMatchTpl': this.setState(s => ({ convert: Object.assign({}, s.convert, { curMatchTpl: arg }) })); break;
+      case 'convDecide': { const c = this.state.convert; const fees = this.convertFees(); const f = fees[c.idx]; let dec;
+        if (f.kind === 'match') {
+          const r = c.curMatchOpt || 'use'; const tpl = c.curMatchTpl || f.tpl; const tplRec = this.tplFeeOptions().find(t => t.name === tpl) || { amount: f.tplAmount };
+          if (r === 'edit') dec = { action: 'match-edit', tpl, name: (this.q('#cv-editname') || {}).value || tpl, desc: (this.q('#cv-editdesc') || {}).value || '', amount: (this.q('#cv-editamt') || {}).value || tplRec.amount, freq: (this.q('#cv-editfreq') || {}).value || 'Monthly', cat: (this.q('#cv-editcat') || {}).value || '', req: (this.q('#cv-editreq') || {}).value || 'Required' };
+          else if (r === 'separate') dec = { action: 'match-separate', name: (this.q('#cv-sepname') || {}).value || f.title, desc: (this.q('#cv-sepdesc') || {}).value || '', amount: (this.q('#cv-sepamt') || {}).value || f.amount, freq: (this.q('#cv-sepfreq') || {}).value || 'Monthly', cat: (this.q('#cv-sepcat') || {}).value || f.cat, req: (this.q('#cv-sepreq') || {}).value || 'Required' };
+          else dec = { action: 'match-use', tpl, amount: tplRec.amount };
+        } else if (f.kind === 'deposit') { dec = { action: 'deposit', refund: (this.q('#cv-refund') || {}).value || 'Refundable', maxHeld: (this.q('#cv-maxheld') || {}).value || '' }; } else if (f.kind === 'concession') { dec = { action: 'concession', exp: (this.q('#cv-exp') || {}).value || '' }; } else if (f.kind === 'latefee') { dec = { action: 'latefee' }; } else { const cond = (this.q('#cv-cond') || {}).value || ''; if (arg === 'add' && f.req === 'Situational' && !cond.trim()) { const el = this.q('#cv-cond'); if (el) el.style.borderColor = '#d02830'; this.flash('Condition is required for situational charges'); break; } dec = { action: arg, cond }; }
+        const decisions = Object.assign({}, c.decisions, { [f.id]: dec }); const visited = Object.assign({}, c.visited, { [f.id]: true }); let nextIdx = -1; for (let i = c.idx + 1; i < fees.length; i++) { if (fees[i].kind !== 'exact') { nextIdx = i; break; } } if (nextIdx === -1) this.setState({ convert: Object.assign({}, c, { decisions, visited, step: 4, curMatchOpt: null, curMatchTpl: null }) }); else this.setState({ convert: Object.assign({}, c, { decisions, visited, idx: nextIdx, curMatchOpt: null, curMatchTpl: null }) }); break; }
       case 'convAddAll': { const c = this.state.convert; const fees = this.convertFees(); const decisions = Object.assign({}, c.decisions); fees.forEach(f => { if (!decisions[f.id]) decisions[f.id] = { action: (f.kind === 'match' ? 'match-use' : f.kind === 'deposit' ? 'deposit' : f.kind === 'concession' ? 'concession' : f.kind === 'latefee' ? 'latefee' : 'add') }; }); this.setState({ convert: Object.assign({}, c, { decisions, step: 4 }) }); break; }
       case 'convSummary': this.setState(s => ({ convert: Object.assign({}, s.convert, { step: 4 }) })); break;
       case 'convBackFees': this.setState(s => ({ convert: Object.assign({}, s.convert, { step: 3 }) })); break;
@@ -2191,6 +2200,25 @@ class Component extends DCLogic {
     return `<div style="display:flex;height:100%">${railWrap}${main}</div>`;
   }
   convFieldSuggest(label,val,extra){ return `<div style="display:flex;flex-direction:column;gap:4px;${extra||''}"><label style="font-size:12px;color:#8a9aa8">${label}</label><div style="border:1px dashed #c2cfda;border-radius:4px;padding:8px 10px;font-size:14px;color:#5a6773;font-style:italic;background:#fbfdfe">${val}</div></div>`; }
+  convCatMap(){ return { RENT:'Rent', UTILITY:'Utility', ADMIN:'Administrative', APPLICATION:'Application', PET:'Pet', PARKING:'Parking', HOLD:'Fee', STORAGE:'Storage' }; }
+  // The destination template's existing property-level charges — the catalog the "Use the
+  // template's fee" / "Edit the template fee" selectors pick from.
+  tplFeeOptions(){
+    const cat=this.convCatMap();
+    return this.state.propFees.filter(f=>!f.excluded && f.level==='Property').map(f=>({ name:f.name, amount:f.amount, desc:f.desc, mits:f.mits, cat: cat[f.mits]||f.mits }));
+  }
+  convInput(id,val,extra){ return `<input id="${id}" value="${val||''}" style="height:36px;border:1px solid #cedbe7;border-radius:4px;padding:0 10px;font-size:14px;${extra||''}">`; }
+  convSelect(id,opts,sel){ return `<select id="${id}" style="height:36px;border:1px solid #cedbe7;border-radius:4px;padding:0 8px;font-size:14px">${opts.map(o=>`<option ${o===sel?'selected':''}>${o}</option>`).join('')}</select>`; }
+  convDetailGrid(vals){
+    return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px;padding-top:10px;border-top:1px solid #ebf1f5">
+      <div style="display:flex;flex-direction:column;gap:4px;grid-column:1/-1"><label style="font-size:12px;color:#8a9aa8">Charge Name</label>${this.convInput(vals.nameId, vals.name)}</div>
+      <div style="display:flex;flex-direction:column;gap:4px;grid-column:1/-1"><label style="font-size:12px;color:#8a9aa8">Description</label>${this.convInput(vals.descId, vals.desc)}</div>
+      <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:#8a9aa8">Amount</label>${this.convInput(vals.amtId, vals.amount)}</div>
+      <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:#8a9aa8">Frequency</label>${this.convSelect(vals.freqId, ['Monthly','One-time'], vals.freq)}</div>
+      <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:#8a9aa8">Charge Category</label>${this.convInput(vals.catId, vals.cat)}</div>
+      <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:#8a9aa8">Charge Requirement</label>${this.convSelect(vals.reqId, ['Required','Optional — tenant selects','Situational'], vals.req)}</div>
+    </div>`;
+  }
   convLozenge(text,dotColor){ return `<span style="display:inline-flex;align-items:center;gap:8px;height:24px;max-width:200px;padding:4px 8px;border-radius:4px;background:#eef2f5"><span style="width:8px;height:8px;border-radius:50%;background:${dotColor||'#12a150'};flex:none"></span><span style="font-size:14px;font-style:italic;color:#13314c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${text}</span></span>`; }
   convFeePanel(f){
     const c=this.state.convert; const dec=c.decisions[f.id];
@@ -2198,7 +2226,27 @@ class Component extends DCLogic {
     const scopeSel = c.dest==='new' ? '' : `<div style="display:flex;flex-direction:column;gap:5px"><label style="font-size:12px;color:#8a9aa8">Add to</label><select style="height:36px;border:1px solid #cedbe7;border-radius:4px;padding:0 8px;font-size:14px;max-width:340px"><option>${c.prop} only</option><option>All properties assigned to ${c.existing}</option></select></div>`;
     // MATCHED
     if(f.kind==='match'){
-      const opt=(val,title,cons,cls,body)=>`<label style="display:flex;flex-direction:column;gap:2px;cursor:pointer"><span style="display:flex;align-items:center;gap:8px"><input type="radio" name="cv-match" value="${val}" ${val==='use'?'checked':''} onchange="var e=document.getElementById('cv-editwrap');if(e)e.style.display=(this.value==='edit'?'block':'none')" style="accent-color:var(--ac,#008dd5);width:20px;height:20px;margin:0"><span style="font-size:14px;color:#666">${title}</span>${cls==='warn'?`<span class="material-symbols-outlined" style="font-size:16px;color:#b35a00">warning</span><span style="font-size:12px;color:#b35a00;font-style:italic">${cons}</span>`:`<span style="font-size:12px;color:#8a9aa8">— ${cons}</span>`}</span>${body||''}</label>`;
+      const tplOpts=this.tplFeeOptions();
+      const curOpt = c.curMatchOpt || (dec ? (dec.action==='match-edit'?'edit':dec.action==='match-separate'?'separate':'use') : 'use');
+      const curTplName = c.curMatchTpl || (dec&&dec.tpl) || f.tpl;
+      const curTpl = tplOpts.find(t=>t.name===curTplName) || tplOpts.find(t=>t.name===f.tpl) || {name:f.tpl,amount:f.tplAmount,desc:'',cat:f.cat};
+      const feeSelector = (id)=>`<div style="display:flex;flex-direction:column;gap:4px;max-width:340px"><label style="font-size:12px;color:#8a9aa8">Template fee</label>${this.singleSelect(id, tplOpts.map(t=>({value:t.name,label:`${t.name} — ${t.amount}`})), curTplName, {act:'convMatchTpl', noSearch:true})}</div>`;
+      const opt=(val,title,cons,cls)=>`<label data-act="convMatchOpt" data-arg="${val}" style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="radio" name="cv-match" value="${val}" ${curOpt===val?'checked':''} style="accent-color:var(--ac,#008dd5);width:20px;height:20px;margin:0;pointer-events:none"><span style="font-size:14px;color:#666">${title}</span>${cls==='warn'?`<span class="material-symbols-outlined" style="font-size:16px;color:#b35a00">warning</span><span style="font-size:12px;color:#b35a00;font-style:italic">${cons}</span>`:`<span style="font-size:12px;color:#8a9aa8">— ${cons}</span>`}</label>`;
+      let reveal='';
+      if(curOpt==='use'){
+        reveal=`<div style="margin-top:10px;padding-top:10px;border-top:1px solid #ebf1f5;display:flex;flex-direction:column;gap:8px">${feeSelector('cv-usetpl')}<span style="font-size:12px;color:#8a9aa8">${f.title} becomes ${curTpl.amount} · new quotes here change</span></div>`;
+      } else if(curOpt==='edit'){
+        reveal=`<div style="margin-top:10px;padding-top:10px;border-top:1px solid #ebf1f5;display:flex;flex-direction:column;gap:8px">
+          ${feeSelector('cv-edittpl')}
+          ${this.convDetailGrid({nameId:'cv-editname',name:curTpl.name,descId:'cv-editdesc',desc:curTpl.desc,amtId:'cv-editamt',amount:curTpl.amount,freqId:'cv-editfreq',freq:/one-time/i.test(curTpl.amount)?'One-time':'Monthly',catId:'cv-editcat',cat:curTpl.cat,reqId:'cv-editreq',req:'Required'})}
+          <span style="font-size:11px;color:#8a9aa8">Logged to the template's Change History.</span>
+        </div>`;
+      } else {
+        reveal=`<div style="margin-top:10px;padding-top:10px;border-top:1px solid #ebf1f5;display:flex;flex-direction:column;gap:8px">
+          <span style="font-size:12px;color:#8a9aa8">New charge — details pulled in automatically from ${f.prop||c.prop}'s existing setup, review before adding.</span>
+          ${this.convDetailGrid({nameId:'cv-sepname',name:f.title,descId:'cv-sepdesc',desc:f.src,amtId:'cv-sepamt',amount:f.amount,freqId:'cv-sepfreq',freq:/one-time/i.test(f.amount)?'One-time':'Monthly',catId:'cv-sepcat',cat:f.cat,reqId:'cv-sepreq',req:'Required'})}
+        </div>`;
+      }
       return `<div style="display:flex;flex-direction:column;gap:16px;max-width:660px">
         ${titleLine}
         <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.6);border:1px solid #e3e9ee;border-radius:4px;padding:16px">
@@ -2209,9 +2257,10 @@ class Component extends DCLogic {
         </div>
         <div style="border:1px solid #cedbe7;border-radius:4px;background:#fff;padding:16px;display:flex;flex-direction:column;gap:12px">
           <span style="font-size:16px;font-weight:600;color:#13314c">How would you like to handle this charge?</span>
-          ${opt('use',`Use the template's fee`,`${f.title} becomes ${f.tplAmount} · new quotes here change`)}
-          ${opt('edit',`Edit the template fee`,`affects ${f.tplCount} assigned properties moving forward`,'warn',`<div id="cv-editwrap" style="display:none;margin:6px 0 0 28px"><input id="cv-editamt" placeholder="${f.tplAmount}" style="height:34px;width:180px;border:1px solid #cedbe7;border-radius:4px;padding:0 10px;font-size:14px"><div style="font-size:11px;color:#8a9aa8;margin-top:4px">Logged to the template's Change History.</div></div>`)}
+          ${opt('use',`Use the template's fee`,`${f.title} becomes ${curTpl.amount} · new quotes here change`)}
+          ${opt('edit',`Edit the template fee`,`affects ${f.tplCount} assigned properties moving forward`,'warn')}
           ${opt('separate',`Add as a separate charge`,`stacks a second ${f.title} on top of the template's`)}
+          ${reveal}
         </div>
       </div>`;
     }
@@ -2277,7 +2326,7 @@ class Component extends DCLogic {
   convStep4(){
     const c=this.state.convert; const fees=this.convertFees(); const d=c.decisions;
     let combined=0,added=0,removed=0,late=0,edits=0; const changes=[];
-    fees.forEach(f=>{ const a=(d[f.id]||{}).action; if(!a) return; if(a==='combined'||a==='match-use'||a==='match-edit'){ combined++; if(a==='match-edit'){ edits++; changes.push(`${f.tpl} edited to ${(d[f.id].amount||f.tplAmount)} — affects ${f.tplCount} properties`);} else if(a==='match-use' && f.amount!==f.tplAmount){ changes.push(`${f.title} ${f.amount} → ${f.tplAmount}`);} } else if(a==='dontadd'){ removed++; } else if(a==='latefee'){ late++; } else { added++; } });
+    fees.forEach(f=>{ const dd=d[f.id]||{}; const a=dd.action; if(!a) return; if(a==='combined'||a==='match-use'||a==='match-edit'){ combined++; if(a==='match-edit'){ edits++; changes.push(`${dd.tpl||f.tpl} edited to ${dd.amount||f.tplAmount} — affects ${f.tplCount} properties`);} else if(a==='match-use' && f.amount!==(dd.amount||f.tplAmount)){ changes.push(`${f.title} ${f.amount} → ${dd.amount||f.tplAmount}`);} } else if(a==='dontadd'){ removed++; } else if(a==='latefee'){ late++; } else { added++; } });
     const priceUnchanged = changes.length===0;
     const countPill=(n,lbl,col)=>`<div style="display:flex;flex-direction:column;align-items:center;gap:2px;padding:12px 18px;border:1px solid #e3e9ee;border-radius:8px;background:#fff;min-width:96px"><span style="font-size:22px;font-weight:700;color:${col}">${n}</span><span style="font-size:12px;color:#6a7885">${lbl}</span></div>`;
     const checks=[['All mandatory fees shown on listings',true],['No duplicate charges across levels',true],['Estimated amounts flagged for review', added>0]];
