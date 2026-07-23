@@ -556,12 +556,13 @@ class Component extends DCLogic {
   // Reusable multi-select checklist dropdown (summary + overlay panel with search, select-all, checkboxes).
   multiSelect(id, options, selected){
     const listId=id+'-list', panelId=id+'-panel', sumId=id+'-sum', cntId=id+'-cnt';
-    const total=options.length, nSel=selected.length;
+    const O = options.map(o => (o && typeof o === 'object') ? { v:''+o.value, l:''+(o.label!=null?o.label:o.value), sub:o.sub||'' } : { v:''+o, l:''+o, sub:'' });
+    const total=O.length, nSel=selected.length;
     const summary = nSel===total ? `All ${total} selected` : (nSel ? `${nSel} selected` : 'Select…');
     const upd=`var l=document.getElementById('${listId}');var n=l.querySelectorAll('input:checked').length;var t=l.querySelectorAll('input').length;document.getElementById('${sumId}').textContent=(n===t?('All '+t+' selected'):(n?(n+' selected'):'Select…'));document.getElementById('${cntId}').textContent=(n+' of '+t+' selected');var sa=document.getElementById('${id}-all');if(sa)sa.checked=(n===t)`;
     const selAll=`var l=document.getElementById('${listId}');var c=this.checked;l.querySelectorAll('input').forEach(function(x){x.checked=c});${upd}`;
     const filter=`var q=this.value.toLowerCase();document.getElementById('${listId}').querySelectorAll('label').forEach(function(l){l.style.display=(l.textContent.toLowerCase().indexOf(q)>=0?'flex':'none')})`;
-    const rows=options.map(o=>`<label style="display:flex;align-items:center;gap:10px;padding:6px 2px;cursor:pointer;font-size:14px;color:#13314c"><input type="checkbox" value="${o}" ${selected.includes(o)?'checked':''} onchange="${upd}" style="accent-color:#f58220;width:16px;height:16px;margin:0;flex:none">${o}</label>`).join('');
+    const rows=O.map(o=>`<label style="display:flex;align-items:center;gap:10px;padding:6px 2px;cursor:pointer;font-size:14px;color:#13314c"><input type="checkbox" value="${o.v}" ${selected.includes(o.v)?'checked':''} onchange="${upd}" style="accent-color:#f58220;width:16px;height:16px;margin:0;flex:none"><span style="display:flex;flex-direction:column;min-width:0;line-height:1.25">${o.l}${o.sub?`<span style="font-size:12px;color:#8a9aa8">${o.sub}</span>`:''}</span></label>`).join('');
     return `<div style="position:relative">
       <div onclick="var p=document.getElementById('${panelId}');p.style.display=(p.style.display==='none'?'block':'none')" style="display:flex;align-items:center;justify-content:space-between;gap:4px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 4px 0 12px;cursor:pointer"><span id="${sumId}" style="flex:1;min-width:0;font-size:14px;color:#13314c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${summary}</span><span class="material-symbols-outlined" style="font-size:20px;color:#666">arrow_drop_down</span></div>
       <div id="${panelId}" style="display:none;position:absolute;left:0;right:0;top:40px;z-index:20;border:1px solid #cedbe7;border-radius:4px;background:#fff;box-shadow:0 3px 6px rgba(0,0,0,0.15);overflow:hidden">
@@ -2258,7 +2259,9 @@ class Component extends DCLogic {
       else { amtFlat=a.replace(/^\$/,''); } }
     const utNames = this.utData().map(t=>t.name);
     const utOpts = (utDefault && utNames.indexOf(utDefault)<0) ? [utDefault].concat(utNames) : utNames;
-    const unitList = ['1A','1B','2A','4C','4D','5A'];
+    const unitData = this.ufUnits();
+    const unitList = unitData.map(u => ({ value:u.u, label:u.u, sub:u.prop }));
+    const unitCodes = unitData.map(u => u.u);
     // Charge Type typeahead (searchable dropdown of master charge types).
     const ctypeList=[['ADMIN','Administrative Fee'],['AMENITY','Amenity Fee'],['APPFEE','Application Fee'],['CABLE','Cable Utility'],['CAM','Common Area Maintenance'],['CLEAN','Cleaning Fee'],['COVPARK','Covered Parking'],['DEP','Security Deposit'],['ELEC','Electric Utility'],['EPAYAJ','ePay Refund Adjustment'],['EPD','Early Payment Discount'],['FMR',"First Month's Rent Charge"],['GARAGE','Garage Fee'],['GARBAG','Garbage Fee'],['GAS','Gas Utility'],['H2O','Water Utility'],['HO4','Renters Insurance Charge'],['HO7','Homeowners insurance'],['HOA','HOA Fee'],['KEY','Key & Fob Deposit'],['LATE','Late Fee'],['LMR',"Last Month's Rent"],['NSF','NSF Fee'],['PARK','Parking'],['PET','Pet Rent'],['PETDP','Pet Deposit'],['RC','Rent'],['SEWER','Sewer Utility'],['STORAGE','Storage Fee'],['TRASH','Trash Valet'],['UTIL','Utility']];
     // Derived charge category (syndicated to listings). Maps charge type code → category.
@@ -2275,7 +2278,7 @@ class Component extends DCLogic {
     // Inline multi-select checklist dropdown (shared with the exception modal).
     const msField=(id,options,selected)=>this.multiSelect(id,options,selected);
     const propSelected = this.propNames();
-    const unitSelected = [unitDefault || unitList[0]];
+    const unitSelected = [unitDefault || unitCodes[0]];
     const utSelected = utDefault ? [utDefault] : utOpts.slice();
     const oriTypes=['Garage','Storage Unit','Parking Space','Boat Slip','Locker','RV Space'];
     const oriDefault = ed ? (/^ORI/.test(ed.app||'') ? (ed.app.replace(/^ORI[ -]+/,'')) : '') : (m.ctx && m.ctx.indexOf('ori:')===0 ? m.ctx.slice(4) : '');
