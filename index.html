@@ -622,7 +622,26 @@ class Component extends DCLogic {
   }
 
   oriBody(){
-    return this.banner('Other Rentable Items (ORI) are add-on rentables — parking, garages, storage — offered on top of the lease. Each carries a default rent and appears as a selectable optional add-on in rent quotes and move-in.','') + this.oriTile();
+    const cols='150px minmax(200px,1fr) 90px 100px 130px 130px 150px 60px 40px';
+    const heads=['Charge Name','Description','Amount','Frequency','Charge Category','Charge Application','Charge Requirement','Active',''];
+    const th=`<div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${heads.map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:600;color:#13314c;white-space:nowrap">${x}</span>`).join('')}</div>`;
+    const cell=(t,color)=>`<span style="display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:8px 12px;font-size:14px;color:${color||'#13314c'}">${t}</span>`;
+    const pillCell=(html)=>`<span style="display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:8px 12px">${html}</span>`;
+    const appPill=`<span style="display:inline-flex;align-items:center;background:#e5f3fb;color:#0071aa;border-radius:4px;padding:2px 10px;font-size:12px;white-space:nowrap">ORI - Garage</span>`;
+    const reqPill=`<span style="display:inline-flex;align-items:center;background:#e2f1da;color:#3a7d2c;border-radius:4px;padding:2px 10px;font-size:12px;white-space:nowrap">Optional</span>`;
+    const kebab=`<span data-act="rowMenu" data-arg="GARAGEFEE" data-prop="0" style="display:flex;align-items:center;justify-content:center;min-height:44px;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">more_vert</span></span>`;
+    const recRow=`<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5"><span class="td" style="border:none;padding-left:16px;font-size:14px;color:#13314c">Garage Monthly Fee</span>${cell('Garages are available to rent in the rear of the property.','#666')}${cell('$25.00')}${cell('Monthly')}${cell('GARAGE','#666')}${pillCell(appPill)}${pillCell(reqPill)}${pillCell(this.chk(true))}${kebab}</div>`;
+    const addLink=(label,group)=>`<div data-act="addopen" data-arg="${group}" style="background:#f5f9fc;padding:9px 16px;cursor:pointer"><span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,#008dd5)"><span class="material-symbols-outlined" style="font-size:18px">add</span>${label}</span></div>`;
+    const tableWrap=(label,rowsHtml,addGroup,addLabel)=>`<div style="font-size:13px;font-weight:600;color:#666;padding:12px 20px 8px">${label}</div><div style="padding:0 20px;overflow-x:auto"><div style="min-width:1000px;border:1px solid #cedbe7;border-radius:4px;overflow:hidden">${th}${rowsHtml}${addLink(addLabel,addGroup)}</div></div>`;
+    const oneEmpty=`<div style="padding:16px;text-align:center;font-size:14px;font-style:italic;color:#b3b3b3;border-bottom:1px solid #ebf1f5">No optional one-time charges added for garages.</div>`;
+    const optInner=tableWrap('Recurring',recRow,'opt-rec','Add Recurring Charge')+tableWrap('One-Time',oneEmpty,'opt-one','Add One-Time Charge');
+    const acc=(title,sub,count,inner,open)=>`<div class="tile" style="overflow:hidden"><div onclick="var b=this.parentElement.querySelector('.oacc-body');var c=this.querySelector('.oacc-chev');var o=b.style.display!=='none';b.style.display=o?'none':'block';c.textContent=o?'expand_more':'expand_less'" style="display:flex;align-items:center;gap:8px;padding:16px;cursor:pointer"><span class="material-symbols-outlined oacc-chev" style="font-size:20px;color:#666">${open?'expand_less':'expand_more'}</span><div style="display:flex;flex-direction:column;gap:2px"><span><span style="font-size:14px;font-weight:600;color:#13314c">${title}</span>${sub?`<span style="font-size:13px;color:#8a9aa8;font-style:italic;margin-left:8px">${sub}</span>`:''}</span>${count!=null?`<span style="font-size:12px;color:#666">${count} charge${count===1?'':'s'}</span>`:''}</div></div><div class="oacc-body" style="${open?'':'display:none;'}padding-bottom:12px">${inner}</div></div>`;
+    let m='';
+    m+=this.banner('ORI fees are associated with other rentable items (ORIs) such as garages, storage units, parking spaces, and more. They are marketed as optional charges and applied during move-in or on a rent quote when the ORI is selected.','');
+    m+=`<div class="tile" style="padding:20px 32px;display:flex;align-items:flex-start;gap:20px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px"><span style="display:inline-flex;align-items:center;gap:10px"><span style="font-size:16px;font-weight:600;color:#13314c">Garage</span><span style="background:#eef1f4;color:#4a5b6b;border-radius:4px;padding:2px 10px;font-size:12px">1 fee</span></span><span style="font-size:13px;color:#8a9aa8">Fees for garages available to rent.</span></div><button data-act="toast" data-arg="Preview pricing" class="btn-out" style="height:36px;padding:8px 14px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap"><span class="material-symbols-outlined" style="font-size:18px">visibility</span>Preview pricing</button></div>`;
+    m+=acc('Required Charges','',0,'',false);
+    m+=acc('Optional Charges','Tenant selects',null,optInner,true);
+    return m;
   }
   oriTile(){
     const rows=this.oriItems();
@@ -2145,7 +2164,7 @@ class Component extends DCLogic {
     else if (t === 'Amenities') return `<div style="flex:1;min-height:0;display:flex;flex-direction:column">${this.amenitiesBody()}</div>`;
     else if (t === 'Unit Type Fees') return `<div style="flex:1;min-height:0;display:flex;flex-direction:column">${this.utBody()}</div>`;
     else if (t === 'Unit Fees') return `<div style="flex:1;min-height:0;display:flex;flex-direction:column">${this.ufBody()}</div>`;
-    else if (t === "ORI's") inner = this.oriBody();
+    else if (t === 'ORI Fees') inner = this.oriBody();
     else if (t === 'Pricing Preview') inner = this.lpBody();
     else if (t === 'Assigned Properties') inner = this.apBody();
     else if (t === 'Exceptions') inner = this.exceptionsBody();
@@ -2365,7 +2384,7 @@ class Component extends DCLogic {
     if (s.view === 'profile') {
       out += this.ctx('Rental Fee Templates', [{ label: this.activeName() }], ((n)=>{const i=['Standard Apartment','Luxury Apartment','Townhome Community'].indexOf(n); return i>=0?((i+1)+' of 3'):'';})(this.activeName()), 'navRegister');
       out += this.profileScoreboard();
-      out += this.tabRow(['Overview','Property Fees','Unit Type Fees','Unit Fees',"ORI's",'Pricing Preview','Assigned Properties','Exceptions','Change History'], s.profileTab, 'ptab');
+      out += this.tabRow(['Overview','Property Fees','Unit Type Fees','Unit Fees','ORI Fees','Pricing Preview','Assigned Properties','Exceptions','Change History'], s.profileTab, 'ptab');
       out += this.profileBody();
       out += this.footer(s.profileTab === 'Unit Fees' ? 'Save unit fees' : 'Save template');
     } else if (s.view === 'property') {
