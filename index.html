@@ -2239,7 +2239,7 @@ class Component extends DCLogic {
   convChargeForm(v){
     v=v||{};
     const lab=(t,info)=>`<span style="display:inline-flex;align-items:center;gap:4px;font-size:14px;color:#666">${t}${info?`<span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5)">info</span>`:''}</span>`;
-    const sect=(t,inner)=>`<div style="display:flex;flex-direction:column;gap:10px"><span style="font-size:15px;font-weight:600;color:#13314c">${t}</span><div style="border:1px solid #e3e9ee;border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:12px">${inner}</div></div>`;
+    const sect=(t,inner,first)=>`<div style="display:flex;flex-direction:column;gap:12px;${first?'':'padding-top:14px;border-top:1px solid #ebf1f5'}"><span class="eyebrow">${t}</span><div style="display:flex;flex-direction:column;gap:12px">${inner}</div></div>`;
     const dd=(id,opts,sel,o)=>this.singleSelect(id,opts,sel,o);
     const cat=this.convChargeCatMap(), catFor=(code)=>cat[(code||'').toUpperCase()]||'';
     const oneTime=!!v.oneTime, src=v.source||'Flat', code=v.code||'', edCat=v.cat||catFor(code);
@@ -2303,14 +2303,14 @@ class Component extends DCLogic {
         <label style="display:inline-flex;align-items:center;gap:10px;cursor:pointer"><span onclick="var on=this.getAttribute('data-on')==='1';on=!on;this.setAttribute('data-on',on?'1':'0');document.getElementById('cvf-ils').value=on?'1':'0';this.style.background=on?'var(--ac,#008dd5)':'#cedbe7';this.firstElementChild.style.left=on?'16px':'2px'" data-on="1" style="display:inline-block;width:32px;height:18px;border-radius:999px;background:var(--ac,#008dd5);position:relative;flex:none"><span style="position:absolute;top:2px;left:16px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left 120ms ease-out"></span></span><span style="font-size:14px;color:#13314c">Show on listings (ILS)</span></label>
         <input type="hidden" id="cvf-ils" value="1">
       </div>`;
-    const moreOptions=`<div style="border:1px solid #e3e9ee;border-radius:4px">
-      <div onclick="var b=document.getElementById('cvf-more-body');var open=b.style.display!=='none';b.style.display=open?'none':'flex';this.querySelector('.chev').textContent=open?'expand_more':'expand_less'" style="display:flex;align-items:center;gap:6px;padding:12px 14px;cursor:pointer;font-size:14px;font-weight:600;color:#13314c"><span class="material-symbols-outlined chev" style="font-size:20px;color:#666">expand_more</span>Additional information</div>
-      <div id="cvf-more-body" style="display:none;flex-direction:column;gap:12px;padding:0 14px 14px">
+    const moreOptions=`<div style="padding-top:14px;border-top:1px solid #ebf1f5">
+      <div onclick="var b=document.getElementById('cvf-more-body');var open=b.style.display!=='none';b.style.display=open?'none':'flex';this.querySelector('.chev').textContent=open?'expand_more':'expand_less'" style="display:flex;align-items:center;gap:6px;cursor:pointer"><span class="material-symbols-outlined chev" style="font-size:18px;color:#8a9aa8">expand_more</span><span class="eyebrow">Additional information</span></div>
+      <div id="cvf-more-body" style="display:none;flex-direction:column;gap:12px;padding-top:12px">
         <div style="display:flex;gap:12px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('From Date')}<input id="cvf-from" class="fld" placeholder="mm/dd/yyyy" style="height:36px;box-sizing:border-box"></div><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('To Date')}<input id="cvf-to" class="fld" placeholder="mm/dd/yyyy" style="height:36px;box-sizing:border-box"></div></div>
         <div style="display:flex;flex-direction:column;gap:4px">${lab('Lease Term(s)')}${dd('cvf-terms',['All Selected','12 month','6 month','Month-to-month'],'All Selected',{noSearch:true})}</div>
         <div style="display:flex;flex-direction:column;gap:4px">${lab('Comment (Internal Only)')}<textarea id="cvf-memo" class="fld" style="height:48px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif"></textarea></div>
       </div></div>`;
-    return `<div style="margin-top:12px;padding-top:12px;border-top:1px solid #ebf1f5;display:flex;flex-direction:column;gap:16px">${sect('General Details',general)}${sect(oneTime?'Fee Amount':'Fee Amount & Schedule',amount)}${sect('Requirements',reqs)}${moreOptions}</div>`;
+    return `<div style="margin-top:14px;display:flex;flex-direction:column;gap:14px">${sect('General Details',general,true)}${sect(oneTime?'Fee Amount':'Fee Amount & Schedule',amount)}${sect('Requirements',reqs)}${moreOptions}</div>`;
   }
   convLozenge(text,dotColor){ return `<span style="display:inline-flex;align-items:center;gap:8px;height:24px;max-width:200px;padding:4px 8px;border-radius:4px;background:#eef2f5"><span style="width:8px;height:8px;border-radius:50%;background:${dotColor||'#12a150'};flex:none"></span><span style="font-size:14px;font-style:italic;color:#13314c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${text}</span></span>`; }
   convFeePanel(f){
