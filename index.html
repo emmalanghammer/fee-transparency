@@ -2393,31 +2393,41 @@ class Component extends DCLogic {
     }
     const optRow=(o)=>`<label data-act="convOpt" data-arg="${o.v}" style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="radio" name="cv-opt" value="${o.v}" ${curOpt===o.v?'checked':''} style="accent-color:var(--ac,#008dd5);width:20px;height:20px;margin:0;pointer-events:none"><span style="font-size:14px;color:#666">${o.title}</span>${o.warn?`<span class="material-symbols-outlined" style="font-size:16px;color:#b35a00">warning</span><span style="font-size:12px;color:#b35a00;font-style:italic">${o.cons}</span>`:(o.cons?`<span style="font-size:12px;color:#8a9aa8">— ${o.cons}</span>`:'')}</label>`;
     // Reveal beneath the selected option.
-    const autoNote=`<div style="margin-top:10px;display:flex;align-items:center;gap:6px;font-size:12px;color:#8a9aa8"><span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5)">auto_awesome</span>Details pulled in automatically from ${f.prop||c.prop}'s existing setup — review before adding.</div>`;
-    let reveal='';
+    const autoLead=`<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#8a9aa8"><span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5)">auto_awesome</span>Details pulled in automatically from ${f.prop||c.prop}'s existing setup — review before ${curOpt==='separate'||f.kind==='unmatched'?'adding':'saving'}.</div>`;
+    const editLead=`<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#8a9aa8"><span class="material-symbols-outlined" style="font-size:16px;color:#b35a00">history</span>Editing the template fee — changes are logged to Change History.</div>`;
+    // `inline` stays in the decision card; `formVals`/`lead` render as a separate charge-details card.
+    let inline='', formVals=null, lead='';
     if(curOpt==='dontadd'){
-      reveal=`<div style="margin-top:10px;padding-top:10px;border-top:1px solid #ebf1f5;font-size:13px;color:#8a9aa8">This charge won't be added to the template. Current tenants keep their existing charge until it's end-dated.</div>`;
+      inline=`<div style="margin-top:10px;padding-top:10px;border-top:1px solid #ebf1f5;font-size:13px;color:#8a9aa8">This charge won't be added to the template. Current tenants keep their existing charge until it's end-dated.</div>`;
     } else if(f.kind==='match' && curOpt==='use'){
-      reveal=`<div style="margin-top:10px;padding-top:10px;border-top:1px solid #ebf1f5;display:flex;flex-direction:column;gap:8px">${feeSelector('cvf-tplpick')}<span style="font-size:12px;color:#8a9aa8">${f.title} becomes ${curTpl.amount} · new quotes here change</span></div>`;
+      inline=`<div style="margin-top:10px;padding-top:10px;border-top:1px solid #ebf1f5;display:flex;flex-direction:column;gap:8px">${feeSelector('cvf-tplpick')}<span style="font-size:12px;color:#8a9aa8">${f.title} becomes ${curTpl.amount} · new quotes here change</span></div>`;
     } else if(f.kind==='match' && curOpt==='edit'){
-      reveal=`<div style="margin-top:10px;padding-top:10px;border-top:1px solid #ebf1f5;display:flex;flex-direction:column;gap:6px">${feeSelector('cvf-tplpick')}<span style="font-size:11px;color:#8a9aa8">Logged to the template's Change History.</span></div>${this.convChargeForm(this.convFormValsFromTpl(curTpl))}`;
+      inline=`<div style="margin-top:10px;padding-top:10px;border-top:1px solid #ebf1f5;display:flex;flex-direction:column;gap:6px">${feeSelector('cvf-tplpick')}</div>`;
+      formVals=this.convFormValsFromTpl(curTpl); lead=editLead;
     } else if(f.kind==='match' && curOpt==='separate'){
-      reveal=`${autoNote}${this.convChargeForm(this.convFormValsFromFee(f))}`;
+      formVals=this.convFormValsFromFee(f); lead=autoLead;
     } else if(f.kind==='deposit'){
-      const v=Object.assign(this.convFormValsFromFee(f),{oneTime:true,refundable:f.refundable!==false,cat:'Deposit',source:'Flat'}); reveal=`${autoNote}${this.convChargeForm(v)}`;
+      formVals=Object.assign(this.convFormValsFromFee(f),{oneTime:true,refundable:f.refundable!==false,cat:'Deposit',source:'Flat'}); lead=autoLead;
     } else if(f.kind==='concession'){
-      const v=Object.assign(this.convFormValsFromFee(f),{oneTime:true,cat:'Concession',source:'Flat',showExpiration:true,expiration:f.exp}); reveal=`${autoNote}${this.convChargeForm(v)}`;
+      formVals=Object.assign(this.convFormValsFromFee(f),{oneTime:true,cat:'Concession',source:'Flat',showExpiration:true,expiration:f.exp}); lead=autoLead;
     } else {
-      reveal=`${autoNote}${this.convChargeForm(this.convFormValsFromFee(f))}`;
+      formVals=this.convFormValsFromFee(f); lead=autoLead;
     }
+    const decisionCard=`<div style="border:1px solid #cedbe7;border-radius:4px;background:#fff;padding:16px;display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:16px;font-weight:600;color:#13314c">How would you like to handle this charge?</span>
+        ${opts.map(optRow).join('')}
+        ${inline}
+      </div>`;
+    const formCard = formVals ? `<div style="border:1px solid #cedbe7;border-radius:4px;background:#fff;padding:16px;display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:16px;font-weight:600;color:#13314c">Charge details</span>
+        ${lead}
+        ${this.convChargeForm(formVals)}
+      </div>` : '';
     return `<div style="display:flex;flex-direction:column;gap:16px;max-width:780px">
       ${titleLine}
       ${banner}
-      <div style="border:1px solid #cedbe7;border-radius:4px;background:#fff;padding:16px;display:flex;flex-direction:column;gap:12px">
-        <span style="font-size:16px;font-weight:600;color:#13314c">How would you like to handle this charge?</span>
-        ${opts.map(optRow).join('')}
-        ${reveal}
-      </div>
+      ${decisionCard}
+      ${formCard}
     </div>`;
   }
   convFoot3(){
