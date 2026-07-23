@@ -1897,6 +1897,8 @@ class Component extends DCLogic {
     const g=(grp)=>pl(defs.filter(d=>d.group===grp));
     let h='';
     h+=this.banner('Property-level fees apply to all assigned properties by default. Use the Charge Application column to limit a fee to specific properties.','Learn more →');
+    // Property multiselect filter — defaults to every assigned property so all charges show.
+    h+=`<div style="display:flex;flex-direction:column;gap:4px;max-width:320px"><span style="font-size:14px;color:var(--ac,#008dd5)">Property</span>${this.multiSelect('pf-prop-filter', this.propNames(), this.propNames())}</div>`;
     h+=this.chargeAccordion('req','Required Charges','', g('req-rec'), g('req-one'), {ctx:'prop',keyPrefix:'pf',recGroup:'req-rec',oneGroup:'req-one',showOverrides:true,propScope:true});
     h+=this.chargeAccordion('opt','Optional Charges','Tenant selects', g('opt-rec'), g('opt-one'), {ctx:'prop',keyPrefix:'pf',recGroup:'opt-rec',oneGroup:'opt-one',showOverrides:true,propScope:true});
     h+=this.chargeAccordion('sit','Situational Charges','Applies when a condition exists', g('sit-rec'), g('sit-one'), {ctx:'prop',keyPrefix:'pf',recGroup:'sit-rec',oneGroup:'sit-one',condition:true,oneEmpty:'No situational one-time charges added.',showOverrides:true,propScope:true});
