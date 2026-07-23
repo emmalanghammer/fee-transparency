@@ -348,17 +348,25 @@ class Component extends DCLogic {
       case 'convDest': this.setState(s => ({ convert: Object.assign({}, s.convert, { dest: arg }) })); break;
       case 'convPickTpl': this.setState(s => ({ convert: Object.assign({}, s.convert, { existing: arg }) })); break;
       case 'convScan': { const c = this.state.convert; const nn = (this.q('#cv-name') || {}).value; const nd = (this.q('#cv-desc') || {}).value; this.setState({ convert: Object.assign({}, c, { step: 'scan', newName: nn != null ? nn : c.newName, newDesc: nd != null ? nd : c.newDesc }) }); clearTimeout(this._cvt); this._cvt = setTimeout(() => this.setState(s => { if (!s.convert) return {}; const fs = this.convertFees(); let first = 0; for (let i = 0; i < fs.length; i++) { if (fs[i].kind !== 'exact') { first = i; break; } } return { convert: Object.assign({}, s.convert, { step: 3, idx: first }) }; }), 1400); break; }
-      case 'convGo': this.setState(s => ({ convert: Object.assign({}, s.convert, { idx: Math.max(0, Math.min(this.convertFees().length - 1, parseInt(arg, 10))), curMatchOpt: null, curMatchTpl: null }) })); break;
-      case 'convMatchOpt': this.setState(s => ({ convert: Object.assign({}, s.convert, { curMatchOpt: arg }) })); break;
-      case 'convMatchTpl': this.setState(s => ({ convert: Object.assign({}, s.convert, { curMatchTpl: arg }) })); break;
-      case 'convDecide': { const c = this.state.convert; const fees = this.convertFees(); const f = fees[c.idx]; let dec;
-        if (f.kind === 'match') {
-          const r = c.curMatchOpt || 'use'; const tpl = c.curMatchTpl || f.tpl; const tplRec = this.tplFeeOptions().find(t => t.name === tpl) || { amount: f.tplAmount };
-          if (r === 'edit') dec = { action: 'match-edit', tpl, name: (this.q('#cv-editname') || {}).value || tpl, desc: (this.q('#cv-editdesc') || {}).value || '', amount: (this.q('#cv-editamt') || {}).value || tplRec.amount, freq: (this.q('#cv-editfreq') || {}).value || 'Monthly', cat: (this.q('#cv-editcat') || {}).value || '', req: (this.q('#cv-editreq') || {}).value || 'Required' };
-          else if (r === 'separate') dec = { action: 'match-separate', name: (this.q('#cv-sepname') || {}).value || f.title, desc: (this.q('#cv-sepdesc') || {}).value || '', amount: (this.q('#cv-sepamt') || {}).value || f.amount, freq: (this.q('#cv-sepfreq') || {}).value || 'Monthly', cat: (this.q('#cv-sepcat') || {}).value || f.cat, req: (this.q('#cv-sepreq') || {}).value || 'Required' };
-          else dec = { action: 'match-use', tpl, amount: tplRec.amount };
-        } else if (f.kind === 'deposit') { dec = { action: 'deposit', refund: (this.q('#cv-refund') || {}).value || 'Refundable', maxHeld: (this.q('#cv-maxheld') || {}).value || '' }; } else if (f.kind === 'concession') { dec = { action: 'concession', exp: (this.q('#cv-exp') || {}).value || '' }; } else if (f.kind === 'latefee') { dec = { action: 'latefee' }; } else { const cond = (this.q('#cv-cond') || {}).value || ''; if (arg === 'add' && f.req === 'Situational' && !cond.trim()) { const el = this.q('#cv-cond'); if (el) el.style.borderColor = '#d02830'; this.flash('Condition is required for situational charges'); break; } dec = { action: arg, cond }; }
-        const decisions = Object.assign({}, c.decisions, { [f.id]: dec }); const visited = Object.assign({}, c.visited, { [f.id]: true }); let nextIdx = -1; for (let i = c.idx + 1; i < fees.length; i++) { if (fees[i].kind !== 'exact') { nextIdx = i; break; } } if (nextIdx === -1) this.setState({ convert: Object.assign({}, c, { decisions, visited, step: 4, curMatchOpt: null, curMatchTpl: null }) }); else this.setState({ convert: Object.assign({}, c, { decisions, visited, idx: nextIdx, curMatchOpt: null, curMatchTpl: null }) }); break; }
+      case 'convGo': this.setState(s => ({ convert: Object.assign({}, s.convert, { idx: Math.max(0, Math.min(this.convertFees().length - 1, parseInt(arg, 10))), curOpt: null, curTpl: null }) })); break;
+      case 'convOpt': this.setState(s => ({ convert: Object.assign({}, s.convert, { curOpt: arg }) })); break;
+      case 'convTpl': this.setState(s => ({ convert: Object.assign({}, s.convert, { curTpl: arg }) })); break;
+      case 'convDecide': { const c = this.state.convert; const fees = this.convertFees(); const f = fees[c.idx];
+        const curOpt = c.curOpt || (c.decisions[f.id] ? (this.convOptFromAction(c.decisions[f.id].action) || this.convDefaultOpt(f)) : this.convDefaultOpt(f));
+        let dec;
+        if (f.kind === 'latefee') { dec = { action: 'latefee' }; }
+        else if (curOpt === 'dontadd') { dec = { action: 'dontadd' }; }
+        else if (f.kind === 'match' && curOpt === 'use') { const tpl = c.curTpl || f.tpl; const rec = this.tplFeeOptions().find(t => t.name === tpl) || { amount: f.tplAmount }; dec = { action: 'match-use', tpl, amount: rec.amount }; }
+        else {
+          const form = this.convReadForm();
+          if (form.req === 'Situational' && !(''+form.cond).trim()) { const el = this.q('#cvf-cond'); if (el) el.style.borderColor = '#d02830'; this.flash('Condition is required for situational charges'); break; }
+          if (f.kind === 'match' && curOpt === 'edit') dec = Object.assign({ action: 'match-edit', tpl: c.curTpl || f.tpl }, form);
+          else if (f.kind === 'match' && curOpt === 'separate') dec = Object.assign({ action: 'match-separate' }, form);
+          else if (f.kind === 'deposit') dec = Object.assign({ action: 'deposit' }, form);
+          else if (f.kind === 'concession') dec = Object.assign({ action: 'concession' }, form);
+          else dec = Object.assign({ action: 'add' }, form);
+        }
+        const decisions = Object.assign({}, c.decisions, { [f.id]: dec }); const visited = Object.assign({}, c.visited, { [f.id]: true }); let nextIdx = -1; for (let i = c.idx + 1; i < fees.length; i++) { if (fees[i].kind !== 'exact') { nextIdx = i; break; } } if (nextIdx === -1) this.setState({ convert: Object.assign({}, c, { decisions, visited, step: 4, curOpt: null, curTpl: null }) }); else this.setState({ convert: Object.assign({}, c, { decisions, visited, idx: nextIdx, curOpt: null, curTpl: null }) }); break; }
       case 'convAddAll': { const c = this.state.convert; const fees = this.convertFees(); const decisions = Object.assign({}, c.decisions); fees.forEach(f => { if (!decisions[f.id]) decisions[f.id] = { action: (f.kind === 'match' ? 'match-use' : f.kind === 'deposit' ? 'deposit' : f.kind === 'concession' ? 'concession' : f.kind === 'latefee' ? 'latefee' : 'add') }; }); this.setState({ convert: Object.assign({}, c, { decisions, step: 4 }) }); break; }
       case 'convSummary': this.setState(s => ({ convert: Object.assign({}, s.convert, { step: 4 }) })); break;
       case 'convBackFees': this.setState(s => ({ convert: Object.assign({}, s.convert, { step: 3 }) })); break;
@@ -2187,7 +2195,7 @@ class Component extends DCLogic {
     // Left rail grouped by level, styled after the Figma "Sidebar List" (chevron group header,
     // status icon + code + description row, current row highlighted with a blue left border).
     const rowIcon=(dec)=>{ if(!dec) return `<span class="material-symbols-outlined" style="font-size:18px;color:#c9d4dd">radio_button_unchecked</span>`; const a=dec.action; if(a==='dontadd') return `<span class="material-symbols-outlined" style="font-size:18px;color:#b3306b">cancel</span>`; return `<span class="material-symbols-outlined" style="font-size:18px;color:#12a150">check_circle</span>`; };
-    const rowLabel=(dec)=>{ if(!dec) return ''; const a=dec.action; if(a==='dontadd') return 'Removed'; if(a==='latefee') return 'Kept'; if(a==='combined') return 'Combined'; if(/^match-/.test(a)) return 'Combined'; return 'Added'; };
+    const rowLabel=(dec)=>{ if(!dec) return ''; const a=dec.action; if(a==='dontadd') return 'Removed'; if(a==='latefee') return 'Kept'; if(a==='combined'||a==='match-use'||a==='match-edit') return 'Combined'; return 'Added'; };
     const rail = this.convLevels().map(lv=>{ const group=fees.filter(x=>x.level===lv); if(!group.length) return ''; return `<div style="margin-bottom:2px"><div style="display:flex;align-items:center;gap:2px;padding:8px 8px 4px 8px"><span class="material-symbols-outlined" style="font-size:20px;color:#8a9aa8">arrow_drop_down</span><span style="font-size:14px;font-weight:600;color:#13314c">${this.convGroupLabel(lv)}</span></div>${group.map(x=>{ const gi=fees.indexOf(x); const dec=c.decisions[x.id]; const cur=gi===c.idx; return `<div data-act="convGo" data-arg="${gi}" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 8px 8px 12px;cursor:pointer;background:${cur?'#e8f6fa':'#fff'};border-left:4px solid ${cur?'var(--ac,#008dd5)':'transparent'}"><span style="display:flex;align-items:center;gap:8px;min-width:0;flex:1"><span style="flex:none;display:flex">${rowIcon(dec)}</span><span style="font-size:14px;font-weight:600;color:#13314c;white-space:nowrap">${x.code}</span><span style="font-size:14px;color:#13314c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${x.title}</span></span><span style="font-size:12px;color:#666;flex:none">${rowLabel(dec)}</span></div>`; }).join('')}</div>`; }).join('');
     const railWrap = `<div style="width:296px;flex:none;border-right:1px solid #cedbe7;background:#fff;overflow-y:auto">
       <div style="display:flex;flex-direction:column;gap:16px;padding:12px 8px">
@@ -2199,127 +2207,195 @@ class Component extends DCLogic {
     const main = `<div style="flex:1;min-width:0;overflow-y:auto;padding:20px 28px"><div style="display:flex;gap:16px;align-items:center;font-size:14px;color:#666;margin-bottom:12px"><span>Fee ${c.idx+1} of ${fees.length}</span><span>${this.convLevelLabel(f.level)}${/^(unmatched|match)$/.test(f.kind)?' Recurring Charge':''}</span></div>${this.convFeePanel(f)}</div>`;
     return `<div style="display:flex;height:100%">${railWrap}${main}</div>`;
   }
-  convFieldSuggest(label,val,extra){ return `<div style="display:flex;flex-direction:column;gap:4px;${extra||''}"><label style="font-size:12px;color:#8a9aa8">${label}</label><div style="border:1px dashed #c2cfda;border-radius:4px;padding:8px 10px;font-size:14px;color:#5a6773;font-style:italic;background:#fbfdfe">${val}</div></div>`; }
-  convCatMap(){ return { RENT:'Rent', UTILITY:'Utility', ADMIN:'Administrative', APPLICATION:'Application', PET:'Pet', PARKING:'Parking', HOLD:'Fee', STORAGE:'Storage' }; }
+  convChargeCatMap(){ return {ADMIN:'Administrative',AMENITY:'Amenity',APPFEE:'Application',APPLICATION:'Application',CABLE:'Utility',CAM:'Common Area',CAMTAX:'Common Area',CLEAN:'Cleaning',COVPARK:'Parking',DEP:'Deposit',ELEC:'Utility',FMR:'Rent',GARAGE:'Parking',GARBAG:'Utility',GAS:'Utility',H2O:'Utility',HO4:'Insurance',HO7:'Insurance',HOA:'Association',HOLD:'Fee',KEY:'Deposit',LATE:'Fee',LMR:'Rent',NSF:'Fee',PARK:'Parking',PARKING:'Parking',PET:'Pet',PETDP:'Deposit',RC:'Rent',RENT:'Rent',RUBS:'Utility',SEWER:'Utility',STORAGE:'Storage',TRASH:'Utility',UTIL:'Utility',UTILITY:'Utility'}; }
+  convCatMap(){ return this.convChargeCatMap(); }
+  convChargeTypeList(){ return [['ADMIN','Administrative Fee'],['AMENITY','Amenity Fee'],['APPFEE','Application Fee'],['CABLE','Cable Utility'],['CAM','Common Area Maintenance'],['CAMTAX','CAM - Taxes'],['CLEAN','Cleaning Fee'],['COVPARK','Covered Parking'],['DEP','Security Deposit'],['ELEC','Electric Utility'],['FMR',"First Month's Rent Charge"],['GARAGE','Garage Fee'],['GARBAG','Garbage Fee'],['GAS','Gas Utility'],['H2O','Water Utility'],['HO4','Renters Insurance Charge'],['HOA','HOA Fee'],['KEY','Key & Fob Deposit'],['LATE','Late Fee'],['LMR',"Last Month's Rent"],['NSF','NSF Fee'],['PARK','Parking'],['PET','Pet Rent'],['RC','Rent'],['RUBS','Flat Bill for All Utilities'],['SEWER','Sewer Utility'],['STORAGE','Storage Fee'],['TRASH','Trash Valet'],['UTIL','Utility']]; }
   // The destination template's existing property-level charges — the catalog the "Use the
   // template's fee" / "Edit the template fee" selectors pick from.
   tplFeeOptions(){
-    const cat=this.convCatMap();
+    const cat=this.convChargeCatMap();
     return this.state.propFees.filter(f=>!f.excluded && f.level==='Property').map(f=>({ name:f.name, amount:f.amount, desc:f.desc, mits:f.mits, cat: cat[f.mits]||f.mits }));
   }
-  convInput(id,val,extra){ return `<input id="${id}" value="${val||''}" style="height:36px;border:1px solid #cedbe7;border-radius:4px;padding:0 10px;font-size:14px;${extra||''}">`; }
-  convSelect(id,opts,sel){ return `<select id="${id}" style="height:36px;border:1px solid #cedbe7;border-radius:4px;padding:0 8px;font-size:14px">${opts.map(o=>`<option ${o===sel?'selected':''}>${o}</option>`).join('')}</select>`; }
-  convDetailGrid(vals){
-    return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px;padding-top:10px;border-top:1px solid #ebf1f5">
-      <div style="display:flex;flex-direction:column;gap:4px;grid-column:1/-1"><label style="font-size:12px;color:#8a9aa8">Charge Name</label>${this.convInput(vals.nameId, vals.name)}</div>
-      <div style="display:flex;flex-direction:column;gap:4px;grid-column:1/-1"><label style="font-size:12px;color:#8a9aa8">Description</label>${this.convInput(vals.descId, vals.desc)}</div>
-      <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:#8a9aa8">Amount</label>${this.convInput(vals.amtId, vals.amount)}</div>
-      <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:#8a9aa8">Frequency</label>${this.convSelect(vals.freqId, ['Monthly','One-time'], vals.freq)}</div>
-      <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:#8a9aa8">Charge Category</label>${this.convInput(vals.catId, vals.cat)}</div>
-      <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;color:#8a9aa8">Charge Requirement</label>${this.convSelect(vals.reqId, ['Required','Optional — tenant selects','Situational'], vals.req)}</div>
+  convDefaultOpt(f){ return { match:'use', unmatched:'add', deposit:'deposit', concession:'concession', latefee:'latefee' }[f.kind] || 'add'; }
+  convOptFromAction(a){ return { 'match-use':'use','match-edit':'edit','match-separate':'separate','add':'add','dontadd':'dontadd','deposit':'deposit','concession':'concession','latefee':'latefee' }[a]; }
+  // Parse a conversion fee's display amount ("$34/mo", "−$300 one-time") into form values.
+  convParseAmt(f){ const a=(f.amount||'').toString(); const oneTime=/one-time/i.test(a); const negative=/[−-]\s*\$/.test(a)||/^\s*[−-]/.test(a); const num=(a.replace(/[^0-9.]/g,'')||''); return { raw:(negative&&num?'-'+num:num), oneTime, negative }; }
+  // Prefill object for convChargeForm derived from a source conversion fee.
+  convFormValsFromFee(f){ const amt=this.convParseAmt(f); const app = f.level==='Unit Type'?'Unit Type':(f.level==='Unit'?'Unit':'Property'); const reqRaw=f.req||'Required'; const req = /Optional/.test(reqRaw)?'Optional':(reqRaw==='Situational'?'Situational':'Required'); return { code:f.code, name:f.title, desc:f.src, cat:f.cat, app, source:f.calc?'Calculation':'Flat', amountRaw:amt.raw, calc:f.basis||'', oneTime:amt.oneTime, req, cond:f.cond||'', due: f.level==='Move-in'?'At move-in':'During term' }; }
+  // Prefill from a chosen template fee record (tplFeeOptions()).
+  convFormValsFromTpl(t){ const oneTime=/one-time/i.test(t.amount||''); const num=((t.amount||'').replace(/[^0-9.]/g,'')||''); return { code:t.mits, name:t.name, desc:t.desc, cat:t.cat, app:'Property', source:/market rent/i.test(t.amount||'')?'Reference':'Flat', amountRaw:num, oneTime, req:'Required', due:'During term' }; }
+  // Read the shared inline charge form (cvf-* ids) back into a decision object.
+  convReadForm(){ const v=id=>((this.q('#'+id)||{}).value||''); const src=v('cvf-source')||'Flat'; let amount;
+    if(src==='Range'){ const lo=v('cvf-amount-min'),hi=v('cvf-amount-max'); amount=(lo||hi)?`$${lo||'0'}–$${hi||'0'}`:''; }
+    else if(src==='Reference'){ amount=v('cvf-ref').replace(/^Field:\s*/,''); }
+    else if(src==='Calculation'){ amount=v('cvf-calc')||'Calculated'; }
+    else { const a=v('cvf-amount').trim(); amount=a?('$'+a.replace(/^\$/,'')):''; }
+    return { name:v('cvf-name'), code:v('cvf-ctype'), cat:v('cvf-cat'), desc:v('cvf-desc'), app:v('cvf-app'), amount, freq:v('cvf-freq')||'Monthly', req:v('cvf-req')||'Required', cond:v('cvf-cond'), ils:(v('cvf-ils')!=='0'), exp:v('cvf-exp') };
+  }
+  // Full "rental fee template" charge form (mirrors the Add Recurring/One-time Charge modal),
+  // rendered inline inside a conversion decision reveal. Uses cvf-* ids read by convReadForm.
+  convChargeForm(v){
+    v=v||{};
+    const lab=(t,info)=>`<span style="display:inline-flex;align-items:center;gap:4px;font-size:14px;color:#666">${t}${info?`<span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5)">info</span>`:''}</span>`;
+    const sect=(t,inner)=>`<div style="display:flex;flex-direction:column;gap:10px"><span style="font-size:15px;font-weight:600;color:#13314c">${t}</span><div style="border:1px solid #e3e9ee;border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:12px">${inner}</div></div>`;
+    const dd=(id,opts,sel,o)=>this.singleSelect(id,opts,sel,o);
+    const cat=this.convChargeCatMap(), catFor=(code)=>cat[(code||'').toUpperCase()]||'';
+    const oneTime=!!v.oneTime, src=v.source||'Flat', code=v.code||'', edCat=v.cat||catFor(code);
+    const esc=s=>(''+(s||'')).replace(/"/g,'&quot;');
+    // Charge type typeahead
+    const setCatJs="document.getElementById('cvf-cat').value=this.getAttribute('data-cat');var chip=document.getElementById('cvf-cat-chip');chip.textContent=this.getAttribute('data-cat');chip.style.display='inline-flex';";
+    const ctItems=this.convChargeTypeList().map(([c,d])=>`<div data-cat="${catFor(c)}" data-ct="${(c+' '+d).toLowerCase()}" onmousedown="document.getElementById('cvf-ctype').value='${c}';document.getElementById('cvf-ctype-desc').value='${d.replace(/'/g,'')}';${setCatJs}document.getElementById('cvf-ctype-panel').style.display='none'" style="padding:8px 12px;cursor:pointer" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''"><div style="font-size:15px;color:#13314c">${c}</div><div style="font-size:13px;color:#8a9aa8">${d}</div></div>`).join('');
+    const ctypeField=`<div style="position:relative">
+      <div style="display:flex;align-items:center;gap:4px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">search</span><input id="cvf-ctype" autocomplete="off" placeholder="Search charge types" value="${esc(code)}" onfocus="document.getElementById('cvf-ctype-panel').style.display='block'" onblur="var p=document.getElementById('cvf-ctype-panel');setTimeout(function(){p.style.display='none'},200)" oninput="var q=this.value.toLowerCase();document.getElementById('cvf-ctype-panel').style.display='block';document.getElementById('cvf-ctype-list').querySelectorAll('[data-ct]').forEach(function(el){el.style.display=(el.getAttribute('data-ct').indexOf(q)>=0?'block':'none')})" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:#13314c"></div>
+      <input type="hidden" id="cvf-ctype-desc" value="${esc(v.desc)}">
+      <div id="cvf-ctype-panel" style="display:none;position:absolute;left:0;right:0;top:40px;z-index:20;background:#fff;border:1px solid #cedbe7;border-radius:4px;box-shadow:0 3px 6px rgba(0,0,0,0.15);max-height:220px;overflow-y:auto"><div id="cvf-ctype-list">${ctItems}</div></div>
     </div>`;
+    // Charge application
+    const appKind=v.app||'Property';
+    const utNames=this.utData().map(t=>t.name);
+    const unitList=this.ufUnits().map(u=>({value:u.u,label:u.u,sub:u.prop}));
+    const oriTypes=['Garage','Storage Unit','Parking Space','Boat Slip','Locker','RV Space'];
+    const appToggle="var v=_v;['prop','ut','unit','ori'].forEach(function(k){document.getElementById('cvf-appt-'+k).style.display='none'});document.getElementById('cvf-appt-'+(v==='Property'?'prop':v==='Unit Type'?'ut':v==='Unit'?'unit':'ori')).style.display='flex'";
+    const chargeApp=`<div style="display:flex;gap:8px;align-items:flex-start">
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Application *')}${dd('cvf-app',['Property','Unit Type','Unit','Other Rentable Item (ORI)'],appKind,{noSearch:true,js:appToggle})}</div>
+      <div style="flex:1;min-width:0">
+        <div id="cvf-appt-prop" style="display:${appKind==='Property'?'flex':'none'};flex-direction:column;gap:4px">${lab('Properties *')}${this.multiSelect('cvf-appt-prop-in',this.propNames(),this.propNames())}</div>
+        <div id="cvf-appt-ut" style="display:${appKind==='Unit Type'?'flex':'none'};flex-direction:column;gap:4px">${lab('Unit Types *')}${this.multiSelect('cvf-appt-ut-in',utNames,utNames)}</div>
+        <div id="cvf-appt-unit" style="display:${appKind==='Unit'?'flex':'none'};flex-direction:column;gap:4px">${lab('Unit *')}${this.multiSelect('cvf-appt-unit-in',unitList,[unitList[0]&&unitList[0].value])}</div>
+        <div id="cvf-appt-ori" style="display:${appKind==='Other Rentable Item (ORI)'?'flex':'none'};flex-direction:column;gap:4px">${lab('ORI Type *')}${dd('cvf-appt-ori-in',oriTypes,oriTypes[0],{noSearch:true})}</div>
+      </div>
+    </div>`;
+    const general=`
+      <div style="display:flex;gap:8px;align-items:flex-start">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Name *')}<input id="cvf-name" class="fld" value="${esc(v.name)}" style="height:36px;box-sizing:border-box"></div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Type *',true)}${ctypeField}
+          <span id="cvf-cat-chip" style="display:${edCat?'inline-flex':'none'};align-items:center;background:#e5f3fb;color:#0071aa;border-radius:4px;padding:2px 10px;font-size:12px;align-self:flex-start">${edCat}</span>
+          <input type="hidden" id="cvf-cat" value="${esc(edCat)}"></div>
+      </div>
+      ${chargeApp}
+      <div style="display:flex;flex-direction:column;gap:4px">${lab('Description')}<textarea id="cvf-desc" class="fld" style="height:52px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${(v.desc||'')}</textarea></div>
+      <label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#13314c;cursor:pointer"><input type="checkbox" id="cvf-active" checked style="width:16px;height:16px;margin:0;accent-color:#f58220">Active</label>`;
+    const radio=(label,value,blk,checked)=>`<label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#666;cursor:pointer"><input type="radio" name="cvf-amt-r" value="${value}" data-blk="${blk}" ${checked?'checked':''} onchange="var b=this.getAttribute('data-blk');document.getElementById('cvf-source').value=this.value;['flat','range','ref','calc'].forEach(function(k){document.getElementById('cvf-blk-'+k).style.display=(k===b?'flex':'none')})" style="accent-color:var(--ac,#008dd5);width:16px;height:16px;margin:0">${label}</label>`;
+    const refOpts=['Field: Market Rent','Property UDF: Trash Pick-Up Day','Property UDF: County','Unit UDF: Parking Spot #','Unit UDF: Storage Unit #'];
+    const amount=`
+      <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">${radio('Flat','Flat','flat',src==='Flat')}${radio('Range','Range','range',src==='Range')}${radio('Reference','Reference','ref',src==='Reference')}${radio('Calculation','Calculation','calc',src==='Calculation')}</div>
+      <input type="hidden" id="cvf-source" value="${src}">
+      <div>
+        <div id="cvf-blk-flat" style="display:${src==='Flat'?'flex':'none'};flex-direction:column;gap:4px">${lab('Amount')}<input id="cvf-amount" class="fld" placeholder="00.00" value="${esc(v.amountRaw)}" style="height:36px;box-sizing:border-box"></div>
+        <div id="cvf-blk-range" style="display:${src==='Range'?'flex':'none'};gap:12px;align-items:flex-end"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Minimum')}<input id="cvf-amount-min" class="fld" placeholder="00.00" style="height:36px;box-sizing:border-box"></div><span style="padding-bottom:8px;color:#8a9aa8">–</span><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Maximum')}<input id="cvf-amount-max" class="fld" placeholder="00.00" style="height:36px;box-sizing:border-box"></div></div>
+        <div id="cvf-blk-ref" style="display:${src==='Reference'?'flex':'none'};flex-direction:column;gap:4px">${lab('Reference field')}${dd('cvf-ref',refOpts,'Field: Market Rent')}</div>
+        <div id="cvf-blk-calc" style="display:${src==='Calculation'?'flex':'none'};flex-direction:column;gap:4px">${lab('Calculation')}<input id="cvf-calc" class="fld" value="${esc(v.calc)}" style="height:36px;box-sizing:border-box"></div>
+      </div>
+      ${oneTime
+        ? `<label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#13314c;cursor:pointer"><input type="checkbox" id="cvf-refund" ${v.refundable?'checked':''} style="width:16px;height:16px;margin:0;accent-color:var(--ac,#008dd5)">Refundable</label>`
+        : `<div style="border-top:1px solid #ebf1f5;width:100%"></div><div style="display:flex;gap:12px;align-items:flex-end"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Frequency *')}${dd('cvf-freq',['Monthly','Weekly','Daily'],v.freq||'Monthly',{noSearch:true,js:"document.getElementById('cvf-freq-unit').textContent=({Monthly:'months',Weekly:'weeks',Daily:'days'}[_v]||'months')"})}</div><span style="display:flex;align-items:center;height:36px;font-size:14px;color:#666">Every</span><input id="cvf-freq-num" class="fld" value="1" style="width:64px;height:36px;box-sizing:border-box;text-align:center;flex:none"><span id="cvf-freq-unit" style="display:flex;align-items:center;height:36px;font-size:14px;color:#666">months</span></div>`}
+      ${v.showExpiration?`<div style="display:flex;flex-direction:column;gap:4px">${lab('Expiration')}<input id="cvf-exp" class="fld" value="${esc(v.expiration)}" placeholder="mm/dd/yyyy" style="height:36px;box-sizing:border-box;max-width:200px"></div>`:''}`;
+    const reqDefault=v.req||'Required'; const condVisible=reqDefault==='Situational';
+    const reqs=`
+      <div style="display:flex;gap:8px;align-items:flex-start">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Requirement')}${dd('cvf-req',['Required','Optional','Situational'],reqDefault,{js:"document.getElementById('cvf-cond-wrap').style.display=(_v==='Situational'?'flex':'none')"})}</div>
+        <div id="cvf-cond-wrap" style="flex:1;min-width:0;display:${condVisible?'flex':'none'};flex-direction:column;gap:4px">${lab('Condition')}<input id="cvf-cond" class="fld" placeholder="If pet" value="${esc(v.cond)}" style="height:36px;box-sizing:border-box"></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px">${lab('Fee Due')}${dd('cvf-due',['At application','At move-in','During term','Move out'],v.due||'At move-in',{noSearch:true})}</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <label style="display:inline-flex;align-items:center;gap:10px;cursor:pointer"><span onclick="var on=this.getAttribute('data-on')==='1';on=!on;this.setAttribute('data-on',on?'1':'0');document.getElementById('cvf-ils').value=on?'1':'0';this.style.background=on?'var(--ac,#008dd5)':'#cedbe7';this.firstElementChild.style.left=on?'16px':'2px'" data-on="1" style="display:inline-block;width:32px;height:18px;border-radius:999px;background:var(--ac,#008dd5);position:relative;flex:none"><span style="position:absolute;top:2px;left:16px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left 120ms ease-out"></span></span><span style="font-size:14px;color:#13314c">Show on listings (ILS)</span></label>
+        <input type="hidden" id="cvf-ils" value="1">
+      </div>`;
+    const moreOptions=`<div style="border:1px solid #e3e9ee;border-radius:4px">
+      <div onclick="var b=document.getElementById('cvf-more-body');var open=b.style.display!=='none';b.style.display=open?'none':'flex';this.querySelector('.chev').textContent=open?'expand_more':'expand_less'" style="display:flex;align-items:center;gap:6px;padding:12px 14px;cursor:pointer;font-size:14px;font-weight:600;color:#13314c"><span class="material-symbols-outlined chev" style="font-size:20px;color:#666">expand_more</span>Additional information</div>
+      <div id="cvf-more-body" style="display:none;flex-direction:column;gap:12px;padding:0 14px 14px">
+        <div style="display:flex;gap:12px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('From Date')}<input id="cvf-from" class="fld" placeholder="mm/dd/yyyy" style="height:36px;box-sizing:border-box"></div><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('To Date')}<input id="cvf-to" class="fld" placeholder="mm/dd/yyyy" style="height:36px;box-sizing:border-box"></div></div>
+        <div style="display:flex;flex-direction:column;gap:4px">${lab('Lease Term(s)')}${dd('cvf-terms',['All Selected','12 month','6 month','Month-to-month'],'All Selected',{noSearch:true})}</div>
+        <div style="display:flex;flex-direction:column;gap:4px">${lab('Comment (Internal Only)')}<textarea id="cvf-memo" class="fld" style="height:48px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif"></textarea></div>
+      </div></div>`;
+    return `<div style="margin-top:12px;padding-top:12px;border-top:1px solid #ebf1f5;display:flex;flex-direction:column;gap:16px">${sect('General Details',general)}${sect(oneTime?'Fee Amount':'Fee Amount & Schedule',amount)}${sect('Requirements',reqs)}${moreOptions}</div>`;
   }
   convLozenge(text,dotColor){ return `<span style="display:inline-flex;align-items:center;gap:8px;height:24px;max-width:200px;padding:4px 8px;border-radius:4px;background:#eef2f5"><span style="width:8px;height:8px;border-radius:50%;background:${dotColor||'#12a150'};flex:none"></span><span style="font-size:14px;font-style:italic;color:#13314c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${text}</span></span>`; }
   convFeePanel(f){
     const c=this.state.convert; const dec=c.decisions[f.id];
     const titleLine = `<div style="display:flex;flex-direction:column;gap:6px"><div style="display:flex;align-items:baseline;gap:16px;flex-wrap:wrap"><span style="font-size:20px;font-weight:500;color:#13314c">${f.code}</span><span style="font-size:20px;font-weight:400;color:#13314c">${f.title}</span><span style="font-size:14px;color:#666">${f.amount}</span></div><div style="font-size:13px;color:#8a9aa8">${f.src}</div></div>`;
-    const scopeSel = c.dest==='new' ? '' : `<div style="display:flex;flex-direction:column;gap:5px"><label style="font-size:12px;color:#8a9aa8">Add to</label><select style="height:36px;border:1px solid #cedbe7;border-radius:4px;padding:0 8px;font-size:14px;max-width:340px"><option>${c.prop} only</option><option>All properties assigned to ${c.existing}</option></select></div>`;
-    // MATCHED
-    if(f.kind==='match'){
-      const tplOpts=this.tplFeeOptions();
-      const curOpt = c.curMatchOpt || (dec ? (dec.action==='match-edit'?'edit':dec.action==='match-separate'?'separate':'use') : 'use');
-      const curTplName = c.curMatchTpl || (dec&&dec.tpl) || f.tpl;
-      const curTpl = tplOpts.find(t=>t.name===curTplName) || tplOpts.find(t=>t.name===f.tpl) || {name:f.tpl,amount:f.tplAmount,desc:'',cat:f.cat};
-      const feeSelector = (id)=>`<div style="display:flex;flex-direction:column;gap:4px;max-width:340px"><label style="font-size:12px;color:#8a9aa8">Template fee</label>${this.singleSelect(id, tplOpts.map(t=>({value:t.name,label:`${t.name} — ${t.amount}`})), curTplName, {act:'convMatchTpl', noSearch:true})}</div>`;
-      const opt=(val,title,cons,cls)=>`<label data-act="convMatchOpt" data-arg="${val}" style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="radio" name="cv-match" value="${val}" ${curOpt===val?'checked':''} style="accent-color:var(--ac,#008dd5);width:20px;height:20px;margin:0;pointer-events:none"><span style="font-size:14px;color:#666">${title}</span>${cls==='warn'?`<span class="material-symbols-outlined" style="font-size:16px;color:#b35a00">warning</span><span style="font-size:12px;color:#b35a00;font-style:italic">${cons}</span>`:`<span style="font-size:12px;color:#8a9aa8">— ${cons}</span>`}</label>`;
-      let reveal='';
-      if(curOpt==='use'){
-        reveal=`<div style="margin-top:10px;padding-top:10px;border-top:1px solid #ebf1f5;display:flex;flex-direction:column;gap:8px">${feeSelector('cv-usetpl')}<span style="font-size:12px;color:#8a9aa8">${f.title} becomes ${curTpl.amount} · new quotes here change</span></div>`;
-      } else if(curOpt==='edit'){
-        reveal=`<div style="margin-top:10px;padding-top:10px;border-top:1px solid #ebf1f5;display:flex;flex-direction:column;gap:8px">
-          ${feeSelector('cv-edittpl')}
-          ${this.convDetailGrid({nameId:'cv-editname',name:curTpl.name,descId:'cv-editdesc',desc:curTpl.desc,amtId:'cv-editamt',amount:curTpl.amount,freqId:'cv-editfreq',freq:/one-time/i.test(curTpl.amount)?'One-time':'Monthly',catId:'cv-editcat',cat:curTpl.cat,reqId:'cv-editreq',req:'Required'})}
-          <span style="font-size:11px;color:#8a9aa8">Logged to the template's Change History.</span>
-        </div>`;
-      } else {
-        reveal=`<div style="margin-top:10px;padding-top:10px;border-top:1px solid #ebf1f5;display:flex;flex-direction:column;gap:8px">
-          <span style="font-size:12px;color:#8a9aa8">New charge — details pulled in automatically from ${f.prop||c.prop}'s existing setup, review before adding.</span>
-          ${this.convDetailGrid({nameId:'cv-sepname',name:f.title,descId:'cv-sepdesc',desc:f.src,amtId:'cv-sepamt',amount:f.amount,freqId:'cv-sepfreq',freq:/one-time/i.test(f.amount)?'One-time':'Monthly',catId:'cv-sepcat',cat:f.cat,reqId:'cv-sepreq',req:'Required'})}
-        </div>`;
-      }
-      return `<div style="display:flex;flex-direction:column;gap:16px;max-width:660px">
-        ${titleLine}
-        <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.6);border:1px solid #e3e9ee;border-radius:4px;padding:16px">
-          ${this.convLozenge(f.matchPct+'% match')}
-          <span style="font-size:14px;color:#666">Similar fee on template: <b style="font-weight:600;color:#13314c">${f.tpl} ${f.tplAmount} at ${f.tplCount} properties</b></span>
-          <div style="flex:1"></div>
-          <a data-act="toast" data-arg="View fee details" style="font-size:14px;color:var(--ac,#008dd5);white-space:nowrap">View fee details</a>
-        </div>
-        <div style="border:1px solid #cedbe7;border-radius:4px;background:#fff;padding:16px;display:flex;flex-direction:column;gap:12px">
-          <span style="font-size:16px;font-weight:600;color:#13314c">How would you like to handle this charge?</span>
-          ${opt('use',`Use the template's fee`,`${f.title} becomes ${curTpl.amount} · new quotes here change`)}
-          ${opt('edit',`Edit the template fee`,`affects ${f.tplCount} assigned properties moving forward`,'warn')}
-          ${opt('separate',`Add as a separate charge`,`stacks a second ${f.title} on top of the template's`)}
-          ${reveal}
-        </div>
-      </div>`;
-    }
-    // DEPOSIT
-    if(f.kind==='deposit'){
-      return `<div style="display:flex;flex-direction:column;gap:18px;max-width:560px">${titleLine}
-        <div style="display:flex;align-items:center;gap:8px;background:#f0f6fb;border:1px solid #cedbe7;border-radius:6px;padding:10px 14px;font-size:13px;color:#424e5b"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5)">savings</span>Routed to the template's <b style="margin:0 4px">Deposits</b> section</div>
-        <div style="display:flex;flex-direction:column;gap:14px;border:1px solid #e3e9ee;border-radius:8px;padding:16px;background:#fff">
-          <div style="display:flex;flex-direction:column;gap:5px"><label style="font-size:12px;color:#8a9aa8">Refundability</label><select id="cv-refund" style="height:36px;border:1px solid #cedbe7;border-radius:4px;padding:0 8px;font-size:14px"><option ${f.refundable?'selected':''}>Refundable</option><option ${!f.refundable?'selected':''}>Non-refundable</option></select></div>
-          <div style="display:flex;flex-direction:column;gap:5px"><label style="font-size:12px;color:#8a9aa8">Max amount held</label><input id="cv-maxheld" value="${f.maxHeld||''}" style="height:36px;border:1px solid #cedbe7;border-radius:4px;padding:0 10px;font-size:14px;max-width:200px"></div>
-        </div>
-        ${scopeSel}
-      </div>`;
-    }
-    // CONCESSION
-    if(f.kind==='concession'){
-      return `<div style="display:flex;flex-direction:column;gap:18px;max-width:560px">${titleLine}
-        <div style="display:flex;align-items:center;gap:8px;background:#fef4e8;border:1px solid #f6d9ac;border-radius:6px;padding:10px 14px;font-size:13px;color:#7a4a00"><span class="material-symbols-outlined" style="font-size:18px;color:#b35a00">sell</span>Negative amount — routed to <b style="margin:0 4px">Concessions</b></div>
-        <div style="display:flex;flex-direction:column;gap:14px;border:1px solid #e3e9ee;border-radius:8px;padding:16px;background:#fff">
-          ${this.convFieldSuggest('Category','Concession')}
-          <div style="display:flex;flex-direction:column;gap:5px"><label style="font-size:12px;color:#8a9aa8">Expiration</label><input id="cv-exp" value="${f.exp||''}" style="height:36px;border:1px solid #cedbe7;border-radius:4px;padding:0 10px;font-size:14px;max-width:200px"></div>
-        </div>
-      </div>`;
-    }
-    // LATE FEE (info only)
+    // LATE FEE — info only, no decision.
     if(f.kind==='latefee'){
-      return `<div style="display:flex;flex-direction:column;gap:18px;max-width:560px">${titleLine}
+      return `<div style="display:flex;flex-direction:column;gap:18px;max-width:780px">${titleLine}
         <div style="display:flex;align-items:flex-start;gap:10px;background:#eef1f4;border:1px solid #d7dee5;border-radius:6px;padding:14px 16px;font-size:13px;color:#4a5b6b"><span class="material-symbols-outlined" style="font-size:18px;color:#8a9aa8">info</span><div>Stays in Late Fee setup; conditional fees aren't advertised prices. No conversion needed — this charge keeps working exactly as it does today.</div></div>
       </div>`;
     }
-    // UNMATCHED
-    const catField = this.convFieldSuggest('Category (for listings)', f.cat);
-    const reqField = `<div style="display:flex;flex-direction:column;gap:5px"><label style="font-size:12px;color:#8a9aa8">Requirement</label><select style="height:36px;border:1px solid #cedbe7;border-radius:4px;padding:0 8px;font-size:14px"><option ${f.req==='Required'?'selected':''}>Required</option><option ${/Optional/.test(f.req)?'selected':''}>Optional — tenant selects</option><option ${f.req==='Situational'?'selected':''}>Situational</option></select></div>`;
-    const condField = f.req==='Situational' ? `<div style="display:flex;flex-direction:column;gap:5px"><label style="font-size:12px;color:#8a9aa8">Condition <span style="color:#d02830">*</span></label><input id="cv-cond" value="${f.cond||''}" placeholder="When does this apply?" style="height:36px;border:1px solid #d02830;border-radius:4px;padding:0 10px;font-size:14px"></div>` : '';
-    const perUnit = f.perUnit ? `<div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#4a5b6b"><span style="width:16px;height:16px;border-radius:3px;background:var(--ac,#008dd5);display:flex;align-items:center;justify-content:center"><span class="material-symbols-outlined" style="font-size:12px;color:#fff">check</span></span>Per unit</div>` : '';
-    const calcField = f.calc ? this.convFieldSuggest('Estimated amount', `${f.amount} · ${f.basis}`) : '';
-    return `<div style="display:flex;flex-direction:column;gap:18px;max-width:640px">
+    const curOpt = c.curOpt || (dec ? (this.convOptFromAction(dec.action)||this.convDefaultOpt(f)) : this.convDefaultOpt(f));
+    // Contextual banner above the decision card.
+    let banner='';
+    if(f.kind==='match'){
+      banner=`<div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.6);border:1px solid #e3e9ee;border-radius:4px;padding:16px">
+        ${this.convLozenge(f.matchPct+'% match')}
+        <span style="font-size:14px;color:#666">Similar fee on template: <b style="font-weight:600;color:#13314c">${f.tpl} ${f.tplAmount} at ${f.tplCount} properties</b></span>
+        <div style="flex:1"></div>
+        <a data-act="toast" data-arg="View fee details" style="font-size:14px;color:var(--ac,#008dd5);white-space:nowrap">View fee details</a>
+      </div>`;
+    } else if(f.kind==='deposit'){
+      banner=`<div style="display:flex;align-items:center;gap:8px;background:#f0f6fb;border:1px solid #cedbe7;border-radius:4px;padding:12px 16px;font-size:13px;color:#424e5b"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5)">savings</span>Deposits route to the template's <b style="margin:0 4px">Deposits</b> section.</div>`;
+    } else if(f.kind==='concession'){
+      banner=`<div style="display:flex;align-items:center;gap:8px;background:#fef4e8;border:1px solid #f6d9ac;border-radius:4px;padding:12px 16px;font-size:13px;color:#7a4a00"><span class="material-symbols-outlined" style="font-size:18px;color:#b35a00">sell</span>Negative amount — routes to <b style="margin:0 4px">Concessions</b>.</div>`;
+    }
+    // Decision options per kind.
+    let tplOpts=[], curTpl=null, feeSelector=()=>'';
+    let opts;
+    if(f.kind==='match'){
+      tplOpts=this.tplFeeOptions();
+      const curTplName = c.curTpl || (dec&&dec.tpl) || f.tpl;
+      curTpl = tplOpts.find(t=>t.name===curTplName) || {name:f.tpl,amount:f.tplAmount,desc:'',cat:f.cat,mits:f.code};
+      feeSelector=(id)=>`<div style="display:flex;flex-direction:column;gap:4px;max-width:360px"><label style="font-size:12px;color:#8a9aa8">Template fee</label>${this.singleSelect(id, tplOpts.map(t=>({value:t.name,label:t.name+' — '+t.amount})), curTplName, {act:'convTpl', noSearch:true})}</div>`;
+      opts=[
+        {v:'use',title:"Use the template's fee",cons:`${f.title} becomes ${curTpl.amount} · new quotes here change`},
+        {v:'edit',title:'Edit the template fee',cons:`affects ${f.tplCount} assigned properties moving forward`,warn:true},
+        {v:'separate',title:'Add as a separate charge',cons:`stacks a second ${f.title} on top of the template's`},
+      ];
+    } else if(f.kind==='deposit'){
+      opts=[{v:'deposit',title:"Add to the template's Deposits",cons:'Held per lease · not an advertised price'},{v:'dontadd',title:"Don't add",cons:"Won't carry over · current tenants unchanged"}];
+    } else if(f.kind==='concession'){
+      opts=[{v:'concession',title:'Add to Concessions',cons:'Shows as a discount on new quotes'},{v:'dontadd',title:"Don't add",cons:"Won't carry over · current tenants unchanged"}];
+    } else {
+      opts=[{v:'add',title:'Add to the template',cons:'Appears on new quotes and listings'},{v:'dontadd',title:"Don't add",cons:"Won't appear on new quotes or listings · current tenants unchanged until end-dated"}];
+    }
+    const optRow=(o)=>`<label data-act="convOpt" data-arg="${o.v}" style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="radio" name="cv-opt" value="${o.v}" ${curOpt===o.v?'checked':''} style="accent-color:var(--ac,#008dd5);width:20px;height:20px;margin:0;pointer-events:none"><span style="font-size:14px;color:#666">${o.title}</span>${o.warn?`<span class="material-symbols-outlined" style="font-size:16px;color:#b35a00">warning</span><span style="font-size:12px;color:#b35a00;font-style:italic">${o.cons}</span>`:(o.cons?`<span style="font-size:12px;color:#8a9aa8">— ${o.cons}</span>`:'')}</label>`;
+    // Reveal beneath the selected option.
+    const autoNote=`<div style="margin-top:10px;display:flex;align-items:center;gap:6px;font-size:12px;color:#8a9aa8"><span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5)">auto_awesome</span>Details pulled in automatically from ${f.prop||c.prop}'s existing setup — review before adding.</div>`;
+    let reveal='';
+    if(curOpt==='dontadd'){
+      reveal=`<div style="margin-top:10px;padding-top:10px;border-top:1px solid #ebf1f5;font-size:13px;color:#8a9aa8">This charge won't be added to the template. Current tenants keep their existing charge until it's end-dated.</div>`;
+    } else if(f.kind==='match' && curOpt==='use'){
+      reveal=`<div style="margin-top:10px;padding-top:10px;border-top:1px solid #ebf1f5;display:flex;flex-direction:column;gap:8px">${feeSelector('cvf-tplpick')}<span style="font-size:12px;color:#8a9aa8">${f.title} becomes ${curTpl.amount} · new quotes here change</span></div>`;
+    } else if(f.kind==='match' && curOpt==='edit'){
+      reveal=`<div style="margin-top:10px;padding-top:10px;border-top:1px solid #ebf1f5;display:flex;flex-direction:column;gap:6px">${feeSelector('cvf-tplpick')}<span style="font-size:11px;color:#8a9aa8">Logged to the template's Change History.</span></div>${this.convChargeForm(this.convFormValsFromTpl(curTpl))}`;
+    } else if(f.kind==='match' && curOpt==='separate'){
+      reveal=`${autoNote}${this.convChargeForm(this.convFormValsFromFee(f))}`;
+    } else if(f.kind==='deposit'){
+      const v=Object.assign(this.convFormValsFromFee(f),{oneTime:true,refundable:f.refundable!==false,cat:'Deposit',source:'Flat'}); reveal=`${autoNote}${this.convChargeForm(v)}`;
+    } else if(f.kind==='concession'){
+      const v=Object.assign(this.convFormValsFromFee(f),{oneTime:true,cat:'Concession',source:'Flat',showExpiration:true,expiration:f.exp}); reveal=`${autoNote}${this.convChargeForm(v)}`;
+    } else {
+      reveal=`${autoNote}${this.convChargeForm(this.convFormValsFromFee(f))}`;
+    }
+    return `<div style="display:flex;flex-direction:column;gap:16px;max-width:780px">
       ${titleLine}
-      ${scopeSel}
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;border:1px solid #e3e9ee;border-radius:8px;padding:16px;background:#fff">
-        ${catField}${reqField}${condField}${calcField}
+      ${banner}
+      <div style="border:1px solid #cedbe7;border-radius:4px;background:#fff;padding:16px;display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:16px;font-weight:600;color:#13314c">How would you like to handle this charge?</span>
+        ${opts.map(optRow).join('')}
+        ${reveal}
       </div>
-      ${perUnit}
     </div>`;
   }
   convFoot3(){
     const c=this.state.convert; const fees=this.convertFees(); const f=fees[c.idx];
     const remaining=fees.filter(x=>!c.decisions[x.id]).length;
-    let actions='';
-    if(f.kind==='latefee'){ actions=`<button data-act="convDecide" class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px">Got it — next →</button>`; }
-    else if(f.kind==='match'){ actions=`<button data-act="convDecide" class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px">Confirm + next fee →</button>`; }
-    else if(f.kind==='deposit'||f.kind==='concession'){ actions=`<button data-act="convDecide" class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px">Add ${f.kind==='deposit'?'deposit':'concession'} →</button>`; }
-    else { actions=`<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px"><button data-act="convDecide" data-arg="dontadd" style="height:36px;padding:0 16px;border:1px solid #cedbe7;background:#fff;border-radius:4px;font-size:14px;color:#b3306b;cursor:pointer">Don't add</button><span style="font-size:11px;color:#a6b2bd">Won't appear on new quotes · current tenants unchanged</span></div><button data-act="convDecide" data-arg="add" class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px">Add fee →</button>`; }
+    const primary = f.kind==='latefee'
+      ? `<button data-act="convDecide" class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px">Got it — next →</button>`
+      : `<button data-act="convDecide" class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px">Confirm + next fee →</button>`;
     return `<div style="display:flex;align-items:center;gap:16px;padding:8px 16px;border-top:1px solid #cedbe7;background:#f5f8fa">
       <button data-act="convBackDest" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Back</button>
       <a data-act="convAddAll" style="font-size:13px;color:var(--ac,#008dd5);cursor:pointer">Add all remaining →</a>
       <div style="flex:1"></div>
       ${remaining>0?`<span style="display:inline-flex;align-items:center;gap:8px;font-size:12px;font-style:italic;color:#666"><span class="material-symbols-outlined" style="font-size:20px;color:#b35a00">warning</span>${remaining} charge${remaining===1?'':'s'} need to be handled before continuing.</span>`:''}
-      ${actions}
+      ${primary}
     </div>`;
   }
   // Step 4 — Summary + verify
