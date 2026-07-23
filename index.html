@@ -760,13 +760,13 @@ class Component extends DCLogic {
     const chip=(nm,amt,cond,flag)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px dashed #e4ebf1"><span style="font-size:13px;color:#2b3a48">${nm}${cond?` <span style="font-size:11px;color:#b35a00">· ${cond}</span>`:''}${flag?` <span style="font-size:11px;color:#0071aa">· ${flag}</span>`:''}</span><span style="font-size:13px;color:#13314c;font-weight:500">${amt}</span></div>`;
     const sel=(label,id,act,opts,selVal)=>`<div style="display:flex;flex-direction:column;gap:4px;width:260px"><span style="font-size:13px;color:#666">${label}</span>${this.singleSelect(id,opts,selVal,{act})}</div>`;
     let h='';
-    h+=this.banner('Preview exactly the pricing a prospect sees for any property and unit this template covers. The stack updates with property fees, unit type fees, overrides, and unit-specific fees.','');
+    h+=this.banner('Preview the full pricing stack for any property and unit this template covers. The stack updates with property fees, unit type fees, overrides, and unit-specific fees.','');
     h+=`<div class="tile"><div style="padding:14px 16px;display:flex;gap:16px;flex-wrap:wrap">
       ${sel('Property','lp-prop','lpprop',props,prop)}
       ${sel('Unit','lp-unit','lpunit',units.map(x=>({value:x.u,label:'Unit '+x.u+' · '+x.type})),unit.u)}
     </div></div>`;
     h+=`<div class="tile" style="overflow:hidden">
-        <div style="display:flex;align-items:center;gap:8px;padding:12px 16px;background:#13314c"><span class="material-symbols-outlined" style="font-size:18px;color:#fff">travel_explore</span><span style="font-size:14px;font-weight:500;color:#fff">Pricing a prospect sees (ILS)</span><div style="flex:1"></div><span style="font-size:12px;color:#b3c2cf">${prop} · Unit ${unit.u} · ${unit.type}</span></div>
+        <div style="display:flex;align-items:center;gap:8px;padding:12px 16px;background:#13314c"><span class="material-symbols-outlined" style="font-size:18px;color:#fff">travel_explore</span><span style="font-size:14px;font-weight:500;color:#fff">Full pricing stack</span><div style="flex:1"></div><span style="font-size:12px;color:#b3c2cf">${prop} · Unit ${unit.u} · ${unit.type}</span></div>
         <div style="display:flex;flex-wrap:wrap;gap:0">
           <div style="flex:1;min-width:300px;padding:18px 20px;border-right:1px solid #ebf1f5;box-sizing:border-box">
             <div style="font-size:12px;color:#8a9aa8;text-transform:uppercase;letter-spacing:0.05em">Starting price</div>
@@ -783,7 +783,7 @@ class Component extends DCLogic {
             ${opt.map(f=>chip(f.name,f.amount,f.cond)).join('')}${utOpt.map(f=>chip(f.name,f.amount,'',unit.type)).join('')}${unitFees.map(f=>chip(f.name,f.amount,'','Unit '+unit.u)).join('')}
             <div style="display:flex;align-items:flex-start;gap:8px;margin-top:14px;background:#f5f8fa;border-radius:6px;padding:10px 12px">
               <span class="material-symbols-outlined" style="font-size:16px;color:#3a7d2c">visibility</span>
-              <span style="font-size:12px;color:#666;line-height:1.45">Only fees with Active on show here. Toggle a fee's Active checkbox to add or hide it from listings — this replaces the old marketing pricing-field mapping.</span>
+              <span style="font-size:12px;color:#666;line-height:1.45">Only fees with Active on show here. Toggle a fee's Active checkbox to include or hide it from this pricing stack.</span>
             </div>
           </div>
         </div>
@@ -2353,7 +2353,7 @@ class Component extends DCLogic {
     // LATE FEE — info only, no decision.
     if(f.kind==='latefee'){
       return `<div style="display:flex;flex-direction:column;gap:18px;max-width:780px">${titleLine}
-        <div style="display:flex;align-items:flex-start;gap:10px;background:#eef1f4;border:1px solid #d7dee5;border-radius:6px;padding:14px 16px;font-size:13px;color:#4a5b6b"><span class="material-symbols-outlined" style="font-size:18px;color:#8a9aa8">info</span><div>Stays in Late Fee setup; conditional fees aren't advertised prices. No conversion needed — this charge keeps working exactly as it does today.</div></div>
+        <div style="display:flex;align-items:flex-start;gap:10px;background:#eef1f4;border:1px solid #d7dee5;border-radius:6px;padding:14px 16px;font-size:13px;color:#4a5b6b"><span class="material-symbols-outlined" style="font-size:18px;color:#8a9aa8">info</span><div>Stays in Late Fee setup — conditional charges are managed there, not as recurring template fees. No conversion needed; this charge keeps working exactly as it does today.</div></div>
       </div>`;
     }
     const curOpt = c.curOpt || (dec ? (this.convOptFromAction(dec.action)||this.convDefaultOpt(f)) : this.convDefaultOpt(f));
@@ -2385,11 +2385,11 @@ class Component extends DCLogic {
         {v:'separate',title:'Add as a separate charge',cons:`stacks a second ${f.title} on top of the template's`},
       ];
     } else if(f.kind==='deposit'){
-      opts=[{v:'deposit',title:"Add to the template's Deposits",cons:'Held per lease · not an advertised price'},{v:'dontadd',title:"Don't add",cons:"Won't carry over · current tenants unchanged"}];
+      opts=[{v:'deposit',title:"Add to the template's Deposits",cons:'Held per lease · returned per its terms'},{v:'dontadd',title:"Don't add",cons:"Won't carry over · current tenants unchanged"}];
     } else if(f.kind==='concession'){
       opts=[{v:'concession',title:'Add to Concessions',cons:'Shows as a discount on new quotes'},{v:'dontadd',title:"Don't add",cons:"Won't carry over · current tenants unchanged"}];
     } else {
-      opts=[{v:'add',title:'Add to the template',cons:'Appears on new quotes and listings'},{v:'dontadd',title:"Don't add",cons:"Won't appear on new quotes or listings · current tenants unchanged until end-dated"}];
+      opts=[{v:'add',title:'Add to the template',cons:'Applies to new quotes going forward'},{v:'dontadd',title:"Don't add",cons:"Won't apply to new quotes · current tenants unchanged until end-dated"}];
     }
     const optRow=(o)=>`<label data-act="convOpt" data-arg="${o.v}" style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="radio" name="cv-opt" value="${o.v}" ${curOpt===o.v?'checked':''} style="accent-color:var(--ac,#008dd5);width:20px;height:20px;margin:0;pointer-events:none"><span style="font-size:14px;color:#666">${o.title}</span>${o.warn?`<span class="material-symbols-outlined" style="font-size:16px;color:#b35a00">warning</span><span style="font-size:12px;color:#b35a00;font-style:italic">${o.cons}</span>`:(o.cons?`<span style="font-size:12px;color:#8a9aa8">— ${o.cons}</span>`:'')}</label>`;
     // Reveal beneath the selected option.
@@ -2450,7 +2450,7 @@ class Component extends DCLogic {
       </div>
       <div style="border:1px solid #e3e9ee;border-radius:8px;background:#fff;overflow:hidden">
         <div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid #eef2f5"><span style="font-size:14px;font-weight:600;color:#13314c">Pricing Preview</span><div style="flex:1"></div><select style="height:32px;border:1px solid #cedbe7;border-radius:4px;padding:0 8px;font-size:13px"><option>1 Bed / 1 Bath</option><option>2 Bed / 2 Bath</option><option>Studio</option></select></div>
-        <div style="padding:16px"><div style="font-size:13px;color:#8a9aa8;margin-bottom:6px">Prospect sees</div><div style="display:flex;align-items:baseline;gap:14px"><span style="font-size:24px;font-weight:700;color:#13314c">$1,670<span style="font-size:14px;font-weight:400;color:#8a9aa8">/mo</span></span><span style="font-size:16px;color:#4a5b6b">$200 move-in</span></div></div>
+        <div style="padding:16px"><div style="font-size:13px;color:#8a9aa8;margin-bottom:6px">Total quoted</div><div style="display:flex;align-items:baseline;gap:14px"><span style="font-size:24px;font-weight:700;color:#13314c">$1,670<span style="font-size:14px;font-weight:400;color:#8a9aa8">/mo</span></span><span style="font-size:16px;color:#4a5b6b">$200 move-in</span></div></div>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px">${checks.map(ck=>`<div style="display:flex;align-items:center;gap:10px;font-size:13px;color:#3a4650"><span class="material-symbols-outlined" style="font-size:18px;color:${ck[1]?'#12a150':'#c9d4dd'}">${ck[1]?'check_circle':'radio_button_unchecked'}</span>${ck[0]}</div>`).join('')}</div>
     </div>`;
@@ -2837,13 +2837,13 @@ class Component extends DCLogic {
     const reqs = `
       <div style="display:flex;gap:8px;align-items:flex-start">
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Requirement')}${this.singleSelect('m-req',['Required','Optional','Situational'],reqDefault,{js:"document.getElementById('m-cond-wrap').style.display=(_v==='Situational'?'flex':'none');"+ilsWarn})}</div>
-        <div id="m-cond-wrap" style="flex:1;min-width:0;display:${condVisible?'flex':'none'};flex-direction:column;gap:4px">${lab('Condition')}<input id="m-cond" class="fld" placeholder="If pet" value="${ed?(ed.cond||'').replace(/"/g,'&quot;'):''}" style="height:36px;box-sizing:border-box">${help('Shown to prospects next to this fee.')}</div>
+        <div id="m-cond-wrap" style="flex:1;min-width:0;display:${condVisible?'flex':'none'};flex-direction:column;gap:4px">${lab('Condition')}<input id="m-cond" class="fld" placeholder="If pet" value="${ed?(ed.cond||'').replace(/"/g,'&quot;'):''}" style="height:36px;box-sizing:border-box">${help('Describes when this fee applies.')}</div>
       </div>
       <div style="display:flex;flex-direction:column;gap:4px">${lab('Fee Due')}${this.singleSelect('m-due',['At application','At move-in','During term','Move out'],'At move-in',{noSearch:true})}</div>
       <div style="display:flex;flex-direction:column;gap:10px">
         <label style="display:inline-flex;align-items:center;gap:10px;cursor:pointer"><span id="m-ils-sw" onclick="var on=this.getAttribute('data-on')==='1';on=!on;this.setAttribute('data-on',on?'1':'0');document.getElementById('m-ils').value=on?'1':'0';this.style.background=on?'var(--ac,#008dd5)':'#cedbe7';this.firstElementChild.style.left=on?'16px':'2px';var fc=document.getElementById('m-feecat-wrap');if(fc)fc.style.display=(on?'flex':'none');${ilsWarn}" data-on="1" style="display:inline-block;width:32px;height:18px;border-radius:999px;background:var(--ac,#008dd5);position:relative;flex:none"><span style="position:absolute;top:2px;left:16px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left 120ms ease-out"></span></span><span style="font-size:14px;color:#13314c">Show on listings (ILS)</span></label>
         <input type="hidden" id="m-ils" value="1">
-        <div id="m-feecat-wrap" style="display:flex;flex-direction:column;gap:4px;max-width:320px">${lab('Fee Category *')}${this.singleSelect('m-feecat',mitsCats,edCat||'Administrative',{js:"document.getElementById('m-cat').value=_v"})}${help('Shown on listings so prospects can compare fees consistently.')}</div>
+        <div id="m-feecat-wrap" style="display:flex;flex-direction:column;gap:4px;max-width:320px">${lab('Fee Category *')}${this.singleSelect('m-feecat',mitsCats,edCat||'Administrative',{js:"document.getElementById('m-cat').value=_v"})}${help('Groups this fee on syndicated listings.')}</div>
         <div id="m-ils-warn" style="display:none;align-items:center;gap:8px;background:#fdeedd;border:1px solid #f2c99a;border-radius:4px;padding:8px 12px"><span class="material-symbols-outlined" style="font-size:18px;color:#b35a00">warning</span><span style="font-size:13px;color:#b35a00">Required fees must be disclosed on listings when Fee Transparency is on.</span></div>
       </div>`;
     // More options (collapsed): non-MITS operational fields.
