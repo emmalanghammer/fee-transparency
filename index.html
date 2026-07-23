@@ -353,6 +353,7 @@ class Component extends DCLogic {
       case 'convAddAll': { const c = this.state.convert; const fees = this.convertFees(); const decisions = Object.assign({}, c.decisions); fees.forEach(f => { if (!decisions[f.id]) decisions[f.id] = { action: (f.kind === 'match' ? 'match-use' : f.kind === 'deposit' ? 'deposit' : f.kind === 'concession' ? 'concession' : f.kind === 'latefee' ? 'latefee' : 'add') }; }); this.setState({ convert: Object.assign({}, c, { decisions, step: 4 }) }); break; }
       case 'convSummary': this.setState(s => ({ convert: Object.assign({}, s.convert, { step: 4 }) })); break;
       case 'convBackFees': this.setState(s => ({ convert: Object.assign({}, s.convert, { step: 3 }) })); break;
+      case 'convBackDest': this.setState(s => ({ convert: Object.assign({}, s.convert, { step: 1 }) })); break;
       case 'convFinish': { const c = this.state.convert; const fees = this.convertFees(); const resolved = fees.every(f => c.decisions[f.id]); const st = { convert: null, convDone: true, convSaved: resolved ? null : Object.assign({}, c, { step: 3 }) }; st.convStatus = Object.assign({}, this.state.convStatus, { [c.prop]: resolved ? 'Active' : 'Setup in progress' }); this.setState(st); this.flash(resolved ? 'Conversion complete · ref CV-2025-001' : 'Progress saved · finish fee setup anytime'); break; }
       case 'convResume': { const saved = this.state.convSaved; if (saved) this.setState({ convert: Object.assign({}, saved) }); break; }
       case 'openTplFees': this.setState({ recView: null }); this.go('profile', { template: 'Standard Apartment', profileTab: 'Property Fees', accOpen: {} }); break;
@@ -2091,33 +2092,34 @@ class Component extends DCLogic {
   // kind: exact (auto-combined) | match (3-option) | unmatched | deposit | concession | latefee
   convertFees(){
     return [
-      { id:'f1',  kind:'exact', level:'Property', title:'Rent', amount:'$1,450/mo', src:'from property charge setup', cat:'Rent' },
-      { id:'f2',  kind:'exact', level:'Unit Type', title:'Trash', amount:'$28/mo', src:'from unit type setup', cat:'Utility' },
-      { id:'f3',  kind:'match', level:'Property', title:'Water', amount:'$34/mo', src:'from property charge setup', cat:'Utility', tpl:'Water', tplAmount:'$38/mo', tplCount:12 },
-      { id:'f4',  kind:'match', level:'Property', title:'Admin fee', amount:'$150 one-time', src:'from property charge setup', cat:'Administrative', tpl:'Admin fee', tplAmount:'$150 one-time', tplCount:12 },
-      { id:'f5',  kind:'unmatched', level:'Property', title:'RUBS', amount:'$75/mo', src:'flat bill for all utilities', cat:'Utility', req:'Required', calc:true, basis:'occupancy ÷ property total' },
-      { id:'f6',  kind:'unmatched', level:'Property', title:'CAM — Taxes', amount:'$50/mo', src:'from property charge setup', cat:'Common Area', req:'Required' },
-      { id:'f7',  kind:'unmatched', level:'Property', title:'Pool & fitness', amount:'$25/mo', src:'from property charge setup', cat:'Amenity', req:'Optional — tenant selects' },
-      { id:'f8',  kind:'unmatched', level:'Unit Type', title:'Additional trash valet', amount:'$4/mo', src:'from unit type setup', cat:'Utility', req:'Optional — tenant selects' },
-      { id:'f9',  kind:'unmatched', level:'Unit', title:'Storage', amount:'$40/mo', src:'from unit charge setup', cat:'Storage', req:'Optional — tenant selects', perUnit:true },
-      { id:'f10', kind:'unmatched', level:'Unit', title:'Covered parking', amount:'$75/mo', src:'from unit charge setup', cat:'Parking', req:'Situational', cond:'When a covered spot is assigned', perUnit:true },
-      { id:'f11', kind:'unmatched', level:'Unit', title:'Garage', amount:'$120/mo', src:'from unit charge setup', cat:'Parking', req:'Optional — tenant selects', perUnit:true },
-      { id:'f12', kind:'unmatched', level:'Move-in', title:'Application fee', amount:'$50 one-time', src:'from tenant charge setup', cat:'Application', req:'Required' },
-      { id:'f13', kind:'unmatched', level:'Move-in', title:'Pet rent', amount:'$45/mo', src:'from pet type setup', cat:'Pet', req:'Situational', cond:'When a pet is on the lease', perUnit:true },
-      { id:'f14', kind:'unmatched', level:'Move-in', title:"Last month's rent", amount:'$1,450 one-time', src:'from tenant charge setup', cat:'Rent', req:'Required' },
-      { id:'f15', kind:'deposit', level:'Move-in', title:'Security deposit', amount:'$500', src:'from tenant charge setup', cat:'Deposit', refundable:true, maxHeld:'$500' },
-      { id:'f16', kind:'deposit', level:'Move-in', title:'Key & fob deposit', amount:'$75', src:'from tenant charge setup', cat:'Deposit', refundable:true, maxHeld:'$75' },
-      { id:'f17', kind:'concession', level:'Move-in', title:'Move-in special', amount:'−$300 one-time', src:'from property charge setup', cat:'Concession', exp:'08/31/2026' },
-      { id:'f18', kind:'latefee', level:'Move-in', title:'Late fee', amount:'$50 or 5%', src:'from late fee setup', cat:'Fee' },
+      { id:'f1',  kind:'exact', level:'Property', code:'RC', title:'Rent', amount:'$1,450/mo', src:'from property charge setup', cat:'Rent' },
+      { id:'f2',  kind:'exact', level:'Unit Type', code:'GARBAG', title:'Trash', amount:'$28/mo', src:'from unit type setup', cat:'Utility' },
+      { id:'f3',  kind:'match', level:'Property', code:'H2O', title:'Water', amount:'$34/mo', src:'from property charge setup', cat:'Utility', tpl:'Water', tplAmount:'$38/mo', tplCount:12, matchPct:92 },
+      { id:'f4',  kind:'match', level:'Property', code:'ADMIN', title:'Admin fee', amount:'$150 one-time', src:'from property charge setup', cat:'Administrative', tpl:'Admin fee', tplAmount:'$150 one-time', tplCount:12, matchPct:88 },
+      { id:'f5',  kind:'unmatched', level:'Property', code:'RUBS', title:'RUBS', amount:'$75/mo', src:'flat bill for all utilities', cat:'Utility', req:'Required', calc:true, basis:'occupancy ÷ property total' },
+      { id:'f6',  kind:'unmatched', level:'Property', code:'CAMTAX', title:'CAM — Taxes', amount:'$50/mo', src:'from property charge setup', cat:'Common Area', req:'Required' },
+      { id:'f7',  kind:'unmatched', level:'Property', code:'AMENITY', title:'Pool & fitness', amount:'$25/mo', src:'from property charge setup', cat:'Amenity', req:'Optional — tenant selects' },
+      { id:'f8',  kind:'unmatched', level:'Unit Type', code:'TRASH', title:'Additional trash valet', amount:'$4/mo', src:'from unit type setup', cat:'Utility', req:'Optional — tenant selects' },
+      { id:'f9',  kind:'unmatched', level:'Unit', code:'STORAGE', title:'Storage', amount:'$40/mo', src:'from unit charge setup', cat:'Storage', req:'Optional — tenant selects', perUnit:true },
+      { id:'f10', kind:'unmatched', level:'Unit', code:'COVPARK', title:'Covered parking', amount:'$75/mo', src:'from unit charge setup', cat:'Parking', req:'Situational', cond:'When a covered spot is assigned', perUnit:true },
+      { id:'f11', kind:'unmatched', level:'Unit', code:'GARAGE', title:'Garage', amount:'$120/mo', src:'from unit charge setup', cat:'Parking', req:'Optional — tenant selects', perUnit:true },
+      { id:'f12', kind:'unmatched', level:'Move-in', code:'APPFEE', title:'Application fee', amount:'$50 one-time', src:'from tenant charge setup', cat:'Application', req:'Required' },
+      { id:'f13', kind:'unmatched', level:'Move-in', code:'PET', title:'Pet rent', amount:'$45/mo', src:'from pet type setup', cat:'Pet', req:'Situational', cond:'When a pet is on the lease', perUnit:true },
+      { id:'f14', kind:'unmatched', level:'Move-in', code:'LMR', title:"Last month's rent", amount:'$1,450 one-time', src:'from tenant charge setup', cat:'Rent', req:'Required' },
+      { id:'f15', kind:'deposit', level:'Move-in', code:'DEP', title:'Security deposit', amount:'$500', src:'from tenant charge setup', cat:'Deposit', refundable:true, maxHeld:'$500' },
+      { id:'f16', kind:'deposit', level:'Move-in', code:'KEY', title:'Key & fob deposit', amount:'$75', src:'from tenant charge setup', cat:'Deposit', refundable:true, maxHeld:'$75' },
+      { id:'f17', kind:'concession', level:'Move-in', code:'CONCESSION', title:'Move-in special', amount:'−$300 one-time', src:'from property charge setup', cat:'Concession', exp:'08/31/2026' },
+      { id:'f18', kind:'latefee', level:'Move-in', code:'LATE', title:'Late fee', amount:'$50 or 5%', src:'from late fee setup', cat:'Fee' },
     ];
   }
   convLevels(){ return ['Property','Unit Type','Unit','Move-in']; }
   convLevelLabel(l){ return l==='Move-in' ? 'Move-in defaults' : l; }
+  convGroupLabel(l){ return { 'Property':'Property Recurring Charges', 'Unit Type':'Unit Type Recurring Charges', 'Unit':'Unit Recurring Charges', 'Move-in':'Tenant Charge Setup' }[l] || l; }
   // ---- Convert-to-template overlay ---------------------------------------
   convertHTML(){
     const c = this.state.convert; if(!c) return '';
     const wrap = (inner,foot)=>`<div data-act="convertClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:120"><div data-act="noop" style="width:1040px;max-width:96vw;height:88vh;background:#fff;border-radius:8px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
-      <div style="display:flex;align-items:center;gap:12px;padding:18px 24px;border-bottom:1px solid #e3e9ee"><span style="font-size:18px;font-weight:600;color:#13314c">Convert to Rental Fee Template</span><span style="font-size:14px;color:#8a9aa8">·</span><span style="font-size:14px;color:#4a5b6b">${c.prop}</span><div style="flex:1"></div><span data-act="convertClose" class="material-symbols-outlined" style="font-size:22px;color:#8a9aa8;cursor:pointer">close</span></div>
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 24px;border-bottom:1px solid #cedbe7"><span style="font-size:20px;font-weight:400;color:#13314c">Rental Fee Template: Property Conversion</span><span style="font-size:14px;color:#8a9aa8">·</span><span style="font-size:14px;color:#4a5b6b">${c.prop}</span><div style="flex:1"></div><span data-act="toast" data-arg="Help" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">help</span><span data-act="convertClose" class="material-symbols-outlined" style="font-size:22px;color:#8a9aa8;cursor:pointer">close</span></div>
       ${this.convStepsBar()}
       <div style="flex:1;min-height:0;overflow-y:auto;background:#f7f9fb">${inner}</div>
       ${foot||''}
@@ -2131,7 +2133,12 @@ class Component extends DCLogic {
   convStepsBar(){
     const c=this.state.convert; const cur = c.step===1?1:c.step==='scan'?2:c.step===3?3:4;
     const steps=[[1,'Destination'],[2,'Scan'],[3,'Review fees'],[4,'Summary']];
-    return `<div style="display:flex;align-items:center;gap:8px;padding:12px 24px;border-bottom:1px solid #e3e9ee;background:#fff">${steps.map((s,i)=>{ const on=s[0]===cur, done=s[0]<cur; const c1=on?'var(--ac,#008dd5)':done?'#12a150':'#c9d4dd'; return `<div style="display:flex;align-items:center;gap:8px"><span style="width:22px;height:22px;border-radius:50%;background:${on||done?c1:'#eef2f5'};color:${on||done?'#fff':'#8a9aa8'};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600">${done?'✓':s[0]}</span><span style="font-size:13px;font-weight:${on?'600':'400'};color:${on?'#13314c':'#8a9aa8'}">${s[1]}</span>${i<steps.length-1?`<span style="width:28px;height:1px;background:#dbe3ea;margin:0 4px"></span>`:''}</div>`; }).join('')}</div>`;
+    const counter=(s,i)=>{ const on=s[0]===cur, done=s[0]<cur;
+      if(done) return `<span style="width:24px;height:24px;border-radius:50%;background:#12a150;color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,0.1)"><span class="material-symbols-outlined" style="font-size:15px">check</span></span>`;
+      if(on) return `<span style="width:24px;height:24px;border-radius:50%;background:#fff;border:1.5px solid var(--ac,#008dd5);display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,0.1)"><span class="material-symbols-outlined" style="font-size:14px;color:var(--ac,#008dd5)">edit</span></span>`;
+      return `<span style="width:24px;height:24px;border-radius:50%;background:#737373;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,0.1)">${s[0]}</span>`;
+    };
+    return `<div style="display:flex;align-items:center;gap:8px;padding:12px 24px;border-bottom:1px solid #e3e9ee;background:#fff">${steps.map((s,i)=>{ const on=s[0]===cur; return `<div style="display:flex;align-items:center;gap:8px">${counter(s,i)}<span style="font-size:13px;font-weight:${on?'600':'400'};color:${on?'#13314c':'#8a9aa8'}">${s[1]}</span>${i<steps.length-1?`<span style="width:28px;height:1px;background:#dbe3ea;margin:0 4px"></span>`:''}</div>`; }).join('')}</div>`;
   }
   // Step 1 — Destination
   convStep1(){
@@ -2168,29 +2175,44 @@ class Component extends DCLogic {
   // Step 3 — Per-fee stepper
   convStep3(){
     const c=this.state.convert; const fees=this.convertFees(); const f=fees[c.idx];
-    // Left rail grouped by level.
-    const rail = this.convLevels().map(lv=>{ const group=fees.filter(x=>x.level===lv); if(!group.length) return ''; return `<div style="margin-bottom:14px"><div style="font-size:11px;font-weight:600;letter-spacing:0.4px;color:#8a9aa8;text-transform:uppercase;padding:0 12px;margin-bottom:6px">${this.convLevelLabel(lv)}</div>${group.map(x=>{ const gi=fees.indexOf(x); const dec=c.decisions[x.id]; const cur=gi===c.idx; let icon='',col='#8a9aa8'; if(dec){ const a=dec.action; if(a==='combined'){icon='✓';col='#12a150';} else if(a==='dontadd'){icon='✕';col='#b3306b';} else if(a==='latefee'){icon='—';col='#a6b2bd';} else {icon='✓';col='#12a150';} } const label = (x.kind==='exact')?`${x.title} <span style="color:#a6b2bd">· auto-combined</span>`:x.title; return `<div data-act="convGo" data-arg="${gi}" style="display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:5px;cursor:pointer;background:${cur?'#eaf5fc':'transparent'};border-left:3px solid ${cur?'var(--ac,#008dd5)':'transparent'}"><span style="width:16px;text-align:center;font-size:13px;color:${col};font-weight:700">${icon||'○'}</span><span style="font-size:13px;color:${cur?'#13314c':dec?'#5a6773':'#8a9aa8'};font-weight:${cur?'600':'400'};flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${label}</span></div>`; }).join('')}</div>`; }).join('');
-    const railWrap = `<div style="width:270px;flex:none;border-right:1px solid #e3e9ee;background:#fff;overflow-y:auto;padding:16px 6px"><div style="font-size:13px;font-weight:600;color:#13314c;padding:0 12px 12px">18 charges found</div>${rail}</div>`;
-    const main = `<div style="flex:1;min-width:0;overflow-y:auto;padding:24px 28px"><div style="font-size:13px;color:#8a9aa8;margin-bottom:4px">Fee ${c.idx+1} of ${fees.length} · ${this.convLevelLabel(f.level)}</div>${this.convFeePanel(f)}</div>`;
+    // Left rail grouped by level, styled after the Figma "Sidebar List" (chevron group header,
+    // status icon + code + description row, current row highlighted with a blue left border).
+    const rowIcon=(dec)=>{ if(!dec) return `<span class="material-symbols-outlined" style="font-size:18px;color:#c9d4dd">radio_button_unchecked</span>`; const a=dec.action; if(a==='dontadd') return `<span class="material-symbols-outlined" style="font-size:18px;color:#b3306b">cancel</span>`; return `<span class="material-symbols-outlined" style="font-size:18px;color:#12a150">check_circle</span>`; };
+    const rowLabel=(dec)=>{ if(!dec) return ''; const a=dec.action; if(a==='dontadd') return 'Removed'; if(a==='latefee') return 'Kept'; if(a==='combined') return 'Combined'; if(/^match-/.test(a)) return 'Combined'; return 'Added'; };
+    const rail = this.convLevels().map(lv=>{ const group=fees.filter(x=>x.level===lv); if(!group.length) return ''; return `<div style="margin-bottom:2px"><div style="display:flex;align-items:center;gap:2px;padding:8px 8px 4px 8px"><span class="material-symbols-outlined" style="font-size:20px;color:#8a9aa8">arrow_drop_down</span><span style="font-size:14px;font-weight:600;color:#13314c">${this.convGroupLabel(lv)}</span></div>${group.map(x=>{ const gi=fees.indexOf(x); const dec=c.decisions[x.id]; const cur=gi===c.idx; return `<div data-act="convGo" data-arg="${gi}" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 8px 8px 12px;cursor:pointer;background:${cur?'#e8f6fa':'#fff'};border-left:4px solid ${cur?'var(--ac,#008dd5)':'transparent'}"><span style="display:flex;align-items:center;gap:8px;min-width:0;flex:1"><span style="flex:none;display:flex">${rowIcon(dec)}</span><span style="font-size:14px;font-weight:600;color:#13314c;white-space:nowrap">${x.code}</span><span style="font-size:14px;color:#13314c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${x.title}</span></span><span style="font-size:12px;color:#666;flex:none">${rowLabel(dec)}</span></div>`; }).join('')}</div>`; }).join('');
+    const railWrap = `<div style="width:296px;flex:none;border-right:1px solid #cedbe7;background:#fff;overflow-y:auto">
+      <div style="display:flex;flex-direction:column;gap:16px;padding:12px 8px">
+        <span style="font-size:14px;color:#13314c">${fees.length} charges found</span>
+        <div style="display:flex;align-items:center;gap:8px;height:32px;box-sizing:border-box;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;padding:0 8px"><span style="flex:1;min-width:0;font-style:italic;color:#b3b3b3;font-size:14px">Search</span><span class="material-symbols-outlined" style="font-size:20px;color:#666">search</span></div>
+      </div>
+      ${rail}
+    </div>`;
+    const main = `<div style="flex:1;min-width:0;overflow-y:auto;padding:20px 28px"><div style="display:flex;gap:16px;align-items:center;font-size:14px;color:#666;margin-bottom:12px"><span>Fee ${c.idx+1} of ${fees.length}</span><span>${this.convLevelLabel(f.level)}${/^(unmatched|match)$/.test(f.kind)?' Recurring Charge':''}</span></div>${this.convFeePanel(f)}</div>`;
     return `<div style="display:flex;height:100%">${railWrap}${main}</div>`;
   }
   convFieldSuggest(label,val,extra){ return `<div style="display:flex;flex-direction:column;gap:4px;${extra||''}"><label style="font-size:12px;color:#8a9aa8">${label}</label><div style="border:1px dashed #c2cfda;border-radius:4px;padding:8px 10px;font-size:14px;color:#5a6773;font-style:italic;background:#fbfdfe">${val}</div></div>`; }
+  convLozenge(text,dotColor){ return `<span style="display:inline-flex;align-items:center;gap:8px;height:24px;max-width:200px;padding:4px 8px;border-radius:4px;background:#eef2f5"><span style="width:8px;height:8px;border-radius:50%;background:${dotColor||'#12a150'};flex:none"></span><span style="font-size:14px;font-style:italic;color:#13314c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${text}</span></span>`; }
   convFeePanel(f){
     const c=this.state.convert; const dec=c.decisions[f.id];
-    const titleLine = `<div style="display:flex;flex-direction:column;gap:3px"><div style="font-size:20px;font-weight:600;color:#13314c">${f.title}</div><div style="font-size:13px;color:#8a9aa8">${f.amount} · ${f.src}</div></div>`;
+    const titleLine = `<div style="display:flex;flex-direction:column;gap:6px"><div style="display:flex;align-items:baseline;gap:16px;flex-wrap:wrap"><span style="font-size:20px;font-weight:500;color:#13314c">${f.code}</span><span style="font-size:20px;font-weight:400;color:#13314c">${f.title}</span><span style="font-size:14px;color:#666">${f.amount}</span></div><div style="font-size:13px;color:#8a9aa8">${f.src}</div></div>`;
     const scopeSel = c.dest==='new' ? '' : `<div style="display:flex;flex-direction:column;gap:5px"><label style="font-size:12px;color:#8a9aa8">Add to</label><select style="height:36px;border:1px solid #cedbe7;border-radius:4px;padding:0 8px;font-size:14px;max-width:340px"><option>${c.prop} only</option><option>All properties assigned to ${c.existing}</option></select></div>`;
     // MATCHED
     if(f.kind==='match'){
-      const opt=(val,title,cons,cls,body)=>`<label style="display:flex;gap:10px;border:1px solid #dde5ec;border-radius:6px;padding:12px 14px;cursor:pointer;background:#fff"><input type="radio" name="cv-match" value="${val}" ${val==='use'?'checked':''} onchange="var e=document.getElementById('cv-editwrap');if(e)e.style.display=(this.value==='edit'?'block':'none')" style="accent-color:var(--ac,#008dd5);width:16px;height:16px;margin-top:2px"><div style="display:flex;flex-direction:column;gap:3px;flex:1"><span style="font-size:14px;font-weight:600;color:#13314c">${title}</span><span style="font-size:12px;color:${cls==='warn'?'#b35a00':'#6a7885'}">${cons}</span>${body||''}</div></label>`;
-      return `<div style="display:flex;flex-direction:column;gap:18px;max-width:640px">
+      const opt=(val,title,cons,cls,body)=>`<label style="display:flex;flex-direction:column;gap:2px;cursor:pointer"><span style="display:flex;align-items:center;gap:8px"><input type="radio" name="cv-match" value="${val}" ${val==='use'?'checked':''} onchange="var e=document.getElementById('cv-editwrap');if(e)e.style.display=(this.value==='edit'?'block':'none')" style="accent-color:var(--ac,#008dd5);width:20px;height:20px;margin:0"><span style="font-size:14px;color:#666">${title}</span>${cls==='warn'?`<span class="material-symbols-outlined" style="font-size:16px;color:#b35a00">warning</span><span style="font-size:12px;color:#b35a00;font-style:italic">${cons}</span>`:`<span style="font-size:12px;color:#8a9aa8">— ${cons}</span>`}</span>${body||''}</label>`;
+      return `<div style="display:flex;flex-direction:column;gap:16px;max-width:660px">
         ${titleLine}
-        <div style="display:flex;align-items:center;gap:8px;background:#f0f6fb;border:1px solid #cedbe7;border-radius:6px;padding:10px 14px;font-size:13px;color:#424e5b"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5)">link</span>Matches template <b style="margin:0 4px">${f.tpl}</b> — ${f.tplAmount} at ${f.tplCount} properties</div>
-        <div style="display:flex;flex-direction:column;gap:10px">
-          ${opt('use',`Use the template's fee`,`${f.prop||c.prop}'s ${f.title} becomes ${f.tplAmount} · new quotes here change`)}
-          ${opt('edit',`Edit the template fee`,`⚠ affects ${f.tplCount} assigned properties moving forward`,'warn',`<div id="cv-editwrap" style="display:none;margin-top:8px"><input id="cv-editamt" placeholder="${f.tplAmount}" style="height:34px;width:180px;border:1px solid #cedbe7;border-radius:4px;padding:0 10px;font-size:14px"><div style="font-size:11px;color:#8a9aa8;margin-top:4px">Logged to the template's Change History.</div></div>`)}
-          ${opt('separate',`Add as a separate charge`,`This would stack a second ${f.title} on top of the template's`)}
+        <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.6);border:1px solid #e3e9ee;border-radius:4px;padding:16px">
+          ${this.convLozenge(f.matchPct+'% match')}
+          <span style="font-size:14px;color:#666">Similar fee on template: <b style="font-weight:600;color:#13314c">${f.tpl} ${f.tplAmount} at ${f.tplCount} properties</b></span>
+          <div style="flex:1"></div>
+          <a data-act="toast" data-arg="View fee details" style="font-size:14px;color:var(--ac,#008dd5);white-space:nowrap">View fee details</a>
         </div>
-        <div style="font-size:12px;color:#8a9aa8;display:flex;align-items:center;gap:6px"><span class="material-symbols-outlined" style="font-size:16px">lightbulb</span>Need a different amount at this property only? Add an exception from the template after conversion.</div>
+        <div style="border:1px solid #cedbe7;border-radius:4px;background:#fff;padding:16px;display:flex;flex-direction:column;gap:12px">
+          <span style="font-size:16px;font-weight:600;color:#13314c">How would you like to handle this charge?</span>
+          ${opt('use',`Use the template's fee`,`${f.title} becomes ${f.tplAmount} · new quotes here change`)}
+          ${opt('edit',`Edit the template fee`,`affects ${f.tplCount} assigned properties moving forward`,'warn',`<div id="cv-editwrap" style="display:none;margin:6px 0 0 28px"><input id="cv-editamt" placeholder="${f.tplAmount}" style="height:34px;width:180px;border:1px solid #cedbe7;border-radius:4px;padding:0 10px;font-size:14px"><div style="font-size:11px;color:#8a9aa8;margin-top:4px">Logged to the template's Change History.</div></div>`)}
+          ${opt('separate',`Add as a separate charge`,`stacks a second ${f.title} on top of the template's`)}
+        </div>
       </div>`;
     }
     // DEPOSIT
@@ -2237,14 +2259,17 @@ class Component extends DCLogic {
   }
   convFoot3(){
     const c=this.state.convert; const fees=this.convertFees(); const f=fees[c.idx];
+    const remaining=fees.filter(x=>!c.decisions[x.id]).length;
     let actions='';
-    if(f.kind==='latefee'){ actions=`<button data-act="convDecide" class="btn-pri" style="height:38px;padding:0 20px;border-radius:4px;font-size:14px">Got it — next →</button>`; }
-    else if(f.kind==='match'){ actions=`<button data-act="convDecide" class="btn-pri" style="height:38px;padding:0 20px;border-radius:4px;font-size:14px">Confirm + next fee →</button>`; }
-    else if(f.kind==='deposit'||f.kind==='concession'){ actions=`<button data-act="convDecide" class="btn-pri" style="height:38px;padding:0 20px;border-radius:4px;font-size:14px">Add ${f.kind==='deposit'?'deposit':'concession'} →</button>`; }
-    else { actions=`<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px"><button data-act="convDecide" data-arg="dontadd" style="height:38px;padding:0 16px;border:1px solid #cedbe7;background:#fff;border-radius:4px;font-size:14px;color:#b3306b;cursor:pointer">Don't add</button><span style="font-size:11px;color:#a6b2bd">Won't appear on new quotes · current tenants unchanged</span></div><button data-act="convDecide" data-arg="add" class="btn-pri" style="height:38px;padding:0 20px;border-radius:4px;font-size:14px">Add fee →</button>`; }
-    return `<div style="display:flex;align-items:center;gap:14px;padding:14px 24px;border-top:1px solid #e3e9ee;background:#fff">
+    if(f.kind==='latefee'){ actions=`<button data-act="convDecide" class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px">Got it — next →</button>`; }
+    else if(f.kind==='match'){ actions=`<button data-act="convDecide" class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px">Confirm + next fee →</button>`; }
+    else if(f.kind==='deposit'||f.kind==='concession'){ actions=`<button data-act="convDecide" class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px">Add ${f.kind==='deposit'?'deposit':'concession'} →</button>`; }
+    else { actions=`<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px"><button data-act="convDecide" data-arg="dontadd" style="height:36px;padding:0 16px;border:1px solid #cedbe7;background:#fff;border-radius:4px;font-size:14px;color:#b3306b;cursor:pointer">Don't add</button><span style="font-size:11px;color:#a6b2bd">Won't appear on new quotes · current tenants unchanged</span></div><button data-act="convDecide" data-arg="add" class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px">Add fee →</button>`; }
+    return `<div style="display:flex;align-items:center;gap:16px;padding:8px 16px;border-top:1px solid #cedbe7;background:#f5f8fa">
+      <button data-act="convBackDest" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Back</button>
       <a data-act="convAddAll" style="font-size:13px;color:var(--ac,#008dd5);cursor:pointer">Add all remaining →</a>
       <div style="flex:1"></div>
+      ${remaining>0?`<span style="display:inline-flex;align-items:center;gap:8px;font-size:12px;font-style:italic;color:#666"><span class="material-symbols-outlined" style="font-size:20px;color:#b35a00">warning</span>${remaining} charge${remaining===1?'':'s'} need to be handled before continuing.</span>`:''}
       ${actions}
     </div>`;
   }
