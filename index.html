@@ -70,6 +70,7 @@ class Component extends DCLogic {
     view: 'register',
     profileTab: 'Overview',
     accOpen: {},
+    pfSel: 'All',
     utSel: '2BR/2BA',
     oriSel: 'Garage',
     ufProp: 'Riverview Apartments',
@@ -379,6 +380,7 @@ class Component extends DCLogic {
       case 'recExclToggle': this.setState({ recExcl: !this.state.recExcl }); break;
       case 'navUnit': this.go('unit', { unit: arg }); break;
       case 'ptab': this._resetScroll = true; this.setState({ profileTab: arg, ovPop: null }); break;
+      case 'pfsel': this.setState({ pfSel: arg }); break;
       case 'utsel': this.setState({ utSel: arg }); break;
       case 'orisel': this.setState({ oriSel: arg }); break;
       case 'ufsel': this.setState({ ufSel: arg }); break;
@@ -684,13 +686,12 @@ class Component extends DCLogic {
     const sb=this.sidebar('ORI Types','Search ORI types',items);
     let m='';
     if(sel==='All'){
-      m+=this.banner('ORI fees are associated with other rentable items (ORIs) — garages, storage units, parking spaces, and more — that a tenant pairs with their unit. They work like a unit type: select an ORI type to manage its fees.','');
-      m+=`<div class="eyebrow">Fees by ORI type</div>`;
-      m+=`<div class="tile"><div style="display:grid;grid-template-columns:150px 100px 1fr 110px;background:#f5f8fa;border-bottom:1px solid #cedbe7">${['ORI type','Available','ORI fees',''].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>${data.map(t=>{
-        const fees=this.oriFees(t);
-        const list=fees.length?fees.map(f=>`${f.desc} · $${f.amount}`).join(', '):'<span style="font-style:italic;color:#b3b3b3">No ORI fees</span>';
-        return `<div data-act="orisel" data-arg="${t.name}" style="display:grid;grid-template-columns:150px 100px 1fr 110px;align-items:center;border-bottom:1px solid #ebf1f5;cursor:pointer"><span class="td name" style="border:none;padding-left:16px">${t.name}</span><span class="td num" style="border:none">${t.qty}</span><span class="td" style="border:none">${list}</span><span class="td" style="border:none"><a style="font-size:13px">Manage →</a></span></div>`;
-      }).join('')}</div>`;
+      m+=this.banner('ORI fees are associated with other rentable items (ORIs) — garages, storage units, parking spaces, and more — that a tenant pairs with their unit. Showing every ORI charge; pick an ORI type to focus on one.','');
+      const allReq=data.flatMap(t=>t.reqRec||[]).concat(this.addedForPrefix('ori:','req-rec'));
+      const allOpt=data.flatMap(t=>t.optRec||[]).concat(this.addedForPrefix('ori:','opt-rec'));
+      m+=this.chargeAccordion('orireq','Required Charges','', allReq, this.addedForPrefix('ori:','req-one'), {keyPrefix:'oriall',recGroup:'req-rec',oneGroup:'req-one',recEmpty:'No required recurring charges on any ORI type.',oneEmpty:'No required one-time charges on any ORI type.'});
+      m+=this.chargeAccordion('oriopt','Optional Charges','Tenant selects', allOpt, this.addedForPrefix('ori:','opt-one'), {keyPrefix:'oriall',recGroup:'opt-rec',oneGroup:'opt-one',recEmpty:'No optional recurring charges on any ORI type.',oneEmpty:'No optional one-time charges on any ORI type.'});
+      m+=this.chargeAccordion('orisit','Situational Charges','Applies when a condition exists', this.addedForPrefix('ori:','sit-rec'), this.addedForPrefix('ori:','sit-one'), {keyPrefix:'oriall',condition:true,recGroup:'sit-rec',oneGroup:'sit-one',recEmpty:'No situational recurring charges on any ORI type.',oneEmpty:'No situational one-time charges on any ORI type.'});
     } else {
       const t=data.find(x=>x.name===sel)||data[0];
       m+=this.banner(`ORI fees are additive — they stack on top of property-level fees when a ${t.name} is selected. A tenant who selects a ${t.name} receives both property fees and ${t.name} fees on their quote.`,'');
@@ -1638,6 +1639,7 @@ class Component extends DCLogic {
     return `<div style="font-size:13px;font-weight:600;color:#666;padding:12px 20px 8px">${label}</div><div style="padding:0 20px;overflow-x:auto"><div style="min-width:${cond?1120:1000}px;border:1px solid #cedbe7;border-radius:4px;overflow:hidden">${head}${body}${add}</div></div>`;
   }
   addedFor(ctx, group){ return ctx ? this.state.addedFees.filter(f=>f.ctx===ctx&&f.group===group) : []; }
+  addedForPrefix(prefix, group){ return this.state.addedFees.filter(f=>f.ctx&&f.ctx.indexOf(prefix)===0&&f.group===group); }
   acc(title, sub, inner, count, key){
     const collapsed = !(this.state.accOpen && this.state.accOpen[key]);
     const countLine = (count==null) ? '' : `<span class="acc-count" style="display:${collapsed?'block':'none'};font-size:12px;color:#666">${count} charge${count===1?'':'s'}</span>`;
@@ -1895,14 +1897,33 @@ class Component extends DCLogic {
     const pl=a=>a.filter(f=>f.app==='Property'); // property-level charges only
     const defs=this.propChargeDefs();
     const g=(grp)=>pl(defs.filter(d=>d.group===grp));
-    let h='';
-    h+=this.banner('Property-level fees apply to all assigned properties by default. Use the Charge Application column to limit a fee to specific properties.','Learn more →');
-    // Property multiselect filter — defaults to every assigned property so all charges show.
-    h+=`<div style="display:flex;flex-direction:column;gap:4px;max-width:320px"><span style="font-size:14px;color:var(--ac,#008dd5)">Property</span>${this.multiSelect('pf-prop-filter', this.propNames(), this.propNames())}</div>`;
-    h+=this.chargeAccordion('req','Required Charges','', g('req-rec'), g('req-one'), {ctx:'prop',keyPrefix:'pf',recGroup:'req-rec',oneGroup:'req-one',showOverrides:true,propScope:true});
-    h+=this.chargeAccordion('opt','Optional Charges','Tenant selects', g('opt-rec'), g('opt-one'), {ctx:'prop',keyPrefix:'pf',recGroup:'opt-rec',oneGroup:'opt-one',showOverrides:true,propScope:true});
-    h+=this.chargeAccordion('sit','Situational Charges','Applies when a condition exists', g('sit-rec'), g('sit-one'), {ctx:'prop',keyPrefix:'pf',recGroup:'sit-rec',oneGroup:'sit-one',condition:true,oneEmpty:'No situational one-time charges added.',showOverrides:true,propScope:true});
-    return h;
+    const props=this.properties();               // [name, loc, type, units, occ, ...]
+    const sel=props.some(r=>r[0]===this.state.pfSel) ? this.state.pfSel : 'All';
+    const total=props.reduce((n,r)=>n+(parseInt(r[3],10)||0),0);
+    // Left rail — All properties + each assigned property (mirrors Unit Type Fees).
+    const items=[this.sideItem('All properties', props.length+' properties · '+total+' units','', sel==='All','pfsel','All')]
+      .concat(props.map(r=>{ const exc=(r[6]&&r[6]!=='0'&&r[6]!=='—')?r[6]:''; return this.sideItem(r[0], r[3]+' units', exc, sel===r[0],'pfsel',r[0]); })).join('');
+    const sb=this.sidebar('Properties','Search properties',items);
+    // Charge accordions — identical set for "All" and a specific property (property-level fees
+    // apply to every assigned property; a specific selection just scopes the header/overrides).
+    const accs=(scopeNote)=>{
+      let m='';
+      m+=this.chargeAccordion('req','Required Charges','', g('req-rec'), g('req-one'), {ctx:'prop',keyPrefix:'pf',recGroup:'req-rec',oneGroup:'req-one',showOverrides:true,propScope:true});
+      m+=this.chargeAccordion('opt','Optional Charges','Tenant selects', g('opt-rec'), g('opt-one'), {ctx:'prop',keyPrefix:'pf',recGroup:'opt-rec',oneGroup:'opt-one',showOverrides:true,propScope:true});
+      m+=this.chargeAccordion('sit','Situational Charges','Applies when a condition exists', g('sit-rec'), g('sit-one'), {ctx:'prop',keyPrefix:'pf',recGroup:'sit-rec',oneGroup:'sit-one',condition:true,oneEmpty:'No situational one-time charges added.',showOverrides:true,propScope:true});
+      return m;
+    };
+    let m='';
+    if(sel==='All'){
+      m+=this.banner('Property-level fees apply to all assigned properties by default. Use the Charge Application column to limit a fee to specific properties.','Learn more →');
+      m+=accs();
+    } else {
+      const r=props.find(x=>x[0]===sel);
+      m+=this.banner(`Showing property-level fees as they apply to ${sel}. These come from the template; per-property differences appear as overrides.`,'Learn more →');
+      m+=this.scopeHeader(`<span style="display:inline-flex;align-items:center;gap:8px">${this.feeIcon('property',18)}${sel}</span>`, `<span style="font-size:14px;color:#8a9aa8">${r?r[1]:''}</span>`, [['Units:', r?r[3]:'—'],['Occupancy:', r?r[4]:'—']]);
+      m+=accs();
+    }
+    return `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden;gap:16px;padding:16px;box-sizing:border-box"><div style="flex:none;overflow-y:auto;align-self:stretch">${sb}</div><div style="flex:1;min-width:0;overflow-y:auto"><div style="display:flex;flex-direction:column;gap:16px">${m}</div></div></div>`;
   }
 
   sidebar(title, search, items, addLabel){
@@ -1956,13 +1977,12 @@ class Component extends DCLogic {
     const sb=this.sidebar('Unit Types','Search unit types',items);
     let m='';
     if(sel==='All'){
-      m+=this.banner('Unit type fees are additive — they stack on top of property-level fees for all units of this type. Select a unit type to manage its fees.','');
-      m+=`<div class="eyebrow">Fees by unit type</div>`;
-      m+=`<div class="tile"><div style="display:grid;grid-template-columns:140px 90px 1fr 110px;background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Unit type','Units','Unit type fees',''].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>${data.map(t=>{
-        const fees=this.utFees(t);
-        const list=fees.length?fees.map(f=>`${f.desc} · $${f.amount}`).join(', '):'<span style="font-style:italic;color:#b3b3b3">No unit type fees</span>';
-        return `<div data-act="utsel" data-arg="${t.name}" style="display:grid;grid-template-columns:140px 90px 1fr 110px;align-items:center;border-bottom:1px solid #ebf1f5;cursor:pointer"><span class="td name" style="border:none;padding-left:16px">${t.name}</span><span class="td num" style="border:none">${t.units}</span><span class="td" style="border:none">${list}</span><span class="td" style="border:none"><a style="font-size:13px">Manage →</a></span></div>`;
-      }).join('')}</div>`;
+      m+=this.banner('Unit type fees are additive — they stack on top of property-level fees for all units of this type. Showing every unit type charge; pick a unit type to focus on one.','');
+      const allReq=data.flatMap(t=>t.reqRec||[]).concat(this.addedForPrefix('ut:','req-rec'));
+      const allOpt=data.flatMap(t=>t.optRec||[]).concat(this.addedForPrefix('ut:','opt-rec'));
+      m+=this.chargeAccordion('utreq','Required Charges','', allReq, this.addedForPrefix('ut:','req-one'), {keyPrefix:'utall',recGroup:'req-rec',oneGroup:'req-one',recEmpty:'No required recurring charges on any unit type.',oneEmpty:'No required one-time charges on any unit type.'});
+      m+=this.chargeAccordion('utopt','Optional Charges','Tenant selects', allOpt, this.addedForPrefix('ut:','opt-one'), {keyPrefix:'utall',recGroup:'opt-rec',oneGroup:'opt-one',recEmpty:'No optional recurring charges on any unit type.',oneEmpty:'No optional one-time charges on any unit type.'});
+      m+=this.chargeAccordion('utsit','Situational Charges','Applies when a condition exists', this.addedForPrefix('ut:','sit-rec'), this.addedForPrefix('ut:','sit-one'), {keyPrefix:'utall',condition:true,recGroup:'sit-rec',oneGroup:'sit-one',recEmpty:'No situational recurring charges on any unit type.',oneEmpty:'No situational one-time charges on any unit type.'});
     } else {
       const t=data.find(x=>x.name===sel)||data[2];
       m+=this.banner(`Unit type fees are additive — they stack on top of property-level fees for all units of this type. A ${t.name} unit receives both property fees and ${t.name} fees on their quote.`,'');
@@ -2629,7 +2649,7 @@ class Component extends DCLogic {
     let inner;
     const t = this.state.profileTab;
     if (t === 'Overview') inner = this.overviewBody();
-    else if (t === 'Property Fees') inner = this.propertyFeesBody();
+    else if (t === 'Property Fees') return `<div style="flex:1;min-height:0;display:flex;flex-direction:column">${this.propertyFeesBody()}</div>`;
     else if (t === 'Amenities') return `<div style="flex:1;min-height:0;display:flex;flex-direction:column">${this.amenitiesBody()}</div>`;
     else if (t === 'Unit Type Fees') return `<div style="flex:1;min-height:0;display:flex;flex-direction:column">${this.utBody()}</div>`;
     else if (t === 'Unit Fees') return `<div style="flex:1;min-height:0;display:flex;flex-direction:column">${this.ufBody()}</div>`;
