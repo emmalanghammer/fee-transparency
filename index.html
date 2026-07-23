@@ -2771,10 +2771,10 @@ class Component extends DCLogic {
     const unitCodes = unitData.map(u => u.u);
     // Charge Type typeahead (searchable dropdown of master charge types).
     const ctypeList=[['ADMIN','Administrative Fee'],['AMENITY','Amenity Fee'],['APPFEE','Application Fee'],['CABLE','Cable Utility'],['CAM','Common Area Maintenance'],['CLEAN','Cleaning Fee'],['COVPARK','Covered Parking'],['DEP','Security Deposit'],['ELEC','Electric Utility'],['EPAYAJ','ePay Refund Adjustment'],['EPD','Early Payment Discount'],['FMR',"First Month's Rent Charge"],['GARAGE','Garage Fee'],['GARBAG','Garbage Fee'],['GAS','Gas Utility'],['H2O','Water Utility'],['HO4','Renters Insurance Charge'],['HO7','Homeowners insurance'],['HOA','HOA Fee'],['KEY','Key & Fob Deposit'],['LATE','Late Fee'],['LMR',"Last Month's Rent"],['NSF','NSF Fee'],['PARK','Parking'],['PET','Pet Rent'],['PETDP','Pet Deposit'],['RC','Rent'],['SEWER','Sewer Utility'],['STORAGE','Storage Fee'],['TRASH','Trash Valet'],['UTIL','Utility']];
-    // The 22 MITS fee categories (shown on the "Fee Category" dropdown when a fee is listed).
-    const mitsCats=['Administrative','Amenity','Application','Cable & Internet','Cleaning','Common Area Maintenance','Concession','Deposit','Electric','Gas','HOA / Association','Inspection','Insurance','Late Fee','Other','Parking','Pet','Rent','Storage','Trash','Utility','Water & Sewer'];
-    // Derived charge category (syndicated to listings). Maps charge type code → MITS category.
-    const catMap={ADMIN:'Administrative',AMENITY:'Amenity',APPFEE:'Application',CABLE:'Cable & Internet',CAM:'Common Area Maintenance',CLEAN:'Cleaning',COVPARK:'Parking',DEP:'Deposit',ELEC:'Electric',EPAYAJ:'Other',EPD:'Concession',FMR:'Rent',GARAGE:'Parking',GARBAG:'Trash',GAS:'Gas',H2O:'Water & Sewer',HO4:'Insurance',HO7:'Insurance',HOA:'HOA / Association',KEY:'Deposit',LATE:'Late Fee',LMR:'Rent',NSF:'Other',PARK:'Parking',PET:'Pet',PETDP:'Deposit',RC:'Rent',SEWER:'Water & Sewer',STORAGE:'Storage',TRASH:'Trash',UTIL:'Utility'};
+    // MITS fee categories (shown on the "Fee Category" dropdown when a fee is listed).
+    const mitsCats=['ACCOUNTING','ADMIN','AMENITY','APPLICATION','CLEAN','DAMAGE','GOVT','HOLD','INSURANCE','KEY','LEASE','LEGAL','OTHER','PARKING','PET','SERVICE','STORAGE','TECH','TERM','TRANSFER','UPGRADE','UTILITY','VIOLATION'];
+    // Suggested fee category from the selected charge type. Maps charge type code → MITS category.
+    const catMap={ADMIN:'ADMIN',AMENITY:'AMENITY',APPFEE:'APPLICATION',CABLE:'TECH',CAM:'SERVICE',CAMTAX:'GOVT',CLEAN:'CLEAN',COVPARK:'PARKING',DEP:'OTHER',ELEC:'UTILITY',EPAYAJ:'ACCOUNTING',EPD:'ACCOUNTING',FMR:'LEASE',GARAGE:'PARKING',GARBAG:'SERVICE',GAS:'UTILITY',H2O:'UTILITY',HO4:'INSURANCE',HO7:'INSURANCE',HOA:'SERVICE',KEY:'KEY',LATE:'LEASE',LMR:'LEASE',NSF:'ACCOUNTING',PARK:'PARKING',PET:'PET',PETDP:'PET',RC:'LEASE',SEWER:'UTILITY',STORAGE:'STORAGE',TRASH:'SERVICE',UTIL:'UTILITY'};
     const catFor=(code)=>catMap[(code||'').toUpperCase()]||'';
     const edCat = ed ? (catFor(ed.code) || '') : '';
     // Selecting a charge type auto-suggests the Fee Category dropdown (hidden #m-cat mirrors it).
@@ -2807,7 +2807,7 @@ class Component extends DCLogic {
     const help=(t)=>`<span style="font-size:12px;color:#8a9aa8">${t}</span>`;
     // Charge Type field (its selection auto-suggests the Fee Category dropdown below).
     const chargeTypeCol = `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Type *',true)}${ctypeField}
-      <input type="hidden" id="m-cat" value="${edCat||'Administrative'}"></div>`;
+      <input type="hidden" id="m-cat" value="${edCat||'OTHER'}"></div>`;
     const general = `
       <div style="display:flex;gap:8px;align-items:flex-start">
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Name *')}<input id="m-name" class="fld" value="${ed?(ed.desc||'').replace(/"/g,'&quot;'):''}" style="height:36px;box-sizing:border-box"></div>
@@ -2853,7 +2853,7 @@ class Component extends DCLogic {
       <div style="display:flex;flex-direction:column;gap:10px">
         <label style="display:inline-flex;align-items:center;gap:10px;cursor:pointer"><span id="m-ils-sw" onclick="var on=this.getAttribute('data-on')==='1';on=!on;this.setAttribute('data-on',on?'1':'0');document.getElementById('m-ils').value=on?'1':'0';this.style.background=on?'var(--ac,#008dd5)':'#cedbe7';this.firstElementChild.style.left=on?'16px':'2px';var fc=document.getElementById('m-feecat-wrap');if(fc)fc.style.display=(on?'flex':'none');${ilsWarn}" data-on="1" style="display:inline-block;width:32px;height:18px;border-radius:999px;background:var(--ac,#008dd5);position:relative;flex:none"><span style="position:absolute;top:2px;left:16px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left 120ms ease-out"></span></span><span style="font-size:14px;color:#13314c">Show on listings (ILS)</span></label>
         <input type="hidden" id="m-ils" value="1">
-        <div id="m-feecat-wrap" style="display:flex;flex-direction:column;gap:4px;max-width:320px">${lab('Fee Category *')}${this.singleSelect('m-feecat',mitsCats,edCat||'Administrative',{js:"document.getElementById('m-cat').value=_v"})}${help('Groups this fee on syndicated listings.')}</div>
+        <div id="m-feecat-wrap" style="display:flex;flex-direction:column;gap:4px;max-width:320px">${lab('Fee Category *')}${this.singleSelect('m-feecat',mitsCats,edCat||'OTHER',{js:"document.getElementById('m-cat').value=_v"})}${help('Groups this fee on syndicated listings.')}</div>
         <div id="m-ils-warn" style="display:none;align-items:center;gap:8px;background:#fdeedd;border:1px solid #f2c99a;border-radius:4px;padding:8px 12px"><span class="material-symbols-outlined" style="font-size:18px;color:#b35a00">warning</span><span style="font-size:13px;color:#b35a00">Required fees must be disclosed on listings when Fee Transparency is on.</span></div>
       </div>`;
     // More options (collapsed): non-MITS operational fields.
