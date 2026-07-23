@@ -102,6 +102,7 @@ class Component extends DCLogic {
     feeScope: {}, applyModal: null,
     feeOverrides: {}, ovModal: null, rowMenu: null,
     excMenu: null, excEdit: null, excEdits: {}, excDismissed: [], feeExc: [], recView: null, recExcl: false,
+    convert: null, convStatus: {}, convDone: false, convSaved: null,
     propPop: null,
     addTpl: null, addedTemplates: [],
     exProp: 'All', exFee: 'All', exKind: 'All',
@@ -151,6 +152,7 @@ class Component extends DCLogic {
       { name:'Sunrise Heights', loc:'Fairfield OH', units:38, pre:true },
       { name:'Bradford House', loc:'Cincinnati OH', units:24, pre:true },
       { name:'Elmwood Park', loc:'Columbus OH', units:56, pre:true },
+      { name:'Stone Apartments', loc:'Loveland OH', units:49, pre:false, legacy:true },
       { name:'1127 Blackwell', loc:'Dayton OH', units:12, pre:false },
       { name:'1742 Vine Street', loc:'Cincinnati OH', units:6, pre:false },
       { name:'2015 Riverside Dr', loc:'Covington KY', units:9, pre:false },
@@ -340,7 +342,18 @@ class Component extends DCLogic {
       }
       case 'importAssign': this.go('profile', { assign: { step:1, sel: this.candidateProps().filter(p=>p.pre).map(p=>p.name) } }); break;
       case 'navProperty': this.go('property', arg ? { property: arg, propTab: 'General' } : { propTab: 'General' }); break;
-      case 'convertOpen': this.flash('Convert to template — coming next'); break;
+      case 'convertOpen': { const prop = arg || this.state.property || 'Riverview Apartments'; const decs = {}; this.convertFees().forEach(f => { if (f.kind === 'exact') decs[f.id] = { action: 'combined' }; else if (f.kind === 'latefee') decs[f.id] = { action: 'latefee' }; }); this.setState({ convert: { prop, step: 1, dest: 'new', newName: '', newDesc: '', existing: 'Standard Apartment', idx: 0, decisions: decs, visited: {} }, recView: null, applyModal: null }); break; }
+      case 'convertClose': { const c = this.state.convert; if (c && (c.step === 3 || c.step === 4)) { const fees = this.convertFees(); const resolved = fees.every(f => c.decisions[f.id]); if (!resolved) { this.setState({ convert: null, convSaved: Object.assign({}, c, { step: 3 }), convStatus: Object.assign({}, this.state.convStatus, { 'Stone Apartments': 'Setup in progress' }) }); this.flash('Progress saved · finish fee setup anytime'); break; } } this.setState({ convert: null }); break; }
+      case 'convDest': this.setState(s => ({ convert: Object.assign({}, s.convert, { dest: arg }) })); break;
+      case 'convPickTpl': this.setState(s => ({ convert: Object.assign({}, s.convert, { existing: arg }) })); break;
+      case 'convScan': { const c = this.state.convert; const nn = (this.q('#cv-name') || {}).value; const nd = (this.q('#cv-desc') || {}).value; this.setState({ convert: Object.assign({}, c, { step: 'scan', newName: nn != null ? nn : c.newName, newDesc: nd != null ? nd : c.newDesc }) }); clearTimeout(this._cvt); this._cvt = setTimeout(() => this.setState(s => { if (!s.convert) return {}; const fs = this.convertFees(); let first = 0; for (let i = 0; i < fs.length; i++) { if (fs[i].kind !== 'exact') { first = i; break; } } return { convert: Object.assign({}, s.convert, { step: 3, idx: first }) }; }), 1400); break; }
+      case 'convGo': this.setState(s => ({ convert: Object.assign({}, s.convert, { idx: Math.max(0, Math.min(this.convertFees().length - 1, parseInt(arg, 10))) }) })); break;
+      case 'convDecide': { const c = this.state.convert; const fees = this.convertFees(); const f = fees[c.idx]; let dec; if (f.kind === 'match') { const r = (this.q('input[name=cv-match]:checked') || {}).value || 'use'; dec = { action: 'match-' + r }; if (r === 'edit') dec.amount = (this.q('#cv-editamt') || {}).value || ''; } else if (f.kind === 'deposit') { dec = { action: 'deposit', refund: (this.q('#cv-refund') || {}).value || 'Refundable', maxHeld: (this.q('#cv-maxheld') || {}).value || '' }; } else if (f.kind === 'concession') { dec = { action: 'concession', exp: (this.q('#cv-exp') || {}).value || '' }; } else if (f.kind === 'latefee') { dec = { action: 'latefee' }; } else { const cond = (this.q('#cv-cond') || {}).value || ''; if (arg === 'add' && f.req === 'Situational' && !cond.trim()) { const el = this.q('#cv-cond'); if (el) el.style.borderColor = '#d02830'; this.flash('Condition is required for situational charges'); break; } dec = { action: arg, cond }; } const decisions = Object.assign({}, c.decisions, { [f.id]: dec }); const visited = Object.assign({}, c.visited, { [f.id]: true }); let nextIdx = -1; for (let i = c.idx + 1; i < fees.length; i++) { if (fees[i].kind !== 'exact') { nextIdx = i; break; } } if (nextIdx === -1) this.setState({ convert: Object.assign({}, c, { decisions, visited, step: 4 }) }); else this.setState({ convert: Object.assign({}, c, { decisions, visited, idx: nextIdx }) }); break; }
+      case 'convAddAll': { const c = this.state.convert; const fees = this.convertFees(); const decisions = Object.assign({}, c.decisions); fees.forEach(f => { if (!decisions[f.id]) decisions[f.id] = { action: (f.kind === 'match' ? 'match-use' : f.kind === 'deposit' ? 'deposit' : f.kind === 'concession' ? 'concession' : f.kind === 'latefee' ? 'latefee' : 'add') }; }); this.setState({ convert: Object.assign({}, c, { decisions, step: 4 }) }); break; }
+      case 'convSummary': this.setState(s => ({ convert: Object.assign({}, s.convert, { step: 4 }) })); break;
+      case 'convBackFees': this.setState(s => ({ convert: Object.assign({}, s.convert, { step: 3 }) })); break;
+      case 'convFinish': { const c = this.state.convert; const fees = this.convertFees(); const resolved = fees.every(f => c.decisions[f.id]); const st = { convert: null, convDone: true, convSaved: resolved ? null : Object.assign({}, c, { step: 3 }) }; st.convStatus = Object.assign({}, this.state.convStatus, { [c.prop]: resolved ? 'Active' : 'Setup in progress' }); this.setState(st); this.flash(resolved ? 'Conversion complete · ref CV-2025-001' : 'Progress saved · finish fee setup anytime'); break; }
+      case 'convResume': { const saved = this.state.convSaved; if (saved) this.setState({ convert: Object.assign({}, saved) }); break; }
       case 'openTplFees': this.setState({ recView: null }); this.go('profile', { template: 'Standard Apartment', profileTab: 'Property Fees', accOpen: {} }); break;
       case 'recViewOpen': this.setState({ recView: (arg==='unit'?'unit':arg==='legacy'?'legacy':'property'), recExcl: false }); break;
       case 'recViewClose': this.setState({ recView: null }); break;
@@ -777,6 +790,7 @@ class Component extends DCLogic {
         <div style="border:1px solid #cedbe7;border-radius:4px;max-height:210px;overflow-y:auto">${rows}</div>
         <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:14px;font-weight:600;color:#13314c">Selected Properties (${sel.length})</span><a data-act="assignClear" style="font-size:14px">Clear All</a></div>
         <div style="border:1px solid #cedbe7;border-radius:4px;padding:12px;min-height:120px;display:flex;flex-wrap:wrap;gap:8px;align-content:flex-start">${pills}</div>
+        ${sel.includes('Stone Apartments') ? `<div style="display:flex;align-items:center;gap:12px;background:#f0f6fb;border:1px solid #cedbe7;border-radius:6px;padding:12px 14px"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">swap_horiz</span><div style="flex:1;font-size:13px;color:#424e5b"><b>Stone Apartments has 18 existing charges</b> — they'll be reviewed during conversion.</div><button data-act="convertOpen" data-arg="Stone Apartments" class="btn-pri" style="height:32px;padding:0 14px;border-radius:4px;font-size:13px">Review & convert →</button></div>` : ''}
       </div>
       <div style="display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:12px 20px;border-top:1px solid #cedbe7;background:#f5f8fa;flex:none"><button data-act="assignConfirm" class="btn-pri" style="padding:8px 20px;font-size:14px;border-radius:4px">Save</button><button data-act="assignClose" class="btn-out" style="padding:8px 20px;font-size:14px;border-radius:4px">Cancel</button></div>
     </div><div id="assign-tip" style="display:none;position:fixed;width:280px;background:#fff;border:1px solid #cedbe7;border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,0.18);padding:12px 14px;font-size:13px;color:#13314c;line-height:1.5;z-index:300;pointer-events:none"></div></div>`;
@@ -1477,7 +1491,7 @@ class Component extends DCLogic {
         ['MITS Property ID','RIV-0125'],
         ['Regional Portfolio','Southwest Ohio']]));
 
-    const recurring = (this.state.property==='Stone Apartments') ? this.legacyChargesTile() : this.recChargesTile('property');
+    const recurring = (this.state.property==='Stone Apartments' && this.state.convStatus['Stone Apartments']!=='Active') ? this.legacyChargesTile() : this.recChargesTile('property');
 
     const emptyReg=(t,heads)=>tile(t,'',`${gtable(heads.map(()=>'1fr').join(' '),heads,[heads.map(()=>'<span style="color:#b3b3b3">—</span>')])}<span style="font-size:13px;font-style:italic;color:#b3b3b3">No transactions in the current period</span>`);
     const files = tile('Property Files', `<a data-act="toast" data-arg="Upload file" style="font-size:13px">Upload file</a>`,
@@ -1487,6 +1501,7 @@ class Component extends DCLogic {
         ['Riverview-Site-Map.png','Image','Nov 2, 2024']]));
 
     let h='';
+    h+=this.convBanner(p);
     h+=recurring;
     h+=images;
     h+=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;align-items:start">${general}${address}${logo}</div>`;
@@ -1498,6 +1513,19 @@ class Component extends DCLogic {
     return h;
   }
 
+  // Entry point 1 / resume / success banner shown atop a legacy property's General tab.
+  convBanner(p){
+    if(p!=='Stone Apartments') return '';
+    const status=this.state.convStatus[p];
+    if(status==='Active'){
+      return `<div style="display:flex;align-items:center;gap:12px;background:#e7f7ed;border:1px solid #b7e4c6;border-radius:8px;padding:14px 18px;margin-bottom:16px"><span class="material-symbols-outlined" style="font-size:22px;color:#12a150">check_circle</span><div style="flex:1"><div style="font-size:14px;font-weight:600;color:#13314c">Converted to a Rental Fee Template</div><div style="font-size:13px;color:#4a6b53">Fees are now managed centrally on Standard Apartment · ref CV-2025-001</div></div></div>`;
+    }
+    if(status==='Setup in progress'){
+      const saved=this.state.convSaved; let remaining=0; if(saved){ this.convertFees().forEach(f=>{ if(!saved.decisions[f.id]) remaining++; }); }
+      return `<div style="display:flex;align-items:center;gap:12px;background:#fef4e8;border:1px solid #f6d9ac;border-radius:8px;padding:14px 18px;margin-bottom:16px"><span class="material-symbols-outlined" style="font-size:22px;color:#b35a00">pending</span><div style="flex:1"><div style="font-size:14px;font-weight:600;color:#13314c">Fee setup in progress</div><div style="font-size:13px;color:#7a5a2a">Progress is saved. ${remaining} charge${remaining===1?'':'s'} still need a decision before this property can publish.</div></div><button data-act="convResume" class="btn-pri" style="height:36px;padding:0 16px;border-radius:4px;font-size:14px">Finish fee setup — ${remaining} remaining →</button></div>`;
+    }
+    return `<div style="display:flex;align-items:center;gap:12px;background:#f0f6fb;border:1px solid #cedbe7;border-radius:8px;padding:14px 18px;margin-bottom:16px"><span class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5)">swap_horiz</span><div style="flex:1"><div style="font-size:14px;font-weight:600;color:#13314c">This property uses legacy pricing</div><div style="font-size:13px;color:#4a5b6b">Convert to a Rental Fee Template to support fee transparency and reuse pricing across properties.</div></div><button data-act="convertOpen" class="btn-pri" style="height:36px;padding:0 16px;border-radius:4px;font-size:14px">Convert property →</button></div>`;
+  }
   propUnitsBody(){
     const cols = '90px 130px 90px 110px minmax(140px,1fr) 120px 90px';
     const head = `<div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Unit','Unit type','Sq ft','Market rent','Tenant','Status',''].map((h,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${h}</span>`).join('')}</div>`;
@@ -1962,20 +1990,33 @@ class Component extends DCLogic {
     return `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden;gap:16px;padding:16px;box-sizing:border-box"><div style="flex:none;overflow-y:auto;align-self:stretch">${sb}</div><div style="flex:1;min-width:0;overflow-y:auto"><div style="display:flex;flex-direction:column;gap:16px">${m}</div></div></div>`;
   }
 
+  feeStatusPill(status){
+    const m = status==='Setup in progress' ? ['#fef4e8','#b35a00','pending','Setup in progress'] : ['#e7f7ed','#12a150','check_circle','Active'];
+    return `<span style="display:inline-flex;align-items:center;gap:5px;background:${m[0]};color:${m[1]};border-radius:12px;padding:2px 10px;font-size:12px;font-weight:500;white-space:nowrap"><span class="material-symbols-outlined" style="font-size:14px">${m[2]}</span>${m[3]}</span>`;
+  }
   apBody(){
-    const cols='220px 1fr 90px 100px 140px 130px 150px';
-    const head=`<div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Property','Location','Units','Occupancy','Assigned','Exceptions','Push to ILS'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>`;
+    const cols='210px 1fr 80px 90px 120px 120px 140px 130px';
+    const head=`<div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Property','Location','Units','Occupancy','Assigned','Exceptions','Fee Status','Push to ILS'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>`;
     const excByProp={};
     this.exceptions().forEach(e=>{ const p=e.scope.split(' · ')[0]; excByProp[p]=(excByProp[p]||0)+1; });
-    const body=this.properties().map(r=>{
+    const row=(name,loc,units,occ,assigned,excCell,statusCell,ilsCell)=>`<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5">
+        <span class="td name" style="border:none;padding-left:16px"><a data-act="navProperty" data-arg="${name}" style="font-weight:500">${name}</a></span>
+        <span class="td" style="border:none">${loc}</span><span class="td num" style="border:none">${units}</span><span class="td num" style="border:none">${occ}</span><span class="td" style="border:none">${assigned}</span><span class="td" style="border:none">${excCell}</span><span class="td" style="border:none">${statusCell}</span>
+        <span class="td" style="border:none">${ilsCell}</span></div>`;
+    let body=this.properties().map(r=>{
       const n=excByProp[r[0]]||0;
       const ovc = n>0 ? `<a data-act="exdrill" data-arg="${r[0]}" style="color:#b35a00">${n} exception${n===1?'':'s'}</a>` : `<span style="color:#b3b3b3">0 exceptions</span>`;
-      return `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5">
-        <span class="td name" style="border:none;padding-left:16px"><a data-act="navProperty" data-arg="${r[0]}" style="font-weight:500">${r[0]}</a></span>
-        <span class="td" style="border:none">${r[1]}</span><span class="td num" style="border:none">${r[3]}</span><span class="td num" style="border:none">${r[4]}</span><span class="td" style="border:none">${r[5]}</span><span class="td" style="border:none">${ovc}</span>
-        <span class="td" style="border:none">${this.tog(r[8]==='green','ils_'+r[0].replace(/\s+/g,'_'))}</span></div>`;
+      return row(r[0],r[1],r[3],r[4],r[5],ovc,this.feeStatusPill('Active'),this.tog(r[8]==='green','ils_'+r[0].replace(/\s+/g,'_')));
     }).join('');
-    return `<div class="tile"><div class="thead2"><span class="ttl">Assigned properties · ${this.properties().length}</span><div style="flex:1"></div><button data-act="assignOpen" class="btn-pri">Assign property</button></div><div style="overflow-x:auto"><div style="min-width:900px">${head}${body}</div></div></div>`;
+    // Injected row for a just-converted legacy property.
+    const cst=this.state.convStatus['Stone Apartments'];
+    let extra=0;
+    if(cst){
+      extra=1;
+      const ils = cst==='Active' ? this.tog(false,'ils_Stone_Apartments') : `<span style="font-size:12px;color:#a6b2bd;font-style:italic">Locked until setup completes</span>`;
+      body += row('Stone Apartments','Loveland, OH','49','—','Jul 23, 2025','<span style="color:#b3b3b3">0 exceptions</span>',this.feeStatusPill(cst),ils);
+    }
+    return `<div class="tile"><div class="thead2"><span class="ttl">Assigned properties · ${this.properties().length+extra}</span><div style="flex:1"></div><button data-act="assignOpen" class="btn-pri">Assign property</button></div><div style="overflow-x:auto"><div style="min-width:960px">${head}${body}</div></div></div>`;
   }
 
   kindChip(kind){
@@ -2024,6 +2065,198 @@ class Component extends DCLogic {
       { mits:'CONDO', desc:'Condominium fee', amount:'$15.00', level:'Property' },
       { mits:'CONDO', desc:'Condominium fee', amount:'$20.00', level:'Property' },
     ];
+  }
+  // The 18 legacy charges discovered for the property being converted, spanning every level.
+  // kind: exact (auto-combined) | match (3-option) | unmatched | deposit | concession | latefee
+  convertFees(){
+    return [
+      { id:'f1',  kind:'exact', level:'Property', title:'Rent', amount:'$1,450/mo', src:'from property charge setup', cat:'Rent' },
+      { id:'f2',  kind:'exact', level:'Unit Type', title:'Trash', amount:'$28/mo', src:'from unit type setup', cat:'Utility' },
+      { id:'f3',  kind:'match', level:'Property', title:'Water', amount:'$34/mo', src:'from property charge setup', cat:'Utility', tpl:'Water', tplAmount:'$38/mo', tplCount:12 },
+      { id:'f4',  kind:'match', level:'Property', title:'Admin fee', amount:'$150 one-time', src:'from property charge setup', cat:'Administrative', tpl:'Admin fee', tplAmount:'$150 one-time', tplCount:12 },
+      { id:'f5',  kind:'unmatched', level:'Property', title:'RUBS', amount:'$75/mo', src:'flat bill for all utilities', cat:'Utility', req:'Required', calc:true, basis:'occupancy ÷ property total' },
+      { id:'f6',  kind:'unmatched', level:'Property', title:'CAM — Taxes', amount:'$50/mo', src:'from property charge setup', cat:'Common Area', req:'Required' },
+      { id:'f7',  kind:'unmatched', level:'Property', title:'Pool & fitness', amount:'$25/mo', src:'from property charge setup', cat:'Amenity', req:'Optional — tenant selects' },
+      { id:'f8',  kind:'unmatched', level:'Unit Type', title:'Additional trash valet', amount:'$4/mo', src:'from unit type setup', cat:'Utility', req:'Optional — tenant selects' },
+      { id:'f9',  kind:'unmatched', level:'Unit', title:'Storage', amount:'$40/mo', src:'from unit charge setup', cat:'Storage', req:'Optional — tenant selects', perUnit:true },
+      { id:'f10', kind:'unmatched', level:'Unit', title:'Covered parking', amount:'$75/mo', src:'from unit charge setup', cat:'Parking', req:'Situational', cond:'When a covered spot is assigned', perUnit:true },
+      { id:'f11', kind:'unmatched', level:'Unit', title:'Garage', amount:'$120/mo', src:'from unit charge setup', cat:'Parking', req:'Optional — tenant selects', perUnit:true },
+      { id:'f12', kind:'unmatched', level:'Move-in', title:'Application fee', amount:'$50 one-time', src:'from tenant charge setup', cat:'Application', req:'Required' },
+      { id:'f13', kind:'unmatched', level:'Move-in', title:'Pet rent', amount:'$45/mo', src:'from pet type setup', cat:'Pet', req:'Situational', cond:'When a pet is on the lease', perUnit:true },
+      { id:'f14', kind:'unmatched', level:'Move-in', title:"Last month's rent", amount:'$1,450 one-time', src:'from tenant charge setup', cat:'Rent', req:'Required' },
+      { id:'f15', kind:'deposit', level:'Move-in', title:'Security deposit', amount:'$500', src:'from tenant charge setup', cat:'Deposit', refundable:true, maxHeld:'$500' },
+      { id:'f16', kind:'deposit', level:'Move-in', title:'Key & fob deposit', amount:'$75', src:'from tenant charge setup', cat:'Deposit', refundable:true, maxHeld:'$75' },
+      { id:'f17', kind:'concession', level:'Move-in', title:'Move-in special', amount:'−$300 one-time', src:'from property charge setup', cat:'Concession', exp:'08/31/2026' },
+      { id:'f18', kind:'latefee', level:'Move-in', title:'Late fee', amount:'$50 or 5%', src:'from late fee setup', cat:'Fee' },
+    ];
+  }
+  convLevels(){ return ['Property','Unit Type','Unit','Move-in']; }
+  convLevelLabel(l){ return l==='Move-in' ? 'Move-in defaults' : l; }
+  // ---- Convert-to-template overlay ---------------------------------------
+  convertHTML(){
+    const c = this.state.convert; if(!c) return '';
+    const wrap = (inner,foot)=>`<div data-act="convertClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:120"><div data-act="noop" style="width:1040px;max-width:96vw;height:88vh;background:#fff;border-radius:8px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:12px;padding:18px 24px;border-bottom:1px solid #e3e9ee"><span style="font-size:18px;font-weight:600;color:#13314c">Convert to Rental Fee Template</span><span style="font-size:14px;color:#8a9aa8">·</span><span style="font-size:14px;color:#4a5b6b">${c.prop}</span><div style="flex:1"></div><span data-act="convertClose" class="material-symbols-outlined" style="font-size:22px;color:#8a9aa8;cursor:pointer">close</span></div>
+      ${this.convStepsBar()}
+      <div style="flex:1;min-height:0;overflow-y:auto;background:#f7f9fb">${inner}</div>
+      ${foot||''}
+    </div></div>`;
+    if(c.step===1)   return wrap(this.convStep1(), this.convFoot1());
+    if(c.step==='scan') return wrap(this.convScanBody(), '');
+    if(c.step===3)   return wrap(this.convStep3(), this.convFoot3());
+    if(c.step===4)   return wrap(this.convStep4(), this.convFoot4());
+    return '';
+  }
+  convStepsBar(){
+    const c=this.state.convert; const cur = c.step===1?1:c.step==='scan'?2:c.step===3?3:4;
+    const steps=[[1,'Destination'],[2,'Scan'],[3,'Review fees'],[4,'Summary']];
+    return `<div style="display:flex;align-items:center;gap:8px;padding:12px 24px;border-bottom:1px solid #e3e9ee;background:#fff">${steps.map((s,i)=>{ const on=s[0]===cur, done=s[0]<cur; const c1=on?'var(--ac,#008dd5)':done?'#12a150':'#c9d4dd'; return `<div style="display:flex;align-items:center;gap:8px"><span style="width:22px;height:22px;border-radius:50%;background:${on||done?c1:'#eef2f5'};color:${on||done?'#fff':'#8a9aa8'};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600">${done?'✓':s[0]}</span><span style="font-size:13px;font-weight:${on?'600':'400'};color:${on?'#13314c':'#8a9aa8'}">${s[1]}</span>${i<steps.length-1?`<span style="width:28px;height:1px;background:#dbe3ea;margin:0 4px"></span>`:''}</div>`; }).join('')}</div>`;
+  }
+  // Step 1 — Destination
+  convStep1(){
+    const c=this.state.convert;
+    const card=(val,title,desc,body)=>{ const on=c.dest===val; return `<div data-act="convDest" data-arg="${val}" style="border:1.5px solid ${on?'var(--ac,#008dd5)':'#d7e0e8'};background:${on?'#f0f8fd':'#fff'};border-radius:8px;padding:16px 18px;cursor:pointer;display:flex;flex-direction:column;gap:4px">
+      <div style="display:flex;align-items:center;gap:10px"><span style="width:18px;height:18px;border-radius:50%;border:2px solid ${on?'var(--ac,#008dd5)':'#c2cfda'};display:flex;align-items:center;justify-content:center">${on?'<span style="width:9px;height:9px;border-radius:50%;background:var(--ac,#008dd5)"></span>':''}</span><span style="font-size:15px;font-weight:600;color:#13314c">${title}</span></div>
+      <span style="font-size:13px;color:#6a7885;margin-left:28px">${desc}</span>
+      ${on&&body?`<div style="margin-left:28px;margin-top:10px" onclick="event.stopPropagation()">${body}</div>`:''}
+    </div>`; };
+    const newBody=`<div style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;flex-direction:column;gap:5px"><label style="font-size:13px;color:#666">Template name</label><input id="cv-name" value="${c.newName||''}" placeholder="e.g. ${c.prop}" style="height:36px;border:1px solid #cedbe7;border-radius:4px;padding:0 10px;font-size:14px"></div>
+      <div style="display:flex;flex-direction:column;gap:5px"><label style="font-size:13px;color:#666">Description <span style="color:#a6b2bd">(optional)</span></label><textarea id="cv-desc" rows="2" placeholder="What this template covers" style="border:1px solid #cedbe7;border-radius:4px;padding:8px 10px;font-size:14px;resize:vertical;font-family:Roboto,sans-serif">${c.newDesc||''}</textarea></div>
+    </div>`;
+    const tpls=[['Standard Apartment',14],['Garden Units',9],['Downtown Lofts',6]];
+    const best=Math.max.apply(null,tpls.map(t=>t[1]));
+    const pickBody=`<div style="display:flex;flex-direction:column;gap:8px">${tpls.map(t=>{ const on=c.existing===t[0]; const pct=Math.round(t[1]/18*100); return `<div data-act="convPickTpl" data-arg="${t[0]}" style="display:flex;align-items:center;gap:10px;border:1px solid ${on?'var(--ac,#008dd5)':'#dde5ec'};background:${on?'#f0f8fd':'#fff'};border-radius:6px;padding:10px 12px;cursor:pointer"><span style="width:16px;height:16px;border-radius:50%;border:2px solid ${on?'var(--ac,#008dd5)':'#c2cfda'};display:flex;align-items:center;justify-content:center">${on?'<span style="width:8px;height:8px;border-radius:50%;background:var(--ac,#008dd5)"></span>':''}</span><div style="display:flex;flex-direction:column"><span style="font-size:14px;font-weight:500;color:#13314c">${t[0]}</span><span style="font-size:12px;color:#12a150">${t[0]} — ${t[1]} of 18 charges match (${pct}%)</span></div>${t[1]===best?`<span style="margin-left:auto;background:#e7f7ed;color:#12a150;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600">Best match</span>`:''}</div>`; }).join('')}</div>`;
+    return `<div style="padding:28px 32px;max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:16px">
+      <div><div style="font-size:20px;font-weight:600;color:#13314c">Where should ${c.prop}'s fees live?</div><div style="font-size:14px;color:#6a7885;margin-top:4px">Pick a destination for the charges we'll convert. Nothing changes for current tenants.</div></div>
+      ${card('new','Create a new template','Best when this property\'s pricing is unique.',newBody)}
+      ${card('existing','Combine into an existing template','Reuse pricing you already manage centrally.',pickBody)}
+    </div>`;
+  }
+  convFoot1(){ return `<div style="display:flex;align-items:center;padding:14px 24px;border-top:1px solid #e3e9ee;background:#fff"><button data-act="convertClose" style="height:38px;padding:0 18px;border:1px solid #cedbe7;background:#fff;border-radius:4px;font-size:14px;color:#4a5b6b;cursor:pointer">Cancel</button><div style="flex:1"></div><button data-act="convScan" class="btn-pri" style="height:38px;padding:0 22px;border-radius:4px;font-size:14px">Scan charges →</button></div>`; }
+  // Step 2 — Scan (transitional)
+  convScanBody(){
+    const c=this.state.convert;
+    return `<div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px">
+      <div class="cv-spin" style="width:42px;height:42px;border:4px solid #dbe7f0;border-top-color:var(--ac,#008dd5);border-radius:50%;animation:cvspin 0.9s linear infinite"></div>
+      <div style="font-size:17px;font-weight:600;color:#13314c">Finding fees for ${c.prop}…</div>
+      <div style="font-size:13px;color:#8a9aa8">Checking property, unit type, unit, and tenant charge setup</div>
+      <style>@keyframes cvspin{to{transform:rotate(360deg)}}</style>
+    </div>`;
+  }
+  // Step 3 — Per-fee stepper
+  convStep3(){
+    const c=this.state.convert; const fees=this.convertFees(); const f=fees[c.idx];
+    // Left rail grouped by level.
+    const rail = this.convLevels().map(lv=>{ const group=fees.filter(x=>x.level===lv); if(!group.length) return ''; return `<div style="margin-bottom:14px"><div style="font-size:11px;font-weight:600;letter-spacing:0.4px;color:#8a9aa8;text-transform:uppercase;padding:0 12px;margin-bottom:6px">${this.convLevelLabel(lv)}</div>${group.map(x=>{ const gi=fees.indexOf(x); const dec=c.decisions[x.id]; const cur=gi===c.idx; let icon='',col='#8a9aa8'; if(dec){ const a=dec.action; if(a==='combined'){icon='✓';col='#12a150';} else if(a==='dontadd'){icon='✕';col='#b3306b';} else if(a==='latefee'){icon='—';col='#a6b2bd';} else {icon='✓';col='#12a150';} } const label = (x.kind==='exact')?`${x.title} <span style="color:#a6b2bd">· auto-combined</span>`:x.title; return `<div data-act="convGo" data-arg="${gi}" style="display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:5px;cursor:pointer;background:${cur?'#eaf5fc':'transparent'};border-left:3px solid ${cur?'var(--ac,#008dd5)':'transparent'}"><span style="width:16px;text-align:center;font-size:13px;color:${col};font-weight:700">${icon||'○'}</span><span style="font-size:13px;color:${cur?'#13314c':dec?'#5a6773':'#8a9aa8'};font-weight:${cur?'600':'400'};flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${label}</span></div>`; }).join('')}</div>`; }).join('');
+    const railWrap = `<div style="width:270px;flex:none;border-right:1px solid #e3e9ee;background:#fff;overflow-y:auto;padding:16px 6px"><div style="font-size:13px;font-weight:600;color:#13314c;padding:0 12px 12px">18 charges found</div>${rail}</div>`;
+    const main = `<div style="flex:1;min-width:0;overflow-y:auto;padding:24px 28px"><div style="font-size:13px;color:#8a9aa8;margin-bottom:4px">Fee ${c.idx+1} of ${fees.length} · ${this.convLevelLabel(f.level)}</div>${this.convFeePanel(f)}</div>`;
+    return `<div style="display:flex;height:100%">${railWrap}${main}</div>`;
+  }
+  convFieldSuggest(label,val,extra){ return `<div style="display:flex;flex-direction:column;gap:4px;${extra||''}"><label style="font-size:12px;color:#8a9aa8">${label}</label><div style="border:1px dashed #c2cfda;border-radius:4px;padding:8px 10px;font-size:14px;color:#5a6773;font-style:italic;background:#fbfdfe">${val}</div></div>`; }
+  convFeePanel(f){
+    const c=this.state.convert; const dec=c.decisions[f.id];
+    const titleLine = `<div style="display:flex;flex-direction:column;gap:3px"><div style="font-size:20px;font-weight:600;color:#13314c">${f.title}</div><div style="font-size:13px;color:#8a9aa8">${f.amount} · ${f.src}</div></div>`;
+    const scopeSel = c.dest==='new' ? '' : `<div style="display:flex;flex-direction:column;gap:5px"><label style="font-size:12px;color:#8a9aa8">Add to</label><select style="height:36px;border:1px solid #cedbe7;border-radius:4px;padding:0 8px;font-size:14px;max-width:340px"><option>${c.prop} only</option><option>All properties assigned to ${c.existing}</option></select></div>`;
+    // MATCHED
+    if(f.kind==='match'){
+      const opt=(val,title,cons,cls,body)=>`<label style="display:flex;gap:10px;border:1px solid #dde5ec;border-radius:6px;padding:12px 14px;cursor:pointer;background:#fff"><input type="radio" name="cv-match" value="${val}" ${val==='use'?'checked':''} onchange="var e=document.getElementById('cv-editwrap');if(e)e.style.display=(this.value==='edit'?'block':'none')" style="accent-color:var(--ac,#008dd5);width:16px;height:16px;margin-top:2px"><div style="display:flex;flex-direction:column;gap:3px;flex:1"><span style="font-size:14px;font-weight:600;color:#13314c">${title}</span><span style="font-size:12px;color:${cls==='warn'?'#b35a00':'#6a7885'}">${cons}</span>${body||''}</div></label>`;
+      return `<div style="display:flex;flex-direction:column;gap:18px;max-width:640px">
+        ${titleLine}
+        <div style="display:flex;align-items:center;gap:8px;background:#f0f6fb;border:1px solid #cedbe7;border-radius:6px;padding:10px 14px;font-size:13px;color:#424e5b"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5)">link</span>Matches template <b style="margin:0 4px">${f.tpl}</b> — ${f.tplAmount} at ${f.tplCount} properties</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          ${opt('use',`Use the template's fee`,`${f.prop||c.prop}'s ${f.title} becomes ${f.tplAmount} · new quotes here change`)}
+          ${opt('edit',`Edit the template fee`,`⚠ affects ${f.tplCount} assigned properties moving forward`,'warn',`<div id="cv-editwrap" style="display:none;margin-top:8px"><input id="cv-editamt" placeholder="${f.tplAmount}" style="height:34px;width:180px;border:1px solid #cedbe7;border-radius:4px;padding:0 10px;font-size:14px"><div style="font-size:11px;color:#8a9aa8;margin-top:4px">Logged to the template's Change History.</div></div>`)}
+          ${opt('separate',`Add as a separate charge`,`This would stack a second ${f.title} on top of the template's`)}
+        </div>
+        <div style="font-size:12px;color:#8a9aa8;display:flex;align-items:center;gap:6px"><span class="material-symbols-outlined" style="font-size:16px">lightbulb</span>Need a different amount at this property only? Add an exception from the template after conversion.</div>
+      </div>`;
+    }
+    // DEPOSIT
+    if(f.kind==='deposit'){
+      return `<div style="display:flex;flex-direction:column;gap:18px;max-width:560px">${titleLine}
+        <div style="display:flex;align-items:center;gap:8px;background:#f0f6fb;border:1px solid #cedbe7;border-radius:6px;padding:10px 14px;font-size:13px;color:#424e5b"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5)">savings</span>Routed to the template's <b style="margin:0 4px">Deposits</b> section</div>
+        <div style="display:flex;flex-direction:column;gap:14px;border:1px solid #e3e9ee;border-radius:8px;padding:16px;background:#fff">
+          <div style="display:flex;flex-direction:column;gap:5px"><label style="font-size:12px;color:#8a9aa8">Refundability</label><select id="cv-refund" style="height:36px;border:1px solid #cedbe7;border-radius:4px;padding:0 8px;font-size:14px"><option ${f.refundable?'selected':''}>Refundable</option><option ${!f.refundable?'selected':''}>Non-refundable</option></select></div>
+          <div style="display:flex;flex-direction:column;gap:5px"><label style="font-size:12px;color:#8a9aa8">Max amount held</label><input id="cv-maxheld" value="${f.maxHeld||''}" style="height:36px;border:1px solid #cedbe7;border-radius:4px;padding:0 10px;font-size:14px;max-width:200px"></div>
+        </div>
+        ${scopeSel}
+      </div>`;
+    }
+    // CONCESSION
+    if(f.kind==='concession'){
+      return `<div style="display:flex;flex-direction:column;gap:18px;max-width:560px">${titleLine}
+        <div style="display:flex;align-items:center;gap:8px;background:#fef4e8;border:1px solid #f6d9ac;border-radius:6px;padding:10px 14px;font-size:13px;color:#7a4a00"><span class="material-symbols-outlined" style="font-size:18px;color:#b35a00">sell</span>Negative amount — routed to <b style="margin:0 4px">Concessions</b></div>
+        <div style="display:flex;flex-direction:column;gap:14px;border:1px solid #e3e9ee;border-radius:8px;padding:16px;background:#fff">
+          ${this.convFieldSuggest('Category','Concession')}
+          <div style="display:flex;flex-direction:column;gap:5px"><label style="font-size:12px;color:#8a9aa8">Expiration</label><input id="cv-exp" value="${f.exp||''}" style="height:36px;border:1px solid #cedbe7;border-radius:4px;padding:0 10px;font-size:14px;max-width:200px"></div>
+        </div>
+      </div>`;
+    }
+    // LATE FEE (info only)
+    if(f.kind==='latefee'){
+      return `<div style="display:flex;flex-direction:column;gap:18px;max-width:560px">${titleLine}
+        <div style="display:flex;align-items:flex-start;gap:10px;background:#eef1f4;border:1px solid #d7dee5;border-radius:6px;padding:14px 16px;font-size:13px;color:#4a5b6b"><span class="material-symbols-outlined" style="font-size:18px;color:#8a9aa8">info</span><div>Stays in Late Fee setup; conditional fees aren't advertised prices. No conversion needed — this charge keeps working exactly as it does today.</div></div>
+      </div>`;
+    }
+    // UNMATCHED
+    const catField = this.convFieldSuggest('Category (for listings)', f.cat);
+    const reqField = `<div style="display:flex;flex-direction:column;gap:5px"><label style="font-size:12px;color:#8a9aa8">Requirement</label><select style="height:36px;border:1px solid #cedbe7;border-radius:4px;padding:0 8px;font-size:14px"><option ${f.req==='Required'?'selected':''}>Required</option><option ${/Optional/.test(f.req)?'selected':''}>Optional — tenant selects</option><option ${f.req==='Situational'?'selected':''}>Situational</option></select></div>`;
+    const condField = f.req==='Situational' ? `<div style="display:flex;flex-direction:column;gap:5px"><label style="font-size:12px;color:#8a9aa8">Condition <span style="color:#d02830">*</span></label><input id="cv-cond" value="${f.cond||''}" placeholder="When does this apply?" style="height:36px;border:1px solid #d02830;border-radius:4px;padding:0 10px;font-size:14px"></div>` : '';
+    const perUnit = f.perUnit ? `<div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#4a5b6b"><span style="width:16px;height:16px;border-radius:3px;background:var(--ac,#008dd5);display:flex;align-items:center;justify-content:center"><span class="material-symbols-outlined" style="font-size:12px;color:#fff">check</span></span>Per unit</div>` : '';
+    const calcField = f.calc ? this.convFieldSuggest('Estimated amount', `${f.amount} · ${f.basis}`) : '';
+    return `<div style="display:flex;flex-direction:column;gap:18px;max-width:640px">
+      ${titleLine}
+      ${scopeSel}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;border:1px solid #e3e9ee;border-radius:8px;padding:16px;background:#fff">
+        ${catField}${reqField}${condField}${calcField}
+      </div>
+      ${perUnit}
+    </div>`;
+  }
+  convFoot3(){
+    const c=this.state.convert; const fees=this.convertFees(); const f=fees[c.idx];
+    let actions='';
+    if(f.kind==='latefee'){ actions=`<button data-act="convDecide" class="btn-pri" style="height:38px;padding:0 20px;border-radius:4px;font-size:14px">Got it — next →</button>`; }
+    else if(f.kind==='match'){ actions=`<button data-act="convDecide" class="btn-pri" style="height:38px;padding:0 20px;border-radius:4px;font-size:14px">Confirm + next fee →</button>`; }
+    else if(f.kind==='deposit'||f.kind==='concession'){ actions=`<button data-act="convDecide" class="btn-pri" style="height:38px;padding:0 20px;border-radius:4px;font-size:14px">Add ${f.kind==='deposit'?'deposit':'concession'} →</button>`; }
+    else { actions=`<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px"><button data-act="convDecide" data-arg="dontadd" style="height:38px;padding:0 16px;border:1px solid #cedbe7;background:#fff;border-radius:4px;font-size:14px;color:#b3306b;cursor:pointer">Don't add</button><span style="font-size:11px;color:#a6b2bd">Won't appear on new quotes · current tenants unchanged</span></div><button data-act="convDecide" data-arg="add" class="btn-pri" style="height:38px;padding:0 20px;border-radius:4px;font-size:14px">Add fee →</button>`; }
+    return `<div style="display:flex;align-items:center;gap:14px;padding:14px 24px;border-top:1px solid #e3e9ee;background:#fff">
+      <a data-act="convAddAll" style="font-size:13px;color:var(--ac,#008dd5);cursor:pointer">Add all remaining →</a>
+      <div style="flex:1"></div>
+      ${actions}
+    </div>`;
+  }
+  // Step 4 — Summary + verify
+  convStep4(){
+    const c=this.state.convert; const fees=this.convertFees(); const d=c.decisions;
+    let combined=0,added=0,removed=0,late=0,edits=0; const changes=[];
+    fees.forEach(f=>{ const a=(d[f.id]||{}).action; if(!a) return; if(a==='combined'||a==='match-use'||a==='match-edit'){ combined++; if(a==='match-edit'){ edits++; changes.push(`${f.tpl} edited to ${(d[f.id].amount||f.tplAmount)} — affects ${f.tplCount} properties`);} else if(a==='match-use' && f.amount!==f.tplAmount){ changes.push(`${f.title} ${f.amount} → ${f.tplAmount}`);} } else if(a==='dontadd'){ removed++; } else if(a==='latefee'){ late++; } else { added++; } });
+    const priceUnchanged = changes.length===0;
+    const countPill=(n,lbl,col)=>`<div style="display:flex;flex-direction:column;align-items:center;gap:2px;padding:12px 18px;border:1px solid #e3e9ee;border-radius:8px;background:#fff;min-width:96px"><span style="font-size:22px;font-weight:700;color:${col}">${n}</span><span style="font-size:12px;color:#6a7885">${lbl}</span></div>`;
+    const checks=[['All mandatory fees shown on listings',true],['No duplicate charges across levels',true],['Estimated amounts flagged for review', added>0]];
+    return `<div style="padding:28px 32px;max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:22px">
+      <div><div style="font-size:20px;font-weight:600;color:#13314c">Review & finish</div><div style="font-size:14px;color:#6a7885;margin-top:4px">Here's what conversion will do for ${c.prop}.</div></div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">${countPill(combined,'combined','#12a150')}${countPill(added,'added','var(--ac,#008dd5)')}${countPill(removed,'removed','#b3306b')}${countPill(late,'stays in late fees','#8a9aa8')}</div>
+      <div style="display:flex;align-items:center;gap:10px;background:${priceUnchanged?'#e7f7ed':'#fef4e8'};border:1px solid ${priceUnchanged?'#b7e4c6':'#f6d9ac'};border-radius:8px;padding:12px 16px">
+        <span class="material-symbols-outlined" style="font-size:20px;color:${priceUnchanged?'#12a150':'#b35a00'}">${priceUnchanged?'check_circle':'price_change'}</span>
+        <div style="font-size:13px;color:#3a4650">${priceUnchanged?'New tenant pricing unchanged ✓':`<b>Price changes:</b> ${changes.join(' · ')}`}</div>
+      </div>
+      <div style="border:1px solid #e3e9ee;border-radius:8px;background:#fff;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid #eef2f5"><span style="font-size:14px;font-weight:600;color:#13314c">Listing preview</span><div style="flex:1"></div><select style="height:32px;border:1px solid #cedbe7;border-radius:4px;padding:0 8px;font-size:13px"><option>1 Bed / 1 Bath</option><option>2 Bed / 2 Bath</option><option>Studio</option></select></div>
+        <div style="padding:16px"><div style="font-size:13px;color:#8a9aa8;margin-bottom:6px">Prospect sees</div><div style="display:flex;align-items:baseline;gap:14px"><span style="font-size:24px;font-weight:700;color:#13314c">$1,670<span style="font-size:14px;font-weight:400;color:#8a9aa8">/mo</span></span><span style="font-size:16px;color:#4a5b6b">$200 move-in</span></div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">${checks.map(ck=>`<div style="display:flex;align-items:center;gap:10px;font-size:13px;color:#3a4650"><span class="material-symbols-outlined" style="font-size:18px;color:${ck[1]?'#12a150':'#c9d4dd'}">${ck[1]?'check_circle':'radio_button_unchecked'}</span>${ck[0]}</div>`).join('')}</div>
+    </div>`;
+  }
+  convFoot4(){
+    const c=this.state.convert; const fees=this.convertFees(); const resolved=fees.every(f=>c.decisions[f.id]);
+    return `<div style="display:flex;align-items:center;padding:14px 24px;border-top:1px solid #e3e9ee;background:#fff">
+      <button data-act="convBackFees" style="height:38px;padding:0 18px;border:1px solid #cedbe7;background:#fff;border-radius:4px;font-size:14px;color:#4a5b6b;cursor:pointer">← Back to fees</button>
+      <div style="flex:1"></div>
+      ${!resolved?`<span style="font-size:12px;color:#b35a00;margin-right:14px">${fees.filter(f=>!c.decisions[f.id]).length} charges unresolved — progress saves automatically</span>`:''}
+      <button data-act="convFinish" class="btn-pri" style="height:38px;padding:0 24px;border-radius:4px;font-size:14px">Finish</button>
+    </div>`;
   }
   // Recurring Charges tile for a property still on legacy charges (offers conversion to a template).
   legacyChargesTile(){
@@ -2186,6 +2419,7 @@ class Component extends DCLogic {
   }
   chBody(){
     const rows=[['Jul 10, 2025','Ali Ferryman','Trash · Recurring','$28 → $32','2BR/2BA unit type','BU-2025-041'],['Jul 10, 2025','Ali Ferryman','Water · Recurring','$38 → $45','2BR/2BA unit type','BU-2025-041'],['Jul 8, 2025','Rachel H.','Application fee','$50 → $0 waived','2BR/2BA unit type','—'],['Jul 5, 2025','Admin','Move-in special','Added · 1 month free','All units','—'],['Jun 28, 2025','Ali Ferryman','Trash · Recurring','$25 → $28','All units','BU-2025-039'],['Jun 15, 2025','Admin','Standard Apartment','Profile created','—','—']];
+    if(this.state.convDone) rows.unshift(['Jul 23, 2025','Emma Langhammer','Stone Apartments converted','13 fees added · 1 template edit · ref CV-2025-001','Property → template','CV-2025-001']);
     const cols='120px 130px 1fr 160px 150px 110px';
     const head=`<div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Date','Changed by','Fee','Change','Scope','Actions'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${x}</span>`).join('')}</div>`;
     const body=rows.map(r=>`<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5"><span class="td" style="border:none;padding-left:16px;white-space:nowrap">${r[0]}</span><span class="td name" style="border:none">${r[1]}</span><span class="td" style="border:none">${r[2]}</span><span class="td num" style="border:none">${r[3]}</span><span class="td" style="border:none">${r[4]}</span><span class="td" style="border:none"><a data-act="toast" data-arg="View diff" style="font-size:13px">View diff →</a></span></div>`).join('');
@@ -2507,6 +2741,7 @@ class Component extends DCLogic {
     out += this.addTplHTML();
     out += this.petImportHTML();
     out += this.ovPopHTML();
+    out += this.convertHTML();
     out += this.toastHTML();
     return out;
   }
