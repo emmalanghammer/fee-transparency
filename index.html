@@ -373,7 +373,7 @@ class Component extends DCLogic {
       case 'ovmode': this.setState(s => ({ ov: Object.assign({}, s.ov, { mode: arg }) })); break;
       case 'ovcancel': this.setState({ ov: null }); break;
       case 'ovsave': this.saveOverride(); break;
-      case 'addopen': { let ctx=null; if(this.state.view==='profile'){ const pt=this.state.profileTab; if(pt==='Unit Type Fees') ctx='ut:'+this.state.utSel; else if(pt==='Unit Fees') ctx='uf:'+this.state.ufSel; else ctx='prop'; } this.setState({ modal: { group: arg, ctx }, toggles: Object.assign({}, this.state.toggles, { modalIls: true }) }); break; }
+      case 'addopen': { let ctx=null; if(this.state.view==='profile'){ const pt=this.state.profileTab; if(pt==='Unit Type Fees') ctx='ut:'+this.state.utSel; else if(pt==='Unit Fees') ctx='uf:'+this.state.ufSel; else if(pt==='ORI Fees') ctx='ori'; else ctx='prop'; } this.setState({ modal: { group: arg, ctx }, toggles: Object.assign({}, this.state.toggles, { modalIls: true }) }); break; }
       case 'addclose': this.setState({ modal: null }); break;
       case 'addsave': this.saveFee(false); break;
       case 'addsavenew': this.saveFee(true); break;
@@ -435,7 +435,8 @@ class Component extends DCLogic {
       let tgtCount, tgtSum, tgtLabel;
       if (appK === 'Property') { tgtCount = cnt('#m-appt-prop-in-list input:checked'); tgtSum = q('#m-appt-prop-in-sum'); tgtLabel = 'Properties'; }
       else if (appK === 'Unit Type') { tgtCount = cnt('#m-appt-ut-in-list input:checked'); tgtSum = q('#m-appt-ut-in-sum'); tgtLabel = 'Unit Types'; }
-      else { tgtCount = cnt('#m-appt-unit-in-list input:checked'); tgtSum = q('#m-appt-unit-in-sum'); tgtLabel = 'Unit'; }
+      else if (appK === 'Unit') { tgtCount = cnt('#m-appt-unit-in-list input:checked'); tgtSum = q('#m-appt-unit-in-sum'); tgtLabel = 'Unit'; }
+      else { tgtCount = ((q('#m-appt-ori-in') || {}).value) ? 1 : 0; tgtSum = null; tgtLabel = 'ORI Type'; }
       mark(q('#m-name'), !name);
       mark(q('#m-ctype') ? q('#m-ctype').parentElement : null, !ctypeV);
       mark(tgtSum ? tgtSum.parentElement : null, tgtCount === 0);
@@ -489,6 +490,9 @@ class Component extends DCLogic {
       } else if (appKind === 'Unit') {
         const units = checked('#m-appt-unit-in-list input:checked'); const list = units.length ? units : ['—'];
         charges = list.map(u => mk('uf:' + u, 'Unit · ' + u));
+      } else if (appKind === 'Other Rentable Item (ORI)') {
+        const o = ((this.q('#m-appt-ori-in') || {}).value || 'Garage').trim();
+        charges = [mk('ori:' + o, 'ORI - ' + o)];
       } else {
         const all = this.propNames(); const sel = checked('#m-appt-prop-in-list input:checked');
         charges = [mk('prop', 'Property')];
@@ -2244,7 +2248,7 @@ class Component extends DCLogic {
     const dd=(id,opts,selVal)=>this.singleSelect(id,opts,selVal);
     const radio=(label,value,blk,checked,extra)=>`<label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#666;cursor:pointer"><input type="radio" name="m-amt-r" value="${value}" data-blk="${blk}" ${checked?'checked':''} onchange="var b=this.getAttribute('data-blk');document.getElementById('m-source').value=this.value;['flat','range','ref','calc'].forEach(function(k){document.getElementById('m-blk-'+k).style.display=(k===b?'flex':'none')})" style="accent-color:var(--ac,#008dd5);width:16px;height:16px;margin:0">${label}</label>${extra||''}`;
     const refOpts=['Field: Market Rent','Property UDF: School District','Property UDF: Trash Pick-Up Day','Property UDF: County','Property UDF: Property CAM Notes','Property UDF: Property TAX Notes','Property UDF: Property INSURANCE Notes','Property UDF: parcelnum','Property UDF: Blue Moon Serial Number (OH19032550)','Property UDF: Blue Moon Property ID (107171)','Property UDF: *test2','Property UDF: Jaystest','Property UDF: JON','Property UDF: Text (Test)','Property UDF: Text No Value','Unit UDF: House Tag I.D.','Unit UDF: Parking Spot #','Unit UDF: Storage Unit #'];
-    const appKindDefault = ed ? (ed.app==='Property'?'Property':(/^Unit Type/.test(ed.app||'')?'Unit Type':'Unit')) : (m.ctx==='prop' ? 'Property' : (m.ctx && m.ctx.indexOf('ut:')===0 ? 'Unit Type' : (m.ctx && m.ctx.indexOf('uf:')===0 ? 'Unit' : 'Property')));
+    const appKindDefault = ed ? (ed.app==='Property'?'Property':(/^Unit Type/.test(ed.app||'')?'Unit Type':(/^ORI/.test(ed.app||'')?'Other Rentable Item (ORI)':'Unit'))) : (m.ctx==='prop' ? 'Property' : (m.ctx && m.ctx.indexOf('ut:')===0 ? 'Unit Type' : (m.ctx && m.ctx.indexOf('uf:')===0 ? 'Unit' : (m.ctx && m.ctx.indexOf('ori')===0 ? 'Other Rentable Item (ORI)' : 'Property'))));
     const utDefault = ed ? (/^Unit Type: /.test(ed.app||'')?ed.app.replace('Unit Type: ',''):'') : (m.ctx && m.ctx.indexOf('ut:')===0 ? m.ctx.slice(3) : '');
     const unitDefault = ed ? (/^Unit · /.test(ed.app||'')?ed.app.replace('Unit · ',''):'') : (m.ctx && m.ctx.indexOf('uf:')===0 ? m.ctx.slice(3) : '');
     let amtSource='Flat', amtFlat='', amtMin='', amtMax='', amtRef='Field: Market Rent';
@@ -2273,14 +2277,17 @@ class Component extends DCLogic {
     const propSelected = this.propNames();
     const unitSelected = [unitDefault || unitList[0]];
     const utSelected = utDefault ? [utDefault] : utOpts.slice();
-    const appToggle="var v=_v;['prop','ut','unit'].forEach(function(k){document.getElementById('m-appt-'+k).style.display='none'});document.getElementById('m-appt-'+(v==='Property'?'prop':v==='Unit Type'?'ut':'unit')).style.display='flex'";
+    const oriTypes=['Garage','Storage Unit','Parking Space','Boat Slip','Locker','RV Space'];
+    const oriDefault = ed ? (/^ORI/.test(ed.app||'') ? (ed.app.replace(/^ORI[ -]+/,'')) : '') : (m.ctx && m.ctx.indexOf('ori:')===0 ? m.ctx.slice(4) : '');
+    const appToggle="var v=_v;['prop','ut','unit','ori'].forEach(function(k){document.getElementById('m-appt-'+k).style.display='none'});document.getElementById('m-appt-'+(v==='Property'?'prop':v==='Unit Type'?'ut':v==='Unit'?'unit':'ori')).style.display='flex'";
     const chargeApp = `
       <div style="display:flex;gap:8px;align-items:flex-start">
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Application *')}${this.singleSelect('m-app',['Property','Unit Type','Unit'],appKindDefault,{js:appToggle})}</div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Application *')}${this.singleSelect('m-app',['Property','Unit Type','Unit','Other Rentable Item (ORI)'],appKindDefault,{noSearch:true,js:appToggle})}</div>
         <div style="flex:1;min-width:0">
           <div id="m-appt-prop" style="display:${appKindDefault==='Property'?'flex':'none'};flex-direction:column;gap:4px">${lab('Properties *')}${msField('m-appt-prop-in',this.propNames(),propSelected)}</div>
           <div id="m-appt-ut" style="display:${appKindDefault==='Unit Type'?'flex':'none'};flex-direction:column;gap:4px">${lab('Unit Types *')}${msField('m-appt-ut-in',utOpts,utSelected)}</div>
           <div id="m-appt-unit" style="display:${appKindDefault==='Unit'?'flex':'none'};flex-direction:column;gap:4px">${lab('Unit *')}${msField('m-appt-unit-in',unitList,unitSelected)}</div>
+          <div id="m-appt-ori" style="display:${appKindDefault==='Other Rentable Item (ORI)'?'flex':'none'};flex-direction:column;gap:4px">${lab('Other Rentable Item (ORI) Type *')}${dd('m-appt-ori-in',oriTypes,oriDefault||oriTypes[0])}</div>
         </div>
       </div>`;
     const isOne = /-one$/.test(m.group);
