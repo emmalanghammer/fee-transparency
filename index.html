@@ -368,7 +368,6 @@ class Component extends DCLogic {
           else dec = Object.assign({ action: 'add' }, form);
         }
         const decisions = Object.assign({}, c.decisions, { [f.id]: dec }); const visited = Object.assign({}, c.visited, { [f.id]: true }); let nextIdx = -1; for (let i = c.idx + 1; i < fees.length; i++) { if (fees[i].kind !== 'exact') { nextIdx = i; break; } } if (nextIdx === -1) this.setState({ convert: Object.assign({}, c, { decisions, visited, step: 4, curOpt: null, curTpl: null }) }); else this.setState({ convert: Object.assign({}, c, { decisions, visited, idx: nextIdx, curOpt: null, curTpl: null }) }); break; }
-      case 'convAddAll': { const c = this.state.convert; const fees = this.convertFees(); const decisions = Object.assign({}, c.decisions); fees.forEach(f => { if (!decisions[f.id]) decisions[f.id] = { action: (f.kind === 'match' ? 'match-use' : f.kind === 'deposit' ? 'deposit' : f.kind === 'concession' ? 'concession' : f.kind === 'latefee' ? 'latefee' : 'add') }; }); this.setState({ convert: Object.assign({}, c, { decisions, step: 4 }) }); break; }
       case 'convSummary': this.setState(s => ({ convert: Object.assign({}, s.convert, { step: 4 }) })); break;
       case 'convBackFees': this.setState(s => ({ convert: Object.assign({}, s.convert, { step: 3 }) })); break;
       case 'convBackDest': this.setState(s => ({ convert: Object.assign({}, s.convert, { step: 1 }) })); break;
@@ -2414,7 +2413,6 @@ class Component extends DCLogic {
       : `<button data-act="convDecide" class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px">Confirm + next fee →</button>`;
     return `<div style="display:flex;align-items:center;gap:16px;padding:8px 16px;border-top:1px solid #cedbe7;background:#f5f8fa">
       <button data-act="convBackDest" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Back</button>
-      <a data-act="convAddAll" style="font-size:13px;color:var(--ac,#008dd5);cursor:pointer">Add all remaining →</a>
       <div style="flex:1"></div>
       ${remaining>0?`<span style="display:inline-flex;align-items:center;gap:8px;font-size:12px;font-style:italic;color:#666"><span class="material-symbols-outlined" style="font-size:20px;color:#b35a00">warning</span>${remaining} charge${remaining===1?'':'s'} need to be handled before continuing.</span>`:''}
       ${primary}
@@ -2436,7 +2434,7 @@ class Component extends DCLogic {
         <div style="font-size:13px;color:#3a4650">${priceUnchanged?'New tenant pricing unchanged ✓':`<b>Price changes:</b> ${changes.join(' · ')}`}</div>
       </div>
       <div style="border:1px solid #e3e9ee;border-radius:8px;background:#fff;overflow:hidden">
-        <div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid #eef2f5"><span style="font-size:14px;font-weight:600;color:#13314c">Listing preview</span><div style="flex:1"></div><select style="height:32px;border:1px solid #cedbe7;border-radius:4px;padding:0 8px;font-size:13px"><option>1 Bed / 1 Bath</option><option>2 Bed / 2 Bath</option><option>Studio</option></select></div>
+        <div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid #eef2f5"><span style="font-size:14px;font-weight:600;color:#13314c">Pricing Preview</span><div style="flex:1"></div><select style="height:32px;border:1px solid #cedbe7;border-radius:4px;padding:0 8px;font-size:13px"><option>1 Bed / 1 Bath</option><option>2 Bed / 2 Bath</option><option>Studio</option></select></div>
         <div style="padding:16px"><div style="font-size:13px;color:#8a9aa8;margin-bottom:6px">Prospect sees</div><div style="display:flex;align-items:baseline;gap:14px"><span style="font-size:24px;font-weight:700;color:#13314c">$1,670<span style="font-size:14px;font-weight:400;color:#8a9aa8">/mo</span></span><span style="font-size:16px;color:#4a5b6b">$200 move-in</span></div></div>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px">${checks.map(ck=>`<div style="display:flex;align-items:center;gap:10px;font-size:13px;color:#3a4650"><span class="material-symbols-outlined" style="font-size:18px;color:${ck[1]?'#12a150':'#c9d4dd'}">${ck[1]?'check_circle':'radio_button_unchecked'}</span>${ck[0]}</div>`).join('')}</div>
