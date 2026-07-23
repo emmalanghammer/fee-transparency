@@ -342,7 +342,7 @@ class Component extends DCLogic {
       case 'navProperty': this.go('property', arg ? { property: arg, propTab: 'General' } : { propTab: 'General' }); break;
       case 'convertOpen': this.flash('Convert to template — coming next'); break;
       case 'openTplFees': this.setState({ recView: null }); this.go('profile', { template: 'Standard Apartment', profileTab: 'Property Fees', accOpen: {} }); break;
-      case 'recViewOpen': this.setState({ recView: (arg==='unit'?'unit':'property'), recExcl: false }); break;
+      case 'recViewOpen': this.setState({ recView: (arg==='unit'?'unit':arg==='legacy'?'legacy':'property'), recExcl: false }); break;
       case 'recViewClose': this.setState({ recView: null }); break;
       case 'recExclToggle': this.setState({ recExcl: !this.state.recExcl }); break;
       case 'navUnit': this.go('unit', { unit: arg }); break;
@@ -2028,7 +2028,7 @@ class Component extends DCLogic {
   // Recurring Charges tile for a property still on legacy charges (offers conversion to a template).
   legacyChargesTile(){
     return `<div class="tile">
-      <div class="thead2" style="border-bottom-color:var(--ac,#008dd5)"><span class="ttl">Recurring Charges</span><span style="margin-left:8px;background:#eef1f4;color:#4a5b6b;border-radius:4px;padding:2px 10px;font-size:12px">Legacy</span><div style="flex:1"></div><button data-act="convertOpen" class="btn-pri" style="height:32px;padding:6px 14px;border-radius:4px;font:400 14px Roboto,sans-serif">Convert to Template</button></div>
+      <div class="thead2" style="border-bottom-color:var(--ac,#008dd5)"><span class="ttl">Recurring Charges</span><span style="margin-left:8px;background:#eef1f4;color:#4a5b6b;border-radius:4px;padding:2px 10px;font-size:12px">Legacy</span><div style="flex:1"></div><button data-act="convertOpen" class="btn-pri" style="height:32px;padding:6px 14px;border-radius:4px;font:400 14px Roboto,sans-serif">Convert to Template</button><span data-act="recViewOpen" data-arg="legacy" class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);cursor:pointer" title="View recurring charges">open_in_new</span></div>
       <div style="padding:16px;display:flex;flex-direction:column;gap:12px">
         <div style="display:flex;align-items:center;gap:10px;background:#f0f6fb;border:1px solid #cedbe7;border-radius:4px;padding:10px 16px"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5)">info</span><span style="font-size:13px;color:#424e5b">These charges are set directly on this property (legacy). Convert them to a rental fee template — new or existing — to manage them centrally.</span></div>
         ${this.recChargesTableHTML({legacy:true})}
@@ -2081,8 +2081,42 @@ class Component extends DCLogic {
     return `<div style="border:1px solid #cedbe7;border-radius:4px;overflow:hidden"><div style="overflow-x:auto">${recHead}${recRows}</div></div>`;
   }
   // "View Recurring Charges" modal opened from the property tile's pop-out icon (Figma 2385-32329).
+  // Legacy "View Recurring Charges" overlay (pre-conversion): full charge register + convert callout.
+  recViewLegacyHTML(){
+    const prop=this.state.property||'Stone Apartments';
+    const ck='<span style="width:18px;height:18px;border-radius:3px;background:#f58220;display:flex;align-items:center;justify-content:center;flex:none"><span class="material-symbols-outlined" style="font-size:14px;color:#fff">check</span></span>';
+    const cols='34px 10px 90px 100px minmax(160px,1fr) 84px 100px 100px 80px 100px 40px';
+    const rh=(t,align)=>`<span style="display:flex;align-items:center;height:32px;box-sizing:border-box;padding:0 8px;font-size:12px;font-weight:500;letter-spacing:0.5px;color:#13314c;background:#fff;border-bottom:1px solid #cedbe7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${align==='right'?'justify-content:flex-end;text-align:right':''}">${t}</span>`;
+    const heads=[['',''],['',''],['',''],['Charge Type',''],['Comment',''],['Frequency','right'],['From Date',''],['To Date',''],['$/Sq Ft','right'],['Amount','right'],['','']];
+    const head=`<div style="display:grid;grid-template-columns:${cols}">${heads.map(h=>rh(h[0],h[1])).join('')}</div>`;
+    const cell=(t,align,color)=>`<span style="display:flex;align-items:center;height:40px;box-sizing:border-box;padding:0 8px;font-size:14px;color:${color||'#13314c'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${align==='right'?'justify-content:flex-end;text-align:right':''}">${t}</span>`;
+    const rows=[
+      ['Property','#1570ef','GARAGE','','3','01/01/19','','0.00','75.00'],
+      ['Unit','#099250','RC','rent charge 1127B','1','02/01/22','03/06/25','0.00','870.00'],
+      ['Unit','#099250','RC','rent charge 1127B','1','01/01/19','01/31/22','0.00','1,700.00'],
+      ['Unit','#099250','RC','rent charge 1127B','1','03/07/25','03/06/26','7.20','900.00'],
+      ['Unit','#099250','RC','rent charge 1127B','1','03/07/26','09/06/27','0.00','870.00'],
+      ['Unit','#099250','RC','','1','03/04/26','12/03/26','0.00','0.00'],
+      ['Unit','#099250','RC','','1','09/07/27','06/06/28','0.00','870.00'],
+      ['Property','#1570ef','STAX','(Calculated Value)','1','','','0.00','18.90'],
+      ['Unit Type','#d92d20','RC','(Calculated Value)','1','07/01/25','12/31/26','0.00','500.00'],
+    ];
+    const kebab=`<span style="display:flex;align-items:center;justify-content:center;height:40px"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5);cursor:pointer">more_vert</span></span>`;
+    const body=rows.map((r,i)=>`<div style="display:grid;grid-template-columns:${cols};background:${i%2===1?'#f5f8fa':'#fff'};border-bottom:1px solid #ebf1f5"><span style="display:flex;align-items:center;justify-content:center;height:40px">${ck}</span><span style="height:40px;background:${r[1]}"></span>${cell(r[0])}${cell(r[2])}${cell(r[3],'','#666')}${cell(r[4],'right')}${cell(r[5])}${cell(r[6])}${cell(r[7],'right')}${cell('<span style="font-weight:600">'+r[8]+'</span>','right')}${kebab}</div>`).join('');
+    const filt=(label)=>`<label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer">${ck}${label}</label>`;
+    return `<div data-act="recViewClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:100"><div data-act="noop" style="width:1280px;max-width:96vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.28);display:flex;flex-direction:column;overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;height:52px;box-sizing:border-box;padding:8px 20px;border-bottom:1px solid #cedbe7;flex:none"><span style="font-size:16px;font-weight:600;color:#666">View Recurring Charges</span><span style="display:inline-flex;align-items:center;gap:12px"><button data-act="toast" data-arg="Print" class="btn-pri" style="padding:8px 16px;font-size:14px;display:inline-flex;align-items:center;gap:6px"><span class="material-symbols-outlined" style="font-size:18px">print</span>Print</button><div style="display:inline-flex;align-items:stretch;border-radius:4px;overflow:hidden"><button data-act="convertOpen" class="btn-pri" style="border-radius:0;padding:8px 14px;font-size:14px;display:inline-flex;align-items:center;gap:6px"><span class="material-symbols-outlined" style="font-size:18px">add_circle</span>Add</button><button data-act="toast" data-arg="Add options" class="btn-pri" style="border-radius:0;padding:8px 4px;border-left:1px solid rgba(255,255,255,0.4);display:flex;align-items:center"><span class="material-symbols-outlined" style="font-size:18px">arrow_drop_down</span></button></div><span data-act="recViewClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span></span></div>
+      <div style="flex:1;min-height:0;overflow-y:auto;background:#f3f4f8;padding:16px 20px;display:flex;flex-direction:column;gap:16px">
+        <div style="display:flex;align-items:center;gap:16px;background:#fff;border:1px solid #cedbe7;border-radius:4px;padding:16px 20px"><span style="display:inline-flex;align-items:center;gap:16px;font-size:14px;color:#13314c"><span style="font-weight:600">Tony Gerner</span><span style="display:inline-flex;align-items:center;gap:6px">${this.feeIcon('property',16)}<span>${prop}</span></span><span style="display:inline-flex;align-items:center;gap:6px">${this.feeIcon('unit',16)}<span>1127B</span></span></span><div style="flex:1"></div><span style="display:inline-flex;align-items:center;gap:16px"><span style="background:#e2f1da;color:#3a7d2c;border-radius:4px;padding:3px 12px;font-size:13px">Current</span><span style="font-size:14px;color:#13314c">Balance: <span style="font-weight:600">50,023.18</span></span></span></div>
+        <div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #cedbe7;border-radius:4px;padding:12px 16px"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">info</span><span style="font-size:14px;color:#13314c">These charges are set directly on this property (legacy). Convert them to a rental fee template — new or existing — to manage them centrally.</span><div style="flex:1"></div><button data-act="convertOpen" class="btn-pri" style="padding:8px 14px;font-size:14px;white-space:nowrap">Convert to Template</button></div>
+        <div style="display:flex;align-items:center;gap:20px">${filt('Past')}${filt('Future')}${filt('Exceptions')}</div>
+        <div style="border:1px solid #cedbe7;border-radius:4px;overflow:hidden;background:#fff"><div style="overflow-x:auto"><div style="min-width:1080px">${head}${body}</div></div><div style="display:flex;justify-content:flex-end;gap:24px;padding:10px 16px;border-top:1px solid #ebf1f5;font-size:13px;color:#8a9aa8">9 of 9 Recurring Charges<span style="color:#13314c;font-weight:600">$5,803.90</span></div></div>
+      </div>
+    </div></div>`;
+  }
   recViewHTML(){
     if(!this.state.recView) return '';
+    if(this.state.recView==='legacy') return this.recViewLegacyHTML();
     const prop=this.state.property||'Riverview Apartments';
     const cbFig=(label,on,act)=>`<label ${act?`data-act="${act}"`:''} style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#13314c;cursor:pointer"><span style="width:18px;height:18px;border-radius:3px;box-sizing:border-box;border:${on?'none':'1px solid #cedbe7'};background:${on?'var(--ac,#008dd5)':'#fff'};display:flex;align-items:center;justify-content:center;flex:none">${on?'<span class="material-symbols-outlined" style="font-size:15px;color:#fff">check</span>':''}</span>${label}</label>`;
     const cbox=(label)=>cbFig(label,false);
