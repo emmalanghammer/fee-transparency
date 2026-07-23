@@ -426,7 +426,27 @@ class Component extends DCLogic {
     const reopen = keepOpen ? { group: m.group, ctx: m.ctx } : null;
     if (m.edit) { this.setState({ modal: reopen }); this.flash('Charge updated'); return; }
     const name = ((this.q('#m-name') || {}).value || '').trim();
-    if (!name) { this.flash('Name is required'); return; }
+    // Required-field validation: Name, Charge Type, and the Charge Application target.
+    { const root = this.rootEl || document; const q = (s) => this.q(s);
+      const mark = (el, bad) => { if (el) el.style.borderColor = bad ? '#d02830' : ''; };
+      const ctypeV = ((q('#m-ctype') || {}).value || '').trim();
+      const appK = (q('#m-app') || {}).value || 'Property';
+      const cnt = (sel) => root.querySelectorAll(sel).length;
+      let tgtCount, tgtSum, tgtLabel;
+      if (appK === 'Property') { tgtCount = cnt('#m-appt-prop-in-list input:checked'); tgtSum = q('#m-appt-prop-in-sum'); tgtLabel = 'Properties'; }
+      else if (appK === 'Unit Type') { tgtCount = cnt('#m-appt-ut-in-list input:checked'); tgtSum = q('#m-appt-ut-in-sum'); tgtLabel = 'Unit Types'; }
+      else { tgtCount = cnt('#m-appt-unit-in-list input:checked'); tgtSum = q('#m-appt-unit-in-sum'); tgtLabel = 'Unit'; }
+      mark(q('#m-name'), !name);
+      mark(q('#m-ctype') ? q('#m-ctype').parentElement : null, !ctypeV);
+      mark(tgtSum ? tgtSum.parentElement : null, tgtCount === 0);
+      const errs = [];
+      if (!name) errs.push('Name');
+      if (!ctypeV) errs.push('Charge Type');
+      if (tgtCount === 0) errs.push(tgtLabel);
+      const errBox = q('#m-err');
+      if (errs.length) { if (errBox) { const t = errBox.querySelector('#m-err-txt'); if (t) t.textContent = 'Complete required fields: ' + errs.join(', '); errBox.style.display = 'inline-flex'; } return; }
+      if (errBox) errBox.style.display = 'none';
+    }
     const desc = ((this.q('#m-desc') || {}).value || '').trim();
     const source = (this.q('#m-source') || {}).value || 'Flat';
     let amount;
@@ -2326,7 +2346,9 @@ class Component extends DCLogic {
           ${sect('Requirements',reqs)}
           ${moreOptions}
         </div>
-        <div style="display:flex;justify-content:flex-end;gap:12px;padding:8px 16px;border-top:1px solid #cedbe7;background:#f5f8fa;flex:none">
+        <div style="display:flex;align-items:center;gap:12px;padding:8px 16px;border-top:1px solid #cedbe7;background:#f5f8fa;flex:none">
+          <span id="m-err" style="display:none;align-items:center;gap:6px;color:#d02830;font-size:13px"><span class="material-symbols-outlined" style="font-size:16px">error</span><span id="m-err-txt"></span></span>
+          <div style="flex:1"></div>
           <button data-act="addsavenew" class="btn-out" style="height:36px;padding:8px 16px;font-size:14px;border-radius:4px;box-sizing:border-box">Save &amp; New</button>
           <button data-act="addsave" class="btn-pri" style="height:36px;padding:8px 16px;font-size:14px;border-radius:4px">Save &amp; Close</button>
           <button data-act="addclose" class="btn-out" style="height:36px;padding:8px 16px;font-size:14px;border-radius:4px;box-sizing:border-box">Cancel</button>
