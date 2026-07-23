@@ -876,7 +876,11 @@ class Component extends DCLogic {
     const tprop = appkind==='Property'?(o.target||propOpts[0]):propOpts[0];
     const tut = appkind==='Unit Type'?(o.target||utOpts[0]):utOpts[0];
     const tunit = appkind==='Unit'?(o.target||unitOpts[0]):unitOpts[0];
-    const appToggle="var v=_v;['prop','ut','unit'].forEach(function(k){document.getElementById('exc-tgt-'+k).style.display='none'});document.getElementById('exc-tgt-'+(v==='Property'?'prop':v==='Unit Type'?'ut':'unit')).style.display='flex'";
+    const san=s=>(''+s).replace(/[^a-zA-Z0-9]/g,'_');
+    // A unit type exists at multiple properties — narrow the override to the ones that use it.
+    const utPropJs="document.querySelectorAll('.exc-utprop').forEach(function(e){e.style.display='none'});var el=document.getElementById('exc-utprop-'+_v.replace(/[^a-zA-Z0-9]/g,'_'));if(el)el.style.display='flex'";
+    const appToggle="var v=_v;['prop','ut','unit'].forEach(function(k){document.getElementById('exc-tgt-'+k).style.display='none'});document.getElementById('exc-tgt-'+(v==='Property'?'prop':v==='Unit Type'?'ut':'unit')).style.display='flex';var uw=document.getElementById('exc-utprop-wrap');if(uw)uw.style.display=(v==='Unit Type'?'flex':'none')";
+    const utpropWrap=`<div id="exc-utprop-wrap" style="display:${appkind==='Unit Type'?'flex':'none'};flex-direction:column;gap:4px">${utOpts.map(ut=>{ const pl=this.propsForUnitType(ut); return `<div class="exc-utprop" id="exc-utprop-${san(ut)}" style="display:${ut===tut?'flex':'none'};flex-direction:column;gap:4px"><span style="font-size:14px;color:#666">Properties using ${ut}</span>${this.multiSelect('exc-utprop-in-'+san(ut), pl, pl)}</div>`; }).join('')}</div>`;
     const scopeSection=`
       <div style="height:1px;background:#ebf1f5;width:100%"></div>
       <div style="font-size:14px;color:#666">What do you want to ${isOv?'override':'exclude'} this charge? *</div>
@@ -884,10 +888,11 @@ class Component extends DCLogic {
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px"><span style="font-size:14px;color:#666">Charge Application</span>${this.singleSelect('exc-appkind',['Property','Unit Type','Unit'],appkind,{js:appToggle})}</div>
         <div style="flex:1;min-width:0">
           <div id="exc-tgt-prop" style="display:${appkind==='Property'?'flex':'none'};flex-direction:column;gap:4px"><span style="font-size:14px;color:#666">Property</span>${this.singleSelect('exc-tprop',propOpts,tprop)}</div>
-          <div id="exc-tgt-ut" style="display:${appkind==='Unit Type'?'flex':'none'};flex-direction:column;gap:4px"><span style="font-size:14px;color:#666">Unit Type</span>${this.singleSelect('exc-tut',utOpts,tut)}</div>
+          <div id="exc-tgt-ut" style="display:${appkind==='Unit Type'?'flex':'none'};flex-direction:column;gap:4px"><span style="font-size:14px;color:#666">Unit Type</span>${this.singleSelect('exc-tut',utOpts,tut,{js:utPropJs})}</div>
           <div id="exc-tgt-unit" style="display:${appkind==='Unit'?'flex':'none'};flex-direction:column;gap:4px"><span style="font-size:14px;color:#666">Unit</span>${this.singleSelect('exc-tunit',unitOpts,tunit)}</div>
         </div>
-      </div>`;
+      </div>
+      ${utpropWrap}`;
     return `<div data-act="${o.closeAct}" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:100"><div data-act="noop" style="width:640px;max-width:94vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.28);display:flex;flex-direction:column;overflow:hidden">
       <div style="display:flex;align-items:center;justify-content:space-between;height:52px;box-sizing:border-box;padding:8px 20px;border-bottom:1px solid #cedbe7;flex:none"><span style="font-size:20px;line-height:28px;color:#13314c">${o.title}</span><span style="display:inline-flex;align-items:center;gap:10px"><span data-act="toast" data-arg="Help" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">help</span><span data-act="${o.closeAct}" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span></span></div>
       <div style="flex:1;min-height:0;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:16px">
@@ -901,6 +906,8 @@ class Component extends DCLogic {
       <div style="display:flex;justify-content:flex-end;gap:12px;padding:12px 20px;border-top:1px solid #cedbe7;background:#f5f8fa;flex:none"><button data-act="${o.saveAct}" class="btn-pri" style="padding:8px 20px;font-size:14px;border-radius:4px">Save</button><button data-act="${o.closeAct}" class="btn-out" style="padding:8px 20px;font-size:14px;border-radius:4px">Cancel</button></div>
     </div></div>`;
   }
+  // Properties whose units include the given unit type (falls back to all if none are mapped).
+  propsForUnitType(ut){ const set=[]; this.ufUnits().forEach(u=>{ if(u.type===ut && set.indexOf(u.prop)<0) set.push(u.prop); }); return set.length?set:this.propNames(); }
   excScopeParts(app){ if(/^Unit Type: /.test(app||'')) return {appkind:'Unit Type', target:app.replace('Unit Type: ','')}; if(/^Unit · /.test(app||'')) return {appkind:'Unit', target:app.replace('Unit · ','')}; if(/ · Unit /.test(app||'')) return {appkind:'Unit', target:app.split('· Unit ')[1]}; return {appkind:'Property', target:app}; }
   // Original charge application of a fee: icon (property/unit type/unit) + the specific application (e.g. "🏠 Riverview Apartments +13").
   feeAppCell(code, app){
