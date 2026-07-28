@@ -84,6 +84,9 @@ class Component extends DCLogic {
     toggles: {},
     // Per-property Rental Fee Profile. profileStatus[prop]='active' once set up;
     // profileFees[prop] holds that property's charge rows.
+    // Properties opted into marketing on ILS. Marketing/MITS details are editable on every
+    // property; this flag only controls whether ILS publishing is surfaced at all.
+    ilsProps: { 'Riverview Apartments': true },
     profileStatus: {},
     profileFees: {},
     nextFeeId: 101,
@@ -124,6 +127,33 @@ class Component extends DCLogic {
 
   // ---------- per-property Rental Fee Profile ----------
   profStatus(p){ return this.state.profileStatus[p || this.state.property] || 'none'; }
+  ilsOn(p){ return !!this.state.ilsProps[p || this.state.property]; }
+  // The MITS 5.0 / listing fields a charge must carry before it can be marketed.
+  mitsFields(){
+    return [
+      { key:'name',        label:'Name' },
+      { key:'category',    label:'Charge Category' },
+      { key:'marketing',   label:'Marketing Description' },
+      { key:'requirement', label:'Charge Requirement' },
+      { key:'feeDue',      label:'Fee Due' }
+    ];
+  }
+  // Name and Charge Category can be resolved from the charge itself (its description and the
+  // charge-type -> category map), so they only count as missing when there's genuinely nothing to
+  // fall back on. The rest must be supplied by the user.
+  mitsMissing(r){
+    const L = r.listing || {};
+    const resolved = {
+      name: L.name || r.name,
+      category: L.category || this.chargeCategoryFor(r.mits),
+      marketing: L.marketing,
+      requirement: L.requirement,
+      feeDue: L.feeDue
+    };
+    return this.mitsFields().filter(f => !String(resolved[f.key] || '').trim()).map(f => f.label);
+  }
+  mitsComplete(r){ return this.mitsMissing(r).length === 0; }
+  mitsIncompleteCount(){ return this.profileRows().filter(r => !this.mitsComplete(r)).length; }
   profileRows(p){ return this.state.profileFees[p || this.state.property] || []; }
   setProfileRows(fn){
     const p = this.state.property;
@@ -281,6 +311,9 @@ class Component extends DCLogic {
 
       // ---- profile list ----
       case 'lvlSel': this.setState({ lvlSel: arg }); break;
+      case 'ilsPropToggle': { const p = this.state.property; const turningOn = !this.ilsOn(p);
+        this.setState(s => { const m = Object.assign({}, s.ilsProps); if (turningOn) m[p] = true; else delete m[p]; return { ilsProps: m, profMenu: null }; });
+        this.flash(turningOn ? p + ' will market on ILS' : p + ' removed from ILS marketing'); break; }
       case 'profMenuOpen': { const r = el.getBoundingClientRect(); this.setState({ profMenu: { x: r.right, y: r.bottom + 4 } }); break; }
       case 'profMenuClose': this.setState({ profMenu: null }); break;
 
@@ -330,7 +363,8 @@ class Component extends DCLogic {
     mark(this.q('#m-ctype') && this.q('#m-ctype').parentElement, !code); if (!code) errs.push('Charge Type');
     if (targetId) { mark(this.q('#'+targetId) && this.q('#'+targetId).parentElement, !target); if (!target) errs.push(app); }
     const ils = v('m-ils') === '1';
-    if (ils) { mark(this.q('#m-name'), !name); if (!name) errs.push('Name'); }
+    // Show-on-ILS requires the marketing details to actually be there.
+    if (ils && !name) { mark(this.q('#m-name'), true); errs.push('Name'); }
     if (errs.length) { const b = this.q('#m-err'); if (b) { const t = b.querySelector('#m-err-txt'); if (t) t.textContent = 'Complete required fields: ' + errs.join(', '); b.style.display = 'inline-flex'; } return; }
     const eb = this.q('#m-err'); if (eb) eb.style.display = 'none';
 
@@ -347,7 +381,8 @@ class Component extends DCLogic {
       freq: isOne ? '' : ('Every ' + (v('m-freq') || '1') + ' Month'), from: v('m-from'), to: v('m-to'),
       amount, amtMethod: src, level: app, target, ils,
       cond: req === 'Situational' ? v('m-sitdesc') : '',
-      listing: ils ? { name, category: this.chargeCategoryFor(code), marketing: v('m-marketing'), requirement: req, feeDue: v('m-due'), schedule: v('m-sched') } : null
+      // Marketing/MITS details are saved regardless of ILS — they're useful to non-ILS properties too.
+      listing: { name, category: this.chargeCategoryFor(code), marketing: v('m-marketing'), requirement: req, feeDue: v('m-due') }
     };
     if (m.edit) {
       const id = m.edit.id;
@@ -755,10 +790,19 @@ class Component extends DCLogic {
       : r.level === 'ORI' ? 'ORI' : 'Property';
     return `<span class="lvl ${cls}">${label}</span>`;
   }
-  ilsCheckCell(on){
-    return on
-      ? `<span class="material-symbols-outlined" style="font-size:20px;color:#12a150" title="ILS details added">check_circle</span>`
-      : `<span class="material-symbols-outlined" style="font-size:20px;color:#b3b3b3" title="No ILS details">cancel</span>`;
+  // Marketing/MITS status for one charge. Hovering names the exact fields still needed, so the
+  // work required is visible from the list without opening every charge.
+  mitsStatusCell(r){
+    const missing = this.mitsMissing(r);
+    const ils = this.ilsOn();
+    const tip = (title, body) => `<span class="tipw"><span class="material-symbols-outlined" style="font-size:20px;color:${body?'#b35a00':'#12a150'};cursor:default">${body?'error':'check_circle'}</span><span class="tip" style="left:auto;right:-4px;top:24px"><b>${title}</b>${body?`<div style="margin-top:6px;color:#4a5b6b">${body}</div>`:''}</span></span>`;
+    if (missing.length) {
+      return `<span style="display:inline-flex;align-items:center;gap:6px">${tip(missing.length + ' field' + (missing.length===1?'':'s') + ' still needed', missing.join('<br>'))}<span style="font-size:12px;color:#b35a00">${missing.length} needed</span></span>`;
+    }
+    if (ils && !r.ils) {
+      return `<span style="display:inline-flex;align-items:center;gap:6px"><span class="material-symbols-outlined" style="font-size:20px;color:#8a9aa8" title="Marketing details complete — not shown on ILS">visibility_off</span><span style="font-size:12px;color:#8a9aa8">Not shown</span></span>`;
+    }
+    return tip('Marketing details complete', '');
   }
   levelCounts(){
     const rows = this.profileRows();
@@ -803,9 +847,12 @@ class Component extends DCLogic {
   profMenuHTML(){
     const p = this.state.profMenu; if (!p) return '';
     const left = Math.max(8, p.x - 260);
-    const item = (t) => `<div data-act="toast" data-arg="${t}" style="padding:10px 14px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''">${t}</div>`;
+    const item = (t,act,arg) => `<div data-act="${act||'toast'}" data-arg="${arg!=null?arg:t}" style="padding:10px 14px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''">${t}</div>`;
+    const on = this.ilsOn();
+    const ilsItem = `<div data-act="ilsPropToggle" style="display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''"><span class="material-symbols-outlined" style="font-size:18px;color:${on?'#12a150':'#c9d4dd'}">${on?'check_box':'check_box_outline_blank'}</span>Market this property on ILS</div>`;
     return `<div data-act="profMenuClose" style="position:fixed;inset:0;z-index:150"></div>
       <div style="position:fixed;left:${left}px;top:${p.y}px;background:#fff;border:1px solid #cedbe7;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);z-index:151;overflow:hidden;padding:4px 0">
+        ${ilsItem}<div style="height:1px;background:#ebf1f5;margin:4px 0"></div>
         ${item('Memorize Rental Fee Profile')}${item('Load Memorized Rental Fee Profile')}${item('About Fee Transparency')}
       </div>`;
   }
@@ -815,8 +862,9 @@ class Component extends DCLogic {
     const noLabel = !!(opts && opts.noLabel);
     const cols = rec ? '120px minmax(160px,1fr) 110px 100px 90px 110px 120px 130px 40px'
                      : '120px minmax(160px,1fr) 110px 120px 130px 40px';
-    const heads = rec ? ['Charge Type','Comment','Frequency','From','To','Amount','Charge Level','ILS Details Added','']
-                      : ['Charge Type','Comment','Amount','Charge Level','ILS Details Added',''];
+    const statusHead = this.ilsOn() ? 'ILS Details' : 'Marketing Details';
+    const heads = rec ? ['Charge Type','Comment','Frequency','From','To','Amount','Charge Level',statusHead,'']
+                      : ['Charge Type','Comment','Amount','Charge Level',statusHead,''];
     const hc = (t,i) => `<span style="display:flex;align-items:center;padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:600;color:#13314c;white-space:nowrap;${/Amount/.test(t)?'justify-content:flex-end;':''}">${t}</span>`;
     const cell = (t,extra) => `<span style="display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:8px 12px;font-size:14px;color:#13314c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
     const body = rows.length ? rows.map(r => {
@@ -827,7 +875,7 @@ class Component extends DCLogic {
       return `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5">
         ${cell(r.mits,'padding-left:16px')}${cell(r.desc||r.name)}${mid}${cell(r.amount,'justify-content:flex-end;text-align:right')}
         <span style="display:flex;align-items:center;min-height:44px;padding:8px 12px">${this.chargeLevelPill(r)}</span>
-        <span style="display:flex;align-items:center;justify-content:center;min-height:44px;padding:8px 12px">${this.ilsCheckCell(r.ils)}</span>${kebab}</div>`;
+        <span style="display:flex;align-items:center;min-height:44px;padding:8px 12px">${this.mitsStatusCell(r)}</span>${kebab}</div>`;
     }).join('') : `<div style="padding:14px 16px;font-size:13px;font-style:italic;color:#b3b3b3;border-bottom:1px solid #ebf1f5">No ${rec?'recurring':'one-time'} charges in this section.</div>`;
     const add = `<div data-act="addopen" data-arg="${group}" style="background:#f5f9fc;padding:9px 16px;cursor:pointer"><span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,#008dd5)"><span class="material-symbols-outlined" style="font-size:18px">add</span>Add ${rec?'Recurring':'One-Time'} Charge</span></div>`;
     return `${noLabel?'':`<div style="font-size:13px;color:#666;padding:12px 20px 8px">${rec?'Recurring':'One-Time'}</div>`}
@@ -845,12 +893,33 @@ class Component extends DCLogic {
     const inner = this.profileTable('rec', rec, grp+'rec') + this.profileTable('one', one, grp+'one');
     return this.acc(`${title} (${rows.length})`, sub, inner, null, 'pf-'+key, opts);
   }
+  // Aggregate reminder of the MITS/listing work outstanding across the profile.
+  mitsBanner(){
+    const need = this.mitsIncompleteCount();
+    const total = this.profileRows().length;
+    const ils = this.ilsOn();
+    if (!total) return '';
+    if (!need) {
+      const shown = this.profileRows().filter(r => r.ils).length;
+      return `<div style="display:flex;align-items:center;gap:10px;background:#eaf7ef;border:1px solid #b7e4c6;border-radius:4px;padding:10px 16px">
+        <span class="material-symbols-outlined" style="font-size:20px;color:#12a150">check_circle</span>
+        <span style="font-size:13px;color:#2f5d43">Marketing details are complete on all ${total} charges.${ils?` ${shown} shown on ILS listings.`:''}</span></div>`;
+    }
+    const fields = this.mitsFields().map(f=>f.label).join(' · ');
+    return `<div style="display:flex;align-items:flex-start;gap:10px;background:#fef4e8;border:1px solid #f6d9ac;border-radius:4px;padding:12px 16px">
+      <span class="material-symbols-outlined" style="font-size:20px;color:#b35a00;flex:none">error</span>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
+        <span style="font-size:13px;font-weight:600;color:#13314c">${need} of ${total} charges still need marketing details${ils?' before they can show on ILS listings':''}</span>
+        <span style="font-size:12px;color:#7a5a2a;line-height:1.5">MITS 5.0 needs ${fields} on each charge. Open a charge to fill in what's missing — hover its status to see the exact fields.</span>
+      </div></div>`;
+  }
   feeProfileBody(){
     const rows = this.visibleRows();
     const rec = rows.filter(r => !/-one$/.test(r.group));
     const one = rows.filter(r => /-one$/.test(r.group));
     return `<div style="flex:1;min-height:0;overflow-y:auto"><div style="padding:16px;display:flex;flex-direction:column;gap:16px;max-width:1500px;width:100%;box-sizing:border-box;margin:0 auto">
       ${this.feeProfileToolbar()}
+      ${this.mitsBanner()}
       ${this.acc(`Recurring Charges (${rec.length})`, '', this.profileTable('rec', rec, 'req-rec', { noLabel:true }), null, 'pf-rec')}
       ${this.acc(`One-Time Charges (${one.length})`, '', this.profileTable('one', one, 'req-one', { noLabel:true }), null, 'pf-one')}
     </div></div>`;
@@ -952,7 +1021,10 @@ class Component extends DCLogic {
   // ================= PRICING PREVIEW =================
   pricePreviewHTML(){
     const p = this.state.pricePreview; if (!p) return '';
-    const rows = this.profileRows().filter(r => r.ils);
+    // On ILS-marketed properties the preview mirrors what publishes; elsewhere it previews every
+    // charge whose marketing details are complete.
+    const ilsProp = this.ilsOn(p.prop);
+    const rows = this.profileRows().filter(r => ilsProp ? r.ils : this.mitsComplete(r));
     const money = n => '$' + n.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
     const unit = this.unitInfo(p.unit);
     const amtOf = r => { const a = this.parseAmt(r.amount); if (a) return a; if (r.est != null) return r.est; return /market/i.test(r.amount||'') ? this.parseAmt(unit.rent) : 0; };
@@ -976,10 +1048,10 @@ class Component extends DCLogic {
             <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:13px;color:#666">Property</span>${this.singleSelect('pp-prop', this.propNames(), p.prop, { act:'ppProp' })}</div>
             <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:13px;color:#666">Unit</span>${this.singleSelect('pp-unit', this.units().map(u=>u.u), p.unit, { act:'ppUnit', noSearch:true })}</div>
             <div style="font-size:14px;font-weight:600;color:#13314c;border-bottom:1px solid #ebf1f5;padding-bottom:8px;margin-top:4px">Select Optional Fees</div>
-            ${optRows.length ? optRows.map(optCb).join('') : '<span style="font-size:13px;font-style:italic;color:#b3b3b3">No optional fees with listing details yet.</span>'}
+            ${optRows.length ? optRows.map(optCb).join('') : '<span style="font-size:13px;font-style:italic;color:#b3b3b3">No optional fees with marketing details yet.</span>'}
             <div style="border:1px solid #cedbe7;border-radius:4px;overflow:hidden;margin-top:4px">
               <div data-act="ppSitToggle" style="display:flex;align-items:center;gap:8px;padding:12px 14px;cursor:pointer"><span style="font-size:14px;font-weight:600;color:#13314c;flex:1">Situational</span><span class="material-symbols-outlined" style="font-size:20px;color:#666">${p.sitOpen?'expand_less':'expand_more'}</span></div>
-              ${p.sitOpen?`<div style="padding:0 14px 12px;display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;color:#8a9aa8;line-height:1.5;margin-bottom:6px">Additional fees may apply in cases of late payments, lease violations, or other charges</span>${sitRows.length?'':'<span style="font-size:12px;font-style:italic;color:#b3b3b3">No situational fees with listing details yet.</span>'}${(sitRows.length?sitRows:[]).map(r=>`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:#4a5b6b"><span>${r.name}</span><span>${money(this.parseAmt(r.amount))}/one-time</span></div>`).join('')}</div>`:''}
+              ${p.sitOpen?`<div style="padding:0 14px 12px;display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;color:#8a9aa8;line-height:1.5;margin-bottom:6px">Additional fees may apply in cases of late payments, lease violations, or other charges</span>${sitRows.length?'':'<span style="font-size:12px;font-style:italic;color:#b3b3b3">No situational fees with marketing details yet.</span>'}${(sitRows.length?sitRows:[]).map(r=>`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:#4a5b6b"><span>${r.name}</span><span>${money(this.parseAmt(r.amount))}/one-time</span></div>`).join('')}</div>`:''}
             </div>
           </div>
           <div style="flex:1;min-width:320px;background:#f5f8fa;padding:16px 20px;box-sizing:border-box;display:flex;flex-direction:column;gap:10px">
@@ -992,13 +1064,13 @@ class Component extends DCLogic {
                 ${rows.length ? `${grp('Included every month', monthly)}${grp('Due at move-in', moveIn)}${chosenOpt.length?grp('Optional add-ons', chosenOpt, '/mo'):''}`
                   : `<div style="padding:16px 0;border-top:1px solid #eef2f5;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center">
                       <span class="material-symbols-outlined" style="font-size:30px;color:#c9d4dd">visibility_off</span>
-                      <span style="font-size:13px;font-weight:600;color:#13314c">No charges are set to show on listings yet</span>
-                      <span style="font-size:12px;color:#8a9aa8;line-height:1.5;max-width:290px">Open a charge and turn on <b>Show on ILS Listings</b> to add its listing configuration. It will then appear here.</span>
+                      <span style="font-size:13px;font-weight:600;color:#13314c">${ilsProp?'No charges are set to show on listings yet':'No charges have marketing details yet'}</span>
+                      <span style="font-size:12px;color:#8a9aa8;line-height:1.5;max-width:300px">${ilsProp?'Fill in a charge\'s <b>Marketing Details</b> and turn on <b>Show on ILS Listings</b> to see it here.':'Fill in a charge\'s <b>Marketing Details</b> to see it here.'}</span>
                     </div>` }
               </div>
               <div style="margin:12px 16px 16px;background:#13314c;border-radius:4px;padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="font-size:13px;color:#fff">Due monthly</span><span style="font-size:15px;font-weight:700;color:#fff">${money(mTotal)}</span><div style="flex:1"></div><span style="font-size:13px;color:#fff">Due one-time</span><span style="font-size:15px;font-weight:700;color:#fff">${money(oTotal)}</span></div>
             </div>
-            <span style="font-size:12px;font-style:italic;color:#8a9aa8;line-height:1.5">Only charges with the Show on ILS option enabled will display in the pricing preview.</span>
+            <span style="font-size:12px;font-style:italic;color:#8a9aa8;line-height:1.5">${ilsProp?'Only charges with the Show on ILS option enabled will display in the pricing preview.':'Only charges with complete marketing details will display in the pricing preview.'}</span>
           </div>
         </div>
         <div style="display:flex;justify-content:flex-end;padding:12px 20px;border-top:1px solid #cedbe7;background:#f5f8fa"><button data-act="pricePreviewClose" class="btn-out" style="height:36px;min-height:36px;padding:0 28px;border-radius:4px;font-size:14px">OK</button></div>
@@ -1187,32 +1259,39 @@ class Component extends DCLogic {
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Comment')}<div style="display:flex;align-items:center;gap:4px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><input id="m-comment" value="${esc(ed?ed.desc:'')}" placeholder="Internal only" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:#13314c"><span class="material-symbols-outlined" style="font-size:18px;color:#8a9aa8">notes</span></div></div>
       </div>
       ${freqRow}
-      ${amount}
-      <label style="display:inline-flex;align-items:center;gap:10px;cursor:pointer"><span id="m-ils-sw" onclick="var on=this.getAttribute('data-on')==='1';on=!on;this.setAttribute('data-on',on?'1':'0');document.getElementById('m-ils').value=on?'1':'0';this.style.background=on?'var(--ac,#008dd5)':'#cedbe7';this.firstElementChild.style.left=on?'16px':'2px';document.getElementById('m-listing-sect').style.display=(on?'flex':'none')" data-on="${ilsOn?'1':'0'}" style="display:inline-block;width:32px;height:18px;border-radius:999px;background:${ilsOn?'var(--ac,#008dd5)':'#cedbe7'};position:relative;flex:none"><span style="position:absolute;top:2px;left:${ilsOn?'16px':'2px'};width:14px;height:14px;border-radius:50%;background:#fff;transition:left 120ms ease-out"></span></span><span style="font-size:14px;color:#13314c">Show on ILS Listings</span></label>
-      <input type="hidden" id="m-ils" value="${ilsOn?'1':'0'}">`;
+      ${amount}`;
 
-    // ---- Listing Configuration (revealed by the ILS toggle) ----
+    // ---- Marketing Details (always available; MITS 5.0 / listing fields) ----
     const edCat = ed ? catFor(ed.mits) : '';
     const hasCode = !!(ed && ed.mits);
     const req = ed && ed.listing ? (ed.listing.requirement || 'Required') : (m.group.indexOf('opt')===0?'Optional':m.group.indexOf('sit')===0?'Situational':'Required');
-    const catBlock = `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">${lab('Charge Category *',true)}
+    const catBlock = `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">${lab('Charge Category',true)}
       <input type="hidden" id="m-cat" value="${esc(edCat)}">
       <span id="m-cat-ph" style="display:${(hasCode&&edCat)?'none':'block'};font-size:13px;font-style:italic;color:#b3b3b3">Select a charge type to display a charge category.</span>
       <span id="m-cat-disp" style="display:${edCat?'block':'none'};font-size:14px;font-weight:600;color:#13314c">${edCat}</span>
       <div id="m-cat-err" style="display:${(hasCode&&!edCat)?'flex':'none'};align-items:center;gap:8px;background:#fdeaea;border:1px solid #f3c2c2;border-radius:4px;padding:8px 10px"><span class="material-symbols-outlined" style="font-size:18px;color:#d02830">error</span><span style="flex:1;font-size:12px;color:#7a1f26;line-height:1.4">You don't have a charge category assigned to this charge type.</span><a data-act="toast" data-arg="Add Category" style="font-size:13px;color:var(--ac,#008dd5);white-space:nowrap;cursor:pointer">Add Category</a></div>
     </div>`;
-    const schedCol = isOne ? '' : `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Schedule *',true)}${dd('m-sched',['Monthly','Weekly','Daily'],'Monthly',{noSearch:true})}</div>`;
     const listing = `<div style="display:flex;gap:12px;align-items:flex-start">
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Name *')}<input id="m-name" class="fld" value="${esc(ed&&ed.listing?ed.listing.name:(ed?ed.name:''))}" style="height:36px;box-sizing:border-box"></div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Name')}<input id="m-name" class="fld" value="${esc(ed&&ed.listing?ed.listing.name:(ed?ed.name:''))}" style="height:36px;box-sizing:border-box"></div>
         ${catBlock}
       </div>
       <div style="display:flex;flex-direction:column;gap:4px">${lab('Marketing Description')}<textarea id="m-marketing" class="fld" style="height:56px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${ed&&ed.listing?(ed.listing.marketing||''):''}</textarea></div>
       <div style="display:flex;gap:12px;align-items:flex-start">
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Requirement *')}${dd('m-req',['Required','Optional','Situational'],req,{noSearch:true,js:"document.getElementById('m-sitdesc-wrap').style.display=(_v==='Situational'?'flex':'none')"})}</div>
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Fee Due *')}${dd('m-due',['At application','At move-in','During Term','Move out'],'During Term',{noSearch:true})}</div>
-        ${schedCol}
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Requirement')}${dd('m-req',['Required','Optional','Situational'],req,{noSearch:true,js:"document.getElementById('m-sitdesc-wrap').style.display=(_v==='Situational'?'flex':'none')"})}</div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Fee Due')}${dd('m-due',['At application','At move-in','During Term','Move out'],'During Term',{noSearch:true})}</div>
       </div>
       <div id="m-sitdesc-wrap" style="display:${req==='Situational'?'flex':'none'};flex-direction:column;gap:4px">${lab('Situational Charge Description')}<textarea id="m-sitdesc" class="fld" style="height:48px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${esc(ed?ed.cond:'')}</textarea></div>`;
+
+    // How many MITS fields this charge still needs, and (only for ILS-marketed properties) the publish toggle.
+    const missing = ed ? this.mitsMissing(ed) : this.mitsFields().map(f=>f.label);
+    const missingChip = missing.length
+      ? `<span style="display:inline-flex;align-items:center;gap:6px;background:#fef4e8;border:1px solid #f6d9ac;border-radius:12px;padding:2px 10px;font-size:12px;color:#b35a00"><span class="material-symbols-outlined" style="font-size:14px">error</span>${missing.length} field${missing.length===1?'':'s'} needed for MITS 5.0</span>`
+      : `<span style="display:inline-flex;align-items:center;gap:6px;background:#eaf7ef;border:1px solid #b7e4c6;border-radius:12px;padding:2px 10px;font-size:12px;color:#12a150"><span class="material-symbols-outlined" style="font-size:14px">check_circle</span>Ready for MITS 5.0</span>`;
+    const ilsRow = this.ilsOn() ? `<div style="display:flex;flex-direction:column;gap:6px">
+        <label style="display:inline-flex;align-items:center;gap:10px;cursor:pointer"><span id="m-ils-sw" onclick="var on=this.getAttribute('data-on')==='1';on=!on;this.setAttribute('data-on',on?'1':'0');document.getElementById('m-ils').value=on?'1':'0';this.style.background=on?'var(--ac,#008dd5)':'#cedbe7';this.firstElementChild.style.left=on?'16px':'2px'" data-on="${ilsOn?'1':'0'}" style="display:inline-block;width:32px;height:18px;border-radius:999px;background:${ilsOn?'var(--ac,#008dd5)':'#cedbe7'};position:relative;flex:none"><span style="position:absolute;top:2px;left:${ilsOn?'16px':'2px'};width:14px;height:14px;border-radius:50%;background:#fff;transition:left 120ms ease-out"></span></span><span style="font-size:14px;color:#13314c">Show on ILS Listings</span></label>
+        ${missing.length?`<span style="font-size:12px;color:#8a9aa8;padding-left:42px">Fill in the marketing details above before this charge can appear on listings.</span>`:''}
+        <input type="hidden" id="m-ils" value="${ilsOn?'1':'0'}">
+      </div>` : `<input type="hidden" id="m-ils" value="${ilsOn?'1':'0'}">`;
 
     return `<div data-act="addclose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:100">
       <div data-act="noop" style="width:700px;max-width:94vw;max-height:92vh;background:#fff;border:1px solid #cedbe7;border-radius:4px;box-shadow:0 3px 12px rgba(0,0,0,0.2);display:flex;flex-direction:column;overflow:hidden">
@@ -1222,7 +1301,11 @@ class Component extends DCLogic {
         </div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:18px">
           ${sect('General Details',general)}
-          <div id="m-listing-sect" style="display:${ilsOn?'flex':'none'};flex-direction:column;gap:10px"><span style="font-size:15px;font-weight:600;color:#13314c">Listing Configuration</span><div style="border:1px solid #cedbe7;border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:12px">${listing}</div></div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <span style="display:flex;align-items:center;gap:10px"><span style="font-size:15px;font-weight:600;color:#13314c">Marketing Details</span>${missingChip}</span>
+            <div style="border:1px solid #cedbe7;border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:12px">${listing}</div>
+          </div>
+          ${ilsRow}
         </div>
         <div style="display:flex;align-items:center;gap:12px;padding:8px 16px;border-top:1px solid #cedbe7;background:#f5f8fa;flex:none">
           <span id="m-err" style="display:none;align-items:center;gap:6px;color:#d02830;font-size:13px"><span class="material-symbols-outlined" style="font-size:16px">error</span><span id="m-err-txt"></span></span>
