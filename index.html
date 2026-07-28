@@ -860,11 +860,14 @@ class Component extends DCLogic {
   profileTable(kind, rows, group, opts){
     const rec = kind === 'rec';
     const noLabel = !!(opts && opts.noLabel);
-    const cols = rec ? '120px minmax(160px,1fr) 110px 100px 90px 110px 120px 130px 40px'
-                     : '120px minmax(160px,1fr) 110px 120px 130px 40px';
-    const statusHead = this.ilsOn() ? 'ILS Details' : 'Marketing Details';
-    const heads = rec ? ['Charge Type','Comment','Frequency','From','To','Amount','Charge Level',statusHead,'']
-                      : ['Charge Type','Comment','Amount','Charge Level',statusHead,''];
+    // The ILS status column only appears on properties that market on ILS.
+    const ils = this.ilsOn();
+    const cols = rec ? (ils ? '120px minmax(160px,1fr) 110px 100px 90px 110px 120px 130px 40px'
+                            : '120px minmax(160px,1fr) 110px 100px 90px 110px 120px 40px')
+                     : (ils ? '120px minmax(160px,1fr) 110px 120px 130px 40px'
+                            : '120px minmax(160px,1fr) 110px 120px 40px');
+    const heads = rec ? ['Charge Type','Comment','Frequency','From','To','Amount','Charge Level'].concat(ils?['ILS Details']:[]).concat([''])
+                      : ['Charge Type','Comment','Amount','Charge Level'].concat(ils?['ILS Details']:[]).concat(['']);
     const hc = (t,i) => `<span style="display:flex;align-items:center;padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:600;color:#13314c;white-space:nowrap;${/Amount/.test(t)?'justify-content:flex-end;':''}">${t}</span>`;
     const cell = (t,extra) => `<span style="display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:8px 12px;font-size:14px;color:#13314c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
     const body = rows.length ? rows.map(r => {
@@ -875,11 +878,11 @@ class Component extends DCLogic {
       return `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5">
         ${cell(r.mits,'padding-left:16px')}${cell(r.desc||r.name)}${mid}${cell(r.amount,'justify-content:flex-end;text-align:right')}
         <span style="display:flex;align-items:center;min-height:44px;padding:8px 12px">${this.chargeLevelPill(r)}</span>
-        <span style="display:flex;align-items:center;min-height:44px;padding:8px 12px">${this.mitsStatusCell(r)}</span>${kebab}</div>`;
+        ${ils?`<span style="display:flex;align-items:center;min-height:44px;padding:8px 12px">${this.mitsStatusCell(r)}</span>`:''}${kebab}</div>`;
     }).join('') : `<div style="padding:14px 16px;font-size:13px;font-style:italic;color:#b3b3b3;border-bottom:1px solid #ebf1f5">No ${rec?'recurring':'one-time'} charges in this section.</div>`;
     const add = `<div data-act="addopen" data-arg="${group}" style="background:#f5f9fc;padding:9px 16px;cursor:pointer"><span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,#008dd5)"><span class="material-symbols-outlined" style="font-size:18px">add</span>Add ${rec?'Recurring':'One-Time'} Charge</span></div>`;
     return `${noLabel?'':`<div style="font-size:13px;color:#666;padding:12px 20px 8px">${rec?'Recurring':'One-Time'}</div>`}
-      <div style="padding:${noLabel?'4px':'0'} 20px 0;overflow-x:auto"><div style="min-width:${rec?1020:760}px;border:1px solid #cedbe7;border-radius:4px;overflow:hidden">
+      <div style="padding:${noLabel?'4px':'0'} 20px 0;overflow-x:auto"><div style="min-width:${rec?(ils?1020:900):(ils?760:640)}px;border:1px solid #cedbe7;border-radius:4px;overflow:hidden">
         <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #cedbe7">${heads.map(hc).join('')}</div>
         ${body}${add}</div></div>`;
   }
@@ -898,18 +901,19 @@ class Component extends DCLogic {
     const need = this.mitsIncompleteCount();
     const total = this.profileRows().length;
     const ils = this.ilsOn();
-    if (!total) return '';
+    // Marketing/MITS completeness only matters when the property publishes to ILS.
+    if (!ils || !total) return '';
     if (!need) {
       const shown = this.profileRows().filter(r => r.ils).length;
       return `<div style="display:flex;align-items:center;gap:10px;background:#eaf7ef;border:1px solid #b7e4c6;border-radius:4px;padding:10px 16px">
         <span class="material-symbols-outlined" style="font-size:20px;color:#12a150">check_circle</span>
-        <span style="font-size:13px;color:#2f5d43">Marketing details are complete on all ${total} charges.${ils?` ${shown} shown on ILS listings.`:''}</span></div>`;
+        <span style="font-size:13px;color:#2f5d43">Marketing details are complete on all ${total} charges. ${shown} shown on ILS listings.</span></div>`;
     }
     const fields = this.mitsFields().map(f=>f.label).join(' · ');
     return `<div style="display:flex;align-items:flex-start;gap:10px;background:#fef4e8;border:1px solid #f6d9ac;border-radius:4px;padding:12px 16px">
       <span class="material-symbols-outlined" style="font-size:20px;color:#b35a00;flex:none">error</span>
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
-        <span style="font-size:13px;font-weight:600;color:#13314c">${need} of ${total} charges still need marketing details${ils?' before they can show on ILS listings':''}</span>
+        <span style="font-size:13px;font-weight:600;color:#13314c">${need} of ${total} charges still need marketing details before they can show on ILS listings</span>
         <span style="font-size:12px;color:#7a5a2a;line-height:1.5">MITS 5.0 needs ${fields} on each charge. Open a charge to fill in what's missing — hover its status to see the exact fields.</span>
       </div></div>`;
   }
@@ -1284,7 +1288,9 @@ class Component extends DCLogic {
 
     // How many MITS fields this charge still needs, and (only for ILS-marketed properties) the publish toggle.
     const missing = ed ? this.mitsMissing(ed) : this.mitsFields().map(f=>f.label);
-    const missingChip = missing.length
+    // The MITS readiness chip is only meaningful on properties that publish to ILS.
+    const missingChip = !this.ilsOn() ? ''
+      : missing.length
       ? `<span style="display:inline-flex;align-items:center;gap:6px;background:#fef4e8;border:1px solid #f6d9ac;border-radius:12px;padding:2px 10px;font-size:12px;color:#b35a00"><span class="material-symbols-outlined" style="font-size:14px">error</span>${missing.length} field${missing.length===1?'':'s'} needed for MITS 5.0</span>`
       : `<span style="display:inline-flex;align-items:center;gap:6px;background:#eaf7ef;border:1px solid #b7e4c6;border-radius:12px;padding:2px 10px;font-size:12px;color:#12a150"><span class="material-symbols-outlined" style="font-size:14px">check_circle</span>Ready for MITS 5.0</span>`;
     const ilsRow = this.ilsOn() ? `<div style="display:flex;flex-direction:column;gap:6px">
