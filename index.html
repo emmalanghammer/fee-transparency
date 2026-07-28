@@ -77,7 +77,7 @@
 class Component extends DCLogic {
   state = {
     view: 'register',
-    accOpen: {},
+    accOpen: { 'pf-rec':true, 'pf-one':true },
     propTab: 'General',
     property: 'Riverview Apartments',
     unit: '1B',
@@ -808,8 +808,9 @@ class Component extends DCLogic {
       </div>`;
   }
   // Recurring / One-Time subtable inside a profile section.
-  profileTable(kind, rows, group){
+  profileTable(kind, rows, group, opts){
     const rec = kind === 'rec';
+    const noLabel = !!(opts && opts.noLabel);
     const cols = rec ? '120px minmax(160px,1fr) 110px 100px 90px 110px 120px 130px 40px'
                      : '120px minmax(160px,1fr) 110px 120px 130px 40px';
     const heads = rec ? ['Charge Type','Comment','Frequency','From','To','Amount','Charge Level','ILS Details Added','']
@@ -827,11 +828,14 @@ class Component extends DCLogic {
         <span style="display:flex;align-items:center;justify-content:center;min-height:44px;padding:8px 12px">${this.ilsCheckCell(r.ils)}</span>${kebab}</div>`;
     }).join('') : `<div style="padding:14px 16px;font-size:13px;font-style:italic;color:#b3b3b3;border-bottom:1px solid #ebf1f5">No ${rec?'recurring':'one-time'} charges in this section.</div>`;
     const add = `<div data-act="addopen" data-arg="${group}" style="background:#f5f9fc;padding:9px 16px;cursor:pointer"><span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,#008dd5)"><span class="material-symbols-outlined" style="font-size:18px">add</span>Add ${rec?'Recurring':'One-Time'} Charge</span></div>`;
-    return `<div style="font-size:13px;color:#666;padding:12px 20px 8px">${rec?'Recurring':'One-Time'}</div>
-      <div style="padding:0 20px;overflow-x:auto"><div style="min-width:${rec?1020:760}px;border:1px solid #cedbe7;border-radius:4px;overflow:hidden">
+    return `${noLabel?'':`<div style="font-size:13px;color:#666;padding:12px 20px 8px">${rec?'Recurring':'One-Time'}</div>`}
+      <div style="padding:${noLabel?'4px':'0'} 20px 0;overflow-x:auto"><div style="min-width:${rec?1020:760}px;border:1px solid #cedbe7;border-radius:4px;overflow:hidden">
         <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #cedbe7">${heads.map(hc).join('')}</div>
         ${body}${add}</div></div>`;
   }
+  // Requirement-grouped sections (Required / Optional / Situational). Not used while the profile
+  // shows a flat Recurring + One-Time split — re-wire once the setup overlay collects a charge
+  // requirement per charge.
   profileSection(key, title, sub, rows, opts){
     const rec = rows.filter(r => !/-one$/.test(r.group));
     const one = rows.filter(r => /-one$/.test(r.group));
@@ -841,13 +845,12 @@ class Component extends DCLogic {
   }
   feeProfileBody(){
     const rows = this.visibleRows();
-    const of = (p) => rows.filter(r => r.group.indexOf(p) === 0);
-    const sitHelp = `<span class="tipw" onclick="event.stopPropagation()"><span style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ac,#008dd5);cursor:pointer"><span class="material-symbols-outlined" style="font-size:18px">info</span>What is a situational charge?</span><span class="tip" style="left:auto;right:0;top:24px">Additional fees may apply in cases of late payments, lease violations, or other charges.</span></span>`;
+    const rec = rows.filter(r => !/-one$/.test(r.group));
+    const one = rows.filter(r => /-one$/.test(r.group));
     return `<div style="flex:1;min-height:0;overflow-y:auto"><div style="padding:16px;display:flex;flex-direction:column;gap:16px;max-width:1500px;width:100%;box-sizing:border-box;margin:0 auto">
       ${this.feeProfileToolbar()}
-      ${this.profileSection('req','Required Charges','', of('req'))}
-      ${this.profileSection('opt','Optional Charges','Tenant selects', of('opt'))}
-      ${this.profileSection('sit','Situational Charges','Applies when a condition exists', of('sit'), { right: sitHelp })}
+      ${this.acc(`Recurring Charges (${rec.length})`, '', this.profileTable('rec', rec, 'req-rec', { noLabel:true }), null, 'pf-rec')}
+      ${this.acc(`One-Time Charges (${one.length})`, '', this.profileTable('one', one, 'req-one', { noLabel:true }), null, 'pf-one')}
     </div></div>`;
   }
   // Dismissible banner on the General tab pointing at the new profile.
