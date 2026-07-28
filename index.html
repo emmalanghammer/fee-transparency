@@ -131,24 +131,26 @@ class Component extends DCLogic {
   }
   // Charges discovered across the property's existing setup — the setup wizard's candidate list and
   // the single seed every count in the UI derives from.
+  // Converted charges arrive with no listing configuration — ils stays false until the user
+  // adds ILS details on each charge, which is what the "ILS Details Added" column reflects.
   setupCandidates(){
     const L = (level, target) => ({ level, target: target || '' });
     return [
-      Object.assign({ id:1,  group:'req-rec', mits:'RC',         name:'Rent',              desc:'Base rent',                    freq:'Every Month', from:'01/01/2026', to:'', amount:'Market Rent', amtMethod:'Reference', est:1350, ils:true  }, L('Property')),
-      Object.assign({ id:2,  group:'req-rec', mits:'GARBAG',     name:'Trash collection',  desc:'Trash collection',             freq:'Every Month', from:'01/01/2026', to:'', amount:'$28.00',      amtMethod:'Flat',      ils:true  }, L('Property')),
-      Object.assign({ id:3,  group:'req-rec', mits:'WATER',      name:'Water service',     desc:'RUBS billing',                 freq:'Every Month', from:'01/01/2026', to:'', amount:'Calculated',  amtMethod:'Calculation', est:38, ils:true }, L('Property')),
-      Object.assign({ id:4,  group:'req-rec', mits:'GARBAGEFEE', name:'Trash valet',       desc:'Additional trash valet',       freq:'Every Month', from:'01/01/2026', to:'', amount:'$4.00',       amtMethod:'Flat',      ils:true  }, L('Unit Type','2BR/2BA')),
-      Object.assign({ id:5,  group:'req-one', mits:'ADMIN',      name:'Administrative fee',desc:'Administrative fee',           amount:'$150.00',   amtMethod:'Flat', ils:true  }, L('Property')),
-      Object.assign({ id:6,  group:'req-one', mits:'APPFEE',     name:'Application fee',   desc:'Application fee, per applicant',amount:'$50.00',   amtMethod:'Flat', ils:true  }, L('Property')),
+      Object.assign({ id:1,  group:'req-rec', mits:'RC',         name:'Rent',              desc:'Base rent',                    freq:'Every Month', from:'01/01/2026', to:'', amount:'Market Rent', amtMethod:'Reference', est:1350, ils:false  }, L('Property')),
+      Object.assign({ id:2,  group:'req-rec', mits:'GARBAG',     name:'Trash collection',  desc:'Trash collection',             freq:'Every Month', from:'01/01/2026', to:'', amount:'$28.00',      amtMethod:'Flat',      ils:false  }, L('Property')),
+      Object.assign({ id:3,  group:'req-rec', mits:'WATER',      name:'Water service',     desc:'RUBS billing',                 freq:'Every Month', from:'01/01/2026', to:'', amount:'Calculated',  amtMethod:'Calculation', est:38, ils:false }, L('Property')),
+      Object.assign({ id:4,  group:'req-rec', mits:'GARBAGEFEE', name:'Trash valet',       desc:'Additional trash valet',       freq:'Every Month', from:'01/01/2026', to:'', amount:'$4.00',       amtMethod:'Flat',      ils:false  }, L('Unit Type','2BR/2BA')),
+      Object.assign({ id:5,  group:'req-one', mits:'ADMIN',      name:'Administrative fee',desc:'Administrative fee',           amount:'$150.00',   amtMethod:'Flat', ils:false  }, L('Property')),
+      Object.assign({ id:6,  group:'req-one', mits:'APPFEE',     name:'Application fee',   desc:'Application fee, per applicant',amount:'$50.00',   amtMethod:'Flat', ils:false  }, L('Property')),
       Object.assign({ id:7,  group:'req-one', mits:'DP',         name:'Security deposit',  desc:'Security deposit',             amount:'$500.00',   amtMethod:'Flat', ils:false }, L('Property')),
-      Object.assign({ id:8,  group:'req-one', mits:'LMR',        name:"Last month's rent", desc:"Last month's rent, prepaid",   amount:'$1,350.00', amtMethod:'Flat', ils:true  }, L('Property')),
-      Object.assign({ id:9,  group:'req-one', mits:'KEY',        name:'Key & fob deposit', desc:'Key & fob deposit',            amount:'$50.00',    amtMethod:'Flat', ils:true  }, L('Property')),
+      Object.assign({ id:8,  group:'req-one', mits:'LMR',        name:"Last month's rent", desc:"Last month's rent, prepaid",   amount:'$1,350.00', amtMethod:'Flat', ils:false  }, L('Property')),
+      Object.assign({ id:9,  group:'req-one', mits:'KEY',        name:'Key & fob deposit', desc:'Key & fob deposit',            amount:'$50.00',    amtMethod:'Flat', ils:false  }, L('Property')),
       Object.assign({ id:10, group:'opt-rec', mits:'SF',         name:'Storage closet',    desc:'Corner storage closet',        freq:'Every Month', from:'01/01/2026', to:'', amount:'$40.00',      amtMethod:'Flat', ils:false }, L('Unit','4C')),
-      Object.assign({ id:11, group:'opt-rec', mits:'AMENFEE',    name:'Pool & fitness',    desc:'Pool & fitness access',        freq:'Every Month', from:'01/01/2026', to:'', amount:'$28.00',      amtMethod:'Flat', ils:true  }, L('Property')),
-      Object.assign({ id:12, group:'opt-rec', mits:'COVPARK',    name:'Covered parking',   desc:'Covered parking, 12 spots total',freq:'Every Month',from:'01/01/2026', to:'', amount:'Market Rent', amtMethod:'Reference', est:75, ils:true }, L('ORI','Garage Spot 1')),
-      Object.assign({ id:13, group:'opt-one', mits:'HOLD',       name:'Hold fee',          desc:'Unit reservation fee',         amount:'$200.00',   amtMethod:'Flat', ils:true  }, L('Property')),
-      Object.assign({ id:14, group:'sit-rec', mits:'PETFEE',     name:'Pet rent',          desc:'Per pet, max $90',             freq:'Every Month', from:'01/01/2026', to:'', amount:'$45.00',      amtMethod:'Flat', ils:true, cond:'If a pet is on the lease' }, L('Property')),
-      Object.assign({ id:15, group:'sit-one', mits:'PETDP',      name:'Pet deposit',       desc:'Pet deposit',                  amount:'$300.00',   amtMethod:'Flat', ils:true, cond:'If a pet is on the lease' }, L('Property'))
+      Object.assign({ id:11, group:'opt-rec', mits:'AMENFEE',    name:'Pool & fitness',    desc:'Pool & fitness access',        freq:'Every Month', from:'01/01/2026', to:'', amount:'$28.00',      amtMethod:'Flat', ils:false  }, L('Property')),
+      Object.assign({ id:12, group:'opt-rec', mits:'COVPARK',    name:'Covered parking',   desc:'Covered parking, 12 spots total',freq:'Every Month',from:'01/01/2026', to:'', amount:'Market Rent', amtMethod:'Reference', est:75, ils:false }, L('ORI','Garage Spot 1')),
+      Object.assign({ id:13, group:'opt-one', mits:'HOLD',       name:'Hold fee',          desc:'Unit reservation fee',         amount:'$200.00',   amtMethod:'Flat', ils:false  }, L('Property')),
+      Object.assign({ id:14, group:'sit-rec', mits:'PETFEE',     name:'Pet rent',          desc:'Per pet, max $90',             freq:'Every Month', from:'01/01/2026', to:'', amount:'$45.00',      amtMethod:'Flat', ils:false, cond:'If a pet is on the lease' }, L('Property')),
+      Object.assign({ id:15, group:'sit-one', mits:'PETDP',      name:'Pet deposit',       desc:'Pet deposit',                  amount:'$300.00',   amtMethod:'Flat', ils:false, cond:'If a pet is on the lease' }, L('Property'))
     ];
   }
   // Where those charges live today — shown on setup step 1.
@@ -974,10 +976,10 @@ class Component extends DCLogic {
             <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:13px;color:#666">Property</span>${this.singleSelect('pp-prop', this.propNames(), p.prop, { act:'ppProp' })}</div>
             <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:13px;color:#666">Unit</span>${this.singleSelect('pp-unit', this.units().map(u=>u.u), p.unit, { act:'ppUnit', noSearch:true })}</div>
             <div style="font-size:14px;font-weight:600;color:#13314c;border-bottom:1px solid #ebf1f5;padding-bottom:8px;margin-top:4px">Select Optional Fees</div>
-            ${optRows.length ? optRows.map(optCb).join('') : '<span style="font-size:13px;font-style:italic;color:#b3b3b3">No optional fees on this profile.</span>'}
+            ${optRows.length ? optRows.map(optCb).join('') : '<span style="font-size:13px;font-style:italic;color:#b3b3b3">No optional fees with listing details yet.</span>'}
             <div style="border:1px solid #cedbe7;border-radius:4px;overflow:hidden;margin-top:4px">
               <div data-act="ppSitToggle" style="display:flex;align-items:center;gap:8px;padding:12px 14px;cursor:pointer"><span style="font-size:14px;font-weight:600;color:#13314c;flex:1">Situational</span><span class="material-symbols-outlined" style="font-size:20px;color:#666">${p.sitOpen?'expand_less':'expand_more'}</span></div>
-              ${p.sitOpen?`<div style="padding:0 14px 12px;display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;color:#8a9aa8;line-height:1.5;margin-bottom:6px">Additional fees may apply in cases of late payments, lease violations, or other charges</span>${(sitRows.length?sitRows:[{name:'Late fee',amount:'$200.00'}]).map(r=>`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:#4a5b6b"><span>${r.name}</span><span>${money(this.parseAmt(r.amount))}/one-time</span></div>`).join('')}</div>`:''}
+              ${p.sitOpen?`<div style="padding:0 14px 12px;display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;color:#8a9aa8;line-height:1.5;margin-bottom:6px">Additional fees may apply in cases of late payments, lease violations, or other charges</span>${sitRows.length?'':'<span style="font-size:12px;font-style:italic;color:#b3b3b3">No situational fees with listing details yet.</span>'}${(sitRows.length?sitRows:[]).map(r=>`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:#4a5b6b"><span>${r.name}</span><span>${money(this.parseAmt(r.amount))}/one-time</span></div>`).join('')}</div>`:''}
             </div>
           </div>
           <div style="flex:1;min-width:320px;background:#f5f8fa;padding:16px 20px;box-sizing:border-box;display:flex;flex-direction:column;gap:10px">
@@ -987,9 +989,12 @@ class Component extends DCLogic {
                 <span style="display:inline-flex;align-items:center;gap:10px;font-size:13px;color:#4a5b6b;white-space:nowrap"><span style="display:inline-flex;align-items:center;gap:4px"><span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5)">home</span>${info.short}</span><span style="display:inline-flex;align-items:center;gap:4px"><span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5)">apartment</span>${p.unit}</span></span>
               </div>
               <div style="padding:8px 16px 0">
-                ${grp('Included every month', monthly)}
-                ${grp('Due at move-in', moveIn)}
-                ${chosenOpt.length?grp('Optional add-ons', chosenOpt, '/mo'):''}
+                ${rows.length ? `${grp('Included every month', monthly)}${grp('Due at move-in', moveIn)}${chosenOpt.length?grp('Optional add-ons', chosenOpt, '/mo'):''}`
+                  : `<div style="padding:16px 0;border-top:1px solid #eef2f5;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center">
+                      <span class="material-symbols-outlined" style="font-size:30px;color:#c9d4dd">visibility_off</span>
+                      <span style="font-size:13px;font-weight:600;color:#13314c">No charges are set to show on listings yet</span>
+                      <span style="font-size:12px;color:#8a9aa8;line-height:1.5;max-width:290px">Open a charge and turn on <b>Show on ILS Listings</b> to add its listing configuration. It will then appear here.</span>
+                    </div>` }
               </div>
               <div style="margin:12px 16px 16px;background:#13314c;border-radius:4px;padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="font-size:13px;color:#fff">Due monthly</span><span style="font-size:15px;font-weight:700;color:#fff">${money(mTotal)}</span><div style="flex:1"></div><span style="font-size:13px;color:#fff">Due one-time</span><span style="font-size:15px;font-weight:700;color:#fff">${money(oTotal)}</span></div>
             </div>
