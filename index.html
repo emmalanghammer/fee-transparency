@@ -79,6 +79,8 @@ class Component extends DCLogic {
     view: 'register',
     accOpen: { 'pf-rec':true, 'pf-one':true, 'pf-req':true, 'pf-opt':true, 'pf-sit':true, 'pf-ind':true },
     groupByReq: false,
+    addProp: null,
+    newProps: [],
     propTab: 'General',
     property: 'Riverview Apartments',
     unit: '1B',
@@ -105,7 +107,7 @@ class Component extends DCLogic {
 
   // ---------- properties (the top-level entity; fee profiles hang off these) ----------
   propertiesData(){
-    return [
+    return (this.state.newProps || []).concat([
       { name:'Riverview Apartments', short:'RIVER', email:'stewart@riverviewapts.com', manager:'Stewart Chandler', addr:'1492 Loveland-Madeira Road, Loveland, OH 45140', billing:'1492 Loveland-Madeira Road, Loveland, OH 45140', color:'#1570ef', loc:'Loveland, OH', units:50, occupied:30, owner:'Thompson Family Trust', logo:'assets/logo-riverview.png' },
       { name:'The Berkshires', short:'BERK', email:'malik@theberkshires.com', manager:'Malik Roberson', addr:'4321 Loveland-Miamiville Rd, Loveland, OH 45140', billing:'9876 Socialville-Fosters Rd, Mason, OH 45040', color:'#1570ef', loc:'Loveland, OH', units:64, occupied:58 },
       { name:'The Windermere', short:'WIND', email:'kiana@thewindermere.com', manager:'Kiana Booker', addr:'1234 Tylersville Rd, West Chester, OH 45069', billing:'5678 Fields Ertel Rd, Cincinnati, OH 45249', color:'', loc:'West Chester, OH', units:42, occupied:39 },
@@ -120,8 +122,10 @@ class Component extends DCLogic {
       { name:'The Arbors', short:'ARBORS', email:'rylee@thearbors.com', manager:'Rylee Herron', addr:'6802 Butler Warren Rd, Mason, OH 45040', billing:'7913 Columbia Rd, Kings Mills, OH 45034', color:'#13314c', loc:'Mason, OH', units:60, occupied:52 },
       { name:'Stonegate Village', short:'STONEG', email:'neha@stonegatevillage.com', manager:'Neha Walter', addr:'8024 Western Row Rd, Maineville, OH 45039', billing:'9135 Irwin Simpson Rd, Mason, OH 45040', color:'#12a150', loc:'Maineville, OH', units:58, occupied:39 },
       { name:'The Hamptons', short:'HAMPTON', email:'zavier@thehamptons.com', manager:'Zavier Burks', addr:'0246 Fields Ertel Rd, Cincinnati, OH 45241', billing:'1357 Loveland Madeira Rd, Loveland, OH 45140', color:'#f58220', loc:'Cincinnati, OH', units:34, occupied:31 }
-    ];
+    ]);
   }
+  // Properties whose Rental Fee Profile can be copied when adding a property.
+  copyableProfiles(){ return this.propertiesData().map(p=>p.name).filter(n=>this.usingProfile(n)); }
   propNames(){ return this.propertiesData().map(p => p.name); }
   propInfo(name){ const n = name || this.state.property; return this.propertiesData().find(p => p.name === n) || this.propertiesData()[0]; }
   properties(){ return this.propertiesData(); }
@@ -365,6 +369,31 @@ class Component extends DCLogic {
 
       // ---- profile list ----
       case 'lvlSel': this.setState({ lvlSel: arg }); break;
+      case 'addPropOpen': this.setState({ addProp: { nav:'Property Information', fee:'blank', copyFrom:'', excl:{}, err:false } }); break;
+      case 'addPropClose': this.setState({ addProp: null }); break;
+      case 'addPropNav': this.setState(s => ({ addProp: Object.assign({}, s.addProp, { nav: arg }) })); break;
+      case 'addPropFee': this.setState(s => ({ addProp: Object.assign({}, s.addProp, { fee: arg, copyFrom: arg === 'copy' ? (s.addProp.copyFrom || this.copyableProfiles()[0] || '') : s.addProp.copyFrom }) })); break;
+      case 'addPropCopyFrom': this.setState(s => ({ addProp: Object.assign({}, s.addProp, { copyFrom: arg, excl: {} }) })); break;
+      case 'addPropToggle': this.setState(s => { const e = Object.assign({}, s.addProp.excl); if (e[arg]) delete e[arg]; else e[arg] = true; return { addProp: Object.assign({}, s.addProp, { excl: e }) }; }); break;
+      case 'addPropSave': {
+        const a = this.state.addProp;
+        const name = ((this.q('#ap-name') || {}).value || '').trim();
+        if (!name) { this.setState(s => ({ addProp: Object.assign({}, s.addProp, { err: true }) })); this.flash('Property Name is required'); break; }
+        const short = ((this.q('#ap-short') || {}).value || '').trim() || name.slice(0, 6).toUpperCase();
+        const copied = a.fee === 'copy' && a.copyFrom
+          ? this.profileRows(a.copyFrom).filter(r => !a.excl[r.id]).map(r => Object.assign({}, r))
+          : null;
+        const row = { name, short, email:'', manager:'', addr:'', billing:'', color:'', loc:'', units:0, occupied:0, owner:'' };
+        this.setState(s => {
+          const st = { addProp: null, newProps: [row].concat(s.newProps || []) };
+          if (copied) {
+            st.profileFees = Object.assign({}, s.profileFees, { [name]: copied });
+            st.profileStatus = Object.assign({}, s.profileStatus, { [name]: 'active' });
+          }
+          return st;
+        });
+        this.flash(copied ? `${name} created · ${copied.length} charges copied from ${a.copyFrom}` : `${name} created`);
+        break; }
       case 'groupByReq': this.setState(s => ({ groupByReq: !s.groupByReq })); break;
       case 'ilsPropToggle': { const p = this.state.property; const turningOn = !this.ilsOn(p);
         this.setState(s => { const m = Object.assign({}, s.ilsProps); if (turningOn) m[p] = true; else delete m[p]; return { ilsProps: m, profMenu: null }; });
@@ -658,7 +687,7 @@ class Component extends DCLogic {
           <span data-act="toast" data-arg="Filters" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;box-sizing:border-box;border:1px solid var(--ac,#008dd5);border-radius:4px;background:#fff;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">tune</span></span>
           <label style="display:inline-flex;align-items:center;gap:8px;height:36px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer"><input type="checkbox" style="width:18px;height:18px;accent-color:#f58220;margin:0">Show Inactive</label>
         </div>
-        <button data-act="toast" data-arg="Add Property" class="btn-pri" style="height:36px;padding:8px 16px 8px 8px;border-radius:4px;font:400 14px Roboto,sans-serif;display:inline-flex;align-items:center;gap:8px"><span class="material-symbols-outlined" style="font-size:20px">add_circle</span>Add Property</button>
+        <button data-act="addPropOpen" class="btn-pri" style="height:36px;padding:8px 16px 8px 8px;border-radius:4px;font:400 14px Roboto,sans-serif;display:inline-flex;align-items:center;gap:8px"><span class="material-symbols-outlined" style="font-size:20px">add_circle</span>Add Property</button>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px">
         <div style="border:1px solid #b3b3b3;border-radius:4px;overflow:hidden;background:#fff"><div style="overflow-x:auto"><div style="min-width:1240px">${header}${body}</div></div></div>
@@ -1280,6 +1309,110 @@ class Component extends DCLogic {
     return `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden"><div style="flex:1;min-width:0;overflow-y:auto;display:flex;flex-direction:column"><div style="flex:1;min-width:0;display:flex;flex-direction:column">${h}</div></div>${this.rail()}</div>`;
   }
 
+  // ================= ADD PROPERTY OVERLAY =================
+  addPropHTML(){
+    const a = this.state.addProp; if (!a) return '';
+    const nav = ['Property Information','User Defined Fields','Ownerships','Management Fee Setup'];
+    const navItem = (t) => { const on = a.nav === t; return `<div data-act="addPropNav" data-arg="${t}" style="padding:9px 16px;font-size:13px;cursor:pointer;${on?'background:#fff;color:#13314c;font-weight:500':'color:#c6d4e2'}">${t}</div>`; };
+    const sect = (title, inner) => `<div style="border:1px solid #e3e9ee;border-radius:4px;background:#fff;overflow:hidden;flex:none">
+      <div style="padding:7px 12px;border-bottom:2px solid var(--ac,#008dd5);font-size:13px;font-weight:600;color:#13314c">${title}</div>
+      <div style="padding:14px 12px;display:flex;flex-direction:column;gap:12px">${inner}</div></div>`;
+    const row = (...cols) => `<div style="display:flex;gap:12px;align-items:flex-start">${cols.join('')}</div>`;
+    const fld = (label, inner, grow) => `<div style="flex:${grow||1};min-width:0;display:flex;flex-direction:column;gap:4px"><span style="font-size:12px;color:#666">${label}</span>${inner}</div>`;
+    const inp = (o) => { o = o || {}; return `<input ${o.id?`id="${o.id}"`:''} value="${o.val||''}" placeholder="${o.ph||''}" style="height:32px;box-sizing:border-box;border:1px solid ${o.err?'#d02830':'#cedbe7'};border-radius:4px;background:#f5f8fa;padding:0 8px;font:400 13px Roboto,sans-serif;color:#13314c;outline:none">`; };
+    const sel = (v) => `<div style="height:32px;box-sizing:border-box;border:1px solid #cedbe7;border-radius:4px;background:#f5f8fa;display:flex;align-items:center;justify-content:space-between;gap:6px;padding:0 4px 0 8px;font-size:13px;color:#13314c;cursor:pointer"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v}</span><span class="material-symbols-outlined" style="font-size:18px;color:#666;flex:none">expand_more</span></div>`;
+    const chk = (on, label) => `<label style="display:inline-flex;align-items:center;gap:8px;font-size:13px;color:#13314c;cursor:pointer"><span style="width:16px;height:16px;border-radius:3px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${on?'background:#f58220;border:1px solid #f58220':'background:#fff;border:1px solid #b3b3b3'}">${on?'<span class="material-symbols-outlined" style="font-size:13px;color:#fff;font-weight:600">check</span>':''}</span>${label}</label>`;
+    const radio = (on, label, act, arg) => `<label data-act="${act}" data-arg="${arg}" style="display:inline-flex;align-items:center;gap:8px;font-size:13px;color:#13314c;cursor:pointer"><span style="width:16px;height:16px;border-radius:50%;box-sizing:border-box;border:2px solid ${on?'var(--ac,#008dd5)':'#b3b3b3'};display:flex;align-items:center;justify-content:center;flex:none">${on?'<span style="width:8px;height:8px;border-radius:50%;background:var(--ac,#008dd5)"></span>':''}</span>${label}</label>`;
+    const hint = (t) => `<span style="font-size:12px;color:#8a9aa8;padding-left:24px">${t}</span>`;
+
+    // ---- Rental Fee Profile: Blank, or copy charges from a property that already has one ----
+    const copyable = this.copyableProfiles();
+    const isCopy = a.fee === 'copy';
+    const srcRows = isCopy && a.copyFrom ? this.profileRows(a.copyFrom) : [];
+    const chargeTable = (label, rows, rec) => {
+      const cols = rec ? '38px 110px minmax(140px,1fr) 80px 90px 50px 100px 90px' : '38px 110px minmax(140px,1fr) 100px 90px';
+      const heads = rec ? ['','Charge Type','Comment','Frequency','From','To','Amount','Charge Level'] : ['','Charge Type','Comment','Amount','Charge Level'];
+      const hc = (t) => `<span style="padding:6px 8px;font-size:11px;font-weight:600;color:#13314c;white-space:nowrap;${/Amount/.test(t)?'display:flex;justify-content:flex-end;':''}">${t}</span>`;
+      const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:34px;padding:5px 8px;font-size:12px;color:#13314c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
+      return `<div style="font-size:12px;color:#666;padding:8px 0 4px">${label} (${rows.length})</div>
+        <div style="border:1px solid #e3e9ee;border-radius:4px;overflow:hidden">
+        <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #e3e9ee;background:#fff">${heads.map(hc).join('')}</div>
+        ${rows.map(r=>`<div data-act="addPropToggle" data-arg="${r.id}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #f0f4f7;cursor:pointer;background:#fff">
+          <span style="display:flex;align-items:center;justify-content:center;min-height:34px">${chk(!a.excl[r.id],'')}</span>
+          ${cell(r.mits)}${cell(r.desc||r.name)}${rec?(cell('1')+cell(r.from||'—')+cell(r.to||'-')):''}
+          ${cell(String(r.amount||'').replace(/^\$/,''),'justify-content:flex-end;text-align:right')}
+          <span style="display:flex;align-items:center;min-height:34px;padding:5px 8px">${this.chargeLevelPill(r)}</span></div>`).join('')}
+        </div>`;
+    };
+    const copyBlock = !isCopy ? '' : `<div style="display:flex;flex-direction:column;gap:6px;padding-left:24px">
+        <div style="max-width:340px">${this.singleSelect('ap-copy', copyable.length?copyable:['No properties with a profile'], a.copyFrom, { act:'addPropCopyFrom' })}</div>
+        <span style="font-size:12px;color:#8a9aa8">Copy recurring and one-time charges from properties that have a rental fee profile set up.</span>
+        ${srcRows.length?`<div style="margin-top:6px;display:flex;flex-direction:column;gap:2px">
+          <span style="font-size:13px;font-weight:600;color:#13314c">Select Recurring and One-Time Charges to Include</span>
+          <div style="border:1px solid #e3e9ee;border-radius:4px;background:#f7f9fb;padding:10px 12px;max-height:260px;overflow-y:auto">
+            ${chargeTable('Recurring Charges', srcRows.filter(r=>!/-one$/.test(r.group)), true)}
+            ${chargeTable('One-Time Charges', srcRows.filter(r=>/-one$/.test(r.group)), false)}
+          </div></div>`:''}
+      </div>`;
+
+    const propInfo = `
+      ${sect('General Information', row(
+        fld('Property Name *', inp({ id:'ap-name', err:a.err })),
+        fld('Short Name *', inp({ id:'ap-short' }))
+      ) + row(
+        fld('Property Type', sel('&nbsp;')),
+        fld('Display Color', sel('<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:11px;height:11px;background:#13314c;border-radius:2px"></span>Default</span>'))
+      ))}
+      ${sect('Other Information', row(
+        fld('Property Tax ID', inp({})),
+        fld('Posting Day', inp({ val:'25' }))
+      ) + row(
+        fld('Default Bank', sel('1000 Fifth Third - Operating Bank Account For All Prope…')),
+        fld('Rent Charge Type *', sel('RC'))
+      ) + row(
+        fld('Statement Method', sel('&lt;Use System Default&gt; (Email)'), 2),
+        fld('NSF Fee', chk(true, 'Override system default ($100.00)')),
+        fld('Custom Amount', inp({ val:'15.00' }))
+      ) + fld('Comment', `<textarea style="height:56px;resize:none;box-sizing:border-box;border:1px solid #cedbe7;border-radius:4px;background:#f5f8fa;padding:6px 8px;font:400 13px Roboto,sans-serif;color:#13314c;outline:none"></textarea>`))}
+      ${sect('Add Unit, Unit Types, Amenities, and Users', row(
+        fld('Valid Unit Types for Property', sel('All Selected')),
+        fld('Property Amenities', sel('&nbsp;')),
+        fld('Users with Access to Property', sel('64 Selected'))
+      ) + row(
+        fld('&nbsp;', chk(false, 'Automatically create a unit')),
+        fld('Type of Unit to create', `<div style="height:32px;box-sizing:border-box;border:1px solid #cedbe7;border-radius:4px;background:#f5f8fa;display:flex;align-items:center;gap:6px;padding:0 8px"><span class="material-symbols-outlined" style="font-size:16px;color:#8a9aa8">search</span></div>`)
+      ))}
+      ${sect('Marketing Configuration', `<div style="display:flex;align-items:center;gap:24px">${radio(true,'Property-level Marketing','toast','Property-level Marketing')}${radio(false,'Unit-level Marketing','toast','Unit-level Marketing')}</div>`)}
+      ${sect('Rental Fee Profile', `
+        ${radio(!isCopy,'Blank','addPropFee','blank')}
+        ${hint('Start with no fees, and add charges after the property is created.')}
+        ${radio(isCopy,'Copy From','addPropFee','copy')}
+        ${copyBlock}`)}`;
+
+    const placeholder = (t) => sect(t, `<span style="font-size:13px;font-style:italic;color:#b3b3b3">No required ${t.toLowerCase()} found.</span>`);
+    const body = a.nav === 'Property Information' ? propInfo : placeholder(a.nav);
+
+    return `<div data-act="addPropClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:120">
+      <div data-act="noop" style="width:1180px;max-width:96vw;height:88vh;background:#f5f8fa;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;overflow:hidden">
+        <div style="width:210px;flex:none;background:#13314c;display:flex;flex-direction:column">
+          <div style="display:flex;align-items:center;gap:8px;padding:14px 16px"><span style="font-size:16px;color:#fff;flex:1">Add Property</span><span data-act="toast" data-arg="Help" class="material-symbols-outlined" style="font-size:18px;color:#7fb2dd;cursor:pointer">help</span></div>
+          <div style="display:flex;flex-direction:column">${nav.map(navItem).join('')}</div>
+          <div style="flex:1"></div>
+          <div style="display:flex;justify-content:center;padding:20px;opacity:0.22"><span class="material-symbols-outlined" style="font-size:74px;color:#fff">apartment</span></div>
+        </div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+          <div style="flex:1;min-height:0;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px">${body}</div>
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 16px;border-top:1px solid #cedbe7;background:#f5f8fa;flex:none">
+            <div style="flex:1"></div>
+            ${a.err?`<span class="material-symbols-outlined" style="font-size:18px;color:#d02830">error</span>`:''}
+            <button data-act="addPropSave" class="btn-pri" style="height:32px;padding:0 14px;border-radius:4px;font-size:13px">Save and New</button>
+            <button data-act="addPropSave" class="btn-pri" style="height:32px;padding:0 14px;border-radius:4px;font-size:13px">Save and Finish</button>
+            <button data-act="addPropClose" class="btn-out" style="height:32px;padding:0 14px;border-radius:4px;font-size:13px;box-sizing:border-box">Cancel</button>
+          </div>
+        </div>
+      </div></div>`;
+  }
+
   // ================= MODAL / TOAST =================
   modalHTML(){
     const m = this.state.modal; if (!m) return '';
@@ -1465,6 +1598,7 @@ class Component extends DCLogic {
     out += this.rowMenuHTML();
     out += this.recViewHTML();
     out += this.setupHTML();
+    out += this.addPropHTML();
     out += this.pricePreviewHTML();
     out += this.profMenuHTML();
     out += this.toastHTML();
