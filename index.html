@@ -493,7 +493,6 @@ class Component extends DCLogic {
     return `<div data-act="rowMenuClose" style="position:fixed;inset:0;z-index:150"></div>
       <div style="position:fixed;left:${left}px;top:${p.y}px;width:180px;background:#fff;border-radius:4px;box-shadow:0 3px 6px rgba(0,0,0,0.15);z-index:151;overflow:hidden">
         ${item('Details','rowDetails')}
-        ${item('Edit','rowDetails')}
         ${item('Delete','rowDelete')}
       </div>`;
   }
@@ -880,7 +879,7 @@ class Component extends DCLogic {
       const mid = rec
         ? cell(r.freq||'—') + cell(r.from||'—') + cell(r.to||'-')
         : '';
-      return `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5">
+      return `<div data-act="rowDetails" data-arg="${r.id}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5;cursor:pointer" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background=''">
         ${cell(r.mits,'padding-left:16px')}${cell(r.desc||r.name)}${mid}${cell(String(r.amount||'').replace(/^\$/,''),'justify-content:flex-end;text-align:right')}
         <span style="display:flex;align-items:center;min-height:44px;padding:8px 12px">${this.chargeLevelPill(r)}</span>
         ${ils?`<span style="display:flex;align-items:center;min-height:44px;padding:8px 12px">${this.mitsStatusCell(r)}</span>`:''}${kebab}</div>`;
