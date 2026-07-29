@@ -165,7 +165,7 @@ class Component extends DCLogic {
     const code = String(r.mits || '').toUpperCase();
     const text = ((r.desc || '') + ' ' + (r.name || '')).toLowerCase();
     if (/^PET/.test(code) || /\bpets?\b/.test(text)) return 'Situational';
-    if (/^(LATE|NSF|DAMAGE|VIOLATION|LEGAL)/.test(code)) return 'Situational';
+    if (/^(LATE|LC|NSF|DAMAGE|VIOLATION|LEGAL)/.test(code)) return 'Situational';
     if (/^(SF|STORAGE|COVPARK|PARK|PARKING|GARAGE|HOLD|AMENFEE|AMENITY|UPGRADE|TECH|CABLE|TRANSFER)/.test(code)) return 'Optional';
     if (/\b(optional|add-?on|valet|storage|parking|garage|reservation|locker|access)\b/.test(text)) return 'Optional';
     return 'Required';
@@ -235,7 +235,15 @@ class Component extends DCLogic {
       Object.assign({ id:12, group:'opt-rec', mits:'COVPARK',    name:'Covered parking',   desc:'Covered parking, 12 spots total',freq:'Every Month',from:'01/01/2026', to:'', amount:'Market Rent', amtMethod:'Reference', est:75, ils:false }, L('ORI','Garage Spot 1')),
       Object.assign({ id:13, group:'opt-one', mits:'HOLD',       name:'Hold fee',          desc:'Unit reservation fee',         amount:'$200.00',   amtMethod:'Flat', ils:false  }, L('Property')),
       Object.assign({ id:14, group:'sit-rec', mits:'PETFEE',     name:'Pet rent',          desc:'Per pet, max $90',             freq:'Every Month', from:'01/01/2026', to:'', amount:'$45.00',      amtMethod:'Flat', ils:false, cond:'If a pet is on the lease' }, L('Property')),
-      Object.assign({ id:15, group:'sit-one', mits:'PETDP',      name:'Pet deposit',       desc:'Pet deposit',                  amount:'$300.00',   amtMethod:'Flat', ils:false, cond:'If a pet is on the lease' }, L('Property'))
+      Object.assign({ id:15, group:'sit-one', mits:'PETDP',      name:'Pet deposit',       desc:'Pet deposit',                  amount:'$300.00',   amtMethod:'Flat', ils:false, cond:'If a pet is on the lease' }, L('Property')),
+      // Property specific charges. Every field is pulled from the property's own setup, so only the
+      // marketing details are editable — they exist in the profile so they can be shown on ILS.
+      Object.assign({ id:16, group:'sit-one', mits:'NSFFEE', name:'NSF Fee', desc:'NSF fee', amount:'$25.00', amtMethod:'Flat', ils:false,
+        propSpecific:'NSF', cond:'Charged 25.00 for non-sufficient funds.',
+        listing:{ name:'NSF Fee', category:'Violation', marketing:'', requirement:'Situational', feeDue:'During Term' } }, L('Property')),
+      Object.assign({ id:17, group:'sit-one', mits:'LC', name:'Late Fee', desc:'Late fee', amount:'$100.00', amtMethod:'Flat', ils:false,
+        propSpecific:'Late Charge', cond:'Charged 100.00 for paying late.',
+        listing:{ name:'Late Fee', category:'Violation', marketing:'', requirement:'Situational', feeDue:'During Term' } }, L('Property'))
     ];
   }
   // Where those charges live today — shown on setup step 1.
@@ -255,7 +263,8 @@ class Component extends DCLogic {
     return { ADMIN:'Admin', AMENFEE:'Amenity', AMENITY:'Amenity', APPFEE:'Application', APPLICATION:'Application',
       CABLE:'Tech', CAM:'Service', CAMTAX:'Govt', CLEAN:'Clean', COVPARK:'Parking', DAMAGE:'Damage', DP:'Lease',
       ELEC:'Utility', GARAGE:'Parking', GARBAG:'Service', GARBAGEFEE:'Service', GAS:'Utility', H2O:'Utility',
-      HO4:'Insurance', HOA:'Service', KEY:'Key', LATE:'Lease', LMR:'Lease', PARK:'Parking', PETDP:'Pet',
+      HO4:'Insurance', HOA:'Service', KEY:'Key', LATE:'Violation', LC:'Violation', LMR:'Lease',
+      NSF:'Violation', NSFFEE:'Violation', PARK:'Parking', PETDP:'Pet',
       PETFEE:'Pet', PET:'Pet', RC:'Lease', RUBS:'Utility', SEWER:'Utility', SF:'Storage', STORAGE:'Storage',
       TRANSFER:'Transfer', TRASH:'Service', UTIL:'Utility', WATER:'Utility' };
   }
@@ -355,8 +364,9 @@ class Component extends DCLogic {
           const req = this.setupRequirement(r);
           const suffix = /-one$/.test(r.group) ? '-one' : '-rec';
           const prefix = req === 'Optional' ? 'opt' : req === 'Situational' ? 'sit' : 'req';
-          // The setup choice satisfies the MITS requirement field up front.
-          return Object.assign({}, r, { group: prefix + suffix, listing: { requirement: req } });
+          // The setup choice satisfies the MITS requirement field up front. Merge so charges that
+          // already carry pulled-in marketing details (NSF, late fees) keep them.
+          return Object.assign({}, r, { group: prefix + suffix, listing: Object.assign({}, r.listing, { requirement: req }) });
         });
         this.setState({ setup: Object.assign({}, c, { step: 'saving' }), propTab: 'Rental Fee Profile' });
         clearTimeout(this._sut); this._sut = setTimeout(() => this.setState(s => ({
@@ -454,6 +464,21 @@ class Component extends DCLogic {
     const m = this.state.modal; if (!m) return;
     const v = id => ((this.q('#'+id) || {}).value || '').trim();
     const mark = (el, bad) => { if (el) el.style.borderColor = bad ? '#d02830' : ''; };
+    // Property specific charges keep every general field as pulled from the property; only their
+    // marketing details and the ILS toggle are editable here.
+    const specEd = m.edit && m.edit.propSpecific ? m.edit : null;
+    if (specEd) {
+      const nm = v('m-name'); const ilsOn = v('m-ils') === '1';
+      if (ilsOn && !nm) { mark(this.q('#m-name'), true); const b = this.q('#m-err'); if (b) { const t = b.querySelector('#m-err-txt'); if (t) t.textContent = 'Complete required fields: Name'; b.style.display = 'inline-flex'; } return; }
+      const req = v('m-req') || 'Situational';
+      const patch = { ils: ilsOn, cond: v('m-sitdesc') || specEd.cond,
+        listing: Object.assign({}, specEd.listing, { name: nm, category: this.chargeCategoryFor(specEd.mits), marketing: v('m-marketing'), requirement: req, feeDue: v('m-due') || 'During Term' }) };
+      const id = specEd.id;
+      this.setProfileRows(rows => rows.map(f => String(f.id) === String(id) ? Object.assign({}, f, patch) : f));
+      this.setState({ modal: null });
+      this.flash('Charge updated');
+      return;
+    }
     const name = v('m-name') || v('m-ctype-desc');
     const code = v('m-ctype');
     const app = v('m-app') || 'Property';
@@ -1492,7 +1517,10 @@ class Component extends DCLogic {
     const m = this.state.modal; if (!m) return '';
     const ed = m.edit || null;
     const isOne = /-one$/.test(m.group);
-    const title = ed ? 'Charge Details' : (isOne ? 'Add One-Time Charge' : 'Add Recurring Charge');
+    // Property specific charges (NSF, late fees) pull every non-marketing field from the property,
+    // so General Details renders locked and only the marketing details are editable.
+    const spec = ed && ed.propSpecific ? ed.propSpecific : '';
+    const title = spec ? `Add ${spec} One-Time Charge` : (ed ? 'Charge Details' : (isOne ? 'Add One-Time Charge' : 'Add Recurring Charge'));
     const esc = s => (''+(s||'')).replace(/"/g,'&quot;');
     const lab = (t,info) => `<span style="display:inline-flex;align-items:center;gap:4px;font-size:14px;color:#666">${t}${info?`<span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5)">info</span>`:''}</span>`;
     const sect = (t,inner) => `<div style="display:flex;flex-direction:column;gap:10px"><span style="font-size:15px;font-weight:600;color:#13314c">${t}</span><div style="border:1px solid #cedbe7;border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:12px">${inner}</div></div>`;
@@ -1542,6 +1570,18 @@ class Component extends DCLogic {
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('To')}${iconInput('m-to',ed?ed.to:'','mm/dd/yy','calendar_month')}</div>
     </div>`;
     const ilsOn = ed ? !!ed.ils : false;
+    // Locked General Details for property specific charges: application, type and amount only.
+    const dis = (v) => `<div style="display:flex;align-items:center;height:36px;box-sizing:border-box;padding:0 10px;background:#f5f8fa;border:1px solid #e3e9ee;border-radius:4px;font-size:14px;color:#a6b2bd;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v}</div>`;
+    const disSel = (v) => `<div style="display:flex;align-items:center;justify-content:space-between;gap:4px;height:36px;box-sizing:border-box;padding:0 6px 0 10px;background:#f5f8fa;border:1px solid #e3e9ee;border-radius:4px;font-size:14px;color:#a6b2bd"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v}</span><span class="material-symbols-outlined" style="font-size:20px;color:#c9d4dd">expand_more</span></div>`;
+    const disSearch = (v) => `<div style="display:flex;align-items:center;gap:6px;height:36px;box-sizing:border-box;padding:0 10px;background:#f5f8fa;border:1px solid #e3e9ee;border-radius:4px;font-size:14px;color:#a6b2bd"><span class="material-symbols-outlined" style="font-size:18px;color:#c9d4dd">search</span>${v}</div>`;
+    const specGeneral = !spec ? '' : `
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Application *')}${disSel('Property')}</div>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Type *')}${disSearch(ed.mits)}</div>
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Amount Method')}${disSel(ed.amtMethod||'Flat')}</div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Amount')}${dis(String(ed.amount||'').replace(/^\$/,''))}</div>
+      </div>`;
+    const specNote = !spec ? '' : `<div style="display:flex;align-items:center;gap:10px;border:1px solid var(--ac,#008dd5);border-radius:4px;padding:10px 14px"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">info</span><span style="font-size:13px;color:#13314c">Only the marketing details can be edited here, ${spec==='NSF'?'NSF fees':'late fees'} are property specific and have special circumstances.</span></div>`;
     const general = `${chargeApp}
       <div style="display:flex;gap:12px;align-items:flex-start">
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Type *')}${ctypeField}</div>
@@ -1622,7 +1662,8 @@ class Component extends DCLogic {
           <span data-act="addclose" class="material-symbols-outlined" style="font-size:24px;color:var(--ac,#008dd5);cursor:pointer">close</span>
         </div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:18px">
-          ${sect('General Details',general)}
+          ${specNote}
+          ${sect('General Details', spec ? specGeneral : general)}
           <div style="display:flex;flex-direction:column;gap:10px">
             <span style="font-size:15px;font-weight:600;color:#13314c">Marketing Details</span>
             ${ilsBox}
