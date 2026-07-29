@@ -77,7 +77,8 @@
 class Component extends DCLogic {
   state = {
     view: 'register',
-    accOpen: { 'pf-rec':true, 'pf-one':true },
+    accOpen: { 'pf-rec':true, 'pf-one':true, 'pf-req':true, 'pf-opt':true, 'pf-sit':true, 'pf-ind':true },
+    groupByReq: false,
     propTab: 'General',
     property: 'Riverview Apartments',
     unit: '1B',
@@ -311,6 +312,7 @@ class Component extends DCLogic {
 
       // ---- profile list ----
       case 'lvlSel': this.setState({ lvlSel: arg }); break;
+      case 'groupByReq': this.setState(s => ({ groupByReq: !s.groupByReq })); break;
       case 'ilsPropToggle': { const p = this.state.property; const turningOn = !this.ilsOn(p);
         this.setState(s => { const m = Object.assign({}, s.ilsProps); if (turningOn) m[p] = true; else delete m[p]; return { ilsProps: m, profMenu: null }; });
         this.flash(turningOn ? p + ' will market on ILS' : p + ' removed from ILS marketing'); break; }
@@ -794,15 +796,13 @@ class Component extends DCLogic {
   // work required is visible from the list without opening every charge.
   mitsStatusCell(r){
     const missing = this.mitsMissing(r);
-    const ils = this.ilsOn();
-    const tip = (title, body) => `<span class="tipw"><span class="material-symbols-outlined" style="font-size:20px;color:${body?'#b35a00':'#12a150'};cursor:default">${body?'error':'check_circle'}</span><span class="tip" style="left:auto;right:-4px;top:24px"><b>${title}</b>${body?`<div style="margin-top:6px;color:#4a5b6b">${body}</div>`:''}</span></span>`;
     if (missing.length) {
-      return `<span style="display:inline-flex;align-items:center;gap:6px">${tip(missing.length + ' field' + (missing.length===1?'':'s') + ' still needed', missing.join('<br>'))}<span style="font-size:12px;color:#b35a00">${missing.length} needed</span></span>`;
+      return `<span class="tipw" style="display:inline-flex"><span style="display:inline-flex;align-items:center;gap:5px;background:#fdf3e3;border-radius:12px;padding:2px 9px;cursor:default"><span class="material-symbols-outlined" style="font-size:15px;color:#b35a00">error</span><span style="font-size:13px;color:#7a5a2a;white-space:nowrap">${missing.length} needed</span></span><span class="tip" style="left:auto;right:-4px;top:26px"><b>${missing.length} field${missing.length===1?'':'s'} still needed</b><div style="margin-top:6px;color:#4a5b6b">${missing.join('<br>')}</div></span></span>`;
     }
-    if (ils && !r.ils) {
-      return `<span style="display:inline-flex;align-items:center;gap:6px"><span class="material-symbols-outlined" style="font-size:20px;color:#8a9aa8" title="Marketing details complete — not shown on ILS">visibility_off</span><span style="font-size:12px;color:#8a9aa8">Not shown</span></span>`;
+    if (!r.ils) {
+      return `<span style="display:inline-flex;align-items:center;gap:5px" title="Marketing details complete — not shown on listings"><span class="material-symbols-outlined" style="font-size:17px;color:#8a9aa8">visibility_off</span><span style="font-size:13px;color:#8a9aa8;white-space:nowrap">Not listed</span></span>`;
     }
-    return tip('Marketing details complete', '');
+    return `<span style="display:inline-flex;align-items:center;gap:5px"><span class="material-symbols-outlined" style="font-size:17px;color:#12a150">check_circle</span><span style="font-size:13px;color:#13314c;white-space:nowrap">Charge listed</span></span>`;
   }
   levelCounts(){
     const rows = this.profileRows();
@@ -820,7 +820,8 @@ class Component extends DCLogic {
   }
   feeProfileToolbar(){
     const c = this.levelCounts();
-    const cb = (label,id) => this.chk(false, id) + `<span style="font-size:14px;color:#13314c">${label}</span>`;
+    const on = this.state.groupByReq;
+    const cb = (label) => `<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;box-sizing:border-box;border-radius:3px;${on?'background:var(--ac,#008dd5);border:1px solid var(--ac,#008dd5)':'background:#fff;border:1px solid #b3b3b3'}">${on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span><span style="font-size:14px;color:var(--ac,#008dd5)">${label}</span>`;
     const ico = (name,title,act) => `<span data-act="${act||'toast'}" data-arg="${title}" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;box-sizing:border-box;border:1px solid #cedbe7;border-radius:4px;background:#fff;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">${name}</span></span>`;
     return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       ${this.levelCountChip('Total Charges', c.all, 'all')}
@@ -828,9 +829,8 @@ class Component extends DCLogic {
       ${this.levelCountChip('Unit Type Charges', c['Unit Type'], 'Unit Type', 'holiday_village')}
       ${this.levelCountChip('Unit Charges', c['Unit'], 'Unit', 'apartment')}
       ${this.levelCountChip('ORI Charges', c['ORI'], 'ORI')}
+      <label data-act="groupByReq" style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;margin-left:4px">${cb('Group by Requirement')}</label>
       <div style="flex:1"></div>
-      <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer">${cb('Past','pfp-past')}</label>
-      <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;margin-left:4px">${cb('Future','pfp-future')}</label>
       ${ico('tune','Filters')}
       ${ico('search','Search charges')}
       <button data-act="pricePreviewOpen" class="btn-out" style="height:36px;min-height:36px;padding:0 14px;border-radius:4px;font-size:14px;white-space:nowrap">Preview Pricing</button>
@@ -866,8 +866,8 @@ class Component extends DCLogic {
                             : '120px minmax(160px,1fr) 110px 100px 90px 110px 120px 40px')
                      : (ils ? '120px minmax(160px,1fr) 110px 120px 130px 40px'
                             : '120px minmax(160px,1fr) 110px 120px 40px');
-    const heads = rec ? ['Charge Type','Comment','Frequency','From','To','Amount','Charge Level'].concat(ils?['ILS Details']:[]).concat([''])
-                      : ['Charge Type','Comment','Amount','Charge Level'].concat(ils?['ILS Details']:[]).concat(['']);
+    const heads = rec ? ['Charge Type','Comment','Frequency','From','To','Amount','Charge Level'].concat(ils?['Listing Status']:[]).concat([''])
+                      : ['Charge Type','Comment','Amount','Charge Level'].concat(ils?['Listing Status']:[]).concat(['']);
     const hc = (t,i) => `<span style="display:flex;align-items:center;padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:600;color:#13314c;white-space:nowrap;${/Amount/.test(t)?'justify-content:flex-end;':''}">${t}</span>`;
     const cell = (t,extra) => `<span style="display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:8px 12px;font-size:14px;color:#13314c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
     const body = rows.length ? rows.map(r => {
@@ -876,7 +876,7 @@ class Component extends DCLogic {
         ? cell(r.freq||'—') + cell(r.from||'—') + cell(r.to||'-')
         : '';
       return `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5">
-        ${cell(r.mits,'padding-left:16px')}${cell(r.desc||r.name)}${mid}${cell(r.amount,'justify-content:flex-end;text-align:right')}
+        ${cell(r.mits,'padding-left:16px')}${cell(r.desc||r.name)}${mid}${cell(String(r.amount||'').replace(/^\$/,''),'justify-content:flex-end;text-align:right')}
         <span style="display:flex;align-items:center;min-height:44px;padding:8px 12px">${this.chargeLevelPill(r)}</span>
         ${ils?`<span style="display:flex;align-items:center;min-height:44px;padding:8px 12px">${this.mitsStatusCell(r)}</span>`:''}${kebab}</div>`;
     }).join('') : `<div style="padding:14px 16px;font-size:13px;font-style:italic;color:#b3b3b3;border-bottom:1px solid #ebf1f5">No ${rec?'recurring':'one-time'} charges in this section.</div>`;
@@ -886,9 +886,10 @@ class Component extends DCLogic {
         <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #cedbe7">${heads.map(hc).join('')}</div>
         ${body}${add}</div></div>`;
   }
-  // Requirement-grouped sections (Required / Optional / Situational). Not used while the profile
-  // shows a flat Recurring + One-Time split — re-wire once the setup overlay collects a charge
-  // requirement per charge.
+  // A charge's requirement comes from its marketing details; charges that haven't had one selected
+  // yet fall into the "Individual Charges" group.
+  reqOf(r){ return (r.listing && r.listing.requirement) || ''; }
+  // Requirement-grouped section: Recurring + One-Time subtables under one requirement heading.
   profileSection(key, title, sub, rows, opts){
     const rec = rows.filter(r => !/-one$/.test(r.group));
     const one = rows.filter(r => /-one$/.test(r.group));
@@ -909,23 +910,36 @@ class Component extends DCLogic {
         <span class="material-symbols-outlined" style="font-size:20px;color:#12a150">check_circle</span>
         <span style="font-size:13px;color:#2f5d43">Marketing details are complete on all ${total} charges. ${shown} shown on ILS listings.</span></div>`;
     }
-    const fields = this.mitsFields().map(f=>f.label).join(' · ');
     return `<div style="display:flex;align-items:flex-start;gap:10px;background:#fef4e8;border:1px solid #f6d9ac;border-radius:4px;padding:12px 16px">
       <span class="material-symbols-outlined" style="font-size:20px;color:#b35a00;flex:none">error</span>
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
-        <span style="font-size:13px;font-weight:600;color:#13314c">${need} of ${total} charges still need marketing details before they can show on ILS listings</span>
-        <span style="font-size:12px;color:#7a5a2a;line-height:1.5">MITS 5.0 needs ${fields} on each charge. Open a charge to fill in what's missing — hover its status to see the exact fields.</span>
+        <span style="font-size:13px;color:#13314c;line-height:1.5">${need} of ${total} charges still need marketing details before they can show on listings via ILS. Open a charge to fill in what's missing, or hover its listing status to see the exact fields required.</span>
       </div></div>`;
   }
   feeProfileBody(){
     const rows = this.visibleRows();
-    const rec = rows.filter(r => !/-one$/.test(r.group));
-    const one = rows.filter(r => /-one$/.test(r.group));
+    let sections;
+    if (this.state.groupByReq) {
+      const sitHelp = `<span class="tipw" onclick="event.stopPropagation()"><span style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ac,#008dd5);cursor:pointer"><span class="material-symbols-outlined" style="font-size:18px">info</span>What is a situational charge?</span><span class="tip" style="left:auto;right:0;top:24px">Additional fees may apply in cases of late payments, lease violations, or other charges.</span></span>`;
+      const of = (req) => rows.filter(r => this.reqOf(r) === req);
+      const groups = [
+        ['req','Required Charges','', of('Required'), null],
+        ['opt','Optional Charges','Tenant selects', of('Optional'), null],
+        ['sit','Situational Charges','', of('Situational'), { right: sitHelp }],
+        ['ind','Individual Charges','Charges with no requirement selected', of(''), null]
+      ];
+      sections = groups.filter(g => g[3].length)
+        .map(g => this.profileSection(g[0], g[1], g[2], g[3], g[4])).join('');
+    } else {
+      const rec = rows.filter(r => !/-one$/.test(r.group));
+      const one = rows.filter(r => /-one$/.test(r.group));
+      sections = this.acc(`Recurring Charges (${rec.length})`, '', this.profileTable('rec', rec, 'req-rec', { noLabel:true }), null, 'pf-rec')
+               + this.acc(`One-Time Charges (${one.length})`, '', this.profileTable('one', one, 'req-one', { noLabel:true }), null, 'pf-one');
+    }
     return `<div style="flex:1;min-height:0;overflow-y:auto"><div style="padding:16px;display:flex;flex-direction:column;gap:16px;max-width:1500px;width:100%;box-sizing:border-box;margin:0 auto">
       ${this.feeProfileToolbar()}
       ${this.mitsBanner()}
-      ${this.acc(`Recurring Charges (${rec.length})`, '', this.profileTable('rec', rec, 'req-rec', { noLabel:true }), null, 'pf-rec')}
-      ${this.acc(`One-Time Charges (${one.length})`, '', this.profileTable('one', one, 'req-one', { noLabel:true }), null, 'pf-one')}
+      ${sections}
     </div></div>`;
   }
   // Dismissible banner on the General tab pointing at the new profile.
