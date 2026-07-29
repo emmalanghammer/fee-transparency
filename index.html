@@ -152,6 +152,23 @@ class Component extends DCLogic {
   // Charge Category resolves from the charge-type -> category map, so it only counts as missing
   // when a type has no mapping. Everything else — including the marketing Name, which is distinct
   // from the charge's operational name — must be entered by the user.
+  // Best-guess MITS charge requirement from the charge type and comment. Situational charges only
+  // apply when a condition is met; optional ones are tenant-selected add-ons; everything else
+  // (rent, utilities, admin, deposits, application) is required.
+  inferRequirement(r){
+    const code = String(r.mits || '').toUpperCase();
+    const text = ((r.desc || '') + ' ' + (r.name || '')).toLowerCase();
+    if (/^PET/.test(code) || /\bpets?\b/.test(text)) return 'Situational';
+    if (/^(LATE|NSF|DAMAGE|VIOLATION|LEGAL)/.test(code)) return 'Situational';
+    if (/^(SF|STORAGE|COVPARK|PARK|PARKING|GARAGE|HOLD|AMENFEE|AMENITY|UPGRADE|TECH|CABLE|TRANSFER)/.test(code)) return 'Optional';
+    if (/\b(optional|add-?on|valet|storage|parking|garage|reservation|locker|access)\b/.test(text)) return 'Optional';
+    return 'Required';
+  }
+  // The requirement chosen for a charge during setup (falls back to the inferred value).
+  setupRequirement(r){
+    const c = this.state.setup;
+    return (c && c.req && c.req[r.id]) || this.inferRequirement(r);
+  }
   // Requirement comes from the charge's group when marketing details haven't been saved yet.
   defaultRequirement(r){
     const g = String(r.group || '');
@@ -327,7 +344,14 @@ class Component extends DCLogic {
       case 'setupNext': this.setState(s => ({ setup: Object.assign({}, s.setup, { step: 2 }) })); break;
       case 'setupBack': this.setState(s => ({ setup: Object.assign({}, s.setup, { step: 1 }) })); break;
       case 'setupToggle': this.setState(s => { const ex = Object.assign({}, s.setup.excl); if (ex[arg]) delete ex[arg]; else ex[arg] = true; return { setup: Object.assign({}, s.setup, { excl: ex }) }; }); break;
-      case 'setupSave': { const c = this.state.setup; const rows = this.setupCandidates().filter(r => !c.excl[r.id]);
+      case 'setupSave': { const c = this.state.setup;
+        const rows = this.setupCandidates().filter(r => !c.excl[r.id]).map(r => {
+          const req = this.setupRequirement(r);
+          const suffix = /-one$/.test(r.group) ? '-one' : '-rec';
+          const prefix = req === 'Optional' ? 'opt' : req === 'Situational' ? 'sit' : 'req';
+          // The setup choice satisfies the MITS requirement field up front.
+          return Object.assign({}, r, { group: prefix + suffix, listing: { requirement: req } });
+        });
         this.setState({ setup: Object.assign({}, c, { step: 'saving' }), propTab: 'Rental Fee Profile' });
         clearTimeout(this._sut); this._sut = setTimeout(() => this.setState(s => ({
           setup: null,
@@ -1043,20 +1067,29 @@ class Component extends DCLogic {
     const inc = all.filter(r => !c.excl[r.id]).length;
     const box = on => `<span style="width:18px;height:18px;border-radius:3px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${on?'background:#f58220;border:1px solid #f58220':'background:#fff;border:1px solid #b3b3b3'}">${on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span>`;
     const table = (label, rows, rec) => {
-      const cols = rec ? '44px 120px minmax(150px,1fr) 90px 100px 60px 110px 110px' : '44px 120px minmax(150px,1fr) 110px 110px';
-      const heads = rec ? ['','Charge Type','Comment','Frequency','From','To','Amount','Charge Level'] : ['','Charge Type','Comment','Amount','Charge Level'];
+      const cols = '44px 120px minmax(150px,1fr) 110px 110px 150px';
+      const heads = ['','Charge Type','Comment','Amount','Charge Level','Charge Requirement'];
       const hc = (t,i) => `<span style="padding:8px 10px;font-size:12px;font-weight:600;color:#13314c;white-space:nowrap;${/Amount/.test(t)?'justify-content:flex-end;display:flex;':''}">${t}</span>`;
       const cell = (t,extra) => `<span style="display:flex;align-items:center;min-height:38px;padding:6px 10px;font-size:13px;color:#13314c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
+      // Pre-selected from the charge type/comment; the row click toggles inclusion so the select
+      // stops propagation to stay independently changeable.
+      const reqSel = (r) => { const v = this.setupRequirement(r);
+        return `<span style="display:flex;align-items:center;min-height:38px;padding:6px 10px" onclick="event.stopPropagation()"><select onchange="window.__setupReq('${r.id}', this.value)" style="width:100%;height:30px;border:1px solid #cedbe7;border-radius:4px;background:#f5f8fa;font:400 13px Roboto,sans-serif;color:#13314c;padding:0 4px">${['Required','Optional','Situational'].map(o=>`<option ${o===v?'selected':''}>${o}</option>`).join('')}</select></span>`; };
       return `<div style="font-size:13px;color:#666;padding:12px 0 6px">${label} (${rows.length})</div>
-        <div style="border:1px solid #e3e9ee;border-radius:4px;overflow:hidden"><div style="overflow-x:auto"><div style="min-width:${rec?900:640}px">
+        <div style="border:1px solid #e3e9ee;border-radius:4px;overflow:hidden"><div style="overflow-x:auto"><div style="min-width:700px">
         <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #e3e9ee">${heads.map(hc).join('')}</div>
         ${rows.map(r=>`<div data-act="setupToggle" data-arg="${r.id}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #f0f4f7;cursor:pointer">
           <span style="display:flex;align-items:center;justify-content:center;min-height:38px">${box(!c.excl[r.id])}</span>
-          ${cell(r.mits)}${cell(r.desc||r.name)}${rec?(cell(r.freq?'1':'—')+cell(r.from||'—')+cell(r.to||'-')):''}
+          ${cell(r.mits)}${cell(r.desc||r.name)}
           ${cell(r.amount,'justify-content:flex-end;text-align:right')}
-          <span style="display:flex;align-items:center;min-height:38px;padding:6px 10px">${this.chargeLevelPill(r)}</span></div>`).join('')}
+          <span style="display:flex;align-items:center;min-height:38px;padding:6px 10px">${this.chargeLevelPill(r)}</span>
+          ${reqSel(r)}</div>`).join('')}
         </div></div></div>`;
     };
+    // Records a per-row requirement choice without losing it when the list re-renders.
+    window.__setupReq = (id, val) => this.setState(s => ({
+      setup: Object.assign({}, s.setup, { req: Object.assign({}, s.setup && s.setup.req, { [id]: val }) })
+    }));
     return `<div style="display:flex;flex-direction:column;gap:2px">
       <div style="display:flex;align-items:baseline;gap:12px"><span style="font-size:14px;font-weight:600;color:#13314c">Select which charges to include</span><div style="flex:1"></div><span style="font-size:13px;color:#4a5b6b">${inc} of ${all.length} included</span></div>
       <span style="font-size:13px;color:#8a9aa8;line-height:1.5">Unchecked charges won't be added. They won't apply to future move-ins, quotes, or listings. Existing tenant charges are unaffected either way. Not included: late fees, tenant-specific charges.</span>
