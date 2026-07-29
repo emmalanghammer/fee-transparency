@@ -142,15 +142,22 @@ class Component extends DCLogic {
   // Charge Category resolves from the charge-type -> category map, so it only counts as missing
   // when a type has no mapping. Everything else — including the marketing Name, which is distinct
   // from the charge's operational name — must be entered by the user.
+  // Requirement comes from the charge's group when marketing details haven't been saved yet.
+  defaultRequirement(r){
+    const g = String(r.group || '');
+    return g.indexOf('opt') === 0 ? 'Optional' : g.indexOf('sit') === 0 ? 'Situational' : 'Required';
+  }
   mitsMissing(r){
     const L = r.listing || {};
     const oneTime = /-one$/.test(r.group || '');
+    // Fields whose dropdowns carry a default are already satisfied — only the ones with nothing to
+    // fall back on (a typed Name, an unmapped Charge Category) count as missing.
     const resolved = {
       name: L.name,
       category: L.category || this.chargeCategoryFor(r.mits),
-      requirement: L.requirement,
-      feeDue: L.feeDue,
-      schedule: L.schedule
+      requirement: L.requirement || this.defaultRequirement(r),
+      feeDue: L.feeDue || 'During Term',
+      schedule: L.schedule || 'Monthly'
     };
     // Payment frequency only applies to recurring charges.
     return this.mitsFields()
@@ -1291,7 +1298,7 @@ class Component extends DCLogic {
     // ---- Marketing Details (always available; MITS 5.0 / listing fields) ----
     const edCat = ed ? catFor(ed.mits) : '';
     const hasCode = !!(ed && ed.mits);
-    const req = ed && ed.listing ? (ed.listing.requirement || 'Required') : (m.group.indexOf('opt')===0?'Optional':m.group.indexOf('sit')===0?'Situational':'Required');
+    const req = (ed && ed.listing && ed.listing.requirement) || this.defaultRequirement(ed || m);
     const catBlock = `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">${lab('Charge Category',true)}
       <input type="hidden" id="m-cat" value="${esc(edCat)}">
       <span id="m-cat-ph" style="display:${(hasCode&&edCat)?'none':'block'};font-size:13px;font-style:italic;color:#b3b3b3">Select a charge type to display a charge category.</span>
