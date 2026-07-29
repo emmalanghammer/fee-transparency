@@ -161,6 +161,9 @@ class Component extends DCLogic {
   mitsComplete(r){ return this.mitsMissing(r).length === 0; }
   mitsIncompleteCount(){ return this.profileRows().filter(r => !this.mitsComplete(r)).length; }
   profileRows(p){ return this.state.profileFees[p || this.state.property] || []; }
+  // A property's charges: its Rental Fee Profile once set up, otherwise the charges that already
+  // exist in its operational setup (what the setup wizard would pull in).
+  propertyCharges(p){ const rows = this.profileRows(p); return rows.length ? rows : this.setupCandidates(); }
   setProfileRows(fn){
     const p = this.state.property;
     this.setState(s => ({ profileFees: Object.assign({}, s.profileFees, { [p]: fn((s.profileFees[p]||[]).slice()) }) }));
@@ -1115,7 +1118,9 @@ class Component extends DCLogic {
     opts=opts||{};
     const unit = opts.scope==='unit';
     const two = !!opts.twoComment;
-    const rec = this.profileRows().filter(f=>!f.excluded && !/-one$/.test(f.group));
+    const rec = this.propertyCharges()
+      .filter(f=>!f.excluded && !/-one$/.test(f.group))
+      .filter(f=>unit || f.level==='Property');
     const lvlMap={ 'Property':{c:'#1570ef',l:'Property'}, 'Unit type':{c:'#d92d20',l:'Unit Type'}, 'Unit Type':{c:'#d92d20',l:'Unit Type'}, 'Unit':{c:'#099250',l:'Unit'}, 'ORI':{c:'#6a4aa8',l:'ORI'}, 'Tenant':{c:'#98a2b3',l:'Tenant'} };
     const recCols = two ? '32px 94px minmax(100px,1fr) minmax(120px,1fr) minmax(120px,1fr) 80px 92px 92px 110px' : '32px 94px minmax(110px,1fr) minmax(150px,1fr) 84px 96px 96px 124px';
     const rh=(t,align)=>`<span style="display:flex;align-items:center;height:32px;box-sizing:border-box;padding:0 8px;font-size:12px;font-weight:500;letter-spacing:0.5px;color:#13314c;background:#fff;border-bottom:1px solid #cedbe7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${align==='right'?'justify-content:flex-end;text-align:right':''}">${t}</span>`;
@@ -1155,7 +1160,7 @@ class Component extends DCLogic {
     return `<div data-act="recViewClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:100"><div data-act="noop" style="width:1200px;max-width:96vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.28);display:flex;flex-direction:column;overflow:hidden">
       <div style="display:flex;align-items:center;justify-content:space-between;height:52px;box-sizing:border-box;padding:8px 20px;border-bottom:1px solid #cedbe7;flex:none"><span style="font-size:16px;font-weight:600;color:#666">View Recurring Charges</span><span style="display:inline-flex;align-items:center;gap:16px"><button data-act="toast" data-arg="Print" class="btn-pri" style="padding:8px 16px;font-size:14px;display:inline-flex;align-items:center;gap:6px"><span class="material-symbols-outlined" style="font-size:18px">print</span>Print</button><span data-act="recViewClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span></span></div>
       <div style="flex:1;min-height:0;overflow-y:auto;background:#f3f4f8;padding:16px 20px;display:flex;flex-direction:column;gap:16px">
-        ${this.state.recViewNote?`<div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #cedbe7;border-radius:4px;padding:12px 16px"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">info</span><span style="font-size:14px;color:#13314c">Manage all your charges on this property with the new centralized Rental Fee Profile.</span><div style="flex:1"></div><a data-act="setupOpen" style="font-size:14px;color:var(--ac,#008dd5);white-space:nowrap">Setup Profile</a><span data-act="recViewNoteDismiss" class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);cursor:pointer">close</span></div>`:''}
+        ${(this.state.recViewNote && this.profStatus()!=='active')?`<div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #cedbe7;border-radius:4px;padding:12px 16px"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">info</span><span style="font-size:14px;color:#13314c">Manage all your charges on this property with the new centralized Rental Fee Profile.</span><div style="flex:1"></div><a data-act="setupOpen" style="font-size:14px;color:var(--ac,#008dd5);white-space:nowrap">Setup Profile</a><span data-act="recViewNoteDismiss" class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);cursor:pointer">close</span></div>`:''}
         <div style="display:flex;align-items:center;gap:16px"><div style="flex:1"></div><div style="display:flex;align-items:center;gap:20px">${cbox('Past')}${cbox('Future')}</div></div>
         ${this.recChargesTableHTML({scope:(this.state.recView==='unit'?'unit':'property'), twoComment:true})}
       </div>
