@@ -79,6 +79,8 @@ class Component extends DCLogic {
     view: 'register',
     accOpen: { 'pf-rec':true, 'pf-one':true, 'pf-req':true, 'pf-opt':true, 'pf-sit':true, 'pf-ind':true },
     groupByReq: false,
+    pfFilter: null,
+    pfFilters: null,
     addProp: null,
     newProps: [],
     propTab: 'General',
@@ -394,6 +396,21 @@ class Component extends DCLogic {
         });
         this.flash(copied ? `${name} created · ${copied.length} charges copied from ${a.copyFrom}` : `${name} created`);
         break; }
+      case 'pfFilterOpen': { if (this.state.pfFilter) { this.setState({ pfFilter: null }); break; } const r = el.getBoundingClientRect(); this.setState({ pfFilter: { x: r.right, y: r.bottom + 6 } }); break; }
+      case 'pfFilterClose': this.setState({ pfFilter: null }); break;
+      case 'pfFilterApply': {
+        const v = (id) => { const e = this.q('#' + id); return e ? String(e.value || '').trim() : ''; };
+        const ck = (id) => { const e = this.q('#' + id); return !!(e && e.checked); };
+        const root = this.rootEl || document;
+        const type = [...root.querySelectorAll('#pf-f-type-list input:checked')].map(x => x.value);
+        const f = { type, from: v('pf-f-from'), to: v('pf-f-to'), op: v('pf-f-op') || 'Contains',
+          ctype: v('pf-f-ctype'), freq: v('pf-f-freq'), name: v('pf-f-name'), comment: v('pf-f-comment'),
+          past: ck('pf-f-past'), future: ck('pf-f-future') };
+        this.setState({ pfFilters: f, pfFilter: null });
+        const n = ['ctype','freq','name','comment'].filter(k => f[k]).length + (type.length === 1 ? 1 : 0);
+        this.flash(n ? `${n} filter${n===1?'':'s'} applied` : 'Filters cleared');
+        break; }
+      case 'pfFilterReset': this.setState({ pfFilters: null }); this.flash('Filters reset'); break;
       case 'groupByReq': this.setState(s => ({ groupByReq: !s.groupByReq })); break;
       case 'ilsPropToggle': { const p = this.state.property; const turningOn = !this.ilsOn(p);
         this.setState(s => { const m = Object.assign({}, s.ilsProps); if (turningOn) m[p] = true; else delete m[p]; return { ilsProps: m, profMenu: null }; });
@@ -894,7 +911,37 @@ class Component extends DCLogic {
   }
   visibleRows(){
     const sel = this.state.lvlSel;
-    return this.profileRows().filter(r => sel === 'all' || r.level === sel);
+    return this.profileRows()
+      .filter(r => sel === 'all' || r.level === sel)
+      .filter(r => this.matchesFilters(r));
+  }
+  // Applied filter-panel criteria. Text fields honour the chosen Search Option.
+  matchesFilters(r){
+    const f = this.state.pfFilters; if (!f) return true;
+    const op = f.op || 'Contains';
+    const test = (needle, hay) => {
+      if (!needle) return true;
+      const n = String(needle).toLowerCase(), h = String(hay || '').toLowerCase();
+      return op === 'Equals' ? h === n : op === 'Starts with' ? h.indexOf(n) === 0 : h.indexOf(n) >= 0;
+    };
+    const oneTime = /-one$/.test(r.group || '');
+    if (f.type && f.type.length === 1) {
+      if (f.type[0] === 'Recurring' && oneTime) return false;
+      if (f.type[0] === 'One-Time' && !oneTime) return false;
+    }
+    if (!test(f.ctype, r.mits)) return false;
+    if (!test(f.freq, r.freq)) return false;
+    if (!test(f.name, (r.listing && r.listing.name) || r.name)) return false;
+    if (!test(f.comment, r.desc)) return false;
+    return true;
+  }
+  activeFilterCount(){
+    const f = this.state.pfFilters; if (!f) return 0;
+    let n = 0;
+    if (f.type && f.type.length === 1) n++;
+    ['ctype','freq','name','comment'].forEach(k => { if (f[k]) n++; });
+    if (f.past) n++; if (f.future) n++;
+    return n;
   }
   levelCountChip(label, count, key, icon){
     const on = this.state.lvlSel === key;
@@ -913,7 +960,8 @@ class Component extends DCLogic {
       ${this.levelCountChip('ORI Charges', c['ORI'], 'ORI')}
       <label data-act="groupByReq" style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;margin-left:4px">${cb('Group by Requirement')}</label>
       <div style="flex:1"></div>
-      ${ico('tune','Filters')}
+      ${(() => { const n = this.activeFilterCount(); const on = !!this.state.pfFilter || n > 0;
+        return `<span data-act="pfFilterOpen" style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;box-sizing:border-box;border:1px solid ${on?'var(--ac,#008dd5)':'#cedbe7'};border-radius:4px;background:${on?'#eaf4fb':'#fff'};cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">tune</span>${n?`<span style="position:absolute;top:-6px;right:-6px;min-width:16px;height:16px;border-radius:8px;background:var(--ac,#008dd5);color:#fff;font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center;padding:0 4px">${n}</span>`:''}</span>`; })()}
       ${ico('search','Search charges')}
       <button data-act="pricePreviewOpen" class="btn-out" style="height:36px;min-height:36px;padding:0 14px;border-radius:4px;font-size:14px;white-space:nowrap">Preview Pricing</button>
       <span style="position:relative;display:inline-flex">
@@ -1309,6 +1357,35 @@ class Component extends DCLogic {
     return `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden"><div style="flex:1;min-width:0;overflow-y:auto;display:flex;flex-direction:column"><div style="flex:1;min-width:0;display:flex;flex-direction:column">${h}</div></div>${this.rail()}</div>`;
   }
 
+  // Filters dropdown anchored to the profile toolbar's tune button (Figma 2496-54203).
+  pfFilterHTML(){
+    const p = this.state.pfFilter; if (!p) return '';
+    const f = this.state.pfFilters || {};
+    const W = 330;
+    const left = Math.max(8, Math.min(p.x - W, window.innerWidth - W - 8));
+    const lab = (t, menu) => `<span style="display:flex;align-items:center;font-size:13px;color:#5a6773">${t}${menu?`<div style="flex:1"></div><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);cursor:pointer">menu</span>`:''}</span>`;
+    const inp = (id, val, ph, icon) => `<div style="display:flex;align-items:center;gap:6px;height:34px;box-sizing:border-box;background:#fff;border:1px solid #cedbe7;border-radius:4px;padding:0 8px">${icon?`<span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);flex:none">${icon}</span>`:''}<input id="${id}" value="${(val||'').replace(/"/g,'&quot;')}" placeholder="${ph||''}" style="flex:1;min-width:0;border:none;outline:none;background:transparent;font:400 14px Roboto,sans-serif;color:#13314c"></div>`;
+    const dateInp = (id, val) => `<div style="flex:1;min-width:0;display:flex;align-items:center;gap:4px;height:34px;box-sizing:border-box;background:#fff;border:1px solid #cedbe7;border-radius:4px;padding:0 6px"><input id="${id}" value="${val||''}" placeholder="mm/dd/yyyy" style="flex:1;min-width:0;border:none;outline:none;background:transparent;font:400 13px Roboto,sans-serif;color:#13314c"><span class="material-symbols-outlined" style="font-size:17px;color:#5a6773;flex:none">calendar_month</span></div>`;
+    const cb = (id, label, on) => `<label style="display:inline-flex;align-items:center;gap:7px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer"><input type="checkbox" id="${id}" ${on?'checked':''} style="width:16px;height:16px;margin:0;accent-color:var(--ac,#008dd5)">${label}</label>`;
+    const field = (label, inner, menu) => `<div style="display:flex;flex-direction:column;gap:4px">${lab(label, menu)}${inner}</div>`;
+    return `<div data-act="pfFilterClose" style="position:fixed;inset:0;z-index:150"></div>
+      <div data-act="noop" style="position:fixed;left:${left}px;top:${p.y}px;width:${W}px;max-height:min(80vh,660px);overflow-y:auto;background:#eaf4fb;border:1px solid #cedbe7;border-radius:4px;box-shadow:0 8px 24px rgba(0,0,0,0.2);z-index:151;padding:14px 16px;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:15px;font-weight:600;color:#13314c">Filters</span><div style="height:1px;background:#cedbe7"></div></div>
+        ${field('Type', this.multiSelect('pf-f-type', ['Recurring','One-Time'], (f.type && f.type.length) ? f.type : ['Recurring','One-Time']))}
+        ${field('From Date Range', `<div style="display:flex;align-items:center;gap:6px">${dateInp('pf-f-from', f.from||'01/01/2026')}${dateInp('pf-f-to', f.to||'04/01/2026')}<span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);cursor:pointer;flex:none">menu</span></div>`)}
+        ${field('Search Options', this.singleSelect('pf-f-op', ['Contains','Starts with','Equals'], f.op||'Contains', { noSearch:true }))}
+        ${field('Charge Type', inp('pf-f-ctype', f.ctype, '', 'search'))}
+        ${field('Frequency', inp('pf-f-freq', f.freq, ''))}
+        ${field('Name', inp('pf-f-name', f.name, ''))}
+        ${field('Comment', inp('pf-f-comment', f.comment, ''), true)}
+        <div style="display:flex;align-items:center;gap:22px;padding-top:2px">${cb('pf-f-past','Past',f.past)}${cb('pf-f-future','Future',f.future)}</div>
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;padding-top:2px">
+          <button data-act="pfFilterApply" class="btn-pri" style="height:34px;padding:0 20px;border-radius:4px;font-size:14px">Apply</button>
+          <button data-act="pfFilterReset" class="btn-out" style="height:34px;padding:0 20px;border-radius:4px;font-size:14px;box-sizing:border-box">Reset</button>
+        </div>
+      </div>`;
+  }
+
   // ================= ADD PROPERTY OVERLAY =================
   addPropHTML(){
     const a = this.state.addProp; if (!a) return '';
@@ -1599,6 +1676,7 @@ class Component extends DCLogic {
     out += this.recViewHTML();
     out += this.setupHTML();
     out += this.addPropHTML();
+    out += this.pfFilterHTML();
     out += this.pricePreviewHTML();
     out += this.profMenuHTML();
     out += this.toastHTML();
