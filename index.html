@@ -139,14 +139,14 @@ class Component extends DCLogic {
       { key:'schedule',    label:'Charge Schedule', recurringOnly:true }   // MITS: Payment Frequency
     ];
   }
-  // Name and Charge Category can be resolved from the charge itself (its description and the
-  // charge-type -> category map), so they only count as missing when there's genuinely nothing to
-  // fall back on. The rest must be supplied by the user.
+  // Charge Category resolves from the charge-type -> category map, so it only counts as missing
+  // when a type has no mapping. Everything else — including the marketing Name, which is distinct
+  // from the charge's operational name — must be entered by the user.
   mitsMissing(r){
     const L = r.listing || {};
     const oneTime = /-one$/.test(r.group || '');
     const resolved = {
-      name: L.name || r.name,
+      name: L.name,
       category: L.category || this.chargeCategoryFor(r.mits),
       requirement: L.requirement,
       feeDue: L.feeDue,
@@ -1294,7 +1294,7 @@ class Component extends DCLogic {
       <div id="m-cat-err" style="display:${(hasCode&&!edCat)?'flex':'none'};align-items:center;gap:8px;background:#fdeaea;border:1px solid #f3c2c2;border-radius:4px;padding:8px 10px"><span class="material-symbols-outlined" style="font-size:18px;color:#d02830">error</span><span style="flex:1;font-size:12px;color:#7a1f26;line-height:1.4">You don't have a charge category assigned to this charge type.</span><a data-act="toast" data-arg="Add Category" style="font-size:13px;color:var(--ac,#008dd5);white-space:nowrap;cursor:pointer">Add Category</a></div>
     </div>`;
     const listing = `<div style="display:flex;gap:12px;align-items:flex-start">
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Name')}<input id="m-name" class="fld" value="${esc(ed&&ed.listing?ed.listing.name:(ed?ed.name:''))}" oninput="if(window.__mitsRecheck)window.__mitsRecheck()" style="height:36px;box-sizing:border-box"></div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Name')}<input id="m-name" class="fld" value="${esc(ed&&ed.listing?ed.listing.name:'')}" oninput="if(window.__mitsRecheck)window.__mitsRecheck()" style="height:36px;box-sizing:border-box"></div>
         ${catBlock}
       </div>
       <div style="display:flex;flex-direction:column;gap:4px">${lab('Marketing Description')}<textarea id="m-marketing" class="fld" style="height:56px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${ed&&ed.listing?(ed.listing.marketing||''):''}</textarea></div>
