@@ -127,7 +127,17 @@ class Component extends DCLogic {
   properties(){ return this.propertiesData(); }
 
   // ---------- per-property Rental Fee Profile ----------
-  profStatus(p){ return this.state.profileStatus[p || this.state.property] || 'none'; }
+  // Properties that already have a Rental Fee Profile — the register's "Using Rental Fee Profile"
+  // column. Opening one of these lands on the populated profile; the rest land on pre-setup.
+  seededProfiles(){
+    return ['Riverview Apartments','The Windermere','The Estates','Willow Creek','Greenbriar Village',
+            'Oakwood Manor','Pinewood Place','Stonegate Village','The Hamptons'];
+  }
+  usingProfile(p){ return this.profStatus(p) === 'active'; }
+  profStatus(p){
+    const n = p || this.state.property;
+    return this.state.profileStatus[n] || (this.seededProfiles().indexOf(n) >= 0 ? 'active' : 'none');
+  }
   ilsOn(p){ return !!this.state.ilsProps[p || this.state.property]; }
   // The MITS 5.0 / listing fields a charge must carry before it can be marketed.
   mitsFields(){
@@ -167,13 +177,19 @@ class Component extends DCLogic {
   }
   mitsComplete(r){ return this.mitsMissing(r).length === 0; }
   mitsIncompleteCount(){ return this.profileRows().filter(r => !this.mitsComplete(r)).length; }
-  profileRows(p){ return this.state.profileFees[p || this.state.property] || []; }
+  profileRows(p){
+    const n = p || this.state.property;
+    const rows = this.state.profileFees[n];
+    if (rows) return rows;
+    return this.seededProfiles().indexOf(n) >= 0 ? this.setupCandidates() : [];
+  }
   // A property's charges: its Rental Fee Profile once set up, otherwise the charges that already
   // exist in its operational setup (what the setup wizard would pull in).
   propertyCharges(p){ const rows = this.profileRows(p); return rows.length ? rows : this.setupCandidates(); }
   setProfileRows(fn){
     const p = this.state.property;
-    this.setState(s => ({ profileFees: Object.assign({}, s.profileFees, { [p]: fn((s.profileFees[p]||[]).slice()) }) }));
+    const base = this.profileRows(p).slice();
+    this.setState(s => ({ profileFees: Object.assign({}, s.profileFees, { [p]: fn(base) }) }));
   }
   // Charges discovered across the property's existing setup — the setup wizard's candidate list and
   // the single seed every count in the UI derives from.
@@ -583,13 +599,14 @@ class Component extends DCLogic {
   // ================= PROPERTIES REGISTER =================
   registerBody(){
     const rows = this.propertiesData();
-    const cols = '10px minmax(180px,1.2fr) 120px minmax(200px,1.4fr) 150px minmax(230px,1.6fr) minmax(230px,1.6fr) 44px';
+    const cols = '10px minmax(180px,1.2fr) 180px 120px minmax(200px,1.4fr) 150px minmax(230px,1.6fr) minmax(230px,1.6fr) 44px';
     const hcell = (t) => `<span style="display:flex;align-items:center;height:28px;box-sizing:border-box;padding:4px 8px;font-size:12px;font-weight:500;letter-spacing:0.5px;color:#fff;border-right:1px solid rgba(255,255,255,0.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>`;
-    const header = `<div style="display:grid;grid-template-columns:${cols};background:#737373"><span></span>${['Name','Short Name','Email','Manager Name','Primary Address','Billing Address'].map(hcell).join('')}<span style="display:flex;align-items:center;justify-content:center;height:28px"><span class="material-symbols-outlined" style="font-size:20px;color:#fff">view_column</span></span></div>`;
+    const header = `<div style="display:grid;grid-template-columns:${cols};background:#737373"><span></span>${['Name','Using Rental Fee Profile','Short Name','Email','Manager Name','Primary Address','Billing Address'].map(hcell).join('')}<span style="display:flex;align-items:center;justify-content:center;height:28px"><span class="material-symbols-outlined" style="font-size:20px;color:#fff">view_column</span></span></div>`;
     const cell = (t, extra) => `<span style="padding:8px;font-size:14px;color:#13314c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
     const body = rows.map(r => `<div style="display:grid;grid-template-columns:${cols};align-items:center;background:#fff;border-bottom:1px solid #ebf1f5" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background='#fff'">
       <span style="align-self:stretch;background:${r.color||'transparent'}"></span>
       <span style="padding:8px;overflow:hidden"><a data-act="navProperty" data-arg="${r.name}" style="font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap">${r.name}</a></span>
+      <span style="display:flex;align-items:center;justify-content:center;padding:8px">${this.usingProfile(r.name)?`<span class="material-symbols-outlined" style="font-size:20px;color:#12a150" title="Using a Rental Fee Profile">check_circle</span>`:''}</span>
       ${cell(r.short)}
       <span style="padding:8px;display:flex;align-items:center;gap:8px;min-width:0"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);flex:none">mail</span><span style="font-size:14px;color:#13314c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.email}</span></span>
       ${cell(r.manager)}${cell(r.addr)}${cell(r.billing)}
