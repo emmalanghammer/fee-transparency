@@ -916,7 +916,8 @@ class Component extends DCLogic {
     const select=(t,v)=>`<div style="display:flex;flex-direction:column;gap:4px;min-width:0">${lab(t)}<select class="fld" style="height:34px"><option>${v}</option></select></div>`;
     const check=(t,on)=>`<label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#424e5b;cursor:pointer"><input type="checkbox" ${on?'checked':''} style="accent-color:#f58220;width:16px;height:16px;margin:0">${t}</label>`;
     const tile=(title,right,inner)=>`<div class="tile"><div class="thead2"><span class="ttl">${title}</span><div style="flex:1"></div>${right||''}</div><div style="padding:16px;display:flex;flex-direction:column;gap:12px">${inner}</div></div>`;
-    const two=(a,b)=>`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px;align-items:start">${a}${b}</div>`;
+    // Tiles in a row stretch to the tallest one rather than keeping ragged heights.
+    const two=(a,b)=>`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px;align-items:stretch">${a}${b}</div>`;
     const gtable=(cols,heads,rows)=>`<div style="border:1px solid #ebf1f5;border-radius:4px;overflow:hidden"><div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${heads.map(h=>`<span style="padding:8px 12px;font-size:12px;font-weight:500;color:#666">${h}</span>`).join('')}</div>${rows.map(r=>`<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5">${r.map(c=>`<span class="td" style="border:none">${c}</span>`).join('')}</div>`).join('')}</div>`;
 
     const thumb=()=>`<div style="position:relative;width:150px;height:130px;flex:none;background:repeating-conic-gradient(#eef2f5 0% 25%, #fff 0% 50%) 50% / 20px 20px;border:1px solid #ebf1f5;border-radius:4px"><span class="material-symbols-outlined" style="position:absolute;top:-8px;right:-8px;font-size:20px;color:var(--ac,#008dd5);background:#fff;border-radius:50%;cursor:pointer">cancel</span></div>`;
@@ -986,7 +987,7 @@ class Component extends DCLogic {
     let h='';
     h+=this.profileSetupBanner(p);
     h+=images;
-    h+=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;align-items:start">${general}${address}${logo}</div>`;
+    h+=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;align-items:stretch">${general}${address}${logo}</div>`;
     h+=two(other,history);
     h+=recurring;
     h+=two(fiscal,tz);
@@ -1673,7 +1674,7 @@ class Component extends DCLogic {
     const pets = `<div class="card">${cardHead('Pets','Add Pet',true)}<div style="padding:28px 16px;display:flex;flex-direction:column;align-items:center;gap:12px"><span style="font-size:13px;color:#8a9aa8">No pets recorded.</span><button data-act="toast" data-arg="Add pet" class="btn-pri" style="padding:8px 18px;font-size:14px">Add Pet</button></div></div>`;
     const udfs = `<div class="card">${cardHead('User Defined Fields','',true)}<div style="display:grid;grid-template-columns:1fr 1fr;background:#f5f8fa;border-bottom:1px solid #cedbe7"><span style="padding:8px 16px;font-size:12px;font-weight:500;color:#666">Name</span><span style="padding:8px 16px;font-size:12px;font-weight:500;color:#666">Value</span></div><div style="display:grid;grid-template-columns:1fr 1fr"><span class="td" style="border:none;padding-left:16px">Vendor Confirmation</span><span class="td" style="border:none">Yes</span></div></div>`;
     const cards = [ leases, contacts, historyNotes, transactions, serviceIssues, udfs, pets, general, addresses, misc ];
-    h += `<div style="padding:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:start">${cards.join('')}</div>`;
+    h += `<div style="padding:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:stretch">${cards.join('')}</div>`;
     return `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden"><div style="flex:1;min-width:0;overflow-y:auto;display:flex;flex-direction:column"><div style="flex:1;min-width:0;display:flex;flex-direction:column">${h}</div></div>${this.rail()}</div>`;
   }
 
