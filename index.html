@@ -177,13 +177,17 @@ class Component extends DCLogic {
     return 'Required';
   }
   // The requirement chosen for a charge during setup (falls back to the inferred value).
+  // Blank until the user picks one — setup shouldn't guess a requirement on their behalf. Charges
+  // left unset land in the Individual Charges group and get flagged as missing the MITS field.
   setupRequirement(r){
     const c = this.state.setup;
-    return (c && c.req && c.req[r.id]) || this.inferRequirement(r);
+    return (c && c.req && c.req[r.id]) || '';
   }
   // Requirement comes from the charge's group when marketing details haven't been saved yet.
   defaultRequirement(r){
     const g = String(r.group || '');
+    // 'ind' means no requirement was ever chosen, so there's nothing to fall back on.
+    if (g.indexOf('ind') === 0) return '';
     return g.indexOf('opt') === 0 ? 'Optional' : g.indexOf('sit') === 0 ? 'Situational' : 'Required';
   }
   // ---------- Rental Fee Profile history ----------
@@ -653,8 +657,9 @@ class Component extends DCLogic {
     else if (src === 'Calculation') amount = 'Calculated';
     else { const a = v('m-amount'); amount = a ? ('$' + a.replace(/^\$/, '')) : '$0.00'; }
     const isOne = /-one$/.test(m.group);
-    const req = v('m-req') || 'Required';
-    const grp = (req === 'Optional' ? 'opt-' : req === 'Situational' ? 'sit-' : 'req-') + (isOne ? 'one' : 'rec');
+    // Left blank stays blank, so the charge sits in Individual Charges until a requirement is picked.
+    const req = v('m-req');
+    const grp = (req === 'Optional' ? 'opt-' : req === 'Situational' ? 'sit-' : req === 'Required' ? 'req-' : 'ind-') + (isOne ? 'one' : 'rec');
     const row = {
       group: grp, mits: code.toUpperCase(), name: name || code, desc: v('m-comment'),
       freq: isOne ? '' : ('Every ' + (v('m-freq') || '1') + ' Month'), from: v('m-from'), to: v('m-to'),
@@ -735,19 +740,22 @@ class Component extends DCLogic {
     const act = opt.act || '', extraJs = opt.js || '', noSearch = !!opt.noSearch;
     const esc = s => (''+s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
     const O = options.map(o => (o && typeof o === 'object') ? { v:''+o.value, l:''+(o.label!=null?o.label:o.value) } : { v:''+o, l:''+o });
-    const selV = (selected!=null && selected!=='') ? (''+selected) : (O[0]?O[0].v:'');
-    const selL = (O.find(x=>x.v===selV) || O[0] || {l:''}).l;
+    // opt.placeholder lets a field stay genuinely unset instead of silently adopting the first
+    // option — needed for Charge Requirement, which has no safe default.
+    const ph = opt.placeholder || '';
+    const selV = (selected!=null && selected!=='') ? (''+selected) : (ph ? '' : (O[0]?O[0].v:''));
+    const selL = selV ? (O.find(x=>x.v===selV) || O[0] || {l:''}).l : (ph || (O[0]||{l:''}).l);
     const panelId=id+'-pnl', dispId=id+'-disp', listId=id+'-lst';
     const onPick = act
       ? `this.setAttribute('data-arg',_v);this.setAttribute('data-act','${act}');this.dispatchEvent(new MouseEvent('click',{bubbles:true}));`
       : `var h=document.getElementById('${esc(id)}');if(h)h.value=_v;`;
-    const rowJs = `var _v=this.getAttribute('data-v');var pnl=document.getElementById('${panelId}');if(pnl)pnl.style.display='none';var dsp=document.getElementById('${dispId}');if(dsp)dsp.textContent=this.getAttribute('data-l');var lst=document.getElementById('${listId}');if(lst)lst.querySelectorAll('[data-v]').forEach(function(r){r.setAttribute('data-sel','0');r.style.background='#fff';r.style.color='#13314c'});this.setAttribute('data-sel','1');this.style.background='#008DD5';this.style.color='#fff';${onPick}${extraJs}`;
+    const rowJs = `var _v=this.getAttribute('data-v');var pnl=document.getElementById('${panelId}');if(pnl)pnl.style.display='none';var dsp=document.getElementById('${dispId}');if(dsp){dsp.textContent=this.getAttribute('data-l');dsp.style.color='#13314c';dsp.style.fontStyle='normal';}var lst=document.getElementById('${listId}');if(lst)lst.querySelectorAll('[data-v]').forEach(function(r){r.setAttribute('data-sel','0');r.style.background='#fff';r.style.color='#13314c'});this.setAttribute('data-sel','1');this.style.background='#008DD5';this.style.color='#fff';${onPick}${extraJs}`;
     const filter = `var q=this.value.toLowerCase();document.getElementById('${listId}').querySelectorAll('[data-v]').forEach(function(r){r.style.display=(r.getAttribute('data-l').toLowerCase().indexOf(q)>=0?'flex':'none')})`;
     const hover = `onmouseenter="if(this.getAttribute('data-sel')!=='1')this.style.background='#eaf4fb'" onmouseleave="if(this.getAttribute('data-sel')!=='1')this.style.background='#fff'"`;
     const rows = O.map(o=>`<div data-v="${esc(o.v)}" data-l="${esc(o.l)}" data-sel="${o.v===selV?'1':'0'}" ${hover} onclick="${rowJs}" style="display:flex;align-items:center;padding:9px 14px;cursor:pointer;font-size:14px;color:${o.v===selV?'#fff':'#13314c'};background:${o.v===selV?'#008DD5':'#fff'}">${o.l}</div>`).join('');
     return `<div style="position:relative">
       ${act?'':`<input type="hidden" id="${esc(id)}" value="${esc(selV)}">`}
-      <div onclick="var p=document.getElementById('${panelId}');if(p.style.display==='block'){p.style.display='none';return}var r=this.getBoundingClientRect();p.style.left=r.left+'px';p.style.width=r.width+'px';p.style.display='block';var ph=p.offsetHeight;var below=window.innerHeight-r.bottom;p.style.top=((below<ph+8&&r.top>below)?(r.top-ph-4):(r.bottom+4))+'px'" style="display:flex;align-items:center;justify-content:space-between;gap:4px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 4px 0 12px;cursor:pointer"><span id="${dispId}" style="flex:1;min-width:0;font-size:14px;color:#13314c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${selL}</span><span class="material-symbols-outlined" style="font-size:20px;color:#666">arrow_drop_down</span></div>
+      <div onclick="var p=document.getElementById('${panelId}');if(p.style.display==='block'){p.style.display='none';return}var r=this.getBoundingClientRect();p.style.left=r.left+'px';p.style.width=r.width+'px';p.style.display='block';var ph=p.offsetHeight;var below=window.innerHeight-r.bottom;p.style.top=((below<ph+8&&r.top>below)?(r.top-ph-4):(r.bottom+4))+'px'" style="display:flex;align-items:center;justify-content:space-between;gap:4px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 4px 0 12px;cursor:pointer"><span id="${dispId}" style="flex:1;min-width:0;font-size:14px;color:${selV?'#13314c':(ph?'#b3b3b3':'#13314c')};${selV||!ph?'':'font-style:italic;'}overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${selL}</span><span class="material-symbols-outlined" style="font-size:20px;color:#666">arrow_drop_down</span></div>
       <div id="${panelId}" style="display:none;position:fixed;z-index:1000;border-radius:8px;background:#fff;box-shadow:0 6px 20px rgba(0,0,0,0.18);overflow:hidden">
         ${noSearch?'':`<div style="padding:10px;border-bottom:1px solid #ebf1f5"><div style="display:flex;align-items:center;gap:8px;background:#f7f9fb;border:1px solid #cedbe7;border-radius:6px;height:38px;padding:0 12px"><span class="material-symbols-outlined" style="font-size:20px;color:#4a90e2">search</span><input oninput="${filter}" placeholder="Search" style="flex:1;min-width:0;border:none;outline:none;background:transparent;font:400 14px Roboto,sans-serif;color:#13314c"></div></div>`}
         <div id="${listId}" style="max-height:260px;overflow-y:auto">${rows}</div>
@@ -1291,7 +1299,7 @@ class Component extends DCLogic {
     return this.setupCandidates().filter(r => !c.excl[r.id]).map(r => {
       const req = this.setupRequirement(r);
       const suffix = /-one$/.test(r.group) ? '-one' : '-rec';
-      const prefix = req === 'Optional' ? 'opt' : req === 'Situational' ? 'sit' : 'req';
+      const prefix = req === 'Optional' ? 'opt' : req === 'Situational' ? 'sit' : req === 'Required' ? 'req' : 'ind';
       // The setup choice satisfies the MITS requirement field up front. Merge so charges that
       // already carry pulled-in marketing details (NSF, late fees) keep them.
       return Object.assign({}, r, { group: prefix + suffix, listing: Object.assign({}, r.listing, { requirement: req }) });
@@ -1349,8 +1357,17 @@ class Component extends DCLogic {
   // so the wording matches what a prospect would read on the listing.
   reqHelp(){
     const term = (t,d) => `<span style="display:block;font-size:13px;font-weight:400;color:#13314c;white-space:normal"><strong style="font-weight:600">${t}</strong> — ${d}</span>`;
-    return `<span class="tipw" onclick="event.stopPropagation()"><span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5);cursor:pointer">info</span>`
-      + `<span class="tip" style="left:auto;right:-6px;top:24px;width:310px;padding:14px 16px">`
+    // The header sits inside the table's horizontal scroll container, which clips an absolutely
+    // positioned panel. So the tooltip is position:fixed and placed on hover — right-aligned to the
+    // icon, flipped above it when there isn't room below, and always kept inside the viewport.
+    const show = "var t=this.querySelector('.tipf');t.style.display='block';var r=this.getBoundingClientRect();"
+      + "var w=t.offsetWidth,h=t.offsetHeight;var l=r.right-w;if(l<8)l=8;if(l+w>window.innerWidth-8)l=window.innerWidth-8-w;"
+      + "var y=r.bottom+6;if(y+h>window.innerHeight-8)y=r.top-h-6;"
+      + "if(y+h>window.innerHeight-8)y=window.innerHeight-8-h;if(y<8)y=8;"
+      + "t.style.left=l+'px';t.style.top=y+'px';";
+    const hide = "this.querySelector('.tipf').style.display='none';";
+    return `<span onmouseenter="${show}" onmouseleave="${hide}" onclick="event.stopPropagation()" style="display:inline-flex"><span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5);cursor:pointer">info</span>`
+      + `<span class="tipf" style="display:none;position:fixed;left:0;top:0;width:310px;padding:14px 16px;background:#fff;border:1px solid #cedbe7;border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,0.18);font-size:13px;color:#13314c;line-height:1.5;z-index:400">`
       + `<span style="display:block;font-size:14px;font-weight:600;color:#13314c;padding-bottom:9px;border-bottom:1px solid #e3e9ee">Charge Requirement</span>`
       + `<span style="display:block;font-size:13px;font-weight:400;color:#666;white-space:normal;padding:11px 0 12px;line-height:1.5">Whether a charge applies to everyone, is the resident's to choose, or only applies under certain conditions.</span>`
       + `<span style="display:flex;flex-direction:column;gap:10px">`
@@ -1372,7 +1389,7 @@ class Component extends DCLogic {
       // Pre-selected from the charge type/comment; the row click toggles inclusion so the select
       // stops propagation to stay independently changeable.
       const reqSel = (r) => { const v = this.setupRequirement(r);
-        return `<span style="display:flex;align-items:center;min-height:38px;padding:6px 10px" onclick="event.stopPropagation()"><select onchange="window.__setupReq('${r.id}', this.value)" style="width:100%;height:30px;border:1px solid #cedbe7;border-radius:4px;background:#f5f8fa;font:400 13px Roboto,sans-serif;color:#13314c;padding:0 4px">${['Required','Optional','Situational'].map(o=>`<option ${o===v?'selected':''}>${o}</option>`).join('')}</select></span>`; };
+        return `<span style="display:flex;align-items:center;min-height:38px;padding:6px 10px" onclick="event.stopPropagation()"><select onchange="window.__setupReq('${r.id}', this.value)" style="width:100%;height:30px;border:1px solid #cedbe7;border-radius:4px;background:#f5f8fa;font:400 13px Roboto,sans-serif;color:#13314c;padding:0 4px"><option value="" ${v?'':'selected'}>Select</option>${['Required','Optional','Situational'].map(o=>`<option ${o===v?'selected':''}>${o}</option>`).join('')}</select></span>`; };
       return `<div style="font-size:13px;color:#666;padding:12px 0 6px">${label} (${rows.length})</div>
         <div style="border:1px solid #e3e9ee;border-radius:4px;overflow:hidden"><div style="overflow-x:auto"><div style="min-width:700px">
         <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #e3e9ee">${heads.map(hc).join('')}</div>
@@ -1407,6 +1424,7 @@ class Component extends DCLogic {
     const reqN = rows.filter(r => /^req/.test(r.group)).length;
     const optN = rows.filter(r => /^opt/.test(r.group)).length;
     const sitN = rows.filter(r => /^sit/.test(r.group)).length;
+    const indN = rows.filter(r => /^ind/.test(r.group)).length;
     const stat = (n, l) => `<div style="flex:1;min-width:130px;background:#f7f9fb;border:1px solid #e3e9ee;border-radius:4px;padding:12px 16px;display:flex;flex-direction:column;gap:2px"><span style="font-size:22px;font-weight:600;color:#13314c;line-height:1.2">${n}</span><span style="font-size:13px;color:#4a5b6b">${l}</span></div>`;
     // What the conversion does and doesn't reach. The dash row is the carve-out the user needs to see.
     const line = (icon, color, t, b) => `<div style="display:flex;gap:12px;align-items:flex-start;padding:12px 16px;border-bottom:1px solid #f0f4f7"><span class="material-symbols-outlined" style="font-size:20px;color:${color};flex:none">${icon}</span><span style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:14px;color:#13314c">${t}</span><span style="font-size:13px;color:#8a9aa8;line-height:1.45">${b}</span></span></div>`;
@@ -1433,7 +1451,8 @@ class Component extends DCLogic {
       <div style="display:flex;gap:12px;flex-wrap:wrap">
         ${stat(rows.length, 'Charges added' + (rows.length ? ` · ${rec} recurring, ${rows.length - rec} one-time` : ''))}
         ${stat(left, left === 1 ? 'Charge left out' : 'Charges left out')}
-        ${stat(`${reqN} / ${optN} / ${sitN}`, 'Required / Optional / Situational')}
+        ${stat(indN ? `${reqN} / ${optN} / ${sitN} / ${indN}` : `${reqN} / ${optN} / ${sitN}`,
+          'Required / Optional / Situational' + (indN ? ' / Not set' : ''))}
       </div>
       ${ils}
       ${scope}
@@ -1929,7 +1948,7 @@ class Component extends DCLogic {
       </div>
       <div style="display:flex;flex-direction:column;gap:4px">${lab('Marketing Description')}<textarea id="m-marketing" class="fld" style="height:56px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${ed&&ed.listing?(ed.listing.marketing||''):''}</textarea></div>
       <div style="display:flex;gap:12px;align-items:flex-start">
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Requirement')}${dd('m-req',['Required','Optional','Situational'],req,{noSearch:true,js:"document.getElementById('m-sitdesc-wrap').style.display=(_v==='Situational'?'flex':'none');if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Requirement')}${dd('m-req',['Required','Optional','Situational'],req,{noSearch:true,placeholder:'Select a charge requirement',js:"document.getElementById('m-sitdesc-wrap').style.display=(_v==='Situational'?'flex':'none');if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Fee Due')}${dd('m-due',['At Application','During Term','Move-Out'],(ed&&ed.listing&&ed.listing.feeDue)||'During Term',{noSearch:true,js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>
         ${isOne?'':`<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Schedule',true)}${dd('m-sched',['Monthly','Weekly','Daily'],(ed&&ed.listing&&ed.listing.schedule)||'Monthly',{noSearch:true,js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`}
       </div>
