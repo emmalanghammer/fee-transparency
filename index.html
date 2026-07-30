@@ -97,6 +97,9 @@ class Component extends DCLogic {
     profileStatus: {},
     profileFees: {},
     profHist: null,
+    // Changes made while using the prototype. The seeded history stops at today, so everything in
+    // here is something the user did this session.
+    histLog: [],
     nextFeeId: 101,
     setup: null,            // { prop, step:1|2|'saving', excl:{} }
     lvlSel: 'all',          // 'all' | 'Property' | 'Unit Type' | 'Unit' | 'ORI'
@@ -184,57 +187,109 @@ class Component extends DCLogic {
     return g.indexOf('opt') === 0 ? 'Optional' : g.indexOf('sit') === 0 ? 'Situational' : 'Required';
   }
   // ---------- Rental Fee Profile history ----------
-  // Seeded amount timelines. There's no real audit trail in the prototype, so these are keyed to
-  // charge codes and only surface for charges the property actually has. Keys sort as 'YYYY-MM'.
+  // Preloaded demo history, running up to today. Keyed to charge codes so it only surfaces for
+  // charges the property actually has. Keys sort as 'YYYY-MM'; anything after this is tracked live.
   profileAmountSeed(){
     return {
-      GARBAG:     { by:'Ali Ferryman',   hist:[['2025-01','$25.00'],['2026-01','$26.00'],['2026-07','$28.00']] },
-      GARBAGEFEE: { by:'Ali Ferryman',   hist:[['2026-01','$4.00']] },
+      GARBAG:     { by:'Devon Marsh',    hist:[['2025-01','$25.00'],['2026-01','$26.00'],['2026-07','$28.00']] },
+      GARBAGEFEE: { by:'Devon Marsh',    hist:[['2026-01','$4.00']] },
       ADMIN:      { by:'Admin',          hist:[['2025-01','$125.00'],['2026-01','$150.00']] },
       APPFEE:     { by:'Rachel Hodges',  hist:[['2025-01','$50.00'],['2026-01','$50.00']] },
       AMENFEE:    { by:'Admin',          hist:[['2025-01','$25.00'],['2026-01','$28.00']] },
-      PETFEE:     { by:'Ali Ferryman',   hist:[['2025-01','$35.00'],['2026-01','$45.00']] },
+      PETFEE:     { by:'Devon Marsh',    hist:[['2025-01','$35.00'],['2026-01','$45.00']] },
       DP:         { by:'Admin',          hist:[['2025-01','$450.00'],['2026-01','$500.00']] },
       HOLD:       { by:'Rachel Hodges',  hist:[['2026-01','$200.00']] }
     };
   }
   histLabel(k){
     if (k === 'now') return 'Just now';
+    if (k === 'pre') return 'Earlier';
     const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const p = String(k).split('-');
     return mo[parseInt(p[1], 10) - 1] + ' ' + p[0];
   }
-  // Per-charge timelines. The last entry is reconciled against the charge's live amount, so an edit
-  // made in the prototype shows up here instead of the history contradicting the table.
-  profileAmountHistory(prop){
-    const seed = this.profileAmountSeed();
-    return this.profileRows(prop).filter(r => seed[r.mits] && this.parseAmt(r.amount)).map(r => {
-      const s = seed[r.mits];
-      const last = s.hist[s.hist.length - 1];
-      const hist = this.parseAmt(last[1]) === this.parseAmt(r.amount) ? s.hist : s.hist.concat([['now', r.amount]]);
-      return { row: r, by: s.by, hist };
-    });
+  // ---------- change tracking ----------
+  // Records something the user did in this session. Every profile mutation routes through here so
+  // the history keeps up rather than being seeded fiction.
+  logChange(prop, charge, change, level, extra){
+    const e = Object.assign({ prop, by: 'Emma Langhammer', charge, change, level: level || prop }, extra || {});
+    this.setState(s => ({ histLog: s.histLog.concat([e]) }));
   }
-  // Chronological log, newest first. Amount changes come from the same timelines shown below it, so
-  // the two halves of the history can never disagree.
+  histLabelFor(r){ return (r.mits ? r.mits + ' · ' : '') + (r.desc || (r.listing && r.listing.name) || r.name || 'Charge'); }
+  // Field-by-field diff so an edit logs what actually changed instead of a bare "edited".
+  chargeDiff(a, b){
+    const out = [];
+    const la = this.resolvedListing(a), lb = this.resolvedListing(b);
+    const cmp = (label, x, y) => {
+      const sx = x == null ? '' : String(x), sy = y == null ? '' : String(y);
+      if (sx === sy) return;
+      out.push(label + ' ' + (sx || '—') + ' → ' + (sy || '—'));
+    };
+    cmp('Amount', a.amount, b.amount);
+    cmp('Charge Type', a.mits, b.mits);
+    cmp('Comment', a.desc, b.desc);
+    cmp('Charge Application', a.target || a.level, b.target || b.level);
+    cmp('Amount Method', a.amtMethod, b.amtMethod);
+    cmp('Frequency', a.freq, b.freq);
+    cmp('Name', la.name, lb.name);
+    cmp('Marketing Description', la.marketing, lb.marketing);
+    cmp('Charge Requirement', la.requirement, lb.requirement);
+    cmp('Fee Due', la.feeDue, lb.feeDue);
+    cmp('Charge Schedule', la.schedule, lb.schedule);
+    cmp('Situational Description', a.cond, b.cond);
+    if (!!la.refundable !== !!lb.refundable) out.push('Refundable turned ' + (lb.refundable ? 'on' : 'off'));
+    if (!!a.ils !== !!b.ils) out.push('Show on ILS turned ' + (b.ils ? 'on' : 'off'));
+    return out;
+  }
+  // Logs a charge edit and, when the amount moved, carries the before/after so the amount timeline
+  // can pick it up too.
+  logChargeEdit(before, after){
+    const diff = this.chargeDiff(before, after);
+    if (!diff.length) return;
+    const extra = this.parseAmt(before.amount) === this.parseAmt(after.amount) ? null
+      : { chargeId: after.id != null ? after.id : before.id, amtFrom: before.amount, amt: after.amount };
+    this.logChange(this.state.property, this.histLabelFor(after), diff.join(' · '), after.target || after.level, extra);
+  }
+  // Per-charge amount timelines: the preloaded history, then anything changed this session.
+  profileAmountHistory(prop){
+    const p = prop || this.state.property;
+    const seed = this.profileAmountSeed();
+    return this.profileRows(p).map(r => {
+      const s = seed[r.mits];
+      const sess = this.state.histLog.filter(e => e.prop === p && String(e.chargeId) === String(r.id) && e.amt);
+      let hist = s ? s.hist.slice() : [];
+      if (!hist.length && sess.length) hist = [['pre', sess[0].amtFrom]];
+      sess.forEach(e => hist.push(['now', e.amt]));
+      if (!hist.length) return null;
+      const by = sess.length ? sess[sess.length - 1].by : s.by;
+      return { row: r, by, hist };
+    }).filter(f => f && this.parseAmt(f.hist[f.hist.length - 1][1]));
+  }
+  // Newest first: this session's tracked changes, then the preloaded demo history beneath them.
   profileChangeLog(prop){
     const p = prop || this.state.property;
-    const log = [];
-    this.profileAmountHistory(p).forEach(h => {
-      h.hist.forEach((entry, i) => {
+    const log = this.state.histLog.filter(e => e.prop === p).slice().reverse()
+      .map(e => ({ k:'now', by:e.by, charge:e.charge, change:e.change, level:e.level }));
+    const seed = this.profileAmountSeed();
+    const pre = [];
+    this.profileRows(p).forEach(r => {
+      const s = seed[r.mits]; if (!s) return;
+      s.hist.forEach((entry, i) => {
         if (!i) return;
-        const from = h.hist[i-1][1], to = entry[1];
+        const from = s.hist[i-1][1], to = entry[1];
         if (this.parseAmt(from) === this.parseAmt(to)) return;
-        log.push({ k: entry[0], by: h.by, charge: h.row.mits + ' · ' + (h.row.desc || h.row.name),
-          change: from + ' → ' + to, level: h.row.target || h.row.level });
+        pre.push({ k: entry[0], by: s.by, charge: this.histLabelFor(r), change: from + ' → ' + to,
+          level: r.target || r.level });
       });
     });
-    log.sort((a,b) => a.k === b.k ? 0 : a.k === 'now' ? -1 : b.k === 'now' ? 1 : (a.k < b.k ? 1 : -1));
-    // Properties converted in this session are stamped 'now'; the seeded ones carry a fixed date.
-    const created = this.state.profileStatus[p] === 'active' ? 'now' : '2026-01';
-    const n = this.profileRows(p).length;
-    log.push({ k: created, by: 'Emma Langhammer', charge: 'Rental Fee Profile',
-      change: 'Profile created · ' + n + ' charge' + (n === 1 ? '' : 's') + ' added', level: p });
+    pre.sort((a,b) => a.k < b.k ? 1 : a.k > b.k ? -1 : 0);
+    pre.forEach(e => log.push(e));
+    // Profiles converted this session log their own creation entry, so only preloaded ones need one.
+    if (this.state.profileStatus[p] !== 'active') {
+      const n = this.setupCandidates().length;
+      log.push({ k:'2026-01', by:'Admin', charge:'Rental Fee Profile',
+        change:'Profile created · ' + n + ' charges added', level:p });
+    }
     return log;
   }
   // Deposits come back to the resident, fees don't. Pre-ticks the box for the deposit codes so the
@@ -242,18 +297,26 @@ class Component extends DCLogic {
   defaultRefundable(r){
     return /^(DP|PETDP|SECDEP|HOLD)/.test(String(r && r.mits || '').toUpperCase());
   }
-  mitsMissing(r){
-    const L = r.listing || {};
-    const oneTime = /-one$/.test(r.group || '');
-    // Fields whose dropdowns carry a default are already satisfied — only the ones with nothing to
-    // fall back on (a typed Name, an unmapped Charge Category) count as missing.
-    const resolved = {
+  // The listing values as the charge details overlay shows them — unset fields fall back to the
+  // dropdown defaults. Diffing against these keeps the history from reporting a default being
+  // persisted as if the user had changed it.
+  resolvedListing(r){
+    const L = (r && r.listing) || {};
+    return {
       name: L.name,
       category: L.category || this.chargeCategoryFor(r.mits),
       requirement: L.requirement || this.defaultRequirement(r),
       feeDue: L.feeDue || 'During Term',
-      schedule: L.schedule || 'Monthly'
+      schedule: /-one$/.test(r.group || '') ? (L.schedule || '') : (L.schedule || 'Monthly'),
+      marketing: L.marketing,
+      refundable: L.refundable !== undefined ? L.refundable : this.defaultRefundable(r)
     };
+  }
+  mitsMissing(r){
+    const oneTime = /-one$/.test(r.group || '');
+    // Fields whose dropdowns carry a default are already satisfied — only the ones with nothing to
+    // fall back on (a typed Name, an unmapped Charge Category) count as missing.
+    const resolved = this.resolvedListing(r);
     // Payment frequency only applies to recurring charges.
     return this.mitsFields()
       .filter(f => !(f.recurringOnly && oneTime))
@@ -413,7 +476,11 @@ class Component extends DCLogic {
       case 'rowMenu': { const r = el.getBoundingClientRect(); this.setState({ rowMenu: { id: arg, x: r.right, y: r.bottom + 4 } }); break; }
       case 'rowMenuClose': this.setState({ rowMenu: null }); break;
       case 'rowDetails': { const c = this.profileRows().find(x => String(x.id) === String(arg)); this.setState({ rowMenu: null, modal: c ? { group: c.group, edit: c } : null }); if (!c) this.flash('Charge details'); break; }
-      case 'rowDelete': { const id = arg; this.setProfileRows(rows => rows.filter(f => String(f.id) !== String(id))); this.setState({ rowMenu: null }); this.flash('Charge deleted'); break; }
+      case 'rowDelete': { const id = arg;
+        const gone = this.profileRows().find(f => String(f.id) === String(id));
+        this.setProfileRows(rows => rows.filter(f => String(f.id) !== String(id)));
+        if (gone) this.logChange(this.state.property, this.histLabelFor(gone), 'Charge removed from the profile', gone.target || gone.level);
+        this.setState({ rowMenu: null }); this.flash('Charge deleted'); break; }
 
       // ---- Rental Fee Profile setup wizard ----
       case 'setupOpen': this.setState({ recView: null, setup: { prop: arg || this.state.property, step: 1, excl: {} } }); break;
@@ -432,7 +499,9 @@ class Component extends DCLogic {
           setup: null,
           profileStatus: Object.assign({}, s.profileStatus, { [c.prop]: 'active' }),
           profileFees: Object.assign({}, s.profileFees, { [c.prop]: rows }),
-          nextFeeId: 101 + rows.length
+          nextFeeId: 101 + rows.length,
+          histLog: s.histLog.concat([{ prop: c.prop, by: 'Emma Langhammer', charge: 'Rental Fee Profile',
+            change: 'Profile created · ' + rows.length + ' charges added', level: c.prop }])
         }), () => this.flash(rows.length + ' charges added to the Rental Fee Profile')), 1200);
         break; }
       case 'profBannerDismiss': this.setState(s => ({ bannerDismissed: Object.assign({}, s.bannerDismissed, { [this.state.property]: true }) })); break;
@@ -483,6 +552,7 @@ class Component extends DCLogic {
       case 'groupByReq': this.setState(s => ({ groupByReq: !s.groupByReq })); break;
       case 'ilsPropToggle': { const p = this.state.property; const turningOn = !this.ilsOn(p);
         this.setState(s => { const m = Object.assign({}, s.ilsProps); if (turningOn) m[p] = true; else delete m[p]; return { ilsProps: m, profMenu: null }; });
+        this.logChange(p, 'Rental Fee Profile', 'Marketing on ILS turned ' + (turningOn ? 'on' : 'off'), p);
         this.flash(turningOn ? p + ' will market on ILS' : p + ' removed from ILS marketing'); break; }
       case 'profMenuOpen': { const r = el.getBoundingClientRect(); this.setState({ profMenu: { x: r.right, y: r.bottom + 4 } }); break; }
       case 'profMenuClose': this.setState({ profMenu: null }); break;
@@ -499,7 +569,10 @@ class Component extends DCLogic {
       case 'recViewClose': this.setState({ recView: null }); break;
 
       // ---- fee row mutations ----
-      case 'feeils': this.mutFee(+arg, f => { f.ils = !f.ils; return f; }); break;
+      case 'feeils': { const r = this.profileRows().find(f => f.id === +arg);
+        this.mutFee(+arg, f => { f.ils = !f.ils; return f; });
+        if (r) this.logChange(this.state.property, this.histLabelFor(r), 'Show on ILS turned ' + (r.ils ? 'off' : 'on'), r.target || r.level);
+        break; }
       case 'feeexp': this.mutFee(+arg, f => { f.expanded = !f.expanded; return f; }); break;
 
       // ---- add / edit charge ----
@@ -535,6 +608,7 @@ class Component extends DCLogic {
         listing: Object.assign({}, specEd.listing, { name: nm, category: this.chargeCategoryFor(specEd.mits), marketing: v('m-marketing'), requirement: req, feeDue: v('m-due') || 'During Term', refundable: chkd('m-refund') }) };
       const id = specEd.id;
       this.setProfileRows(rows => rows.map(f => String(f.id) === String(id) ? Object.assign({}, f, patch) : f));
+      this.logChargeEdit(specEd, Object.assign({}, specEd, patch));
       this.setState({ modal: null });
       this.flash('Charge updated');
       return;
@@ -572,10 +646,13 @@ class Component extends DCLogic {
     if (m.edit) {
       const id = m.edit.id;
       this.setProfileRows(rows => rows.map(f => String(f.id) === String(id) ? Object.assign({}, f, row) : f));
+      this.logChargeEdit(m.edit, Object.assign({}, m.edit, row));
       this.setState({ modal: null }); this.flash('Charge updated'); return;
     }
     const id = this.state.nextFeeId;
     this.setProfileRows(rows => rows.concat([Object.assign({ id }, row)]));
+    this.logChange(this.state.property, this.histLabelFor(row),
+      'Charge added · ' + row.amount + ' · ' + (row.listing.requirement || 'Required'), target || app);
     this.setState(s => ({ modal: null, nextFeeId: s.nextFeeId + 1 }));
     this.flash('Charge added');
   }
@@ -1409,11 +1486,11 @@ class Component extends DCLogic {
     const td = (t,extra) => `<span style="display:flex;align-items:center;min-height:38px;padding:6px 12px;font-size:13px;color:#13314c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
 
     // ---- Change log ----
-    const lcols = '110px 140px minmax(190px,1fr) 170px 150px';
+    const lcols = '104px 132px minmax(160px,1fr) minmax(230px,1.6fr) 130px';
     const lhead = `<div style="display:grid;grid-template-columns:${lcols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Date','Changed by','Charge','Change','Charge Level'].map((t,i)=>hc(t,i)).join('')}</div>`;
     const lbody = log.map(e => `<div style="display:grid;grid-template-columns:${lcols};align-items:center;border-bottom:1px solid #ebf1f5">
       ${td(this.histLabel(e.k), 'padding-left:16px;color:' + (e.k==='now'?'#12a150;font-weight:500':'#13314c'))}
-      ${td(e.by)}${td(e.charge)}${td(e.change,'color:#13314c;font-weight:500')}${td(e.level,'color:#4a5b6b')}
+      ${td(e.by)}${td(e.charge)}${td(e.change,'color:#13314c;font-weight:500;white-space:normal;line-height:1.45;padding-top:9px;padding-bottom:9px')}${td(e.level,'color:#4a5b6b')}
     </div>`).join('');
 
     // ---- Amount history per charge ----
@@ -1425,7 +1502,7 @@ class Component extends DCLogic {
       const money = n => '$' + n.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
       const delta = f.hist.length < 2 || first === cur
         ? `<span style="font-size:13px;color:#8a9aa8">No change</span>`
-        : `<span style="font-size:13px;color:${cur>first?'#b3261e':'#3a7d2c'};font-weight:500">${cur>first?'+':'−'}${money(Math.abs(cur-first)).replace('$','$')}</span><span style="font-size:12px;color:#8a9aa8">&nbsp;since ${this.histLabel(f.hist[0][0])}</span>`;
+        : `<span style="font-size:13px;color:${cur>first?'#b3261e':'#3a7d2c'};font-weight:500">${cur>first?'+':'−'}${money(Math.abs(cur-first)).replace('$','$')}</span><span style="font-size:12px;color:#8a9aa8">&nbsp;${f.hist[0][0]==='pre'?'this session':'since '+this.histLabel(f.hist[0][0])}</span>`;
       const sub = !open ? '' : `<div style="background:#f5f8fa;border-bottom:1px solid #ebf1f5;padding:6px 16px 12px 32px">${f.hist.map((e,i) => {
         const prev = i > 0 ? this.parseAmt(f.hist[i-1][1]) : null, v = this.parseAmt(e[1]);
         const dir = prev === null ? '<span style="color:#c9d4dd">•</span>'
