@@ -180,6 +180,11 @@ class Component extends DCLogic {
     const g = String(r.group || '');
     return g.indexOf('opt') === 0 ? 'Optional' : g.indexOf('sit') === 0 ? 'Situational' : 'Required';
   }
+  // Deposits come back to the resident, fees don't. Pre-ticks the box for the deposit codes so the
+  // common case is right without asking; not a required MITS field since a checkbox always has a value.
+  defaultRefundable(r){
+    return /^(DP|PETDP|SECDEP|HOLD)/.test(String(r && r.mits || '').toUpperCase());
+  }
   mitsMissing(r){
     const L = r.listing || {};
     const oneTime = /-one$/.test(r.group || '');
@@ -464,6 +469,7 @@ class Component extends DCLogic {
     const m = this.state.modal; if (!m) return;
     const v = id => ((this.q('#'+id) || {}).value || '').trim();
     const mark = (el, bad) => { if (el) el.style.borderColor = bad ? '#d02830' : ''; };
+    const chkd = id => { const e = this.q('#'+id); return !!(e && e.checked); };
     // Property specific charges keep every general field as pulled from the property; only their
     // marketing details and the ILS toggle are editable here.
     const specEd = m.edit && m.edit.propSpecific ? m.edit : null;
@@ -472,7 +478,7 @@ class Component extends DCLogic {
       if (ilsOn && !nm) { mark(this.q('#m-name'), true); const b = this.q('#m-err'); if (b) { const t = b.querySelector('#m-err-txt'); if (t) t.textContent = 'Complete required fields: Name'; b.style.display = 'inline-flex'; } return; }
       const req = v('m-req') || 'Situational';
       const patch = { ils: ilsOn, cond: v('m-sitdesc') || specEd.cond,
-        listing: Object.assign({}, specEd.listing, { name: nm, category: this.chargeCategoryFor(specEd.mits), marketing: v('m-marketing'), requirement: req, feeDue: v('m-due') || 'During Term' }) };
+        listing: Object.assign({}, specEd.listing, { name: nm, category: this.chargeCategoryFor(specEd.mits), marketing: v('m-marketing'), requirement: req, feeDue: v('m-due') || 'During Term', refundable: chkd('m-refund') }) };
       const id = specEd.id;
       this.setProfileRows(rows => rows.map(f => String(f.id) === String(id) ? Object.assign({}, f, patch) : f));
       this.setState({ modal: null });
@@ -507,7 +513,7 @@ class Component extends DCLogic {
       amount, amtMethod: src, level: app, target, ils,
       cond: req === 'Situational' ? v('m-sitdesc') : '',
       // Marketing/MITS details are saved regardless of ILS — they're useful to non-ILS properties too.
-      listing: { name, category: this.chargeCategoryFor(code), marketing: v('m-marketing'), requirement: req, feeDue: v('m-due'), schedule: isOne ? '' : v('m-sched') }
+      listing: { name, category: this.chargeCategoryFor(code), marketing: v('m-marketing'), requirement: req, feeDue: v('m-due'), schedule: isOne ? '' : v('m-sched'), refundable: chkd('m-refund') }
     };
     if (m.edit) {
       const id = m.edit.id;
@@ -1608,6 +1614,7 @@ class Component extends DCLogic {
     const edCat = ed ? catFor(ed.mits) : '';
     const hasCode = !!(ed && ed.mits);
     const req = (ed && ed.listing && ed.listing.requirement) || this.defaultRequirement(ed || m);
+    const refundable = ed && ed.listing && ed.listing.refundable !== undefined ? ed.listing.refundable : this.defaultRefundable(ed);
     const catBlock = `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">${lab('Charge Category',true)}
       <input type="hidden" id="m-cat" value="${esc(edCat)}">
       <span id="m-cat-ph" style="display:${(hasCode&&edCat)?'none':'block'};font-size:13px;font-style:italic;color:#b3b3b3">Select a charge type to display a charge category.</span>
@@ -1624,6 +1631,7 @@ class Component extends DCLogic {
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Fee Due')}${dd('m-due',['At Application','During Term','Move-Out'],(ed&&ed.listing&&ed.listing.feeDue)||'During Term',{noSearch:true,js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>
         ${isOne?'':`<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Schedule',true)}${dd('m-sched',['Monthly','Weekly','Daily'],(ed&&ed.listing&&ed.listing.schedule)||'Monthly',{noSearch:true,js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`}
       </div>
+      <label style="display:inline-flex;align-items:center;gap:8px;align-self:flex-start;font-size:14px;color:#13314c;cursor:pointer"><input type="checkbox" id="m-refund" ${refundable?'checked':''} style="width:16px;height:16px;margin:0;accent-color:#f58220">Refundable</label>
       <div id="m-sitdesc-wrap" style="display:${req==='Situational'?'flex':'none'};flex-direction:column;gap:4px">${lab('Situational Charge Description')}<textarea id="m-sitdesc" class="fld" style="height:48px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${esc(ed?ed.cond:'')}</textarea></div>`;
 
     // ILS box that sits at the top of Marketing Details (mock 2489-119627). Lists the MITS fields
