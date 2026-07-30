@@ -100,6 +100,8 @@ class Component extends DCLogic {
     // Bulk Update Fees: { idx, open:{rec,one} }. state.modal carries the charge being edited, so the
     // shared form and saveFee work unchanged.
     bulk: null,
+    // Copy Property Fees: { from, dup:'skip'|'replace', excl }
+    copyFees: null,
     // The "Coming Soon" kickoff announcement. Starts closed on purpose — it's opened from the nav
     // menu when it needs showing, rather than interrupting every refresh.
     kickoff: false,
@@ -535,6 +537,33 @@ class Component extends DCLogic {
         this.setState({ kickoff: false });
         this.flash(n + ' charge type' + (n === 1 ? '' : 's') + ' configured');
         break; }
+      // ---- Copy Property Fees ----
+      case 'copyOpen': this.setState({ profMenu: null, copyFees: { from: '', dup: 'skip', excl: {} } }); break;
+      case 'copyClose': this.setState({ copyFees: null }); break;
+      // Switching source resets the exclusions, since the ids belong to the previous property.
+      case 'copyFrom': this.setState(s => ({ copyFees: Object.assign({}, s.copyFees, { from: arg, excl: {} }) })); break;
+      case 'copyDup': this.setState(s => ({ copyFees: Object.assign({}, s.copyFees, { dup: arg }) })); break;
+      case 'copyToggle': this.setState(s => { const ex = Object.assign({}, s.copyFees.excl); if (ex[arg]) delete ex[arg]; else ex[arg] = true; return { copyFees: Object.assign({}, s.copyFees, { excl: ex }) }; }); break;
+      case 'copySave': { const c = this.state.copyFees;
+        if (!c || !c.from) { this.flash('Choose a property to copy from'); break; }
+        const picked = this.profileRows(c.from).filter(r => !c.excl[r.id]);
+        if (!picked.length) { this.flash('Select at least one charge'); break; }
+        const out = this.profileRows().slice();
+        let added = 0, replaced = 0, skipped = 0, nextId = this.state.nextFeeId;
+        picked.forEach(src => {
+          const i = out.findIndex(r => this.sameCharge(r, src));
+          if (i >= 0) {
+            if (c.dup === 'replace') { out[i] = Object.assign({}, src, { id: out[i].id }); replaced++; } else skipped++;
+          } else { out.push(Object.assign({}, src, { id: nextId++ })); added++; }
+        });
+        const prop = this.state.property;
+        this.setProfileRows(() => out);
+        this.setState({ copyFees: null, nextFeeId: nextId });
+        this.logChange(prop, 'Rental Fee Profile',
+          'Copied fees from ' + c.from + ' · ' + added + ' added, ' + replaced + ' replaced, ' + skipped + ' skipped', prop);
+        this.flash(added + ' charges copied from ' + c.from);
+        break; }
+
       // ---- Bulk Update Fees ----
       case 'bulkOpen': { const rows = this.bulkRows(); if (!rows.length) { this.flash('No charges to update'); break; }
         this.setState({ profMenu: null, bulk: { idx: 0, open: { rec: true, one: true } },
@@ -1243,7 +1272,7 @@ class Component extends DCLogic {
     return `<div data-act="profMenuClose" style="position:fixed;inset:0;z-index:150"></div>
       <div style="position:fixed;left:${left}px;top:${p.y}px;background:#fff;border:1px solid #cedbe7;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);z-index:151;overflow:hidden;padding:4px 0">
         ${ilsItem}<div style="height:1px;background:#ebf1f5;margin:4px 0"></div>
-        ${item('Bulk Update Fees','bulkOpen')}${item('Copy Property Fees')}<div style="height:1px;background:#ebf1f5;margin:4px 0"></div>
+        ${item('Bulk Update Fees','bulkOpen')}${item('Copy Property Fees','copyOpen')}<div style="height:1px;background:#ebf1f5;margin:4px 0"></div>
         ${item('Profile History', 'profHistOpen')}${item('About Fee Transparency')}
       </div>`;
   }
@@ -1418,11 +1447,10 @@ class Component extends DCLogic {
   }
   // Explains the Charge Requirement field. Published to listings as the MITS "Requirement" value,
   // so the wording matches what a prospect would read on the listing.
-  reqHelp(){
-    const term = (t,d) => `<span style="display:block;font-size:13px;font-weight:400;color:#13314c;white-space:normal"><strong style="font-weight:600">${t}</strong> — ${d}</span>`;
-    // The header sits inside the table's horizontal scroll container, which clips an absolutely
-    // positioned panel. So the tooltip is position:fixed and placed on hover — right-aligned to the
-    // icon, flipped above it when there isn't room below, and always kept inside the viewport.
+  // An info icon whose panel is position:fixed and placed on hover — right-aligned to the icon,
+  // flipped above when there's no room below, always kept inside the viewport. Needed wherever the
+  // icon sits inside a scroll container, which would clip an absolutely positioned panel.
+  infoTip(inner, width){
     const show = "var t=this.querySelector('.tipf');t.style.display='block';var r=this.getBoundingClientRect();"
       + "var w=t.offsetWidth,h=t.offsetHeight;var l=r.right-w;if(l<8)l=8;if(l+w>window.innerWidth-8)l=window.innerWidth-8-w;"
       + "var y=r.bottom+6;if(y+h>window.innerHeight-8)y=r.top-h-6;"
@@ -1430,14 +1458,18 @@ class Component extends DCLogic {
       + "t.style.left=l+'px';t.style.top=y+'px';";
     const hide = "this.querySelector('.tipf').style.display='none';";
     return `<span onmouseenter="${show}" onmouseleave="${hide}" onclick="event.stopPropagation()" style="display:inline-flex"><span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5);cursor:pointer">info</span>`
-      + `<span class="tipf" style="display:none;position:fixed;left:0;top:0;width:310px;padding:14px 16px;background:#fff;border:1px solid #cedbe7;border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,0.18);font-size:13px;color:#13314c;line-height:1.5;z-index:400">`
+      + `<span class="tipf" style="display:none;position:fixed;left:0;top:0;width:${width||310}px;padding:14px 16px;background:#fff;border:1px solid #cedbe7;border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,0.18);font-size:13px;color:#13314c;line-height:1.5;z-index:400">${inner}</span></span>`;
+  }
+  reqHelp(){
+    const term = (t,d) => `<span style="display:block;font-size:13px;font-weight:400;color:#13314c;white-space:normal"><strong style="font-weight:600">${t}</strong> — ${d}</span>`;
+    return this.infoTip(``
       + `<span style="display:block;font-size:14px;font-weight:600;color:#13314c;padding-bottom:9px;border-bottom:1px solid #e3e9ee">Charge Requirement</span>`
       + `<span style="display:block;font-size:13px;font-weight:400;color:#666;white-space:normal;padding:11px 0 12px;line-height:1.5">Whether a charge applies to everyone, is the resident's to choose, or only applies under certain conditions.</span>`
       + `<span style="display:flex;flex-direction:column;gap:10px">`
       + term('Required', 'Applies to every resident. There is no way to opt out.')
       + term('Optional', 'The resident decides whether to add it, like a pet, a parking space, or a storage unit.')
       + term('Situational', 'Only charged when something specific happens, like pet damage, a late payment, or a lease violation.')
-      + `</span></span></span>`;
+      + `</span>`);
   }
   setupStep2(){
     const c = this.state.setup;
@@ -2155,6 +2187,80 @@ class Component extends DCLogic {
         <div style="border:1px solid #cedbe7;border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:12px">${listing}</div>
       </div>` };
   }
+  // Two charges are the same charge for copy purposes when they share charge type, frequency and
+  // name at the same level — the definition the Copy Property Fees tooltip gives.
+  sameCharge(a, b){
+    const fq = v => { const s = String(v || ''); const m = s.match(/\d+/); return s ? (m ? m[0] : '1') : ''; };
+    return String(a.mits || '').toUpperCase() === String(b.mits || '').toUpperCase()
+      && fq(a.freq) === fq(b.freq)
+      && String(a.name || '') === String(b.name || '')
+      && String(a.level || '') === String(b.level || '')
+      && String(a.target || '') === String(b.target || '');
+  }
+  // Copy Property Fees (mock 2575-81218). Pick a property with a profile, decide what happens to
+  // charges this profile already has, then choose which of the source's charges to bring over.
+  copyFeesHTML(){
+    const c = this.state.copyFees; if (!c) return '';
+    const prop = this.state.property;
+    const sources = this.copyableProfiles().filter(p => p !== prop);
+    const rows = c.from ? this.profileRows(c.from) : [];
+    const rec = rows.filter(r => !/-one$/.test(r.group));
+    const one = rows.filter(r => /-one$/.test(r.group));
+    const picked = rows.filter(r => !c.excl[r.id]).length;
+    const box = on => `<span style="width:18px;height:18px;border-radius:3px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${on?'background:#f58220;border:1px solid #f58220':'background:#fff;border:1px solid #b3b3b3'}">${on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span>`;
+    const radio = (val, label, em) => `<label data-act="copyDup" data-arg="${val}" style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;color:#13314c"><span style="width:18px;height:18px;border-radius:50%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;border:1px solid ${c.dup===val?'var(--ac,#008dd5)':'#b3b3b3'}">${c.dup===val?'<span style="width:10px;height:10px;border-radius:50%;background:var(--ac,#008dd5)"></span>':''}</span><span>${label}<i style="color:#4a5b6b"> ${em}</i></span></label>`;
+    const dupTip = this.infoTip(`<span style="display:block;white-space:normal">A duplicate is a charge matching one this profile already has; same charge type, frequency, and name, at the same level (property, unit type, or unit). For example, if both profiles have a recurring property Rent charge, that's a duplicate.</span>`, 330);
+    const table = (label, list, isRec) => {
+      const cols = isRec ? '44px 120px minmax(150px,1fr) 90px 100px 90px 110px 110px'
+                         : '44px 120px minmax(150px,1fr) 100px 90px 110px 110px';
+      const heads = isRec ? ['','Charge Type','Comment','Frequency','From','To','Amount','Charge Level']
+                          : ['','Charge Type','Comment','From','To','Amount','Charge Level'];
+      const hc = (t,i) => `<span style="display:flex;align-items:center;padding:8px 10px${i===1?' 8px 14px':''};font-size:12px;font-weight:600;color:#13314c;white-space:nowrap;${/Amount/.test(t)?'justify-content:flex-end;':''}">${t}</span>`;
+      const cell = (t,extra) => `<span style="display:flex;align-items:center;min-height:38px;padding:6px 10px;font-size:13px;color:#13314c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
+      return `<div style="font-size:13px;color:#666;padding:12px 0 6px">${label} (${list.length})</div>
+        <div style="border:1px solid #e3e9ee;border-radius:4px;overflow:hidden"><div style="overflow-x:auto"><div style="min-width:${isRec?760:680}px">
+        <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #e3e9ee">${heads.map(hc).join('')}</div>
+        ${list.length ? list.map(r=>`<div data-act="copyToggle" data-arg="${r.id}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #f0f4f7;cursor:pointer">
+          <span style="display:flex;align-items:center;justify-content:center;min-height:38px">${box(!c.excl[r.id])}</span>
+          ${cell(r.mits,'padding-left:14px')}${cell(r.desc||r.name)}
+          ${isRec?cell(this.freqNum(r)||'—'):''}${cell(r.from||'—')}${cell(r.to||'-')}
+          ${cell(String(r.amount||'').replace(/^\$/,''),'justify-content:flex-end;text-align:right')}
+          <span style="display:flex;align-items:center;min-height:38px;padding:6px 10px">${this.chargeLevelPill(r)}</span></div>`).join('')
+          : `<div style="padding:14px;font-size:13px;font-style:italic;color:#b3b3b3">None on that property.</div>`}
+        </div></div></div>`;
+    };
+    return `<div data-act="copyClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:120">
+      <div data-act="noop" style="width:960px;max-width:96vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="flex:none;display:flex;align-items:center;gap:10px;padding:12px 16px 12px 20px;border-bottom:1px solid #cedbe7">
+          <span style="font-size:20px;color:#13314c">Copy Property Fees</span><div style="flex:1"></div>
+          <span data-act="toast" data-arg="Help" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">help</span>
+          <span data-act="copyClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span>
+        </div>
+        <div style="flex:1;min-height:0;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:14px">
+          <span style="font-size:14px;color:#4a5b6b;line-height:1.5">Recurring and one-time charges can be copied from any property that already has a rental fee profile set up.</span>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <span style="font-size:15px;font-weight:600;color:#13314c">Copy From</span>
+            ${sources.length
+              ? this.singleSelect('cp-from', sources, c.from, { act:'copyFrom', placeholder:'Select a property' })
+              : `<span style="font-size:13px;font-style:italic;color:#b3b3b3">No other property has a rental fee profile yet.</span>`}
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <span style="display:flex;align-items:center;gap:8px;font-size:14px;color:#13314c">How would you like to handle duplicate charges?${dupTip}</span>
+            ${radio('skip','Skip duplicate charges:','keep this profile\'s version')}
+            ${radio('replace','Replace existing charges:','use the copied property\'s version')}
+          </div>
+          <div style="display:flex;flex-direction:column;gap:2px">
+            <div style="display:flex;align-items:baseline;gap:12px"><span style="font-size:15px;font-weight:600;color:#13314c">Select Charges to Include</span><div style="flex:1"></div>${c.from?`<span style="font-size:13px;color:#4a5b6b">${picked} of ${rows.length} selected</span>`:''}</div>
+            ${c.from ? table('Recurring Charges', rec, true) + table('One-Time Charges', one, false)
+              : `<div style="border:1px solid #e3e9ee;border-radius:4px;padding:22px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;margin-top:8px"><span class="material-symbols-outlined" style="font-size:28px;color:#c9d4dd">content_copy</span><span style="font-size:13px;color:#8a9aa8">Choose a property above to see its charges.</span></div>`}
+          </div>
+        </div>
+        <div style="flex:none;display:flex;justify-content:flex-end;gap:10px;padding:12px 20px;border-top:1px solid #cedbe7;background:#f5f8fa">
+          <button ${c.from?'data-act="copySave"':''} class="btn-pri" style="height:36px;min-height:36px;padding:0 24px;border-radius:4px;font-size:14px;${c.from?'':'opacity:0.45;cursor:default'}">Save</button>
+          <button data-act="copyClose" class="btn-out" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px;box-sizing:border-box">Cancel</button>
+        </div>
+      </div></div>`;
+  }
   // Every charge on the profile, recurring first — the order the bulk rail and its counter follow.
   bulkRows(){
     const rows = this.profileRows();
@@ -2367,6 +2473,7 @@ class Component extends DCLogic {
     out += this.profHistHTML();
     out += this.kickoffHTML();
     out += this.bulkHTML();
+    out += this.copyFeesHTML();
     out += this.toastHTML();
     return out;
   }
