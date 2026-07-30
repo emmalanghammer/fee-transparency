@@ -1934,16 +1934,28 @@ class Component extends DCLogic {
     // ---- Amount method ----
     const src = ed ? (ed.amtMethod || 'Flat') : 'Flat';
     const amtFlat = ed && /^\$/.test(ed.amount||'') ? (ed.amount||'').replace(/^\$/,'') : '';
-    const radio = (label,value,blk) => `<label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#666;cursor:pointer"><input type="radio" name="m-amt-r" value="${value}" data-blk="${blk}" ${src===value?'checked':''} onchange="var b=this.getAttribute('data-blk');document.getElementById('m-source').value=this.value;['flat','ref','calc'].forEach(function(k){document.getElementById('m-blk-'+k).style.display=(k===b?'flex':'none')})" style="accent-color:var(--ac,#008dd5);width:16px;height:16px;margin:0">${label}</label>`;
+    const radio = (label,value,blk) => `<label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#666;cursor:pointer"><input type="radio" name="m-amt-r" value="${value}" data-blk="${blk}" ${src===value?'checked':''} onchange="var b=this.getAttribute('data-blk');document.getElementById('m-source').value=this.value;['flat','ref','calc'].forEach(function(k){document.getElementById('m-blk-'+k).style.display=(k===b?'flex':'none')});if(window.__calcNote)window.__calcNote()" style="accent-color:var(--ac,#008dd5);width:16px;height:16px;margin:0">${label}</label>`;
     const iconInput = (id,val,ph,icon) => `<div style="display:flex;align-items:center;gap:4px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><input id="${id}" value="${esc(val)}" placeholder="${ph}" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:#13314c"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5)">${icon}</span></div>`;
-    const amount = `<div style="display:flex;gap:12px;align-items:flex-start">
-      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Amount Method')}${dd('m-method',['Flat','Reference','Calculation'],src,{noSearch:true,js:"var t={'Flat':'flat','Reference':'ref','Calculation':'calc'}[_v];document.getElementById('m-source').value=_v;['flat','ref','calc'].forEach(function(k){document.getElementById('m-blk-'+k).style.display=(k===t?'flex':'none')})"})}</div>
+    // A calculated amount has no single figure to publish, so listing providers show it as a varying
+    // amount. Only worth saying once the charge is actually going out to listings.
+    const calcNote = (src === 'Calculation' && ed && ed.ils) ? 'block' : 'none';
+    window.__calcNote = () => {
+      const n = this.q('#m-calc-note'); if (!n) return;
+      const method = (this.q('#m-source') || {}).value;
+      const on = ((this.q('#m-ils') || {}).value) === '1';
+      n.style.display = (method === 'Calculation' && on) ? 'block' : 'none';
+    };
+    const methodJs = "var t={'Flat':'flat','Reference':'ref','Calculation':'calc'}[_v];document.getElementById('m-source').value=_v;['flat','ref','calc'].forEach(function(k){document.getElementById('m-blk-'+k).style.display=(k===t?'flex':'none')});if(window.__calcNote)window.__calcNote()";
+    const amount = `<div style="display:flex;flex-direction:column;gap:6px">
+      <div style="display:flex;gap:12px;align-items:flex-start">
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Amount Method')}${dd('m-method',['Flat','Reference','Calculation'],src,{noSearch:true,js:methodJs})}</div>
       <div style="flex:1;min-width:0">
         <input type="hidden" id="m-source" value="${src}">
         <div id="m-blk-flat" style="display:${src==='Flat'?'flex':'none'};flex-direction:column;gap:4px">${lab('Amount')}${iconInput('m-amount',amtFlat,'00.00','calculate')}</div>
         <div id="m-blk-ref" style="display:${src==='Reference'?'flex':'none'};flex-direction:column;gap:4px">${lab('Amount')}${dd('m-ref',['Market Rent','Field: Market Rent','Unit UDF: Parking Spot #'],'Market Rent',{noSearch:true})}</div>
         <div id="m-blk-calc" style="display:${src==='Calculation'?'flex':'none'};flex-direction:column;gap:4px">${lab('Amount')}${iconInput('m-calc','','','edit')}</div>
-      </div></div>`;
+      </div></div>
+      <span id="m-calc-note" style="display:${calcNote};font-size:13px;color:#666;line-height:1.45">Calculated charges may be labeled as a <i>Varying Amount</i> on the listing provider site.</span></div>`;
 
     // ---- General Details ----
     // One-time charges have a date window too — they just don't repeat, so only Frequency is
@@ -2066,7 +2078,7 @@ class Component extends DCLogic {
           <span id="m-ils-need" style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap">${missing.map(chip).join('')}</span>
         </div>
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-          <label style="display:inline-flex;align-items:center;gap:10px;cursor:${complete?'pointer':'default'}"><span id="m-ils-sw" data-dis="${complete?'0':'1'}" onclick="if(this.getAttribute('data-dis')==='1')return;var on=this.getAttribute('data-on')==='1';on=!on;this.setAttribute('data-on',on?'1':'0');document.getElementById('m-ils').value=on?'1':'0';this.style.background=on?'var(--ac,#008dd5)':'#cedbe7';this.firstElementChild.style.left=on?'16px':'2px'" data-on="${swOn?'1':'0'}" style="display:inline-block;width:32px;height:18px;border-radius:999px;background:${!complete?'#dfe6ec':(swOn?'var(--ac,#008dd5)':'#cedbe7')};position:relative;flex:none;cursor:${complete?'pointer':'default'}"><span style="position:absolute;top:2px;left:${swOn?'16px':'2px'};width:14px;height:14px;border-radius:50%;background:#fff;transition:left 120ms ease-out"></span></span><span id="m-ils-lbl" style="font-size:14px;color:${complete?'#13314c':'#a6b2bd'}">Show on ILS</span></label>
+          <label style="display:inline-flex;align-items:center;gap:10px;cursor:${complete?'pointer':'default'}"><span id="m-ils-sw" data-dis="${complete?'0':'1'}" onclick="if(this.getAttribute('data-dis')==='1')return;var on=this.getAttribute('data-on')==='1';on=!on;this.setAttribute('data-on',on?'1':'0');document.getElementById('m-ils').value=on?'1':'0';this.style.background=on?'var(--ac,#008dd5)':'#cedbe7';this.firstElementChild.style.left=on?'16px':'2px';if(window.__calcNote)window.__calcNote()" data-on="${swOn?'1':'0'}" style="display:inline-block;width:32px;height:18px;border-radius:999px;background:${!complete?'#dfe6ec':(swOn?'var(--ac,#008dd5)':'#cedbe7')};position:relative;flex:none;cursor:${complete?'pointer':'default'}"><span style="position:absolute;top:2px;left:${swOn?'16px':'2px'};width:14px;height:14px;border-radius:50%;background:#fff;transition:left 120ms ease-out"></span></span><span id="m-ils-lbl" style="font-size:14px;color:${complete?'#13314c':'#a6b2bd'}">Show on ILS</span></label>
           <span id="m-ils-ok" style="display:${complete?'inline-flex':'none'};align-items:center;gap:6px"><span class="material-symbols-outlined" style="font-size:17px;color:#12a150">check_circle</span><span style="font-size:13px;color:#4a5b6b">All required fields filled out to display charge on listings.</span></span>
         </div>
         <input type="hidden" id="m-ils" value="${swOn?'1':'0'}">
