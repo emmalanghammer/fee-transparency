@@ -97,6 +97,9 @@ class Component extends DCLogic {
     profileStatus: {},
     profileFees: {},
     profHist: null,
+    // The "Coming Soon" kickoff announcement. Starts closed on purpose — it's opened from the nav
+    // menu when it needs showing, rather than interrupting every refresh.
+    kickoff: false,
     // Changes made while using the prototype. The seeded history stops at today, so everything in
     // here is something the user did this session.
     histLog: [],
@@ -424,7 +427,7 @@ class Component extends DCLogic {
       ['EVCHG','EV Charging Station'],
       ['GAS','Gas Utility'],['H2O','Water Utility'],['HO4','Renters Insurance'],['HOA','HOA Fee'],['HOLD','Hold Fee'],
       ['KEY','Key & Fob Deposit'],['LATE','Late Fee'],['LMR',"Last Month's Rent"],['NSF','NSF Fee'],['PARK','Parking'],
-      ['PETDP','Pet Deposit'],['PETFEE','Pet Rent'],['RC','Rent'],['RUBS','Flat Bill for All Utilities'],['SEWER','Sewer Utility'],
+      ['PETDP','Pet Deposit'],['PETFEE','Pet Rent'],['RC','Rent'],['REKEY','Rekey Fee'],['RUBS','Flat Bill for All Utilities'],['SEWER','Sewer Utility'],
       ['SF','Storage Fee'],['STORAGE','Storage Fee'],['TRANSFER','Transfer Fee'],['TRASH','Trash Valet'],['WATER','Water Service']];
   }
   units() {
@@ -511,6 +514,21 @@ class Component extends DCLogic {
       case 'setupClose': this.setState({ setup: null }); break;
       case 'setupNext': this.setState(s => ({ setup: Object.assign({}, s.setup, { step: Math.min(3, (s.setup.step || 1) + 1) }) })); break;
       case 'setupBack': this.setState(s => ({ setup: Object.assign({}, s.setup, { step: Math.max(1, (s.setup.step || 1) - 1) }) })); break;
+      case 'kickoffOpen': this.setState({ kickoff: true }); break;
+      case 'kickoffClose': this.setState({ kickoff: false }); break;
+      // Applies each row's category to its charge type, the same store the Add Charge Category
+      // overlay writes to, so the choices made here show up on charges everywhere.
+      case 'kickoffSave': {
+        const adds = {};
+        this.kickoffTypes().forEach(r => {
+          const sel = this.q('#kc-' + r[0]);
+          if (sel && sel.value) adds[r[0]] = sel.value;
+        });
+        this._catAdds = Object.assign({}, this._catAdds, adds);
+        const n = Object.keys(adds).length;
+        this.setState({ kickoff: false });
+        this.flash(n + ' charge type' + (n === 1 ? '' : 's') + ' configured');
+        break; }
       case 'profHistOpen': this.setState({ profMenu: null, profHist: { prop: this.state.property, exp: {} } }); break;
       case 'profHistClose': this.setState({ profHist: null }); break;
       case 'profHistExp': this.setState(s => ({ profHist: Object.assign({}, s.profHist, { exp: Object.assign({}, s.profHist.exp, { [arg]: !s.profHist.exp[arg] }) }) })); break;
@@ -794,6 +812,8 @@ class Component extends DCLogic {
           <div id="nav-menu-pnl" style="display:none;position:fixed;z-index:1000;min-width:230px;background:#fff;border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,0.2);overflow:hidden;padding:4px 0">
             <div data-act="navRegister" style="padding:10px 16px;font-size:14px;color:#13314c;cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''">Properties</div>
             <div data-act="navProperty" data-arg="Riverview Apartments" style="padding:10px 16px;font-size:14px;color:#13314c;cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''">Riverview Apartments</div>
+            <div style="height:1px;background:#ebf1f5;margin:4px 0"></div>
+            <div data-act="kickoffOpen" style="padding:10px 16px;font-size:14px;color:#13314c;cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''">Coming Soon Announcement</div>
           </div>
           <span style="display:inline-flex;align-items:center;justify-content:center;width:45px;height:32px;background:#425a70"><img src="assets/icon-reports.svg" alt="Reports" style="width:20px;height:20px"></span>
           <span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:32px;background:#425a70;border-radius:0 4px 4px 0"><img src="assets/icon-grade.svg" alt="Favorites" style="width:20px;height:20px"></span>
@@ -2070,6 +2090,56 @@ class Component extends DCLogic {
         </div>
       </div></div>`;
   }
+  // Charge types shown on the kickoff announcement, with the category each one should get.
+  kickoffTypes(){
+    return [
+      ['CAM','Common Area Maintenance','Service'],
+      ['PARK','Parking Fee','Parking'],
+      ['RC','Rent Charge','Lease'],
+      ['DP','Security Deposit','Lease'],
+      ['PETFEE','Monthly Pet Fee (Non-Refundable)','Pet'],
+      ['APPFEE','Application Fee','Application'],
+      ['PETDP','Pet Deposit (Refundable)','Pet'],
+      ['DAMAGE','Damage Fee','Damage'],
+      ['RUBS','Utility Bill (RUBS)','Utility'],
+      ['REKEY','Rekey Fee','Key'],
+      ['GARBAG','Garbage Fee','Service']
+    ];
+  }
+  // "Coming Soon - Fee Transparency Updates" (mock 2219-10227). The prototype's kickoff screen:
+  // opened from the nav menu on demand rather than on load, so a refresh doesn't replay it.
+  kickoffHTML(){
+    if (!this.state.kickoff) return '';
+    const cols = 'minmax(150px,1fr) minmax(220px,1.6fr) minmax(200px,1.4fr)';
+    const hc = (t,i) => `<span style="display:flex;align-items:center;padding:8px 12px${i===0?' 8px 16px':''};font-size:13px;font-weight:600;color:#fff;white-space:nowrap">${t}</span>`;
+    const opts = this.chargeCategoryOptions();
+    // Categories read uppercase here to match the mock, while the stored values stay Title Case so
+    // they match what the rest of the prototype resolves.
+    const row = (r) => `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5">
+      <span style="display:flex;align-items:center;min-height:44px;padding:8px 12px 8px 16px;font-size:14px;color:#13314c;white-space:nowrap">${r[0]}</span>
+      <span style="display:flex;align-items:center;padding:6px 12px"><input class="fld" value="${r[1]}" style="height:34px;box-sizing:border-box;width:100%"></span>
+      <span style="display:flex;align-items:center;padding:6px 12px"><select id="kc-${r[0]}" class="fld" style="height:34px;width:100%;text-transform:uppercase">${opts.map(o=>`<option value="${o}" ${o===r[2]?'selected':''}>${o}</option>`).join('')}</select></span>
+    </div>`;
+    return `<div data-act="kickoffClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:140">
+      <div data-act="noop" style="width:940px;max-width:96vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:12px 16px 0;flex:none"><span data-act="toast" data-arg="Help" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">help</span><span data-act="kickoffClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span></div>
+        <div style="text-align:center;font-size:22px;font-weight:600;color:#4a5b6b;padding:0 24px 4px;flex:none">Coming Soon - Fee Transparency Updates</div>
+        <div style="flex:1;min-height:0;overflow-y:auto;padding:12px 24px 8px;display:flex;flex-direction:column;gap:16px">
+          <span style="font-size:15px;color:#4a5b6b;line-height:1.5">We're launching some new fee transparency updates next month. By being proactive and taking this step now, your data conversion will be seamless and your setup optimized from day one.</span>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <span style="font-size:15px;font-weight:600;color:#13314c">What's Recommended:</span>
+            <div style="display:flex;gap:10px;padding-left:14px"><span style="color:#4a5b6b">&bull;</span><span style="font-size:15px;color:#4a5b6b;line-height:1.5">Configure your charge types below with a unique name and the new 'Charge Category' field for each charge you want to use for listing purposes. You can do this now or later by going to your individual Charge Types &gt; Details &gt; Marketing Charge Category.</span></div>
+          </div>
+          <div style="border:1px solid #cedbe7;border-radius:4px;overflow:hidden">
+            <div style="overflow-x:auto"><div style="min-width:640px">
+              <div style="display:grid;grid-template-columns:${cols};background:#737373">${['Charge Type Short Name','Description','Charge Category'].map(hc).join('')}</div>
+              ${this.kickoffTypes().map(row).join('')}
+            </div></div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 24px 16px;flex:none"><a data-act="kickoffClose" style="font-size:14px;color:var(--ac,#008dd5);cursor:pointer">I'll do this later</a><div style="flex:1"></div><button data-act="kickoffSave" class="btn-pri" style="height:36px;min-height:36px;padding:0 24px;border-radius:4px;font-size:14px">Save</button></div>
+      </div></div>`;
+  }
   toastHTML(){ return this.state.toast ? `<div class="toast"><span class="material-symbols-outlined" style="font-size:18px">check_circle</span>${this.state.toast}</div>` : ''; }
 
   // ================= SCREENS =================
@@ -2110,6 +2180,7 @@ class Component extends DCLogic {
     out += this.pricePreviewHTML();
     out += this.profMenuHTML();
     out += this.profHistHTML();
+    out += this.kickoffHTML();
     out += this.toastHTML();
     return out;
   }
