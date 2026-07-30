@@ -633,6 +633,8 @@ class Component extends DCLogic {
       }
       case 'noop': break;
       case 'toast': this.flash(arg); break;
+      // Placeholder profile menu action: dismisses the menu as a real action would.
+      case 'profAct': this.setState({ profMenu: null }); this.flash(arg); break;
       default: break;
     }
   };
@@ -1202,14 +1204,14 @@ class Component extends DCLogic {
   profMenuHTML(){
     const p = this.state.profMenu; if (!p) return '';
     const left = Math.max(8, p.x - 260);
-    const item = (t,act,arg) => `<div data-act="${act||'toast'}" data-arg="${arg!=null?arg:t}" style="padding:10px 14px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''">${t}</div>`;
+    const item = (t,act,arg) => `<div data-act="${act||'profAct'}" data-arg="${arg!=null?arg:t}" style="padding:10px 14px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''">${t}</div>`;
     const on = this.ilsOn();
     const ilsItem = `<div data-act="ilsPropToggle" style="display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''"><span class="material-symbols-outlined" style="font-size:18px;color:${on?'#12a150':'#c9d4dd'}">${on?'check_box':'check_box_outline_blank'}</span>Market this property on ILS</div>`;
     return `<div data-act="profMenuClose" style="position:fixed;inset:0;z-index:150"></div>
       <div style="position:fixed;left:${left}px;top:${p.y}px;background:#fff;border:1px solid #cedbe7;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);z-index:151;overflow:hidden;padding:4px 0">
         ${ilsItem}<div style="height:1px;background:#ebf1f5;margin:4px 0"></div>
-        ${item('View Profile History', 'profHistOpen')}<div style="height:1px;background:#ebf1f5;margin:4px 0"></div>
-        ${item('Memorize Rental Fee Profile')}${item('Load Memorized Rental Fee Profile')}${item('About Fee Transparency')}
+        ${item('Bulk Update Fees')}${item('Copy Property Fees')}<div style="height:1px;background:#ebf1f5;margin:4px 0"></div>
+        ${item('Profile History', 'profHistOpen')}${item('About Fee Transparency')}
       </div>`;
   }
   // Recurring / One-Time subtable inside a profile section.
