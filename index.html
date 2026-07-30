@@ -677,6 +677,9 @@ class Component extends DCLogic {
   statusLoz(s, c){ const m = { green:'background:#e2f1da;color:#4d8a2a', amber:'background:#fdeedd;color:#b35a00', gray:'background:#f2f2f2;color:#666' }; return `<span class="loz" style="${m[c]};text-transform:none;letter-spacing:0">${s}</span>`; }
   ptOpts(selected){ return ['Single Family','Multi Family','Manufactured Housing','Commercial','Storage','Apartment','Duplex','Association','RV / Campground','Short Term Rental'].map(t=>`<option${t===selected?' selected':''}>${t}</option>`).join(''); }
   parseAmt(v){ if(!v) return 0; const m=(''+v).replace(/[, ]/g,'').match(/\$?(\d+(?:\.\d+)?)/); return m?parseFloat(m[1]):0; }
+  // Frequency is the multiplier, not the period — "Every Month" is every 1 month. The period itself
+  // lives in Charge Schedule, so the column shows the number on its own.
+  freqNum(r){ const f = String((r && r.freq) || ''); if (!f) return ''; const m = f.match(/\d+/); return m ? m[0] : '1'; }
   money(n){ return '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
   priceSummary(mr){
     const pf=this.profileRows().filter(f=>!f.excluded);
@@ -1178,7 +1181,7 @@ class Component extends DCLogic {
     const body = rows.length ? rows.map(r => {
       const kebab = `<span data-act="rowMenu" data-arg="${r.id}" style="display:flex;align-items:center;justify-content:center;min-height:44px;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">more_vert</span></span>`;
       const mid = rec
-        ? cell(r.freq||'—') + cell(r.from||'—') + cell(r.to||'-')
+        ? cell(this.freqNum(r)||'—') + cell(r.from||'—') + cell(r.to||'-')
         : '';
       return `<div data-act="rowDetails" data-arg="${r.id}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5;cursor:pointer" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background=''">
         ${cell(r.mits,'padding-left:16px')}${cell(r.desc||r.name)}${mid}${cell(String(r.amount||'').replace(/^\$/,''),'justify-content:flex-end;text-align:right')}
@@ -1744,7 +1747,7 @@ class Component extends DCLogic {
         <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #e3e9ee;background:#fff">${heads.map(hc).join('')}</div>
         ${rows.map(r=>`<div data-act="addPropToggle" data-arg="${r.id}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #f0f4f7;cursor:pointer;background:#fff">
           <span style="display:flex;align-items:center;justify-content:center;min-height:34px">${chk(!a.excl[r.id],'')}</span>
-          ${cell(r.mits)}${cell(r.desc||r.name)}${rec?(cell('1')+cell(r.from||'—')+cell(r.to||'-')):''}
+          ${cell(r.mits)}${cell(r.desc||r.name)}${rec?(cell(this.freqNum(r)||'1')+cell(r.from||'—')+cell(r.to||'-')):''}
           ${cell(String(r.amount||'').replace(/^\$/,''),'justify-content:flex-end;text-align:right')}
           <span style="display:flex;align-items:center;min-height:34px;padding:5px 8px">${this.chargeLevelPill(r)}</span></div>`).join('')}
         </div>`;
