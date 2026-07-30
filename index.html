@@ -96,6 +96,7 @@ class Component extends DCLogic {
     ilsProps: { 'Riverview Apartments': true, 'The Berkshires': true },
     profileStatus: {},
     profileFees: {},
+    profHist: null,
     nextFeeId: 101,
     setup: null,            // { prop, step:1|2|'saving', excl:{} }
     lvlSel: 'all',          // 'all' | 'Property' | 'Unit Type' | 'Unit' | 'ORI'
@@ -181,6 +182,60 @@ class Component extends DCLogic {
   defaultRequirement(r){
     const g = String(r.group || '');
     return g.indexOf('opt') === 0 ? 'Optional' : g.indexOf('sit') === 0 ? 'Situational' : 'Required';
+  }
+  // ---------- Rental Fee Profile history ----------
+  // Seeded amount timelines. There's no real audit trail in the prototype, so these are keyed to
+  // charge codes and only surface for charges the property actually has. Keys sort as 'YYYY-MM'.
+  profileAmountSeed(){
+    return {
+      GARBAG:     { by:'Ali Ferryman',   hist:[['2025-01','$25.00'],['2026-01','$26.00'],['2026-07','$28.00']] },
+      GARBAGEFEE: { by:'Ali Ferryman',   hist:[['2026-01','$4.00']] },
+      ADMIN:      { by:'Admin',          hist:[['2025-01','$125.00'],['2026-01','$150.00']] },
+      APPFEE:     { by:'Rachel Hodges',  hist:[['2025-01','$50.00'],['2026-01','$50.00']] },
+      AMENFEE:    { by:'Admin',          hist:[['2025-01','$25.00'],['2026-01','$28.00']] },
+      PETFEE:     { by:'Ali Ferryman',   hist:[['2025-01','$35.00'],['2026-01','$45.00']] },
+      DP:         { by:'Admin',          hist:[['2025-01','$450.00'],['2026-01','$500.00']] },
+      HOLD:       { by:'Rachel Hodges',  hist:[['2026-01','$200.00']] }
+    };
+  }
+  histLabel(k){
+    if (k === 'now') return 'Just now';
+    const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const p = String(k).split('-');
+    return mo[parseInt(p[1], 10) - 1] + ' ' + p[0];
+  }
+  // Per-charge timelines. The last entry is reconciled against the charge's live amount, so an edit
+  // made in the prototype shows up here instead of the history contradicting the table.
+  profileAmountHistory(prop){
+    const seed = this.profileAmountSeed();
+    return this.profileRows(prop).filter(r => seed[r.mits] && this.parseAmt(r.amount)).map(r => {
+      const s = seed[r.mits];
+      const last = s.hist[s.hist.length - 1];
+      const hist = this.parseAmt(last[1]) === this.parseAmt(r.amount) ? s.hist : s.hist.concat([['now', r.amount]]);
+      return { row: r, by: s.by, hist };
+    });
+  }
+  // Chronological log, newest first. Amount changes come from the same timelines shown below it, so
+  // the two halves of the history can never disagree.
+  profileChangeLog(prop){
+    const p = prop || this.state.property;
+    const log = [];
+    this.profileAmountHistory(p).forEach(h => {
+      h.hist.forEach((entry, i) => {
+        if (!i) return;
+        const from = h.hist[i-1][1], to = entry[1];
+        if (this.parseAmt(from) === this.parseAmt(to)) return;
+        log.push({ k: entry[0], by: h.by, charge: h.row.mits + ' · ' + (h.row.desc || h.row.name),
+          change: from + ' → ' + to, level: h.row.target || h.row.level });
+      });
+    });
+    log.sort((a,b) => a.k === b.k ? 0 : a.k === 'now' ? -1 : b.k === 'now' ? 1 : (a.k < b.k ? 1 : -1));
+    // Properties converted in this session are stamped 'now'; the seeded ones carry a fixed date.
+    const created = this.state.profileStatus[p] === 'active' ? 'now' : '2026-01';
+    const n = this.profileRows(p).length;
+    log.push({ k: created, by: 'Emma Langhammer', charge: 'Rental Fee Profile',
+      change: 'Profile created · ' + n + ' charge' + (n === 1 ? '' : 's') + ' added', level: p });
+    return log;
   }
   // Deposits come back to the resident, fees don't. Pre-ticks the box for the deposit codes so the
   // common case is right without asking; not a required MITS field since a checkbox always has a value.
@@ -365,6 +420,9 @@ class Component extends DCLogic {
       case 'setupClose': this.setState({ setup: null }); break;
       case 'setupNext': this.setState(s => ({ setup: Object.assign({}, s.setup, { step: Math.min(3, (s.setup.step || 1) + 1) }) })); break;
       case 'setupBack': this.setState(s => ({ setup: Object.assign({}, s.setup, { step: Math.max(1, (s.setup.step || 1) - 1) }) })); break;
+      case 'profHistOpen': this.setState({ profMenu: null, profHist: { prop: this.state.property, exp: {} } }); break;
+      case 'profHistClose': this.setState({ profHist: null }); break;
+      case 'profHistExp': this.setState(s => ({ profHist: Object.assign({}, s.profHist, { exp: Object.assign({}, s.profHist.exp, { [arg]: !s.profHist.exp[arg] }) }) })); break;
       case 'setupAck': this.setState(s => ({ setup: Object.assign({}, s.setup, { ack: !s.setup.ack }) })); break;
       case 'setupToggle': this.setState(s => { const ex = Object.assign({}, s.setup.excl); if (ex[arg]) delete ex[arg]; else ex[arg] = true; return { setup: Object.assign({}, s.setup, { excl: ex }) }; }); break;
       case 'setupSave': { const c = this.state.setup;
@@ -1009,6 +1067,7 @@ class Component extends DCLogic {
     return `<div data-act="profMenuClose" style="position:fixed;inset:0;z-index:150"></div>
       <div style="position:fixed;left:${left}px;top:${p.y}px;background:#fff;border:1px solid #cedbe7;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);z-index:151;overflow:hidden;padding:4px 0">
         ${ilsItem}<div style="height:1px;background:#ebf1f5;margin:4px 0"></div>
+        ${item('View Profile History', 'profHistOpen')}<div style="height:1px;background:#ebf1f5;margin:4px 0"></div>
         ${item('Memorize Rental Fee Profile')}${item('Load Memorized Rental Fee Profile')}${item('About Fee Transparency')}
       </div>`;
   }
@@ -1334,6 +1393,73 @@ class Component extends DCLogic {
           </div>
         </div>
         <div style="display:flex;justify-content:flex-end;padding:12px 20px;border-top:1px solid #cedbe7;background:#f5f8fa"><button data-act="pricePreviewClose" class="btn-out" style="height:36px;min-height:36px;padding:0 28px;border-radius:4px;font-size:14px">OK</button></div>
+      </div></div>`;
+  }
+  // Change log for the property's profile: what changed and when, plus a per-charge amount timeline.
+  // Deliberately no trend graphs — the timeline itself carries the direction.
+  profHistHTML(){
+    const h = this.state.profHist; if (!h) return '';
+    const prop = h.prop;
+    const log = this.profileChangeLog(prop);
+    const amt = this.profileAmountHistory(prop);
+    const tile = (title, sub, inner, right) => `<div style="border:1px solid #cedbe7;border-radius:4px;overflow:hidden;background:#fff">
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid #cedbe7"><span style="font-size:14px;font-weight:600;color:#13314c">${title}</span><span style="font-size:12px;color:#8a9aa8">${sub}</span><div style="flex:1"></div>${right||''}</div>
+      ${inner}</div>`;
+    const hc = (t,i,extra) => `<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666;white-space:nowrap;${extra||''}">${t}</span>`;
+    const td = (t,extra) => `<span style="display:flex;align-items:center;min-height:38px;padding:6px 12px;font-size:13px;color:#13314c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
+
+    // ---- Change log ----
+    const lcols = '110px 140px minmax(190px,1fr) 170px 150px';
+    const lhead = `<div style="display:grid;grid-template-columns:${lcols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Date','Changed by','Charge','Change','Charge Level'].map((t,i)=>hc(t,i)).join('')}</div>`;
+    const lbody = log.map(e => `<div style="display:grid;grid-template-columns:${lcols};align-items:center;border-bottom:1px solid #ebf1f5">
+      ${td(this.histLabel(e.k), 'padding-left:16px;color:' + (e.k==='now'?'#12a150;font-weight:500':'#13314c'))}
+      ${td(e.by)}${td(e.charge)}${td(e.change,'color:#13314c;font-weight:500')}${td(e.level,'color:#4a5b6b')}
+    </div>`).join('');
+
+    // ---- Amount history per charge ----
+    const acols = 'minmax(180px,1fr) 130px 110px 160px 140px 60px';
+    const ahead = `<div style="display:grid;grid-template-columns:${acols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Charge','Charge Level','Current','Change over time','Last changed by',''].map((t,i)=>hc(t,i)).join('')}</div>`;
+    const abody = amt.map((f, idx) => {
+      const open = !!h.exp[idx];
+      const first = this.parseAmt(f.hist[0][1]), cur = this.parseAmt(f.hist[f.hist.length-1][1]);
+      const money = n => '$' + n.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
+      const delta = f.hist.length < 2 || first === cur
+        ? `<span style="font-size:13px;color:#8a9aa8">No change</span>`
+        : `<span style="font-size:13px;color:${cur>first?'#b3261e':'#3a7d2c'};font-weight:500">${cur>first?'+':'−'}${money(Math.abs(cur-first)).replace('$','$')}</span><span style="font-size:12px;color:#8a9aa8">&nbsp;since ${this.histLabel(f.hist[0][0])}</span>`;
+      const sub = !open ? '' : `<div style="background:#f5f8fa;border-bottom:1px solid #ebf1f5;padding:6px 16px 12px 32px">${f.hist.map((e,i) => {
+        const prev = i > 0 ? this.parseAmt(f.hist[i-1][1]) : null, v = this.parseAmt(e[1]);
+        const dir = prev === null ? '<span style="color:#c9d4dd">•</span>'
+          : v > prev ? '<span style="color:#b3261e;font-weight:600">▲</span>'
+          : v < prev ? '<span style="color:#3a7d2c;font-weight:600">▼</span>' : '<span style="color:#8a9aa8">—</span>';
+        const note = i === 0 ? 'Initial amount' : prev === v ? 'No change' : 'from ' + f.hist[i-1][1];
+        return `<div style="display:flex;align-items:center;gap:14px;padding:6px 0;border-bottom:1px dashed #dce6ee">
+          <span style="width:78px;font-size:12px;color:${e[0]==='now'?'#12a150':'#8a9aa8'}">${this.histLabel(e[0])}</span>
+          <span style="width:72px;font-size:13px;font-weight:500;color:#13314c">${e[1]}</span>
+          <span style="width:16px;text-align:center">${dir}</span>
+          <span style="font-size:12px;color:#8a9aa8">${note}</span></div>`;
+      }).join('')}</div>`;
+      return `<div style="border-bottom:1px solid #ebf1f5">
+        <div data-act="profHistExp" data-arg="${idx}" style="display:grid;grid-template-columns:${acols};align-items:center;cursor:pointer" onmouseover="this.style.background='#f4f8fb'" onmouseout="this.style.background=''">
+          ${td(`${f.row.desc||f.row.name}<span style="display:block;font-size:11px;color:#8a9aa8">${f.row.mits}</span>`,'padding-left:16px;flex-direction:column;align-items:flex-start;justify-content:center;white-space:normal')}
+          <span style="display:flex;align-items:center;min-height:38px;padding:6px 12px">${this.chargeLevelPill(f.row)}</span>
+          ${td(f.row.amount,'font-weight:500')}
+          <span style="display:flex;align-items:baseline;min-height:38px;padding:6px 12px;white-space:nowrap">${delta}</span>
+          ${td(f.by,'color:#4a5b6b')}
+          <span style="display:flex;align-items:center;justify-content:center;min-height:38px"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">${open?'expand_less':'expand_more'}</span></span>
+        </div>${sub}</div>`;
+    }).join('');
+    const empty = `<div style="padding:22px 16px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center"><span class="material-symbols-outlined" style="font-size:28px;color:#c9d4dd">history</span><span style="font-size:13px;color:#8a9aa8">No amount changes recorded for these charges yet.</span></div>`;
+
+    return `<div data-act="profHistClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:120">
+      <div data-act="noop" style="width:980px;max-width:96vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid #cedbe7"><span style="font-size:20px;color:#13314c">Rental Fee Profile History</span><span style="display:inline-flex;align-items:center;gap:10px"><span data-act="toast" data-arg="Help" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">help</span><span data-act="profHistClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span></span></div>
+        <div style="flex:1;min-height:0;overflow-y:auto;background:#f5f8fa;padding:16px 20px;display:flex;flex-direction:column;gap:16px">
+          <span style="font-size:13px;color:#4a5b6b">Every change made to the charges on <strong style="font-weight:600">${prop}</strong>.</span>
+          ${tile('Amount history by charge', amt.length ? 'Click a charge for its full timeline' : '', amt.length ? `<div style="overflow-x:auto"><div style="min-width:800px">${ahead}${abody}</div></div>` : empty,
+            amt.length ? `<a data-act="toast" data-arg="Export history" style="font-size:13px;color:var(--ac,#008dd5);cursor:pointer">Export</a>` : '')}
+          ${tile('Change log', 'Newest first', `<div style="overflow-x:auto"><div style="min-width:760px">${lhead}${lbody}</div></div>`)}
+        </div>
+        <div style="display:flex;justify-content:flex-end;padding:12px 20px;border-top:1px solid #cedbe7;background:#f5f8fa"><button data-act="profHistClose" class="btn-out" style="height:36px;min-height:36px;padding:0 28px;border-radius:4px;font-size:14px">OK</button></div>
       </div></div>`;
   }
   // Unit types present at this property, derived from its units.
@@ -1800,6 +1926,7 @@ class Component extends DCLogic {
     out += this.pfFilterHTML();
     out += this.pricePreviewHTML();
     out += this.profMenuHTML();
+    out += this.profHistHTML();
     out += this.toastHTML();
     return out;
   }
