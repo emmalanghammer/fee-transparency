@@ -687,7 +687,11 @@ class Component extends DCLogic {
       this.flash('Charge updated');
       return true;
     }
-    const name = v('m-name') || v('m-ctype-desc');
+    // The marketing name is only ever what was typed — an empty one stays empty so the charge keeps
+    // reporting Name as missing instead of silently adopting the charge type's description. That
+    // description is still the charge's internal name.
+    const name = v('m-name');
+    const intName = v('m-ctype-desc') || name;
     const code = v('m-ctype');
     const app = v('m-app') || 'Property';
     const targetId = { 'Unit Type':'m-appt-ut', 'Unit':'m-appt-unit', 'ORI':'m-appt-ori' }[app];
@@ -711,7 +715,7 @@ class Component extends DCLogic {
     const req = v('m-req');
     const grp = (req === 'Optional' ? 'opt-' : req === 'Situational' ? 'sit-' : req === 'Required' ? 'req-' : 'ind-') + (isOne ? 'one' : 'rec');
     const row = {
-      group: grp, mits: code.toUpperCase(), name: name || code, desc: v('m-comment'),
+      group: grp, mits: code.toUpperCase(), name: intName || code, desc: v('m-comment'),
       freq: isOne ? '' : ('Every ' + (v('m-freq') || '1') + ' Month'), from: v('m-from'), to: v('m-to'),
       amount, amtMethod: src, level: app, target, ils,
       // Commercial charges keep their distribution basis so reopening shows the CRE sections.
@@ -2156,7 +2160,9 @@ class Component extends DCLogic {
     const rows = this.profileRows();
     return rows.filter(r => !/-one$/.test(r.group)).concat(rows.filter(r => /-one$/.test(r.group)));
   }
-  bulkLabel(r){ return (r.listing && r.listing.name) || r.desc || r.name || r.mits; }
+  // The rail lists charges by their Comment — the internal label, stable whether or not a marketing
+  // name has been filled in.
+  bulkLabel(r){ return r.desc || r.name || r.mits; }
   // Bulk Update Fees (mock 2608-112274). A rail of every charge beside the shared charge form, so
   // they can be worked through one after another. Each rail row carries the same warning as the
   // Listing Status column, so it's clear which ones still need fields.
@@ -2170,7 +2176,7 @@ class Component extends DCLogic {
       if (!missing.length) return on
         ? `<span class="material-symbols-outlined" style="font-size:17px;color:#12a150" title="Shown on listings">check_circle</span>`
         : `<span class="material-symbols-outlined" style="font-size:17px;color:#c9d4dd" title="Marketing details complete — not shown on listings">visibility_off</span>`;
-      return `<span class="tipw" style="display:inline-flex"><span style="display:inline-flex;align-items:center;gap:4px;cursor:default"><span class="material-symbols-outlined" style="font-size:16px;color:#b35a00">error</span><span style="font-size:13px;color:#7a5a2a">${missing.length}</span></span><span class="tip" style="left:auto;right:-4px;top:24px;width:auto;min-width:190px;max-width:280px;padding:14px 16px"><span style="display:block;font-size:14px;font-weight:600;color:#13314c;padding-bottom:9px;border-bottom:1px solid #e3e9ee">${missing.length} field${missing.length===1?'':'s'} still required:</span><span style="display:flex;flex-direction:column;gap:10px;padding-top:11px">${missing.map(n=>`<span style="font-size:14px;color:#13314c;white-space:nowrap">${n}</span>`).join('')}</span></span></span>`;
+      return `<span class="tipw" style="display:inline-flex"><span class="material-symbols-outlined" style="font-size:17px;color:#b35a00;cursor:default">error</span><span class="tip" style="left:auto;right:-4px;top:24px;width:auto;min-width:190px;max-width:280px;padding:14px 16px"><span style="display:block;font-size:14px;font-weight:600;color:#13314c;padding-bottom:9px;border-bottom:1px solid #e3e9ee">${missing.length} field${missing.length===1?'':'s'} still required:</span><span style="display:flex;flex-direction:column;gap:10px;padding-top:11px">${missing.map(n=>`<span style="font-size:14px;color:#13314c;white-space:nowrap">${n}</span>`).join('')}</span></span></span>`;
     };
     const flag = (r) => flagFor(this.mitsMissing(r), !!r.ils);
     // Repaints the selected row's status from what's on screen, so toggling Show on ILS turns it green
