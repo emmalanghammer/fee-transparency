@@ -91,7 +91,9 @@ class Component extends DCLogic {
     // profileFees[prop] holds that property's charge rows.
     // Properties opted into marketing on ILS. Marketing/MITS details are editable on every
     // property; this flag only controls whether ILS publishing is surfaced at all.
-    ilsProps: { 'Riverview Apartments': true },
+    // The Berkshires is listed but not yet converted, so the setup review can warn about the
+    // listing impact. The opt-in itself only surfaces once a profile exists.
+    ilsProps: { 'Riverview Apartments': true, 'The Berkshires': true },
     profileStatus: {},
     profileFees: {},
     nextFeeId: 101,
@@ -361,18 +363,12 @@ class Component extends DCLogic {
       // ---- Rental Fee Profile setup wizard ----
       case 'setupOpen': this.setState({ recView: null, setup: { prop: arg || this.state.property, step: 1, excl: {} } }); break;
       case 'setupClose': this.setState({ setup: null }); break;
-      case 'setupNext': this.setState(s => ({ setup: Object.assign({}, s.setup, { step: 2 }) })); break;
-      case 'setupBack': this.setState(s => ({ setup: Object.assign({}, s.setup, { step: 1 }) })); break;
+      case 'setupNext': this.setState(s => ({ setup: Object.assign({}, s.setup, { step: Math.min(3, (s.setup.step || 1) + 1) }) })); break;
+      case 'setupBack': this.setState(s => ({ setup: Object.assign({}, s.setup, { step: Math.max(1, (s.setup.step || 1) - 1) }) })); break;
+      case 'setupAck': this.setState(s => ({ setup: Object.assign({}, s.setup, { ack: !s.setup.ack }) })); break;
       case 'setupToggle': this.setState(s => { const ex = Object.assign({}, s.setup.excl); if (ex[arg]) delete ex[arg]; else ex[arg] = true; return { setup: Object.assign({}, s.setup, { excl: ex }) }; }); break;
       case 'setupSave': { const c = this.state.setup;
-        const rows = this.setupCandidates().filter(r => !c.excl[r.id]).map(r => {
-          const req = this.setupRequirement(r);
-          const suffix = /-one$/.test(r.group) ? '-one' : '-rec';
-          const prefix = req === 'Optional' ? 'opt' : req === 'Situational' ? 'sit' : 'req';
-          // The setup choice satisfies the MITS requirement field up front. Merge so charges that
-          // already carry pulled-in marketing details (NSF, late fees) keep them.
-          return Object.assign({}, r, { group: prefix + suffix, listing: Object.assign({}, r.listing, { requirement: req }) });
-        });
+        const rows = this.setupRows();
         this.setState({ setup: Object.assign({}, c, { step: 'saving' }), propTab: 'Rental Fee Profile' });
         clearTimeout(this._sut); this._sut = setTimeout(() => this.setState(s => ({
           setup: null,
@@ -1122,14 +1118,30 @@ class Component extends DCLogic {
   // ================= SETUP WIZARD =================
   setupDots(step){
     const dot = on => `<span style="width:7px;height:7px;border-radius:50%;background:${on?'#8a9aa8':'#d7dee5'};display:inline-block"></span>`;
-    return `<span style="display:inline-flex;align-items:center;gap:6px">${dot(step===1)}${dot(step===2)}</span>`;
+    return `<span style="display:inline-flex;align-items:center;gap:6px">${dot(step===1)}${dot(step===2)}${dot(step===3)}</span>`;
+  }
+  // The rows exactly as save will write them, so the review step counts what actually lands.
+  setupRows(){
+    const c = this.state.setup; if (!c) return [];
+    return this.setupCandidates().filter(r => !c.excl[r.id]).map(r => {
+      const req = this.setupRequirement(r);
+      const suffix = /-one$/.test(r.group) ? '-one' : '-rec';
+      const prefix = req === 'Optional' ? 'opt' : req === 'Situational' ? 'sit' : 'req';
+      // The setup choice satisfies the MITS requirement field up front. Merge so charges that
+      // already carry pulled-in marketing details (NSF, late fees) keep them.
+      return Object.assign({}, r, { group: prefix + suffix, listing: Object.assign({}, r.listing, { requirement: req }) });
+    });
   }
   setupHTML(){
     const c = this.state.setup; if (!c || c.step === 'saving') return '';
-    const body = c.step === 1 ? this.setupStep1() : this.setupStep2();
+    const body = c.step === 1 ? this.setupStep1() : c.step === 2 ? this.setupStep2() : this.setupStep3();
+    const back = `<button data-act="setupBack" class="btn-out" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px">Back</button>`;
+    const next = `<button data-act="setupNext" class="btn-pri" style="height:36px;min-height:36px;padding:0 22px;border-radius:4px;font-size:14px">Next</button>`;
+    // Saving stays behind the acknowledgement, since the profile takes over charging for the property.
+    const save = `<button ${c.ack?'data-act="setupSave"':''} class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px;${c.ack?'':'opacity:0.45;cursor:default'}">Save ${this.setupRows().length} Charges</button>`;
     const foot = c.step === 1
-      ? `<div style="flex:1"></div><button data-act="setupNext" class="btn-pri" style="height:36px;min-height:36px;padding:0 22px;border-radius:4px;font-size:14px">Next</button>`
-      : `<button data-act="setupBack" class="btn-out" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px">Back</button><div style="flex:1"></div><button data-act="setupSave" class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px">Save ${this.setupCandidates().filter(r=>!c.excl[r.id]).length} Charges</button>`;
+      ? `<div style="flex:1"></div>${next}`
+      : `${back}<div style="flex:1"></div>${c.step === 2 ? next : save}`;
     return `<div data-act="setupClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:120">
       <div data-act="noop" style="width:960px;max-width:96vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:12px 16px 0"><span data-act="toast" data-arg="Help" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">help</span><span data-act="setupClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span></div>
@@ -1216,6 +1228,54 @@ class Component extends DCLogic {
       <span style="font-size:13px;color:#8a9aa8;line-height:1.5">Unchecked charges won't be added. They won't apply to future move-ins, quotes, or listings. Existing tenant charges are unaffected either way. Not included: late fees, tenant-specific charges.</span>
       ${table('Recurring Charges', all.filter(r=>!/-one$/.test(r.group)), true)}
       ${table('One-Time Charges', all.filter(r=>/-one$/.test(r.group)), false)}
+    </div>`;
+  }
+  // Step 3: the profile takes over charging for the whole property, so the change gets reviewed and
+  // acknowledged before it lands. Listed properties additionally get told what it does to the listing.
+  setupStep3(){
+    const c = this.state.setup;
+    const prop = c.prop;
+    const rows = this.setupRows();
+    const all = this.setupCandidates();
+    const left = all.length - rows.length;
+    const rec = rows.filter(r => !/-one$/.test(r.group)).length;
+    const reqN = rows.filter(r => /^req/.test(r.group)).length;
+    const optN = rows.filter(r => /^opt/.test(r.group)).length;
+    const sitN = rows.filter(r => /^sit/.test(r.group)).length;
+    const stat = (n, l) => `<div style="flex:1;min-width:130px;background:#f7f9fb;border:1px solid #e3e9ee;border-radius:4px;padding:12px 16px;display:flex;flex-direction:column;gap:2px"><span style="font-size:22px;font-weight:600;color:#13314c;line-height:1.2">${n}</span><span style="font-size:13px;color:#4a5b6b">${l}</span></div>`;
+    // What the conversion does and doesn't reach. The dash row is the carve-out the user needs to see.
+    const line = (icon, color, t, b) => `<div style="display:flex;gap:12px;align-items:flex-start;padding:12px 16px;border-bottom:1px solid #f0f4f7"><span class="material-symbols-outlined" style="font-size:20px;color:${color};flex:none">${icon}</span><span style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:14px;color:#13314c">${t}</span><span style="font-size:13px;color:#8a9aa8;line-height:1.45">${b}</span></span></div>`;
+    const scope = `<div style="border:1px solid #e3e9ee;border-radius:4px;overflow:hidden">
+      ${line('check_circle','#12a150','Future move-ins, quotes and renewals','Charge from this profile instead of the '+this.setupSources().length+' places these charges live today.')}
+      ${line('check_circle','#12a150','Property, unit type, unit and rentable item charges','All '+rows.length+' move onto one page for '+prop+'. Editing a charge here changes it everywhere it applies.')}
+      ${line('remove','#8a9aa8','Existing tenant charges','Not touched. Tenant-level charges stay where they are and keep billing exactly as they do today.')}
+    </div>`;
+    // Fee transparency raises the bar on every charge, so a listed property is told what is still missing.
+    const ready = rows.filter(r => this.mitsComplete(r)).length;
+    const short = rows.length - ready;
+    const ils = !this.ilsOn(prop) ? '' : `<div style="display:flex;gap:12px;background:#fdf8ef;border:1px solid #f0d9ae;border-radius:4px;padding:14px 16px">
+      <span class="material-symbols-outlined" style="font-size:20px;color:#b35a00;flex:none">warning</span>
+      <span style="display:flex;flex-direction:column;gap:6px;min-width:0">
+        <span style="font-size:14px;font-weight:600;color:#13314c">${prop} is published to listings</span>
+        <span style="font-size:13px;color:#4a5b6b;line-height:1.5">This conversion changes how your fees reach ILS. Fee transparency asks for more detail on every charge, so each one needs a Name, Charge Category, Charge Requirement, Fee Due and Charge Schedule before it can be published. Charges missing any of those stay off the listing until you fill them in.</span>
+        <span style="font-size:13px;color:#4a5b6b">${short ? `<strong style="font-weight:600">${short} of ${rows.length} charges still need fields</strong> — the Rental Fee Profile flags each one after setup.` : `All ${rows.length} charges already have what listings need.`}</span>
+      </span></div>`;
+    const box = on => `<span style="width:18px;height:18px;border-radius:3px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;margin-top:1px;${on?'background:#f58220;border:1px solid #f58220':'background:#fff;border:1px solid #b3b3b3'}">${on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span>`;
+    return `<div style="display:flex;flex-direction:column;gap:18px">
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <span style="font-size:14px;font-weight:600;color:#13314c">Review and confirm</span>
+        <span style="font-size:13px;color:#8a9aa8;line-height:1.5">This applies to all of ${prop}, not just one unit or lease. Check it over before you create the profile.</span>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        ${stat(rows.length, 'Charges added' + (rows.length ? ` · ${rec} recurring, ${rows.length - rec} one-time` : ''))}
+        ${stat(left, left === 1 ? 'Charge left out' : 'Charges left out')}
+        ${stat(`${reqN} / ${optN} / ${sitN}`, 'Required / Optional / Situational')}
+      </div>
+      ${scope}
+      ${ils}
+      <div data-act="setupAck" style="display:flex;gap:10px;align-items:flex-start;background:#f7f9fb;border:1px solid ${c.ack?'#cedbe7':'#e3e9ee'};border-radius:4px;padding:12px 16px;cursor:pointer">
+        ${box(!!c.ack)}<span style="font-size:14px;color:#13314c;line-height:1.45">I understand this profile will charge every future move-in, quote and renewal on ${prop}.</span>
+      </div>
     </div>`;
   }
 
