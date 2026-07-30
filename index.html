@@ -248,6 +248,9 @@ class Component extends DCLogic {
     cmp('Fee Due', la.feeDue, lb.feeDue);
     cmp('Charge Schedule', la.schedule, lb.schedule);
     cmp('Situational Description', a.cond, b.cond);
+    cmp('Amount Distribution', a.creDist, b.creDist);
+    cmp('Divide', a.creDivide, b.creDivide);
+    cmp('User Defined Field', a.creUdf, b.creUdf);
     if (!!la.refundable !== !!lb.refundable) out.push('Refundable turned ' + (lb.refundable ? 'on' : 'off'));
     if (!!a.ils !== !!b.ils) out.push('Show on ILS turned ' + (b.ils ? 'on' : 'off'));
     return out;
@@ -618,7 +621,8 @@ class Component extends DCLogic {
       case 'feeexp': this.mutFee(+arg, f => { f.expanded = !f.expanded; return f; }); break;
 
       // ---- add / edit charge ----
-      case 'addopen': this.setState({ modal: { group: arg }, toggles: Object.assign({}, this.state.toggles, { modalIls: false }) }); break;
+      // 'cre' is a recurring charge with the commercial distribution sections added.
+      case 'addopen': this.setState({ modal: arg === 'cre' ? { group: 'req-rec', cre: true } : { group: arg }, toggles: Object.assign({}, this.state.toggles, { modalIls: false }) }); break;
       case 'addclose': this.setState({ modal: null }); break;
       case 'addsave': this.saveFee(); break;
 
@@ -682,6 +686,9 @@ class Component extends DCLogic {
       group: grp, mits: code.toUpperCase(), name: name || code, desc: v('m-comment'),
       freq: isOne ? '' : ('Every ' + (v('m-freq') || '1') + ' Month'), from: v('m-from'), to: v('m-to'),
       amount, amtMethod: src, level: app, target, ils,
+      // Commercial charges keep their distribution basis so reopening shows the CRE sections.
+      cre: !!(m.cre || (m.edit && m.edit.cre)) || undefined,
+      creDist: v('m-cre-dist') || undefined, creDivide: v('m-cre-divide') || undefined, creUdf: v('m-cre-udf') || undefined,
       cond: req === 'Situational' ? v('m-sitdesc') : '',
       // Marketing/MITS details are saved regardless of ILS — they're useful to non-ILS properties too.
       listing: { name, category: this.chargeCategoryFor(code), marketing: v('m-marketing'), requirement: req, feeDue: v('m-due'), schedule: isOne ? '' : v('m-sched'), refundable: chkd('m-refund') }
@@ -1186,7 +1193,7 @@ class Component extends DCLogic {
         <button data-act="addopen" data-arg="req-rec" class="btn-pri" style="height:36px;min-height:36px;padding:0 14px;border-radius:4px 0 0 4px;font-size:14px;white-space:nowrap">Add Charge</button>
         <button onclick="var p=document.getElementById('pf-add-pnl');p.style.display=(p.style.display==='block'?'none':'block')" class="btn-pri" style="height:36px;min-height:36px;padding:0 6px;border-radius:0 4px 4px 0;border-left:1px solid rgba(255,255,255,0.35);font-size:14px"><span class="material-symbols-outlined" style="font-size:20px">arrow_drop_down</span></button>
         <div id="pf-add-pnl" style="display:none;position:absolute;right:0;top:40px;z-index:1000;min-width:210px;background:#fff;border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,0.18);overflow:hidden">
-          ${[['Add Recurring Charge','req-rec'],['Add One-Time Charge','req-one']].map(o=>`<div data-act="addopen" data-arg="${o[1]}" style="padding:10px 14px;font-size:14px;color:#13314c;cursor:pointer" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''">${o[0]}</div>`).join('')}
+          ${[['Add Recurring Charge','req-rec'],['Add One-Time Charge','req-one'],['Add CRE Recurring Charge','cre']].map(o=>`<div data-act="addopen" data-arg="${o[1]}" style="padding:11px 16px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''">${o[0]}</div>`).join('')}
         </div>
       </span>
       <span data-act="profMenuOpen" style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:36px;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">more_vert</span></span>
@@ -1890,7 +1897,9 @@ class Component extends DCLogic {
     // Property specific charges (NSF, late fees) pull every non-marketing field from the property,
     // so General Details renders locked and only the marketing details are editable.
     const spec = ed && ed.propSpecific ? ed.propSpecific : '';
-    const title = spec ? `Add ${spec} One-Time Charge` : (ed ? 'Charge Details' : (isOne ? 'Add One-Time Charge' : 'Add Recurring Charge'));
+    const cre = !!(m.cre || (ed && ed.cre));
+    const title = spec ? `Add ${spec} One-Time Charge`
+      : (ed ? 'Charge Details' : (cre ? 'Add CRE Recurring Charge' : (isOne ? 'Add One-Time Charge' : 'Add Recurring Charge')));
     const esc = s => (''+(s||'')).replace(/"/g,'&quot;');
     const lab = (t,info) => `<span style="display:inline-flex;align-items:center;gap:4px;font-size:14px;color:#666">${t}${info?`<span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5)">info</span>`:''}</span>`;
     const sect = (t,inner) => `<div style="display:flex;flex-direction:column;gap:10px"><span style="font-size:15px;font-weight:600;color:#13314c">${t}</span><div style="border:1px solid #cedbe7;border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:12px">${inner}</div></div>`;
@@ -1959,6 +1968,33 @@ class Component extends DCLogic {
       </div>
       ${freqRow}
       ${amount}`;
+
+    // ---- CRE-only distribution sections (mock 2593-104495) ----
+    // A commercial charge is spread across tenants rather than billed flat, so it carries a
+    // distribution basis and the rule for dividing the amount.
+    const creDist = [
+      "Tenant's percentage of the total square footage of the property",
+      "Tenant's percentage of the total occupied square footage",
+      'Equally between all tenants',
+      'Fixed amount per tenant'
+    ];
+    const creDivide = [
+      'Use an amount from property user defined field',
+      'Use the charge amount entered above',
+      'Use the tenant square footage'
+    ];
+    const creUdf = ['School District','Total Sq Ft','Regional Portfolio','MITS Property ID'];
+    const creSections = !cre ? '' : `
+      <div style="border:1px solid #cedbe7;border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;flex-direction:column;gap:4px">${lab('Amount Distribution')}${dd('m-cre-dist', creDist, (ed&&ed.creDist)||creDist[0], { noSearch:true })}</div>
+      </div>
+      <div style="border:1px solid #cedbe7;border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:10px">
+        ${lab('Amount')}
+        <div style="background:#f5f8fa;border:1px solid #e3e9ee;border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;flex-direction:column;gap:4px">${lab('Divide')}${dd('m-cre-divide', creDivide, (ed&&ed.creDivide)||creDivide[0], { noSearch:true, js:"document.getElementById('m-cre-udf-wrap').style.display=(_v==='Use an amount from property user defined field'?'flex':'none')" })}</div>
+          <div id="m-cre-udf-wrap" style="display:${((ed&&ed.creDivide)||creDivide[0])===creDivide[0]?'flex':'none'};flex-direction:column;gap:4px">${lab('User Defined Fields')}${dd('m-cre-udf', creUdf, (ed&&ed.creUdf)||creUdf[0], { noSearch:true })}</div>
+        </div>
+      </div>`;
 
     // ---- Marketing Details (always available; MITS 5.0 / listing fields) ----
     const edCat = ed ? catFor(ed.mits) : '';
@@ -2037,6 +2073,7 @@ class Component extends DCLogic {
         <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:18px">
           ${specNote}
           ${sect('General Details', spec ? specGeneral : general)}
+          ${creSections}
           <div style="display:flex;flex-direction:column;gap:10px">
             <span style="font-size:15px;font-weight:600;color:#13314c">Marketing Details</span>
             ${ilsBox}
