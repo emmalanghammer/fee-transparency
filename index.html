@@ -1492,10 +1492,11 @@ class Component extends DCLogic {
   // ================= PRICING PREVIEW =================
   pricePreviewHTML(){
     const p = this.state.pricePreview; if (!p) return '';
-    // On ILS-marketed properties the preview mirrors what publishes; elsewhere it previews every
-    // charge whose marketing details are complete.
+    // On an ILS-marketed property the preview mirrors exactly what publishes, so it honours Show on
+    // ILS. Everywhere else nothing publishes at all, so it shows every charge — the point there is to
+    // see what a listing would look like, not what is being filtered out.
     const ilsProp = this.ilsOn(p.prop);
-    const rows = this.profileRows().filter(r => ilsProp ? r.ils : this.mitsComplete(r));
+    const rows = ilsProp ? this.profileRows().filter(r => r.ils) : this.profileRows();
     const money = n => '$' + n.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
     const unit = this.unitInfo(p.unit);
     const amtOf = r => { const a = this.parseAmt(r.amount); if (a) return a; if (r.est != null) return r.est; return /market/i.test(r.amount||'') ? this.parseAmt(unit.rent) : 0; };
@@ -1513,16 +1514,19 @@ class Component extends DCLogic {
     return `<div data-act="pricePreviewClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:120">
       <div data-act="noop" style="width:940px;max-width:96vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid #cedbe7"><span style="font-size:20px;color:#13314c">Pricing Preview</span><span style="display:inline-flex;align-items:center;gap:10px"><span data-act="toast" data-arg="Help" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">help</span><span data-act="pricePreviewClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span></span></div>
+        <div style="flex:none;margin:16px 20px 0;background:#f5f8fa;border:1px solid #e3e9ee;border-radius:4px;padding:10px 14px;font-size:14px;color:#4a5b6b;line-height:1.45">${ilsProp
+          ? 'Only charges with the Show on ILS option enabled will display in the pricing preview.'
+          : `${p.prop} isn't marketed on ILS, so every charge is shown here to preview how a listing would look.`}</div>
         <div style="flex:1;min-height:0;overflow-y:auto;display:flex;gap:0;flex-wrap:wrap">
           <div style="flex:1;min-width:300px;padding:16px 20px;display:flex;flex-direction:column;gap:14px;box-sizing:border-box">
             <div style="font-size:14px;font-weight:600;color:#13314c;border-bottom:1px solid #ebf1f5;padding-bottom:8px">Select Unit</div>
             <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:13px;color:#666">Property</span><div style="display:flex;align-items:center;height:36px;box-sizing:border-box;padding:0 12px;font-size:14px;color:#13314c;background:#eef2f5;border:1px solid #e3e9ee;border-radius:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.prop}</div></div>
             <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:13px;color:#666">Unit</span>${this.singleSelect('pp-unit', this.units().map(u=>u.u), p.unit, { act:'ppUnit', noSearch:true })}</div>
             <div style="font-size:14px;font-weight:600;color:#13314c;border-bottom:1px solid #ebf1f5;padding-bottom:8px;margin-top:4px">Select Optional Fees</div>
-            ${optRows.length ? optRows.map(optCb).join('') : '<span style="font-size:13px;font-style:italic;color:#b3b3b3">No optional fees with marketing details yet.</span>'}
+            ${optRows.length ? optRows.map(optCb).join('') : '<span style="font-size:13px;font-style:italic;color:#b3b3b3">No optional fees ' + (ilsProp ? 'set to show on listings yet.' : 'on this profile yet.') + '</span>'}
             <div style="border:1px solid #cedbe7;border-radius:4px;overflow:hidden;margin-top:4px">
               <div data-act="ppSitToggle" style="display:flex;align-items:center;gap:8px;padding:12px 14px;cursor:pointer"><span style="font-size:14px;font-weight:600;color:#13314c;flex:1">Situational</span><span class="material-symbols-outlined" style="font-size:20px;color:#666">${p.sitOpen?'expand_less':'expand_more'}</span></div>
-              ${p.sitOpen?`<div style="padding:0 14px 12px;display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;color:#8a9aa8;line-height:1.5;margin-bottom:6px">Additional fees may apply in cases of late payments, lease violations, or other charges</span>${sitRows.length?'':'<span style="font-size:12px;font-style:italic;color:#b3b3b3">No situational fees with marketing details yet.</span>'}${(sitRows.length?sitRows:[]).map(r=>`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:#4a5b6b"><span>${r.name}</span><span>${money(this.parseAmt(r.amount))}/one-time</span></div>`).join('')}</div>`:''}
+              ${p.sitOpen?`<div style="padding:0 14px 12px;display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;color:#8a9aa8;line-height:1.5;margin-bottom:6px">Additional fees may apply in cases of late payments, lease violations, or other charges</span>${sitRows.length?'':'<span style="font-size:12px;font-style:italic;color:#b3b3b3">No situational fees '+(ilsProp?'set to show on listings yet.':'on this profile yet.')+'</span>'}${(sitRows.length?sitRows:[]).map(r=>`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:#4a5b6b"><span>${r.name}</span><span>${money(this.parseAmt(r.amount))}/one-time</span></div>`).join('')}</div>`:''}
             </div>
           </div>
           <div style="flex:1;min-width:320px;background:#f5f8fa;padding:16px 20px;box-sizing:border-box;display:flex;flex-direction:column;gap:10px">
@@ -1535,13 +1539,12 @@ class Component extends DCLogic {
                 ${rows.length ? `${grp('Included every month', monthly)}${grp('Due at move-in', moveIn)}${chosenOpt.length?grp('Optional add-ons', chosenOpt, '/mo'):''}`
                   : `<div style="padding:16px 0;border-top:1px solid #eef2f5;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center">
                       <span class="material-symbols-outlined" style="font-size:30px;color:#c9d4dd">visibility_off</span>
-                      <span style="font-size:13px;font-weight:600;color:#13314c">${ilsProp?'No charges are set to show on listings yet':'No charges have marketing details yet'}</span>
-                      <span style="font-size:12px;color:#8a9aa8;line-height:1.5;max-width:300px">${ilsProp?'Fill in a charge\'s <b>Marketing Details</b> and turn on <b>Show on ILS Listings</b> to see it here.':'Fill in a charge\'s <b>Marketing Details</b> to see it here.'}</span>
+                      <span style="font-size:13px;font-weight:600;color:#13314c">${ilsProp?'No charges are set to show on listings yet':'No charges on this profile yet'}</span>
+                      <span style="font-size:12px;color:#8a9aa8;line-height:1.5;max-width:300px">${ilsProp?'Turn on <b>Show on ILS</b> for a charge to see it here.':'Add a charge to the profile to preview it here.'}</span>
                     </div>` }
               </div>
               <div style="margin:12px 16px 16px;background:#13314c;border-radius:4px;padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="font-size:13px;color:#fff">Due monthly</span><span style="font-size:15px;font-weight:700;color:#fff">${money(mTotal)}</span><div style="flex:1"></div><span style="font-size:13px;color:#fff">Due one-time</span><span style="font-size:15px;font-weight:700;color:#fff">${money(oTotal)}</span></div>
             </div>
-            <span style="font-size:12px;font-style:italic;color:#8a9aa8;line-height:1.5">${ilsProp?'Only charges with the Show on ILS option enabled will display in the pricing preview.':'Only charges with complete marketing details will display in the pricing preview.'}</span>
           </div>
         </div>
         <div style="display:flex;justify-content:flex-end;padding:12px 20px;border-top:1px solid #cedbe7;background:#f5f8fa"><button data-act="pricePreviewClose" class="btn-out" style="height:36px;min-height:36px;padding:0 28px;border-radius:4px;font-size:14px">OK</button></div>
