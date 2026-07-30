@@ -1160,6 +1160,20 @@ class Component extends DCLogic {
         <span style="font-size:13px;color:#fff;line-height:1.5">Going forward, new move-ins, quotes, and renewals will charge from this profile. Existing tenant charges are unaffected.</span>
       </div></div>`;
   }
+  // Explains the Charge Requirement field. Published to listings as the MITS "Requirement" value,
+  // so the wording matches what a prospect would read on the listing.
+  reqHelp(){
+    const term = (t,d) => `<span style="display:block;font-size:13px;font-weight:400;color:#13314c;white-space:normal"><strong style="font-weight:600">${t}</strong> — ${d}</span>`;
+    return `<span class="tipw" onclick="event.stopPropagation()"><span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5);cursor:pointer">info</span>`
+      + `<span class="tip" style="left:auto;right:-6px;top:24px;width:310px;padding:14px 16px">`
+      + `<span style="display:block;font-size:14px;font-weight:600;color:#13314c;padding-bottom:9px;border-bottom:1px solid #e3e9ee">Charge Requirement</span>`
+      + `<span style="display:block;font-size:13px;font-weight:400;color:#666;white-space:normal;padding:11px 0 12px;line-height:1.5">Whether a charge applies to everyone, is the resident's to choose, or only applies under certain conditions.</span>`
+      + `<span style="display:flex;flex-direction:column;gap:10px">`
+      + term('Required', 'Applies to every resident. There is no way to opt out.')
+      + term('Optional', 'The resident decides whether to add it, like a parking space or a storage unit.')
+      + term('Situational', 'Only charged when something specific happens, like a late payment, a pet, or a lease violation.')
+      + `</span></span></span>`;
+  }
   setupStep2(){
     const c = this.state.setup;
     const all = this.setupCandidates();
@@ -1168,7 +1182,7 @@ class Component extends DCLogic {
     const table = (label, rows, rec) => {
       const cols = '44px 120px minmax(150px,1fr) 110px 110px 150px';
       const heads = ['','Charge Type','Comment','Amount','Charge Level','Charge Requirement'];
-      const hc = (t,i) => `<span style="padding:8px 10px;font-size:12px;font-weight:600;color:#13314c;white-space:nowrap;${/Amount/.test(t)?'justify-content:flex-end;display:flex;':''}">${t}</span>`;
+      const hc = (t,i) => `<span style="padding:8px 10px;font-size:12px;font-weight:600;color:#13314c;white-space:nowrap;${/Amount/.test(t)?'justify-content:flex-end;display:flex;':''}${t===heads[5]?'display:flex;align-items:center;gap:5px;':''}">${t}${t===heads[5]?this.reqHelp():''}</span>`;
       const cell = (t,extra) => `<span style="display:flex;align-items:center;min-height:38px;padding:6px 10px;font-size:13px;color:#13314c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
       // Pre-selected from the charge type/comment; the row click toggles inclusion so the select
       // stops propagation to stay independently changeable.
