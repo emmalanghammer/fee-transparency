@@ -1746,14 +1746,22 @@ class Component extends DCLogic {
     const f = this.state.pfFilters || {};
     const W = 330;
     const left = Math.max(8, Math.min(p.x - W, window.innerWidth - W - 8));
+    // Anchor below the trigger, but cap the height to the room actually available — and when there
+    // isn't enough, lift the panel so its footer never lands past the bottom of the window.
+    const gap = 8, vh = window.innerHeight;
+    const cap = Math.min(660, Math.round(vh * 0.8));
+    const below = vh - p.y - gap;
+    let top = p.y, maxH = Math.min(cap, below);
+    if (below < 300) { maxH = Math.min(cap, vh - gap * 2); top = Math.max(gap, vh - gap - maxH); }
     const lab = (t, menu) => `<span style="display:flex;align-items:center;font-size:13px;color:#5a6773">${t}${menu?`<div style="flex:1"></div><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);cursor:pointer">menu</span>`:''}</span>`;
     const inp = (id, val, ph, icon) => `<div style="display:flex;align-items:center;gap:6px;height:34px;box-sizing:border-box;background:#fff;border:1px solid #cedbe7;border-radius:4px;padding:0 8px">${icon?`<span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);flex:none">${icon}</span>`:''}<input id="${id}" value="${(val||'').replace(/"/g,'&quot;')}" placeholder="${ph||''}" style="flex:1;min-width:0;border:none;outline:none;background:transparent;font:400 14px Roboto,sans-serif;color:#13314c"></div>`;
     const dateInp = (id, val) => `<div style="flex:1;min-width:0;display:flex;align-items:center;gap:4px;height:34px;box-sizing:border-box;background:#fff;border:1px solid #cedbe7;border-radius:4px;padding:0 6px"><input id="${id}" value="${val||''}" placeholder="mm/dd/yyyy" style="flex:1;min-width:0;border:none;outline:none;background:transparent;font:400 13px Roboto,sans-serif;color:#13314c"><span class="material-symbols-outlined" style="font-size:17px;color:#5a6773;flex:none">calendar_month</span></div>`;
     const cb = (id, label, on) => `<label style="display:inline-flex;align-items:center;gap:7px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer"><input type="checkbox" id="${id}" ${on?'checked':''} style="width:16px;height:16px;margin:0;accent-color:var(--ac,#008dd5)">${label}</label>`;
     const field = (label, inner, menu) => `<div style="display:flex;flex-direction:column;gap:4px">${lab(label, menu)}${inner}</div>`;
     return `<div data-act="pfFilterClose" style="position:fixed;inset:0;z-index:150"></div>
-      <div data-act="noop" style="position:fixed;left:${left}px;top:${p.y}px;width:${W}px;max-height:min(80vh,660px);overflow-y:auto;background:#eaf4fb;border:1px solid #cedbe7;border-radius:4px;box-shadow:0 8px 24px rgba(0,0,0,0.2);z-index:151;padding:14px 16px;display:flex;flex-direction:column;gap:12px">
-        <div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:15px;font-weight:600;color:#13314c">Filters</span><div style="height:1px;background:#cedbe7"></div></div>
+      <div data-act="noop" style="position:fixed;left:${left}px;top:${top}px;width:${W}px;max-height:${maxH}px;background:#eaf4fb;border:1px solid #cedbe7;border-radius:4px;box-shadow:0 8px 24px rgba(0,0,0,0.2);z-index:151;display:flex;flex-direction:column;overflow:hidden">
+        <div style="flex:none;display:flex;flex-direction:column;gap:8px;padding:14px 16px 0"><span style="font-size:15px;font-weight:600;color:#13314c">Filters</span><div style="height:1px;background:#cedbe7"></div></div>
+        <div style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:12px 16px">
         ${field('Type', this.multiSelect('pf-f-type', ['Recurring','One-Time'], (f.type && f.type.length) ? f.type : ['Recurring','One-Time']))}
         ${field('From Date Range', `<div style="display:flex;align-items:center;gap:6px">${dateInp('pf-f-from', f.from||'01/01/2026')}${dateInp('pf-f-to', f.to||'04/01/2026')}<span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);cursor:pointer;flex:none">menu</span></div>`)}
         ${field('Search Options', this.singleSelect('pf-f-op', ['Contains','Starts with','Equals'], f.op||'Contains', { noSearch:true }))}
@@ -1762,7 +1770,8 @@ class Component extends DCLogic {
         ${field('Name', inp('pf-f-name', f.name, ''))}
         ${field('Comment', inp('pf-f-comment', f.comment, ''), true)}
         <div style="display:flex;align-items:center;gap:22px;padding-top:2px">${cb('pf-f-past','Past',f.past)}${cb('pf-f-future','Future',f.future)}</div>
-        <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;padding-top:2px">
+        </div>
+        <div style="flex:none;display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:12px 16px;border-top:1px solid #cedbe7;background:#eaf4fb">
           <button data-act="pfFilterApply" class="btn-pri" style="height:34px;padding:0 20px;border-radius:4px;font-size:14px">Apply</button>
           <button data-act="pfFilterReset" class="btn-out" style="height:34px;padding:0 20px;border-radius:4px;font-size:14px;box-sizing:border-box">Reset</button>
         </div>
