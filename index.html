@@ -230,7 +230,11 @@ class Component extends DCLogic {
     cmp('Comment', a.desc, b.desc);
     cmp('Charge Application', a.target || a.level, b.target || b.level);
     cmp('Amount Method', a.amtMethod, b.amtMethod);
-    cmp('Frequency', a.freq, b.freq);
+    // "Every Month" and "Every 1 Month" are the same frequency written two ways — compare the
+    // multiplier so re-saving a converted charge doesn't read as a change.
+    const freqKey = v => { const s = String(v || ''); if (!s) return ''; const m = s.match(/\d+/);
+      return (m ? m[0] : '1') + ' ' + s.replace(/Every\s*|\d+\s*/gi, '').trim(); };
+    if (freqKey(a.freq) !== freqKey(b.freq)) cmp('Frequency', a.freq, b.freq);
     cmp('Name', la.name, lb.name);
     cmp('Marketing Description', la.marketing, lb.marketing);
     cmp('Charge Requirement', la.requirement, lb.requirement);
@@ -246,8 +250,10 @@ class Component extends DCLogic {
   logChargeEdit(before, after){
     const diff = this.chargeDiff(before, after);
     if (!diff.length) return;
-    const extra = this.parseAmt(before.amount) === this.parseAmt(after.amount) ? null
-      : { chargeId: after.id != null ? after.id : before.id, amtFrom: before.amount, amt: after.amount };
+    // chargeId is what makes the log entry link back to the charge; amtFrom/amt additionally feed
+    // the amount timeline, so they're only set when the amount actually moved.
+    const extra = { chargeId: after.id != null ? after.id : before.id };
+    if (this.parseAmt(before.amount) !== this.parseAmt(after.amount)) { extra.amtFrom = before.amount; extra.amt = after.amount; }
     this.logChange(this.state.property, this.histLabelFor(after), diff.join(' · '), after.target || after.level, extra);
   }
   // Per-charge amount timelines: the preloaded history, then anything changed this session.
@@ -269,7 +275,7 @@ class Component extends DCLogic {
   profileChangeLog(prop){
     const p = prop || this.state.property;
     const log = this.state.histLog.filter(e => e.prop === p).slice().reverse()
-      .map(e => ({ k:'now', by:e.by, charge:e.charge, change:e.change, level:e.level }));
+      .map(e => ({ k:'now', by:e.by, charge:e.charge, change:e.change, level:e.level, chargeId:e.chargeId }));
     const seed = this.profileAmountSeed();
     const pre = [];
     this.profileRows(p).forEach(r => {
@@ -279,7 +285,7 @@ class Component extends DCLogic {
         const from = s.hist[i-1][1], to = entry[1];
         if (this.parseAmt(from) === this.parseAmt(to)) return;
         pre.push({ k: entry[0], by: s.by, charge: this.histLabelFor(r), change: from + ' → ' + to,
-          level: r.target || r.level });
+          level: r.target || r.level, chargeId: r.id });
       });
     });
     pre.sort((a,b) => a.k < b.k ? 1 : a.k > b.k ? -1 : 0);
@@ -479,6 +485,7 @@ class Component extends DCLogic {
       case 'rowDelete': { const id = arg;
         const gone = this.profileRows().find(f => String(f.id) === String(id));
         this.setProfileRows(rows => rows.filter(f => String(f.id) !== String(id)));
+        // No chargeId — the charge is gone, so the log entry has nothing to link to.
         if (gone) this.logChange(this.state.property, this.histLabelFor(gone), 'Charge removed from the profile', gone.target || gone.level);
         this.setState({ rowMenu: null }); this.flash('Charge deleted'); break; }
 
@@ -571,7 +578,7 @@ class Component extends DCLogic {
       // ---- fee row mutations ----
       case 'feeils': { const r = this.profileRows().find(f => f.id === +arg);
         this.mutFee(+arg, f => { f.ils = !f.ils; return f; });
-        if (r) this.logChange(this.state.property, this.histLabelFor(r), 'Show on ILS turned ' + (r.ils ? 'off' : 'on'), r.target || r.level);
+        if (r) this.logChange(this.state.property, this.histLabelFor(r), 'Show on ILS turned ' + (r.ils ? 'off' : 'on'), r.target || r.level, { chargeId: r.id });
         break; }
       case 'feeexp': this.mutFee(+arg, f => { f.expanded = !f.expanded; return f; }); break;
 
@@ -652,7 +659,7 @@ class Component extends DCLogic {
     const id = this.state.nextFeeId;
     this.setProfileRows(rows => rows.concat([Object.assign({ id }, row)]));
     this.logChange(this.state.property, this.histLabelFor(row),
-      'Charge added · ' + row.amount + ' · ' + (row.listing.requirement || 'Required'), target || app);
+      'Charge added · ' + row.amount + ' · ' + (row.listing.requirement || 'Required'), target || app, { chargeId: id });
     this.setState(s => ({ modal: null, nextFeeId: s.nextFeeId + 1 }));
     this.flash('Charge added');
   }
@@ -1485,12 +1492,19 @@ class Component extends DCLogic {
     const hc = (t,i,extra) => `<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666;white-space:nowrap;${extra||''}">${t}</span>`;
     const td = (t,extra) => `<span style="display:flex;align-items:center;min-height:38px;padding:6px 12px;font-size:13px;color:#13314c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
 
+    // A charge name opens its details, but only while the charge is still on the profile — a
+    // "Charge removed" entry has nothing left to open.
+    const liveIds = this.profileRows(prop).map(r => String(r.id));
+    const chargeLink = (id, inner, extra) => `<span data-act="rowDetails" data-arg="${id}" style="display:flex;align-items:center;min-height:38px;padding:6px 12px;font-size:13px;color:var(--ac,#008dd5);cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${inner}</span>`;
+    const chargeCell = e => e.chargeId != null && liveIds.indexOf(String(e.chargeId)) >= 0
+      ? chargeLink(e.chargeId, e.charge) : td(e.charge);
+
     // ---- Change log ----
     const lcols = '104px 132px minmax(160px,1fr) minmax(230px,1.6fr) 130px';
     const lhead = `<div style="display:grid;grid-template-columns:${lcols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${['Date','Changed by','Charge','Change','Charge Level'].map((t,i)=>hc(t,i)).join('')}</div>`;
     const lbody = log.map(e => `<div style="display:grid;grid-template-columns:${lcols};align-items:center;border-bottom:1px solid #ebf1f5">
       ${td(this.histLabel(e.k), 'padding-left:16px;color:' + (e.k==='now'?'#12a150;font-weight:500':'#13314c'))}
-      ${td(e.by)}${td(e.charge)}${td(e.change,'color:#13314c;font-weight:500;white-space:normal;line-height:1.45;padding-top:9px;padding-bottom:9px')}${td(e.level,'color:#4a5b6b')}
+      ${td(e.by)}${chargeCell(e)}${td(e.change,'color:#13314c;font-weight:500;white-space:normal;line-height:1.45;padding-top:9px;padding-bottom:9px')}${td(e.level,'color:#4a5b6b')}
     </div>`).join('');
 
     // ---- Amount history per charge ----
@@ -1517,7 +1531,7 @@ class Component extends DCLogic {
       }).join('')}</div>`;
       return `<div style="border-bottom:1px solid #ebf1f5">
         <div data-act="profHistExp" data-arg="${idx}" style="display:grid;grid-template-columns:${acols};align-items:center;cursor:pointer" onmouseover="this.style.background='#f4f8fb'" onmouseout="this.style.background=''">
-          ${td(`${f.row.desc||f.row.name}<span style="display:block;font-size:11px;color:#8a9aa8">${f.row.mits}</span>`,'padding-left:16px;flex-direction:column;align-items:flex-start;justify-content:center;white-space:normal')}
+          ${chargeLink(f.row.id, `${f.row.desc||f.row.name}<span style="display:block;font-size:11px;color:#8a9aa8">${f.row.mits}</span>`, 'padding-left:16px;flex-direction:column;align-items:flex-start;justify-content:center;white-space:normal')}
           <span style="display:flex;align-items:center;min-height:38px;padding:6px 12px">${this.chargeLevelPill(f.row)}</span>
           ${td(f.row.amount,'font-weight:500')}
           <span style="display:flex;align-items:baseline;min-height:38px;padding:6px 12px;white-space:nowrap">${delta}</span>
@@ -1941,7 +1955,8 @@ class Component extends DCLogic {
         <input type="hidden" id="m-ils" value="${swOn?'1':'0'}">
       </div>` : `<input type="hidden" id="m-ils" value="0">`;
 
-    return `<div data-act="addclose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:100">
+    // Stacks above the profile history when opened from it, so closing returns to the history.
+    return `<div data-act="addclose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:${this.state.profHist?130:100}">
       <div data-act="noop" style="width:700px;max-width:94vw;max-height:92vh;background:#fff;border:1px solid #cedbe7;border-radius:4px;box-shadow:0 3px 12px rgba(0,0,0,0.2);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;height:48px;box-sizing:border-box;padding:8px 16px;border-bottom:1px solid #cedbe7;flex:none">
           <span style="font-size:20px;line-height:28px;color:#13314c">${title}</span>
