@@ -918,7 +918,11 @@ class Component extends DCLogic {
     const tile=(title,right,inner)=>`<div class="tile"><div class="thead2"><span class="ttl">${title}</span><div style="flex:1"></div>${right||''}</div><div style="padding:16px;display:flex;flex-direction:column;gap:12px">${inner}</div></div>`;
     // Tiles in a row stretch to the tallest one rather than keeping ragged heights.
     const two=(a,b)=>`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px;align-items:stretch">${a}${b}</div>`;
-    const gtable=(cols,heads,rows)=>`<div style="border:1px solid #ebf1f5;border-radius:4px;overflow:hidden"><div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${heads.map(h=>`<span style="padding:8px 12px;font-size:12px;font-weight:500;color:#666">${h}</span>`).join('')}</div>${rows.map(r=>`<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5">${r.map(c=>`<span class="td" style="border:none">${c}</span>`).join('')}</div>`).join('')}</div>`;
+    // Tables run edge to edge inside their tile, like the Units tile — the tile supplies the border,
+    // so the table draws none of its own and the last row skips its divider.
+    const gtable=(cols,heads,rows)=>`<div style="overflow-x:auto"><div style="display:grid;grid-template-columns:${cols};background:#f5f8fa;border-bottom:1px solid #cedbe7">${heads.map((h,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:500;color:#666">${h}</span>`).join('')}</div>${rows.map((r,ri)=>`<div style="display:grid;grid-template-columns:${cols};align-items:center;${ri===rows.length-1?'':'border-bottom:1px solid #ebf1f5'}">${r.map((c,ci)=>`<span class="td" style="border:none${ci===0?';padding-left:16px':''}">${c}</span>`).join('')}</div>`).join('')}</div>`;
+    // Tile whose body is a table: no padding, with an optional padded note underneath.
+    const tileT=(title,right,inner,note)=>`<div class="tile"><div class="thead2"><span class="ttl">${title}</span><div style="flex:1"></div>${right||''}</div>${inner}${note?`<div style="padding:12px 16px;font-size:13px;color:#8a9aa8">${note}</div>`:''}</div>`;
 
     const thumb=()=>`<div style="position:relative;width:150px;height:130px;flex:none;background:repeating-conic-gradient(#eef2f5 0% 25%, #fff 0% 50%) 50% / 20px 20px;border:1px solid #ebf1f5;border-radius:4px"><span class="material-symbols-outlined" style="position:absolute;top:-8px;right:-8px;font-size:20px;color:var(--ac,#008dd5);background:#fff;border-radius:50%;cursor:pointer">cancel</span></div>`;
     const images = tile('Images', `<a data-act="toast" data-arg="Add Image" style="font-size:13px;display:inline-flex;align-items:center;gap:4px"><span class="material-symbols-outlined" style="font-size:18px">add</span>Add Image</a>`,
@@ -953,7 +957,7 @@ class Component extends DCLogic {
         ${input('Total Sq Ft','14,560')}${select('Default Inspector','Unassigned')}
       </div>`);
 
-    const history = tile('History / Notes', `<a data-act="toast" data-arg="Add Note" style="font-size:13px;display:inline-flex;align-items:center;gap:4px">Add Note<span class="material-symbols-outlined" style="font-size:16px">open_in_new</span></a>`,
+    const history = tileT('History / Notes', `<a data-act="toast" data-arg="Add Note" style="font-size:13px;display:inline-flex;align-items:center;gap:4px">Add Note<span class="material-symbols-outlined" style="font-size:16px">open_in_new</span></a>`,
       gtable('110px 160px 1fr',['Date','Type','Note'],[
         ['02/25/2026','Lease Renewal Offer','Lease Renewal Offer: Offer Declined'],
         ['02/25/2026','Survey','Survey Self Inspection: Inspection Sent to Tenant'],
@@ -965,20 +969,21 @@ class Component extends DCLogic {
     const fiscal = tile('Fiscal Year','', select('Fiscal Year Start','January'));
     const tz = tile('Time Zone Offset','', `${select('Time Zone','(UTC-05:00) Eastern Time (US & Canada)')}${check('Automatically adjust for daylight saving time',true)}`);
 
-    const phones = tile('Phone Numbers', `<a data-act="toast" data-arg="Add Phone" style="font-size:13px">Add Phone</a>`,
+    const phones = tileT('Phone Numbers', `<a data-act="toast" data-arg="Add Phone" style="font-size:13px">Add Phone</a>`,
       gtable('140px 1fr 100px',['Type','Number','Primary'],[
         ['Office','(513) 555-0142','<span class="material-symbols-outlined" style="font-size:18px;color:#3a7d2c">check</span>'],
         ['Leasing','(513) 555-0178',''],
         ['Maintenance','(513) 555-0195','']]));
-    const udf = tile('User Defined Fields', `<a data-act="toast" data-arg="Add Field" style="font-size:13px">Add Field</a>`,
+    const udf = tileT('User Defined Fields', `<a data-act="toast" data-arg="Add Field" style="font-size:13px">Add Field</a>`,
       gtable('220px 1fr',['Field','Value'],[
         ['MITS Property ID','RIV-0125'],
         ['Regional Portfolio','Southwest Ohio']]));
 
     const recurring = this.recChargesTile('property');
 
-    const emptyReg=(t,heads)=>tile(t,'',`${gtable(heads.map(()=>'1fr').join(' '),heads,[heads.map(()=>'<span style="color:#b3b3b3">—</span>')])}<span style="font-size:13px;font-style:italic;color:#b3b3b3">No transactions in the current period</span>`);
-    const files = tile('Property Files', `<a data-act="toast" data-arg="Upload file" style="font-size:13px">Upload file</a>`,
+    const emptyReg=(t,heads)=>tileT(t,'',gtable(heads.map(()=>'1fr').join(' '),heads,[heads.map(()=>'<span style="color:#b3b3b3">—</span>')]),
+      `<span style="font-style:italic">No transactions in the current period</span>`);
+    const files = tileT('Property Files', `<a data-act="toast" data-arg="Upload file" style="font-size:13px">Upload file</a>`,
       gtable('1fr 100px 140px',['Name','Type','Uploaded'],[
         ['Insurance-Certificate-2025.pdf','PDF','Mar 12, 2025'],
         ['W9-Thompson-Family-Trust.pdf','PDF','Jan 8, 2025'],
@@ -1561,7 +1566,7 @@ class Component extends DCLogic {
   recChargesTile(scope){
     return `<div class="tile">
       <div class="thead2" style="border-bottom-color:var(--ac,#008dd5)"><span class="ttl">Recurring Charges</span><div style="flex:1"></div><a data-act="openFeeProfile" style="font-size:14px;color:var(--ac,#008dd5)">Open Rental Fee Profile</a><span data-act="recViewOpen" data-arg="${scope}" class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);cursor:pointer" title="View recurring charges">open_in_new</span></div>
-      <div style="padding:16px">${this.recChargesTableHTML({scope})}</div>
+      ${this.recChargesTableHTML({scope, edge:true})}
     </div>`;
   }
   // Shared Recurring Charges table.
@@ -1602,7 +1607,9 @@ class Component extends DCLogic {
       const excPill=`<span style="margin-left:8px;background:#eef1f4;color:#8a9aa8;border-radius:4px;padding:1px 8px;font-size:12px">Excluded</span>`;
       recRows += row(idx++, excLv.c, excLv.l, '<s style="color:#8a9aa8">PARKING</s>', `<s style="color:#8a9aa8">Covered parking</s>${excPill}`, '<s style="color:#8a9aa8">$75.00</s>', '#8a9aa8');
     }
-    return `<div style="border:1px solid #cedbe7;border-radius:4px;overflow:hidden"><div style="overflow-x:auto">${recHead}${recRows}</div></div>`;
+    // edge: the tile already draws the boundary, so skip the table's own border.
+    return opts.edge ? `<div style="overflow-x:auto">${recHead}${recRows}</div>`
+      : `<div style="border:1px solid #cedbe7;border-radius:4px;overflow:hidden"><div style="overflow-x:auto">${recHead}${recRows}</div></div>`;
   }
   // "View Recurring Charges" modal opened from the property tile's pop-out icon (Figma 2385-32329).
   // Legacy "View Recurring Charges" overlay (pre-conversion): full charge register + convert callout.
