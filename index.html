@@ -391,15 +391,24 @@ class Component extends DCLogic {
   // Charge type -> MITS fee category. Codes absent here have no category assigned, which
   // surfaces the "Add Category" error state in the Add Charge modal.
   chargeCategoryMap(){
-    return { ADMIN:'Admin', AMENFEE:'Amenity', AMENITY:'Amenity', APPFEE:'Application', APPLICATION:'Application',
+    const base = { ADMIN:'Admin', AMENFEE:'Amenity', AMENITY:'Amenity', APPFEE:'Application', APPLICATION:'Application',
       CABLE:'Tech', CAM:'Service', CAMTAX:'Govt', CLEAN:'Clean', COVPARK:'Parking', DAMAGE:'Damage', DP:'Lease',
       ELEC:'Utility', GARAGE:'Parking', GARBAG:'Service', GARBAGEFEE:'Service', GAS:'Utility', H2O:'Utility',
       HO4:'Insurance', HOA:'Service', KEY:'Key', LATE:'Violation', LC:'Violation', LMR:'Lease',
       NSF:'Violation', NSFFEE:'Violation', PARK:'Parking', PETDP:'Pet',
       PETFEE:'Pet', PET:'Pet', RC:'Lease', RUBS:'Utility', SEWER:'Utility', SF:'Storage', STORAGE:'Storage',
       TRANSFER:'Transfer', TRASH:'Service', UTIL:'Utility', WATER:'Utility' };
+    // Categories assigned through the Add Charge Category overlay. Kept off state deliberately: the
+    // overlay opens over the charge details modal, whose fields are DOM-only, and a setState there
+    // would re-render the modal and wipe anything typed but not yet saved.
+    return Object.assign(base, this._catAdds || {});
   }
   chargeCategoryFor(code){ return this.chargeCategoryMap()[(code||'').toUpperCase()] || ''; }
+  // The categories available to assign, derived from the map so anything added shows up here too.
+  chargeCategoryOptions(){
+    const seen = {}; Object.keys(this.chargeCategoryMap()).forEach(k => { seen[this.chargeCategoryMap()[k]] = 1; });
+    return Object.keys(seen).sort();
+  }
   chargeTypeList(){
     return [['ADMIN','Administrative Fee'],['AMENFEE','Amenity Fee'],['APPFEE','Application Fee'],['CABLE','Cable Utility'],
       ['CAM','Common Area Maintenance'],['CAMTAX','CAM - Taxes'],['CLEAN','Cleaning Fee'],['COVPARK','Covered Parking'],
@@ -1908,7 +1917,7 @@ class Component extends DCLogic {
       <input type="hidden" id="m-cat" value="${esc(edCat)}">
       <span id="m-cat-ph" style="display:${(hasCode&&edCat)?'none':'block'};font-size:13px;font-style:italic;color:#b3b3b3">Select a charge type to display a charge category.</span>
       <span id="m-cat-disp" style="display:${edCat?'block':'none'};font-size:14px;font-weight:600;color:#13314c">${edCat}</span>
-      <div id="m-cat-err" style="display:${(hasCode&&!edCat)?'flex':'none'};align-items:center;gap:8px;background:#fdeaea;border:1px solid #f3c2c2;border-radius:4px;padding:8px 10px"><span class="material-symbols-outlined" style="font-size:18px;color:#d02830">error</span><span style="flex:1;font-size:12px;color:#7a1f26;line-height:1.4">You don't have a charge category assigned to this charge type.</span><a data-act="toast" data-arg="Add Category" style="font-size:13px;color:var(--ac,#008dd5);white-space:nowrap;cursor:pointer">Add Category</a></div>
+      <div id="m-cat-err" style="display:${(hasCode&&!edCat)?'flex':'none'};align-items:center;gap:10px;background:#fff;border:1px solid #d02830;border-radius:4px;padding:8px 12px"><span class="material-symbols-outlined" style="font-size:18px;color:#d02830;flex:none">error</span><span style="flex:1;font-size:12px;color:#424e5b;line-height:1.4">You don't have a charge category assigned to this charge type.</span><a onclick="window.__catAddOpen&&window.__catAddOpen()" style="font-size:13px;color:var(--ac,#008dd5);white-space:nowrap;cursor:pointer">Add Category</a></div>
     </div>`;
     const listing = `<div style="display:flex;gap:12px;align-items:flex-start">
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Name')}<input id="m-name" class="fld" value="${esc(ed&&ed.listing?ed.listing.name:'')}" oninput="if(window.__mitsRecheck)window.__mitsRecheck()" style="height:36px;box-sizing:border-box"></div>
@@ -1987,6 +1996,54 @@ class Component extends DCLogic {
           <div style="flex:1"></div>
           <button data-act="addsave" class="btn-pri" style="height:36px;padding:8px 20px;font-size:14px;border-radius:4px">Save</button>
           <button data-act="addclose" class="btn-out" style="height:36px;padding:8px 20px;font-size:14px;border-radius:4px;box-sizing:border-box">Cancel</button>
+        </div>
+      </div></div>${this.catAddHTML()}`;
+  }
+  // Add Charge Category (mock 2600-104865). Opened from the Charge Category error state and driven
+  // entirely from the DOM, so assigning a category doesn't re-render the charge modal underneath and
+  // discard anything typed there. The assignment is remembered for the whole charge type.
+  catAddHTML(){
+    // Reads the charge type live, so it reflects whatever the typeahead currently holds.
+    window.__catAddOpen = () => {
+      const code = ((this.q('#m-ctype') || {}).value || '').toUpperCase();
+      const ct = this.q('#m-catadd-ct'); if (ct) ct.textContent = code || '—';
+      const sel = this.q('#m-catadd-sel'); if (sel) sel.value = '';
+      const ov = this.q('#m-catadd'); if (ov) ov.style.display = 'flex';
+    };
+    window.__catAssign = (code, cat) => { this._catAdds = Object.assign({}, this._catAdds, { [code]: cat }); };
+    const opts = this.chargeCategoryOptions().map(c => `<option value="${c}">${c}</option>`).join('');
+    // Applies the choice to the field behind, records it against the charge type, then re-checks the
+    // MITS fields so the ILS toggle unlocks if this was the last thing missing.
+    const add = "var s=document.getElementById('m-catadd-sel');var cc=s.value;if(!cc)return;"
+      + "var code=(document.getElementById('m-ctype').value||'').toUpperCase();"
+      + "document.getElementById('m-cat').value=cc;"
+      + "var d=document.getElementById('m-cat-disp');d.textContent=cc;d.style.display='block';"
+      + "document.getElementById('m-cat-err').style.display='none';"
+      + "document.getElementById('m-cat-ph').style.display='none';"
+      + "document.getElementById('m-catadd').style.display='none';"
+      + "if(window.__catAssign)window.__catAssign(code,cc);"
+      + "if(window.__mitsRecheck)window.__mitsRecheck();";
+    const close = "document.getElementById('m-catadd').style.display='none'";
+    return `<div id="m-catadd" data-act="noop" style="display:none;position:fixed;inset:0;background:rgba(19,49,76,0.5);align-items:center;justify-content:center;z-index:200">
+      <div style="width:500px;max-width:94vw;background:#fff;border:1px solid #cedbe7;border-radius:4px;box-shadow:0 3px 12px rgba(0,0,0,0.2);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #cedbe7">
+          <span style="font-size:20px;color:#13314c">Add Charge Category</span>
+          <span onclick="${close}" class="material-symbols-outlined" style="font-size:24px;color:var(--ac,#008dd5);cursor:pointer">close</span>
+        </div>
+        <div style="padding:16px;display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <span style="font-size:14px;color:#666">Charge Type</span>
+            <span id="m-catadd-ct" style="font-size:14px;font-weight:600;color:#13314c">—</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <span style="font-size:14px;color:#666">Charge Category</span>
+            <select id="m-catadd-sel" class="fld" style="height:36px"><option value="">Select a charge category</option>${opts}</select>
+          </div>
+          <span style="font-size:13px;color:#8a9aa8;line-height:1.45">The category added will display for all charges using this charge type.</span>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;padding:12px 16px;border-top:1px solid #cedbe7;background:#f5f8fa">
+          <button onclick="${add}" class="btn-pri" style="height:36px;padding:8px 22px;font-size:14px;border-radius:4px">Add</button>
+          <button onclick="${close}" class="btn-out" style="height:36px;padding:8px 20px;font-size:14px;border-radius:4px;box-sizing:border-box">Cancel</button>
         </div>
       </div></div>`;
   }
