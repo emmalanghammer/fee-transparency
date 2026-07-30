@@ -701,9 +701,11 @@ class Component extends DCLogic {
     const hcell = (t) => `<span style="display:flex;align-items:center;height:28px;box-sizing:border-box;padding:4px 8px;font-size:12px;font-weight:500;letter-spacing:0.5px;color:#fff;border-right:1px solid rgba(255,255,255,0.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>`;
     const header = `<div style="display:grid;grid-template-columns:${cols};background:#737373"><span></span>${['Name','Using Rental Fee Profile','Short Name','Email','Manager Name','Primary Address','Billing Address'].map(hcell).join('')}<span style="display:flex;align-items:center;justify-content:center;height:28px"><span class="material-symbols-outlined" style="font-size:20px;color:#fff">view_column</span></span></div>`;
     const cell = (t, extra) => `<span style="padding:8px;font-size:14px;color:#13314c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
-    const body = rows.map(r => `<div style="display:grid;grid-template-columns:${cols};align-items:center;background:#fff;border-bottom:1px solid #ebf1f5" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background='#fff'">
+    // The whole row navigates, so the name is plain navy text rather than a link. The kebab keeps its
+    // own data-act and wins the closest() lookup, so it stays independently clickable.
+    const body = rows.map(r => `<div data-act="navProperty" data-arg="${r.name}" style="display:grid;grid-template-columns:${cols};align-items:center;background:#fff;border-bottom:1px solid #ebf1f5;cursor:pointer" onmouseover="this.style.background='#f4f8fb'" onmouseout="this.style.background='#fff'">
       <span style="align-self:stretch;background:${r.color||'transparent'}"></span>
-      <span style="padding:8px;overflow:hidden"><a data-act="navProperty" data-arg="${r.name}" style="font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap">${r.name}</a></span>
+      <span style="padding:8px;overflow:hidden"><span style="font-size:14px;color:#13314c;white-space:nowrap">${r.name}</span></span>
       <span style="display:flex;align-items:center;justify-content:center;padding:8px">${this.usingProfile(r.name)?`<span class="material-symbols-outlined" style="font-size:20px;color:#12a150" title="Using a Rental Fee Profile">check_circle</span>`:''}</span>
       ${cell(r.short)}
       <span style="padding:8px;display:flex;align-items:center;gap:8px;min-width:0"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);flex:none">mail</span><span style="font-size:14px;color:#13314c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.email}</span></span>
