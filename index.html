@@ -1898,8 +1898,11 @@ class Component extends DCLogic {
     // so General Details renders locked and only the marketing details are editable.
     const spec = ed && ed.propSpecific ? ed.propSpecific : '';
     const cre = !!(m.cre || (ed && ed.cre));
-    const title = spec ? `Add ${spec} One-Time Charge`
-      : (ed ? 'Charge Details' : (cre ? 'Add CRE Recurring Charge' : (isOne ? 'Add One-Time Charge' : 'Add Recurring Charge')));
+    // The title names the kind of charge, and property specific charges name themselves too, so it's
+    // clear which of the three overlays you're in without reading the fields.
+    const kind = cre ? 'CRE Recurring' : (isOne ? 'One-Time' : 'Recurring');
+    const specLabel = spec === 'NSF' ? 'NSF Fee' : spec === 'Late Charge' ? 'Late Fee' : spec;
+    const title = ed ? `${kind} Charge Details${spec ? ' - ' + specLabel : ''}` : `Add ${kind} Charge`;
     const esc = s => (''+(s||'')).replace(/"/g,'&quot;');
     const lab = (t,info) => `<span style="display:inline-flex;align-items:center;gap:4px;font-size:14px;color:#666">${t}${info?`<span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5)">info</span>`:''}</span>`;
     const sect = (t,inner) => `<div style="display:flex;flex-direction:column;gap:10px"><span style="font-size:15px;font-weight:600;color:#13314c">${t}</span><div style="border:1px solid #cedbe7;border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:12px">${inner}</div></div>`;
