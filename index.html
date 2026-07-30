@@ -172,7 +172,7 @@ class Component extends DCLogic {
     const text = ((r.desc || '') + ' ' + (r.name || '')).toLowerCase();
     if (/^PET/.test(code) || /\bpets?\b/.test(text)) return 'Situational';
     if (/^(LATE|LC|NSF|DAMAGE|VIOLATION|LEGAL)/.test(code)) return 'Situational';
-    if (/^(SF|STORAGE|COVPARK|PARK|PARKING|GARAGE|HOLD|AMENFEE|AMENITY|UPGRADE|TECH|CABLE|TRANSFER)/.test(code)) return 'Optional';
+    if (/^(SF|STORAGE|COVPARK|PARK|PARKING|GARAGE|HOLD|AMENFEE|AMENITY|UPGRADE|TECH|CABLE|TRANSFER|EVCHG)/.test(code)) return 'Optional';
     if (/\b(optional|add-?on|valet|storage|parking|garage|reservation|locker|access)\b/.test(text)) return 'Optional';
     return 'Required';
   }
@@ -367,6 +367,9 @@ class Component extends DCLogic {
       Object.assign({ id:13, group:'opt-one', mits:'HOLD',       name:'Hold fee',          desc:'Unit reservation fee',         amount:'$200.00',   amtMethod:'Flat', ils:false  }, L('Property')),
       Object.assign({ id:14, group:'sit-rec', mits:'PETFEE',     name:'Pet rent',          desc:'Per pet, max $90',             freq:'Every Month', from:'01/01/2026', to:'', amount:'$45.00',      amtMethod:'Flat', ils:false, cond:'If a pet is on the lease' }, L('Property')),
       Object.assign({ id:15, group:'sit-one', mits:'PETDP',      name:'Pet deposit',       desc:'Pet deposit',                  amount:'$300.00',   amtMethod:'Flat', ils:false, cond:'If a pet is on the lease' }, L('Property')),
+      // A charge type created at the property that nobody assigned a MITS category to. Deliberately
+      // absent from chargeCategoryMap so the Charge Category error state is always demoable.
+      Object.assign({ id:18, group:'opt-rec', mits:'EVCHG',      name:'EV charging',       desc:'EV charging station access',   freq:'Every Month', from:'01/01/2026', to:'', amount:'$35.00', amtMethod:'Flat', ils:false }, L('Property')),
       // Property specific charges. Every field is pulled from the property's own setup, so only the
       // marketing details are editable — they exist in the profile so they can be shown on ILS.
       Object.assign({ id:16, group:'sit-one', mits:'NSFFEE', name:'NSF Fee', desc:'NSF fee', amount:'$25.00', amtMethod:'Flat', ils:false,
@@ -414,6 +417,7 @@ class Component extends DCLogic {
       ['CAM','Common Area Maintenance'],['CAMTAX','CAM - Taxes'],['CLEAN','Cleaning Fee'],['COVPARK','Covered Parking'],
       ['DAMAGE','Damage Repair'],['DP','Security Deposit'],['ELEC','Electric Utility'],['EPAYAJ','ePay Refund Adjustment'],
       ['EPD','Early Payment Discount'],['GARAGE','Garage Fee'],['GARBAG','Garbage Fee'],['GARBAGEFEE','Additional Trash Valet'],
+      ['EVCHG','EV Charging Station'],
       ['GAS','Gas Utility'],['H2O','Water Utility'],['HO4','Renters Insurance'],['HOA','HOA Fee'],['HOLD','Hold Fee'],
       ['KEY','Key & Fob Deposit'],['LATE','Late Fee'],['LMR',"Last Month's Rent"],['NSF','NSF Fee'],['PARK','Parking'],
       ['PETDP','Pet Deposit'],['PETFEE','Pet Rent'],['RC','Rent'],['RUBS','Flat Bill for All Utilities'],['SEWER','Sewer Utility'],
@@ -1915,7 +1919,7 @@ class Component extends DCLogic {
     const refundable = ed && ed.listing && ed.listing.refundable !== undefined ? ed.listing.refundable : this.defaultRefundable(ed);
     const catBlock = `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">${lab('Charge Category',true)}
       <input type="hidden" id="m-cat" value="${esc(edCat)}">
-      <span id="m-cat-ph" style="display:${(hasCode&&edCat)?'none':'block'};font-size:13px;font-style:italic;color:#b3b3b3">Select a charge type to display a charge category.</span>
+      <span id="m-cat-ph" style="display:${hasCode?'none':'block'};font-size:13px;font-style:italic;color:#b3b3b3">Select a charge type to display a charge category.</span>
       <span id="m-cat-disp" style="display:${edCat?'block':'none'};font-size:14px;font-weight:600;color:#13314c">${edCat}</span>
       <div id="m-cat-err" style="display:${(hasCode&&!edCat)?'flex':'none'};align-items:center;gap:10px;background:#fff;border:1px solid #d02830;border-radius:4px;padding:8px 12px"><span class="material-symbols-outlined" style="font-size:18px;color:#d02830;flex:none">error</span><span style="flex:1;font-size:12px;color:#424e5b;line-height:1.4">You don't have a charge category assigned to this charge type.</span><a onclick="window.__catAddOpen&&window.__catAddOpen()" style="font-size:13px;color:var(--ac,#008dd5);white-space:nowrap;cursor:pointer">Add Category</a></div>
     </div>`;
