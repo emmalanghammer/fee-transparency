@@ -2301,12 +2301,14 @@ class Component extends DCLogic {
     const rows = this.bulkRows();
     const cur = rows[b.idx] || rows[0];
     const f = this.chargeForm(this.state.modal || { group: cur.group, edit: cur });
-    // Mirrors mitsStatusCell, condensed to icon + count for the narrow rail.
+    // The same red / green / grey dot the charge overlay shows, so a glance down the rail reads as
+    // listing status. The red one keeps its hover so the missing fields are still one step away.
+    const dot = (c, title) => `<span title="${title}" style="width:8px;height:8px;border-radius:50%;background:${c};flex:none;cursor:default"></span>`;
     const flagFor = (missing, on) => {
       if (!missing.length) return on
-        ? `<span class="material-symbols-outlined" style="font-size:17px;color:#12a150" title="Charge ready">check_circle</span>`
-        : `<span class="material-symbols-outlined" style="font-size:17px;color:#c9d4dd" title="Charge excluded — all fields filled in, Show on ILS is off">visibility_off</span>`;
-      return `<span class="tipw" style="display:inline-flex"><span class="material-symbols-outlined" style="font-size:17px;color:#b35a00;cursor:default">error</span><span class="tip" style="left:auto;right:-4px;top:24px;width:auto;min-width:190px;max-width:280px;padding:14px 16px"><span style="display:block;font-size:14px;font-weight:600;color:#13314c;padding-bottom:9px;border-bottom:1px solid #e3e9ee">${missing.length} field${missing.length===1?'':'s'} still required:</span><span style="display:flex;flex-direction:column;gap:10px;padding-top:11px">${missing.map(n=>`<span style="font-size:14px;color:#13314c;white-space:nowrap">${n}</span>`).join('')}</span></span></span>`;
+        ? dot('#12a150', 'Listing Ready')
+        : dot('#8a9aa8', 'Listing Ready - Excluded');
+      return `<span class="tipw" style="display:inline-flex">${dot('#d02830', 'Not Ready for Listings')}<span class="tip" style="left:auto;right:-4px;top:24px;width:auto;min-width:190px;max-width:280px;padding:14px 16px"><span style="display:block;font-size:14px;font-weight:600;color:#13314c;padding-bottom:9px;border-bottom:1px solid #e3e9ee">${missing.length} field${missing.length===1?'':'s'} still required:</span><span style="display:flex;flex-direction:column;gap:10px;padding-top:11px">${missing.map(n=>`<span style="font-size:14px;color:#13314c;white-space:nowrap">${n}</span>`).join('')}</span></span></span>`;
     };
     const flag = (r) => flagFor(this.mitsMissing(r), !!r.ils);
     // Repaints the selected row's status from what's on screen, so toggling Show on ILS turns it green
