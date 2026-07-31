@@ -2282,7 +2282,7 @@ class Component extends DCLogic {
       if (!isOne && !g('m-sched')) need.push('Charge Schedule');
       if (window.__bulkFlag) window.__bulkFlag(need);
       const msg = this.q('#m-ils-msg'), sw = this.q('#m-ils-sw'), lbl = this.q('#m-ils-lbl'),
-            needEl = this.q('#m-ils-need'), st = this.q('#m-lr-status'), warn = this.q('#m-req-warn');
+            needEl = this.q('#m-ils-need'), st = this.q('#m-lr-status'), note = this.q('#m-ils-note');
       if (!msg || !sw) return;
       if (need.length) {
         needEl.innerHTML = need.map(chip).join('');
@@ -2301,9 +2301,11 @@ class Component extends DCLogic {
       }
       const on = ((this.q('#m-ils') || {}).value) === '1';
       if (st) st.innerHTML = lrMarkup(need.length, on);
-      if (warn) warn.style.display = (g('m-req') === 'Required' && !on) ? 'flex' : 'none';
+      if (note) note.style.display = on ? 'none' : 'flex';
     };
-    const reqWarn = `<div id="m-req-warn" style="display:${(req === 'Required' && !swOn) ? 'flex' : 'none'};align-items:center;gap:10px;border:1px solid #f0b357;border-radius:4px;padding:10px 12px"><span class="material-symbols-outlined" style="font-size:20px;color:#e59f2e;flex:none">warning</span><span style="font-size:13px;color:#4a5b6b;line-height:1.45">This is a Required charge. Required fees must be disclosed on listings when Fee Transparency is on.</span></div>`;
+    // Any charge left off listings gets a quiet nudge rather than an alert — nothing is wrong, it just
+    // won't be visible to residents up front.
+    const ilsNote = `<div id="m-ils-note" style="display:${swOn ? 'none' : 'flex'};align-items:center;gap:8px"><span class="material-symbols-outlined" style="font-size:17px;color:#a6b2bd;flex:none">info</span><span style="font-size:13px;color:#8a9aa8;line-height:1.45">For full fee transparency, include this charge on listings so residents see it up front.</span></div>`;
     const knob = `<span style="position:absolute;top:2px;left:${swOn?'16px':'2px'};width:14px;height:14px;border-radius:50%;background:#fff;transition:left 120ms ease-out;display:flex;align-items:center;justify-content:center"><span class="material-symbols-outlined" style="display:${swOn?'block':'none'};font-size:12px;color:var(--ac,#008dd5);font-weight:700">check</span></span>`;
     const swJs = "if(this.getAttribute('data-dis')==='1')return;var on=this.getAttribute('data-on')==='1';on=!on;this.setAttribute('data-on',on?'1':'0');document.getElementById('m-ils').value=on?'1':'0';this.style.background=on?'var(--ac,#008dd5)':'#cedbe7';this.firstElementChild.style.left=on?'16px':'2px';this.firstElementChild.firstElementChild.style.display=on?'block':'none';if(window.__calcNote)window.__calcNote();if(window.__mitsRecheck)window.__mitsRecheck()";
     const ilsBox = this.ilsOn() ? `
@@ -2313,7 +2315,7 @@ class Component extends DCLogic {
         </div>
         <div style="border:1px solid #cedbe7;border-radius:4px;padding:12px 14px;display:flex;flex-direction:column;gap:10px">
           <label style="display:inline-flex;align-items:center;gap:10px;align-self:flex-start;cursor:${complete?'pointer':'default'}"><span id="m-ils-sw" data-dis="${complete?'0':'1'}" onclick="${swJs}" data-on="${swOn?'1':'0'}" style="display:inline-block;width:32px;height:18px;border-radius:999px;background:${!complete?'#dfe6ec':(swOn?'var(--ac,#008dd5)':'#cedbe7')};position:relative;flex:none;cursor:${complete?'pointer':'default'}">${knob}</span><span id="m-ils-lbl" style="font-size:14px;color:${complete?'#13314c':'#a6b2bd'}">Include on listings</span></label>
-          ${reqWarn}
+          ${ilsNote}
         </div>
         <input type="hidden" id="m-ils" value="${swOn?'1':'0'}">` : `<input type="hidden" id="m-ils" value="0">`;
 
