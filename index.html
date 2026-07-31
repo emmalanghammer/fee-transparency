@@ -104,6 +104,8 @@ class Component extends DCLogic {
     bulk: null,
     // Copy Property Fees: { from, dup:'skip'|'replace', excl }
     copyFees: null,
+    // Register selection mode for the bulk profile setup: { sel: {propName:true} }
+    bulkSetup: null,
     // The "Coming Soon" kickoff announcement. Starts closed on purpose — it's opened from the nav
     // menu when it needs showing, rather than interrupting every refresh.
     kickoff: false,
@@ -189,9 +191,13 @@ class Component extends DCLogic {
   // The requirement chosen for a charge during setup (falls back to the inferred value).
   // Blank until the user picks one — setup shouldn't guess a requirement on their behalf. Charges
   // left unset land in the Individual Charges group and get flagged as missing the MITS field.
-  setupRequirement(r){
-    const c = this.state.setup;
-    return (c && c.req && c.req[r.id]) || '';
+  // Which selected property step 2 is currently reviewing.
+  setupCurProp(){ const c = this.state.setup; if (!c) return ''; return this.setupProps()[c.pi || 0] || ''; }
+  setupExclFor(prop){ const c = this.state.setup; return (c && c.excl && c.excl[prop]) || {}; }
+  setupRequirement(r, prop){
+    const c = this.state.setup; if (!c) return '';
+    const m = (c.req && c.req[prop || this.setupCurProp()]) || {};
+    return m[r.id] || '';
   }
   // Requirement comes from the charge's group when marketing details haven't been saved yet.
   defaultRequirement(r){
@@ -523,10 +529,17 @@ class Component extends DCLogic {
         this.setState({ rowMenu: null }); this.flash('Charge deleted'); break; }
 
       // ---- Rental Fee Profile setup wizard ----
-      case 'setupOpen': this.setState({ recView: null, setup: { prop: arg || this.state.property, step: 1, excl: {} } }); break;
+      case 'setupOpen': this.setState({ recView: null, setup: { props: [arg || this.state.property], step: 1, excl: {} } }); break;
       case 'setupClose': this.setState({ setup: null }); break;
-      case 'setupNext': this.setState(s => ({ setup: Object.assign({}, s.setup, { step: Math.min(3, (s.setup.step || 1) + 1) }) })); break;
-      case 'setupBack': this.setState(s => ({ setup: Object.assign({}, s.setup, { step: Math.max(1, (s.setup.step || 1) - 1) }) })); break;
+      // Step 2 is walked once per selected property, then the review closes the flow.
+      case 'setupNext': this.setState(s => { const c = s.setup, n = (c.props || []).length;
+        if ((c.step || 1) === 1) return { setup: Object.assign({}, c, { step: 2, pi: 0 }) };
+        if (c.step === 2 && (c.pi || 0) < n - 1) return { setup: Object.assign({}, c, { pi: (c.pi || 0) + 1 }) };
+        return { setup: Object.assign({}, c, { step: 3 }) }; }); break;
+      case 'setupBack': this.setState(s => { const c = s.setup, n = (c.props || []).length;
+        if (c.step === 3) return { setup: Object.assign({}, c, { step: 2, pi: n - 1 }) };
+        if (c.step === 2 && (c.pi || 0) > 0) return { setup: Object.assign({}, c, { pi: (c.pi || 0) - 1 }) };
+        return { setup: Object.assign({}, c, { step: 1 }) }; }); break;
       case 'kickoffOpen': this.setState({ kickoff: true }); break;
       case 'kickoffClose': this.setState({ kickoff: false }); break;
       // Applies each row's category to its charge type, the same store the Add Charge Category
@@ -542,6 +555,21 @@ class Component extends DCLogic {
         this.setState({ kickoff: false });
         this.flash(n + ' charge type' + (n === 1 ? '' : 's') + ' configured');
         break; }
+      // ---- Bulk profile setup: pick properties in the register, then run the normal setup flow ----
+      case 'bulkSetupStart': this.setState({ bulkSetup: { sel: {} } }); break;
+      case 'bulkSetupCancel': this.setState({ bulkSetup: null }); break;
+      case 'bulkSetupToggle': this.setState(s => { const sel = Object.assign({}, s.bulkSetup.sel);
+        if (sel[arg]) delete sel[arg]; else sel[arg] = true;
+        return { bulkSetup: Object.assign({}, s.bulkSetup, { sel }) }; }); break;
+      case 'bulkSetupAll': { const avail = this.bulkSetupCandidates().map(p => p.name);
+        const sel = {}; const all = avail.every(n => this.state.bulkSetup.sel[n]);
+        if (!all) avail.forEach(n => { sel[n] = true; });
+        this.setState(s => ({ bulkSetup: Object.assign({}, s.bulkSetup, { sel }) })); break; }
+      // Hands off to the same three-step wizard a single property uses.
+      case 'bulkSetupGo': { const sel = Object.keys(this.state.bulkSetup.sel);
+        if (!sel.length) { this.flash('Select at least one property'); break; }
+        this.setState({ bulkSetup: null, setup: { props: sel, step: 1, excl: {} } }); break; }
+
       // ---- Copy Property Fees ----
       case 'copyOpen': this.setState({ profMenu: null, copyFees: { from: '', dup: 'skip', excl: {} } }); break;
       case 'copyClose': this.setState({ copyFees: null }); break;
@@ -592,18 +620,30 @@ class Component extends DCLogic {
       case 'profHistClose': this.setState({ profHist: null }); break;
       case 'profHistExp': this.setState(s => ({ profHist: Object.assign({}, s.profHist, { exp: Object.assign({}, s.profHist.exp, { [arg]: !s.profHist.exp[arg] }) }) })); break;
       case 'setupAck': this.setState(s => ({ setup: Object.assign({}, s.setup, { ack: !s.setup.ack }) })); break;
-      case 'setupToggle': this.setState(s => { const ex = Object.assign({}, s.setup.excl); if (ex[arg]) delete ex[arg]; else ex[arg] = true; return { setup: Object.assign({}, s.setup, { excl: ex }) }; }); break;
+      case 'setupToggle': this.setState(s => { const p = this.setupCurProp();
+        const all = Object.assign({}, s.setup.excl); const ex = Object.assign({}, all[p]);
+        if (ex[arg]) delete ex[arg]; else ex[arg] = true;
+        all[p] = ex; return { setup: Object.assign({}, s.setup, { excl: all }) }; }); break;
       case 'setupSave': { const c = this.state.setup;
-        const rows = this.setupRows();
+        const props = this.setupProps();
+        const perProp = {}; let total = 0;
+        props.forEach(p => { perProp[p] = this.setupRows(p); total += perProp[p].length; });
+        const rows = perProp[props[0]] || [];
         this.setState({ setup: Object.assign({}, c, { step: 'saving' }), propTab: 'Rental Fee Profile' });
-        clearTimeout(this._sut); this._sut = setTimeout(() => this.setState(s => ({
-          setup: null,
-          profileStatus: Object.assign({}, s.profileStatus, { [c.prop]: 'active' }),
-          profileFees: Object.assign({}, s.profileFees, { [c.prop]: rows }),
-          nextFeeId: 101 + rows.length,
-          histLog: s.histLog.concat([{ prop: c.prop, by: 'Emma Langhammer', charge: 'Rental Fee Profile',
-            change: 'Profile created · ' + rows.length + ' charges added', level: c.prop }])
-        }), () => this.flash(rows.length + ' charges added to the Rental Fee Profile')), 1200);
+        clearTimeout(this._sut); this._sut = setTimeout(() => this.setState(s => {
+          const status = Object.assign({}, s.profileStatus), fees = Object.assign({}, s.profileFees);
+          const log = s.histLog.slice();
+          props.forEach(p => {
+            status[p] = 'active';
+            // Each property keeps the selections made on its own step, in its own copy of the rows.
+            fees[p] = perProp[p].map(r => Object.assign({}, r));
+            log.push({ prop: p, by: 'Emma Langhammer', charge: 'Rental Fee Profile',
+              change: 'Profile created · ' + perProp[p].length + ' charges added', level: p });
+          });
+          return { setup: null, profileStatus: status, profileFees: fees, nextFeeId: 101 + total, histLog: log };
+        }, () => this.flash(props.length === 1
+          ? rows.length + ' charges added to the Rental Fee Profile'
+          : total + ' charges added across ' + props.length + ' properties')), 1200);
         break; }
       case 'profBannerDismiss': this.setState(s => ({ bannerDismissed: Object.assign({}, s.bannerDismissed, { [this.state.property]: true }) })); break;
       case 'recViewNoteDismiss': this.setState({ recViewNote: false }); break;
@@ -956,15 +996,25 @@ class Component extends DCLogic {
   }
 
   // ================= PROPERTIES REGISTER =================
+  // Properties the bulk setup can act on — the ones without a profile yet.
+  bulkSetupCandidates(){ return this.propertiesData().filter(p => this.profStatus(p.name) !== 'active'); }
   registerBody(){
     const rows = this.propertiesData();
-    const cols = '10px minmax(180px,1.2fr) 180px 120px minmax(200px,1.4fr) 150px minmax(230px,1.6fr) minmax(230px,1.6fr) 44px';
+    // In selection mode a checkbox column leads the grid and rows select instead of navigating.
+    const bs = this.state.bulkSetup;
+    const pickable = (n) => this.profStatus(n) !== 'active';
+    const cols = (bs ? '44px ' : '') + '10px minmax(180px,1.2fr) 180px 120px minmax(200px,1.4fr) 150px minmax(230px,1.6fr) minmax(230px,1.6fr) 44px';
     const hcell = (t) => `<span style="display:flex;align-items:center;height:28px;box-sizing:border-box;padding:4px 8px;font-size:12px;font-weight:500;letter-spacing:0.5px;color:#fff;border-right:1px solid rgba(255,255,255,0.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>`;
-    const header = `<div style="display:grid;grid-template-columns:${cols};background:#737373"><span></span>${['Name','Using Rental Fee Profile','Short Name','Email','Manager Name','Primary Address','Billing Address'].map(hcell).join('')}<span style="display:flex;align-items:center;justify-content:center;height:28px"><span class="material-symbols-outlined" style="font-size:20px;color:#fff">view_column</span></span></div>`;
+    const box = (on) => `<span style="width:18px;height:18px;border-radius:3px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${on?'background:#f58220;border:1px solid #f58220':'background:#fff;border:1px solid #b3b3b3'}">${on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span>`;
+    const avail = this.bulkSetupCandidates().map(p => p.name);
+    const allOn = bs && avail.length && avail.every(n => bs.sel[n]);
+    const headBox = !bs ? '' : `<span data-act="bulkSetupAll" style="display:flex;align-items:center;justify-content:center;height:28px;cursor:pointer">${box(!!allOn)}</span>`;
+    const header = `<div style="display:grid;grid-template-columns:${cols};background:#737373">${headBox}<span></span>${['Name','Using Rental Fee Profile','Short Name','Email','Manager Name','Primary Address','Billing Address'].map(hcell).join('')}<span style="display:flex;align-items:center;justify-content:center;height:28px"><span class="material-symbols-outlined" style="font-size:20px;color:#fff">view_column</span></span></div>`;
     const cell = (t, extra) => `<span style="padding:8px;font-size:14px;color:#13314c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
     // The whole row navigates, so the name is plain navy text rather than a link. The kebab keeps its
     // own data-act and wins the closest() lookup, so it stays independently clickable.
-    const body = rows.map(r => `<div data-act="navProperty" data-arg="${r.name}" style="display:grid;grid-template-columns:${cols};align-items:center;background:#fff;border-bottom:1px solid #ebf1f5;cursor:pointer" onmouseover="this.style.background='#f4f8fb'" onmouseout="this.style.background='#fff'">
+    const body = rows.map(r => `<div data-act="${bs ? (pickable(r.name) ? 'bulkSetupToggle' : 'noop') : 'navProperty'}" data-arg="${r.name}" style="display:grid;grid-template-columns:${cols};align-items:center;background:${bs&&bs.sel[r.name]?'#eaf4fb':'#fff'};border-bottom:1px solid #ebf1f5;cursor:${bs&&!pickable(r.name)?'default':'pointer'}"${bs?'':` onmouseover="this.style.background='#f4f8fb'" onmouseout="this.style.background='#fff'"`}>
+      ${!bs ? '' : `<span style="display:flex;align-items:center;justify-content:center">${pickable(r.name) ? box(!!bs.sel[r.name]) : `<span title="Already has a Rental Fee Profile" class="material-symbols-outlined" style="font-size:17px;color:#c9d4dd">lock</span>`}</span>`}
       <span style="align-self:stretch;background:${r.color||'transparent'}"></span>
       <span style="padding:8px;overflow:hidden"><span style="font-size:14px;color:#13314c;white-space:nowrap">${r.name}</span></span>
       <span style="display:flex;align-items:center;justify-content:center;padding:8px">${this.usingProfile(r.name)?`<span class="material-symbols-outlined" style="font-size:20px;color:#12a150" title="Using a Rental Fee Profile">check_circle</span>`:''}</span>
@@ -973,13 +1023,36 @@ class Component extends DCLogic {
       ${cell(r.manager)}${cell(r.addr)}${cell(r.billing)}
       <span data-act="toast" data-arg="Row actions" style="display:flex;align-items:center;justify-content:center;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">more_vert</span></span>
     </div>`).join('');
+    const nSel = bs ? Object.keys(bs.sel).length : 0;
+    const selBar = !bs ? '' : `<div style="display:flex;align-items:center;gap:12px;background:#f0f6fb;border:1px solid #cedbe7;border-radius:4px;padding:12px 16px;flex-wrap:wrap">
+        <span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5);flex:none">checklist</span>
+        <span style="display:flex;flex-direction:column;gap:2px;min-width:0">
+          <span style="font-size:14px;font-weight:600;color:#13314c">Select properties to set up</span>
+          <span style="font-size:13px;color:#4a5b6b">${avail.length} of ${rows.length} can be set up. The rest already have a Rental Fee Profile.</span>
+        </span>
+        <div style="flex:1"></div>
+        <span style="font-size:13px;color:#4a5b6b;white-space:nowrap">${nSel} selected</span>
+        <button ${nSel?'data-act="bulkSetupGo"':''} class="btn-pri" style="height:36px;min-height:36px;padding:0 18px;border-radius:4px;font-size:14px;${nSel?'':'opacity:0.45;cursor:default'}">Continue</button>
+        <button data-act="bulkSetupCancel" class="btn-out" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;box-sizing:border-box">Cancel</button>
+      </div>`;
     return `<div style="padding:16px 24px;display:flex;flex-direction:column;gap:16px;flex:1;min-height:0">
+      ${selBar}
       <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap">
         <div style="display:flex;align-items:flex-end;gap:8px">
           <span style="position:relative;display:inline-flex">
             <button onclick="var p=document.getElementById('reg-bulk-pnl');p.style.display=(p.style.display==='block'?'none':'block')" class="btn-pri" style="height:36px;padding:0 10px 0 14px;border-radius:4px;font:400 14px Roboto,sans-serif;display:inline-flex;align-items:center;gap:6px">Bulk Actions<span class="material-symbols-outlined" style="font-size:20px">arrow_drop_down</span></button>
-            <div id="reg-bulk-pnl" style="display:none;position:absolute;left:0;top:40px;z-index:1000;min-width:200px;background:#fff;border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,0.18);overflow:hidden">
-              ${['Export selected','Assign manager','Mark inactive'].map(o=>`<div data-act="toast" data-arg="${o}" style="padding:10px 14px;font-size:14px;color:#13314c;cursor:pointer" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''">${o}</div>`).join('')}
+            <div id="reg-bulk-pnl" style="display:none;position:absolute;left:0;top:40px;z-index:1000;min-width:260px;background:#fff;border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,0.18);overflow:hidden;padding:4px 0">
+              ${(() => {
+                const item = (t, act, arg) => `<div data-act="${act||'toast'}" data-arg="${arg!=null?arg:t}" style="padding:8px 16px 8px 28px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''">${t}</div>`;
+                const head = (t) => `<div style="padding:10px 16px 4px;font-size:14px;font-weight:600;color:#13314c">${t}</div>`;
+                const rule = `<div style="height:1px;background:#ebf1f5;margin:5px 0"></div>`;
+                return `<div data-act="toast" data-arg="Mass Edit Mode" style="display:flex;align-items:center;gap:10px;padding:9px 16px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''"><span class="material-symbols-outlined" style="font-size:18px">edit_square</span>Mass Edit Mode<div style="flex:1"></div><span style="font-size:13px;color:#8a9aa8">F2</span></div>${rule}`
+                  + head('Rental Fee Profile') + item('Setup Property Rental Fee Profiles', 'bulkSetupStart')
+                  + head('Service Manager') + item('Add Issue')
+                  + head('Reports') + item('Report Writer')
+                  + head('Communication') + item('Write Letters') + item('Send Email') + item('Send Text') + item('Add to Phone Broadcasts')
+                  + head('History / Note') + item('Add Note');
+              })()}
             </div>
           </span>
           <div style="display:flex;flex-direction:column;gap:4px;width:248px">
@@ -1395,11 +1468,15 @@ class Component extends DCLogic {
     const dot = on => `<span style="width:7px;height:7px;border-radius:50%;background:${on?'#8a9aa8':'#d7dee5'};display:inline-block"></span>`;
     return `<span style="display:inline-flex;align-items:center;gap:6px">${dot(step===1)}${dot(step===2)}${dot(step===3)}</span>`;
   }
+  // The properties this setup run applies to — one for a single property, many for a bulk run.
+  setupProps(){ const c = this.state.setup; return (c && c.props) || []; }
   // The rows exactly as save will write them, so the review step counts what actually lands.
-  setupRows(){
+  setupRows(prop){
     const c = this.state.setup; if (!c) return [];
-    return this.setupCandidates().filter(r => !c.excl[r.id]).map(r => {
-      const req = this.setupRequirement(r);
+    const p = prop || this.setupCurProp();
+    const ex = this.setupExclFor(p);
+    return this.setupCandidates().filter(r => !ex[r.id]).map(r => {
+      const req = this.setupRequirement(r, p);
       const suffix = /-one$/.test(r.group) ? '-one' : '-rec';
       const prefix = req === 'Optional' ? 'opt' : req === 'Situational' ? 'sit' : req === 'Required' ? 'req' : 'ind';
       // The setup choice satisfies the MITS requirement field up front. Merge so charges that
@@ -1411,9 +1488,13 @@ class Component extends DCLogic {
     const c = this.state.setup; if (!c || c.step === 'saving') return '';
     const body = c.step === 1 ? this.setupStep1() : c.step === 2 ? this.setupStep2() : this.setupStep3();
     const back = `<button data-act="setupBack" class="btn-out" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px">Back</button>`;
-    const next = `<button data-act="setupNext" class="btn-pri" style="height:36px;min-height:36px;padding:0 22px;border-radius:4px;font-size:14px">Next</button>`;
+    const props = this.setupProps();
+    const nextLabel = (c.step === 2 && props.length > 1 && (c.pi || 0) < props.length - 1)
+      ? 'Next Property' : 'Next';
+    const next = `<button data-act="setupNext" class="btn-pri" style="height:36px;min-height:36px;padding:0 22px;border-radius:4px;font-size:14px">${nextLabel}</button>`;
     // Saving stays behind the acknowledgement, since the profile takes over charging for the property.
-    const save = `<button ${c.ack?'data-act="setupSave"':''} class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px;${c.ack?'':'opacity:0.45;cursor:default'}">Save ${this.setupRows().length} Charges</button>`;
+    const totalRows = props.reduce((n, p) => n + this.setupRows(p).length, 0);
+    const save = `<button ${c.ack?'data-act="setupSave"':''} class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px;${c.ack?'':'opacity:0.45;cursor:default'}">Save ${totalRows} Charges</button>`;
     const foot = c.step === 1
       ? `<div style="flex:1"></div>${next}`
       : `${back}<div style="flex:1"></div>${c.step === 2 ? next : save}`;
@@ -1483,8 +1564,11 @@ class Component extends DCLogic {
   }
   setupStep2(){
     const c = this.state.setup;
+    const props = this.setupProps();
+    const cur = this.setupCurProp();
+    const ex = this.setupExclFor(cur);
     const all = this.setupCandidates();
-    const inc = all.filter(r => !c.excl[r.id]).length;
+    const inc = all.filter(r => !ex[r.id]).length;
     const box = on => `<span style="width:18px;height:18px;border-radius:3px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${on?'background:#f58220;border:1px solid #f58220':'background:#fff;border:1px solid #b3b3b3'}">${on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span>`;
     const table = (label, rows, rec) => {
       const cols = '44px 120px minmax(150px,1fr) 110px 110px 150px';
@@ -1499,18 +1583,29 @@ class Component extends DCLogic {
         <div style="border:1px solid #e3e9ee;border-radius:4px;overflow:hidden"><div style="overflow-x:auto"><div style="min-width:700px">
         <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #e3e9ee">${heads.map(hc).join('')}</div>
         ${rows.map(r=>`<div data-act="setupToggle" data-arg="${r.id}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #f0f4f7;cursor:pointer">
-          <span style="display:flex;align-items:center;justify-content:center;min-height:38px">${box(!c.excl[r.id])}</span>
+          <span style="display:flex;align-items:center;justify-content:center;min-height:38px">${box(!ex[r.id])}</span>
           ${cell(r.mits)}${cell(r.desc||r.name)}
           ${cell(r.amount,'justify-content:flex-end;text-align:right')}
           <span style="display:flex;align-items:center;min-height:38px;padding:6px 10px">${this.chargeLevelPill(r)}</span>
           ${reqSel(r)}</div>`).join('')}
         </div></div></div>`;
     };
-    // Records a per-row requirement choice without losing it when the list re-renders.
-    window.__setupReq = (id, val) => this.setState(s => ({
-      setup: Object.assign({}, s.setup, { req: Object.assign({}, s.setup && s.setup.req, { [id]: val }) })
-    }));
+    // Records a per-row requirement choice against the property being reviewed, without losing it
+    // when the list re-renders.
+    window.__setupReq = (id, val) => this.setState(s => {
+      const p = this.setupCurProp();
+      const all = Object.assign({}, s.setup.req);
+      all[p] = Object.assign({}, all[p], { [id]: val });
+      return { setup: Object.assign({}, s.setup, { req: all }) };
+    });
+    const many = props.length > 1;
     return `<div style="display:flex;flex-direction:column;gap:2px">
+      ${!many ? '' : `<div style="display:flex;align-items:center;gap:10px;background:#f0f6fb;border:1px solid #cedbe7;border-radius:4px;padding:10px 14px;margin-bottom:10px">
+        <span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);flex:none">home</span>
+        <span style="font-size:14px;font-weight:600;color:#13314c">${cur}</span>
+        <div style="flex:1"></div>
+        <span style="font-size:13px;color:#4a5b6b;white-space:nowrap">Property ${(c.pi||0)+1} of ${props.length}</span>
+      </div>`}
       <div style="display:flex;align-items:baseline;gap:12px"><span style="font-size:14px;font-weight:600;color:#13314c">Select which charges to include</span><div style="flex:1"></div><span style="font-size:13px;color:#4a5b6b">${inc} of ${all.length} included</span></div>
       <span style="font-size:13px;color:#8a9aa8;line-height:1.5">Unchecked charges won't be added. They won't apply to future move-ins, quotes, or listings. Existing tenant charges are unaffected either way. Not included: late fees, tenant-specific charges.</span>
       ${table('Recurring Charges', all.filter(r=>!/-one$/.test(r.group)), true)}
@@ -1521,10 +1616,15 @@ class Component extends DCLogic {
   // acknowledged before it lands. Listed properties additionally get told what it does to the listing.
   setupStep3(){
     const c = this.state.setup;
-    const prop = c.prop;
-    const rows = this.setupRows();
+    const props = this.setupProps();
+    const one = props.length === 1;
+    // Reads as one property or as a set, without two versions of the screen.
+    const prop = one ? props[0] : props.length + ' properties';
     const all = this.setupCandidates();
-    const left = all.length - rows.length;
+    // Each property carries its own selections, so the totals add up across them.
+    const per = props.map(p => ({ p, rows: this.setupRows(p) }));
+    const rows = per.reduce((a, x) => a.concat(x.rows), []);
+    const left = all.length * props.length - rows.length;
     const rec = rows.filter(r => !/-one$/.test(r.group)).length;
     const reqN = rows.filter(r => /^req/.test(r.group)).length;
     const optN = rows.filter(r => /^opt/.test(r.group)).length;
@@ -1534,25 +1634,35 @@ class Component extends DCLogic {
     // What the conversion does and doesn't reach. The dash row is the carve-out the user needs to see.
     const line = (icon, color, t, b) => `<div style="display:flex;gap:12px;align-items:flex-start;padding:12px 16px;border-bottom:1px solid #f0f4f7"><span class="material-symbols-outlined" style="font-size:20px;color:${color};flex:none">${icon}</span><span style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:14px;color:#13314c">${t}</span><span style="font-size:13px;color:#8a9aa8;line-height:1.45">${b}</span></span></div>`;
     const scope = `<div style="border:1px solid #e3e9ee;border-radius:4px;overflow:hidden">
-      ${line('check_circle','#12a150','Property, unit type, unit and rentable item charges','All '+rows.length+' move onto one page for '+prop+'. Editing a charge here changes it everywhere it applies.')}
+      ${line('check_circle','#12a150','Property, unit type, unit and rentable item charges',(one?'All '+rows.length+' move onto one page for '+prop:'They move onto one page per property')+'. Editing a charge here changes it everywhere it applies.')}
       ${line('remove','#8a9aa8','Existing tenant charges','Not touched. Tenant-level charges stay where they are and keep billing exactly as they do today.')}
     </div>`;
     // Fee transparency raises the bar on every charge, so a listed property is told what is still missing.
     const ready = rows.filter(r => this.mitsComplete(r)).length;
     const short = rows.length - ready;
-    const ils = !this.ilsOn(prop) ? '' : `<div style="display:flex;gap:12px;background:#fdf8ef;border:1px solid #f0d9ae;border-radius:4px;padding:14px 16px">
+    const listed = props.filter(p => this.ilsOn(p));
+    const listedLabel = listed.length === 1 ? listed[0] + ' is' : listed.join(', ') + ' are';
+    const ils = !listed.length ? '' : `<div style="display:flex;gap:12px;background:#fdf8ef;border:1px solid #f0d9ae;border-radius:4px;padding:14px 16px">
       <span class="material-symbols-outlined" style="font-size:20px;color:#b35a00;flex:none">warning</span>
       <span style="display:flex;flex-direction:column;gap:6px;min-width:0">
-        <span style="font-size:14px;font-weight:600;color:#13314c">${prop} is enabled for online listings</span>
+        <span style="font-size:14px;font-weight:600;color:#13314c">${listedLabel} enabled for online listings</span>
         <span style="font-size:13px;color:#4a5b6b;line-height:1.5">This conversion changes how your fees reach online listings. Fee transparency asks for more detail on every charge, so each one needs a Name, Charge Category, Charge Requirement, Fee Due and Charge Schedule before it can be enabled for online listings. Charges missing any of those stay off the listing until you fill them in.</span>
-        <span style="font-size:13px;color:#4a5b6b">${short ? `<strong style="font-weight:600">${short} of ${rows.length} charges still need fields</strong> — the Rental Fee Profile flags each one after setup.` : `All ${rows.length} charges already have what listings need.`}</span>
+        <span style="font-size:13px;color:#4a5b6b">${short ? `<strong style="font-weight:600">${short} of ${rows.length} charges still need fields</strong>${one?'':' on each of those properties'} — the Rental Fee Profile flags each one after setup.` : `All ${rows.length} charges already have what listings need.`}</span>
       </span></div>`;
     const box = on => `<span style="width:18px;height:18px;border-radius:3px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;margin-top:1px;${on?'background:#f58220;border:1px solid #f58220':'background:#fff;border:1px solid #b3b3b3'}">${on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span>`;
     return `<div style="display:flex;flex-direction:column;gap:18px">
       <div style="display:flex;flex-direction:column;gap:4px">
         <span style="font-size:14px;font-weight:600;color:#13314c">Review and confirm</span>
-        <span style="font-size:13px;color:#8a9aa8;line-height:1.5">This applies to all of ${prop}, not just one unit or lease. Check it over before you create the profile.</span>
+        <span style="font-size:13px;color:#8a9aa8;line-height:1.5">${one
+          ? `This applies to all of ${prop}, not just one unit or lease. Check it over before you create the profile.`
+          : `A profile is created on each of the ${props.length} properties below, with the charges you picked for each. It applies to all of each property, not just one unit or lease.`}</span>
       </div>
+      ${one ? '' : `<div style="border:1px solid #e3e9ee;border-radius:4px;overflow:hidden">${per.map((x,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;${i?'border-top:1px solid #f0f4f7':''}">
+        <span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);flex:none">home</span>
+        <span style="font-size:14px;color:#13314c">${x.p}</span><div style="flex:1"></div>
+        <span style="font-size:13px;color:#4a5b6b;white-space:nowrap">${x.rows.length} of ${all.length} charges</span>
+        ${this.ilsOn(x.p)?`<span style="font-size:12px;color:#7a5a2a;background:#fdf3e3;border-radius:12px;padding:2px 9px;white-space:nowrap">On listings</span>`:''}
+      </div>`).join('')}</div>`}
       <div style="display:flex;gap:12px;flex-wrap:wrap">
         ${stat(rows.length, 'Charges added' + (rows.length ? ` · ${rec} recurring, ${rows.length - rec} one-time` : ''))}
         ${stat(left, left === 1 ? 'Charge left out' : 'Charges left out')}
@@ -1562,7 +1672,7 @@ class Component extends DCLogic {
       ${ils}
       ${scope}
       <div data-act="setupAck" style="display:flex;gap:10px;align-items:flex-start;background:#f7f9fb;border:1px solid ${c.ack?'#cedbe7':'#e3e9ee'};border-radius:4px;padding:12px 16px;cursor:pointer">
-        ${box(!!c.ack)}<span style="font-size:14px;color:#13314c;line-height:1.45">I understand this profile will charge every future move-in, quote and renewal on ${prop}.</span>
+        ${box(!!c.ack)}<span style="font-size:14px;color:#13314c;line-height:1.45">I understand this profile will charge every future move-in, quote and renewal on ${one ? prop : 'all ' + props.length + ' properties'}.</span>
       </div>
     </div>`;
   }
