@@ -2311,6 +2311,9 @@ class Component extends DCLogic {
       return `<span class="tipw" style="display:inline-flex">${dot('#d02830', 'Not Ready for Listings')}<span class="tip" style="left:auto;right:-4px;top:24px;width:auto;min-width:190px;max-width:280px;padding:14px 16px"><span style="display:block;font-size:14px;font-weight:600;color:#13314c;padding-bottom:9px;border-bottom:1px solid #e3e9ee">${missing.length} field${missing.length===1?'':'s'} still required:</span><span style="display:flex;flex-direction:column;gap:10px;padding-top:11px">${missing.map(n=>`<span style="font-size:14px;color:#13314c;white-space:nowrap">${n}</span>`).join('')}</span></span></span>`;
     };
     const flag = (r) => flagFor(this.mitsMissing(r), !!r.ils);
+    // Nothing publishes from a property that isn't marketed, so there's no listing status to show —
+    // same rule the Listing Ready column follows.
+    const showFlags = this.ilsOn();
     // Repaints the selected row's status from what's on screen, so toggling Show on ILS turns it green
     // straight away rather than waiting for the charge to be saved on navigation.
     window.__bulkFlag = (need) => {
@@ -2321,7 +2324,7 @@ class Component extends DCLogic {
     const railRow = (r) => {
       const i = rows.indexOf(r), on = i === b.idx;
       return `<div data-act="bulkGo" data-arg="${i}" data-lbl="${this.bulkLabel(r).toLowerCase().replace(/"/g,'&quot;')}" style="display:flex;align-items:center;gap:8px;padding:9px 12px 9px ${on?'9px':'12px'};border-left:${on?'3px solid var(--ac,#008dd5)':'none'};background:${on?'#eaf4fb':'transparent'};cursor:pointer" onmouseover="if(this.style.background!=='rgb(234, 244, 251)')this.style.background='#f5f8fa'" onmouseout="if(this.style.background!=='rgb(234, 244, 251)')this.style.background='transparent'">
-        <span style="flex:1;min-width:0;font-size:14px;color:#13314c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${this.bulkLabel(r)}</span>${on?`<span id="bulk-flag-cur" style="display:inline-flex">${flag(r)}</span>`:flag(r)}</div>`;
+        <span style="flex:1;min-width:0;font-size:14px;color:#13314c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${this.bulkLabel(r)}</span>${showFlags ? (on?`<span id="bulk-flag-cur" style="display:inline-flex">${flag(r)}</span>`:flag(r)) : ''}</div>`;
     };
     const group = (key, title, list) => `<div data-act="bulkAcc" data-arg="${key}" style="display:flex;align-items:center;gap:6px;padding:9px 12px;cursor:pointer;background:#f5f8fa;border-top:1px solid #ebf1f5;border-bottom:1px solid #ebf1f5">
         <span class="material-symbols-outlined" style="font-size:18px;color:#666">${b.open[key]?'arrow_drop_down':'arrow_right'}</span>
