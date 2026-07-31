@@ -329,8 +329,8 @@ class Component extends DCLogic {
       name: L.name,
       category: L.category || this.chargeCategoryFor(r.mits),
       requirement: L.requirement || this.defaultRequirement(r),
-      feeDue: L.feeDue || 'During Term',
-      schedule: /-one$/.test(r.group || '') ? (L.schedule || '') : (L.schedule || 'Monthly'),
+      feeDue: L.feeDue,
+      schedule: /-one$/.test(r.group || '') ? '' : L.schedule,
       marketing: L.marketing,
       refundable: L.refundable !== undefined ? L.refundable : this.defaultRefundable(r)
     };
@@ -1575,7 +1575,9 @@ class Component extends DCLogic {
     const money = n => '$' + n.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
     const unit = this.unitInfo(p.unit);
     const amtOf = r => { const a = this.parseAmt(r.amount); if (a) return a; if (r.est != null) return r.est; return /market/i.test(r.amount||'') ? this.parseAmt(unit.rent) : 0; };
-    const of = pre => rows.filter(r => r.group.indexOf(pre) === 0);
+    // Charges with no requirement chosen yet ('ind') sit with the required ones, so a freshly
+    // converted property still previews a price instead of an empty breakdown.
+    const of = pre => rows.filter(r => r.group.indexOf(pre) === 0 || (pre === 'req' && r.group.indexOf('ind') === 0));
     const optRows = of('opt'), sitRows = of('sit');
     const monthly = of('req').filter(r => !/-one$/.test(r.group));
     const moveIn = of('req').filter(r => /-one$/.test(r.group));
@@ -2119,7 +2121,7 @@ class Component extends DCLogic {
     // ---- Marketing Details (always available; MITS 5.0 / listing fields) ----
     const edCat = ed ? catFor(ed.mits) : '';
     const hasCode = !!(ed && ed.mits);
-    const req = (ed && ed.listing && ed.listing.requirement) || this.defaultRequirement(ed || m);
+    const req = (ed && ed.listing && ed.listing.requirement) || (ed ? this.defaultRequirement(ed) : '');
     const refundable = ed && ed.listing && ed.listing.refundable !== undefined ? ed.listing.refundable : this.defaultRefundable(ed);
     const catBlock = `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">${lab('Charge Category',true)}
       <input type="hidden" id="m-cat" value="${esc(edCat)}">
@@ -2134,8 +2136,8 @@ class Component extends DCLogic {
       <div style="display:flex;flex-direction:column;gap:4px">${lab('Marketing Description')}<textarea id="m-marketing" class="fld" style="height:56px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${ed&&ed.listing?(ed.listing.marketing||''):''}</textarea></div>
       <div style="display:flex;gap:12px;align-items:flex-start">
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Requirement')}${dd('m-req',['Required','Optional','Situational'],req,{noSearch:true,placeholder:'Select a charge requirement',js:"document.getElementById('m-sitdesc-wrap').style.display=(_v==='Situational'?'flex':'none');if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Fee Due')}${dd('m-due',['At Application','During Term','Move-Out'],(ed&&ed.listing&&ed.listing.feeDue)||'During Term',{noSearch:true,js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>
-        ${isOne?'':`<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Schedule',true)}${dd('m-sched',['Monthly','Weekly','Daily'],(ed&&ed.listing&&ed.listing.schedule)||'Monthly',{noSearch:true,js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`}
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Fee Due')}${dd('m-due',['At Application','During Term','Move-Out'],(ed&&ed.listing&&ed.listing.feeDue)||'',{noSearch:true,placeholder:'Select when the fee is due',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>
+        ${isOne?'':`<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Schedule',true)}${dd('m-sched',['Monthly','Weekly','Daily'],(ed&&ed.listing&&ed.listing.schedule)||'',{noSearch:true,placeholder:'Select a charge schedule',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`}
       </div>
       <label style="display:inline-flex;align-items:center;gap:8px;align-self:flex-start;font-size:14px;color:#13314c;cursor:pointer"><input type="checkbox" id="m-refund" ${refundable?'checked':''} style="width:16px;height:16px;margin:0;accent-color:#f58220">Refundable</label>
       <div id="m-sitdesc-wrap" style="display:${req==='Situational'?'flex':'none'};flex-direction:column;gap:4px">${lab('Situational Charge Description')}<textarea id="m-sitdesc" class="fld" style="height:48px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${esc(ed?ed.cond:'')}</textarea></div>`;
