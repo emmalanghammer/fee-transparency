@@ -775,7 +775,11 @@ class Component extends DCLogic {
     const target = targetId ? v(targetId) : '';
     const errs = [];
     mark(this.q('#m-ctype') && this.q('#m-ctype').parentElement, !code); if (!code) errs.push('Charge Type');
-    if (targetId) { mark(this.q('#'+targetId) && this.q('#'+targetId).parentElement, !target); if (!target) errs.push(app); }
+    // The bordered control is the input's parent for a search field, and the display row's parent for
+    // a dropdown — mark whichever this field actually is.
+    if (targetId) { const disp = this.q('#' + targetId + '-disp'); const inp = this.q('#' + targetId);
+      mark(disp ? disp.parentElement : (inp && inp.parentElement), !target);
+      if (!target) errs.push(app); }
     const ils = v('m-ils') === '1';
     // Show-on-ILS requires the marketing details to actually be there.
     if (ils && !name) { mark(this.q('#m-name'), true); errs.push('Name'); }
@@ -2131,11 +2135,11 @@ class Component extends DCLogic {
     const app = ed ? (ed.level || 'Property') : 'Property';
     const appToggle = "var v=_v;['ut','unit','ori'].forEach(function(k){var e=document.getElementById('m-appt-'+k+'-wrap');if(e)e.style.display='none'});var t={'Unit Type':'ut','Unit':'unit','ORI':'ori'}[v];if(t){var w=document.getElementById('m-appt-'+t+'-wrap');if(w)w.style.display='flex'}";
     const searchField = (id,val,ph) => `<div style="display:flex;align-items:center;gap:6px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5)">search</span><input id="${id}" value="${esc(val)}" placeholder="${ph}" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:#13314c"></div>`;
-    const tgt = (key,label,id,val,ph) => `<div id="m-appt-${key}-wrap" style="display:${app===label?'flex':'none'};flex-direction:column;gap:4px;flex:1;min-width:0">${lab(label+' *')}${searchField(id,val,ph)}</div>`;
+    const tgt = (key,label,id,val,ph,opts) => `<div id="m-appt-${key}-wrap" style="display:${app===label?'flex':'none'};flex-direction:column;gap:4px;flex:1;min-width:0">${lab(label+' *')}${opts ? dd(id, opts, val, { placeholder:'Select a '+label.toLowerCase() }) : searchField(id,val,ph)}</div>`;
     const chargeApp = `<div style="display:flex;gap:12px;align-items:flex-start">
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Level *')}${dd('m-app',['Property','Unit Type','Unit','ORI'],app,{noSearch:true,js:appToggle})}</div>
       ${tgt('ut','Unit Type','m-appt-ut', app==='Unit Type'?(ed&&ed.target||''):'', '2BR/2BA')}
-      ${tgt('unit','Unit','m-appt-unit', app==='Unit'?(ed&&ed.target||''):'', '2C')}
+      ${tgt('unit','Unit','m-appt-unit', app==='Unit'?(ed&&ed.target||''):'', '2C', this.units().map(u=>u.u))}
       ${tgt('ori','ORI','m-appt-ori', app==='ORI'?(ed&&ed.target||''):'', 'Garage Spot 1')}
     </div>`;
 
