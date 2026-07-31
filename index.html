@@ -91,8 +91,8 @@ class Component extends DCLogic {
     toggles: {},
     // Per-property Rental Fee Profile. profileStatus[prop]='active' once set up;
     // profileFees[prop] holds that property's charge rows.
-    // Properties opted into marketing on ILS. Marketing/MITS details are editable on every
-    // property; this flag only controls whether ILS publishing is surfaced at all.
+    // Properties opted into marketing on online listings. Marketing/MITS details are editable on
+    // every property; this flag only controls whether listing publishing is surfaced at all.
     // The Berkshires is listed but not yet converted, so the setup review can warn about the
     // listing impact. The opt-in itself only surfaces once a profile exists.
     ilsProps: { 'Riverview Apartments': true, 'The Berkshires': true },
@@ -267,7 +267,7 @@ class Component extends DCLogic {
     cmp('Divide', a.creDivide, b.creDivide);
     cmp('User Defined Field', a.creUdf, b.creUdf);
     if (!!la.refundable !== !!lb.refundable) out.push('Refundable turned ' + (lb.refundable ? 'on' : 'off'));
-    if (!!a.ils !== !!b.ils) out.push('Show on ILS turned ' + (b.ils ? 'on' : 'off'));
+    if (!!a.ils !== !!b.ils) out.push(b.ils ? 'Included on listings' : 'Excluded from listings');
     return out;
   }
   // Logs a charge edit and, when the amount moved, carries the before/after so the amount timeline
@@ -373,7 +373,7 @@ class Component extends DCLogic {
   // Charges discovered across the property's existing setup — the setup wizard's candidate list and
   // the single seed every count in the UI derives from.
   // Converted charges arrive with no listing configuration — ils stays false until the user
-  // adds ILS details on each charge, which is what the "ILS Details Added" column reflects.
+  // adds listing details on each charge, which is what the "Listing Details Added" column reflects.
   setupCandidates(){
     const L = (level, target) => ({ level, target: target || '' });
     return [
@@ -396,7 +396,7 @@ class Component extends DCLogic {
       // absent from chargeCategoryMap so the Charge Category error state is always demoable.
       Object.assign({ id:18, group:'opt-rec', mits:'EVCHG',      name:'EV charging',       desc:'EV charging station access',   freq:'Every Month', from:'01/01/2026', to:'', amount:'$35.00', amtMethod:'Flat', ils:false }, L('Property')),
       // Property specific charges. Every field is pulled from the property's own setup, so only the
-      // marketing details are editable — they exist in the profile so they can be shown on ILS.
+      // marketing details are editable — they exist in the profile so they can be shown on listings.
       Object.assign({ id:16, group:'sit-one', mits:'NSFFEE', name:'NSF Fee', desc:'NSF fee', from:'01/01/2026', to:'', amount:'$25.00', amtMethod:'Flat', ils:false,
         propSpecific:'NSF', cond:'Charged 25.00 for non-sufficient funds.',
         listing:{ name:'NSF Fee', category:'Violation', marketing:'', requirement:'Situational', feeDue:'During Term' } }, L('Property')),
@@ -706,8 +706,8 @@ class Component extends DCLogic {
       case 'groupByReq': this.setState(s => ({ groupByReq: !s.groupByReq })); break;
       case 'ilsPropToggle': { const p = this.state.property; const turningOn = !this.ilsOn(p);
         this.setState(s => { const m = Object.assign({}, s.ilsProps); if (turningOn) m[p] = true; else delete m[p]; return { ilsProps: m, profMenu: null }; });
-        this.logChange(p, 'Rental Fee Profile', 'Marketing on ILS turned ' + (turningOn ? 'on' : 'off'), p);
-        this.flash(turningOn ? p + ' will market on ILS' : p + ' removed from ILS marketing'); break; }
+        this.logChange(p, 'Rental Fee Profile', 'Online listings turned ' + (turningOn ? 'on' : 'off'), p);
+        this.flash(turningOn ? p + ' will market on online listings' : p + ' removed from online listing marketing'); break; }
       case 'profMenuOpen': { const r = el.getBoundingClientRect(); this.setState({ profMenu: { x: r.right, y: r.bottom + 4 } }); break; }
       case 'profMenuClose': this.setState({ profMenu: null }); break;
 
@@ -725,7 +725,7 @@ class Component extends DCLogic {
       // ---- fee row mutations ----
       case 'feeils': { const r = this.profileRows().find(f => f.id === +arg);
         this.mutFee(+arg, f => { f.ils = !f.ils; return f; });
-        if (r) this.logChange(this.state.property, this.histLabelFor(r), 'Show on ILS turned ' + (r.ils ? 'off' : 'on'), r.target || r.level, { chargeId: r.id });
+        if (r) this.logChange(this.state.property, this.histLabelFor(r), (r.ils ? 'Excluded from listings' : 'Included on listings'), r.target || r.level, { chargeId: r.id });
         break; }
       case 'feeexp': this.mutFee(+arg, f => { f.expanded = !f.expanded; return f; }); break;
 
@@ -758,7 +758,7 @@ class Component extends DCLogic {
     const mark = (el, bad) => { if (el) el.style.borderColor = bad ? '#d02830' : ''; };
     const chkd = id => { const e = this.q('#'+id); return !!(e && e.checked); };
     // Property specific charges keep every general field as pulled from the property; only their
-    // marketing details and the ILS toggle are editable here.
+    // marketing details and the listings toggle are editable here.
     const specEd = m.edit && m.edit.propSpecific ? m.edit : null;
     if (specEd) {
       const nm = v('m-name'); const ilsOn = v('m-ils') === '1';
@@ -791,7 +791,7 @@ class Component extends DCLogic {
       mark(disp ? disp.parentElement : (inp && inp.parentElement), !target);
       if (!target) errs.push(app); }
     const ils = v('m-ils') === '1';
-    // Show-on-ILS requires the marketing details to actually be there.
+    // Include on listings requires the marketing details to actually be there.
     if (ils && !name) { mark(this.q('#m-name'), true); errs.push('Name'); }
     if (errs.length) { const b = this.q('#m-err'); if (b) { const t = b.querySelector('#m-err-txt'); if (t) t.textContent = 'Complete required fields: ' + errs.join(', '); b.style.display = 'inline-flex'; } return false; }
     const eb = this.q('#m-err'); if (eb) eb.style.display = 'none';
@@ -813,7 +813,7 @@ class Component extends DCLogic {
       cre: !!(m.cre || (m.edit && m.edit.cre)) || undefined,
       creDist: v('m-cre-dist') || undefined, creDivide: v('m-cre-divide') || undefined, creUdf: v('m-cre-udf') || undefined,
       cond: req === 'Situational' ? v('m-sitdesc') : '',
-      // Marketing/MITS details are saved regardless of ILS — they're useful to non-ILS properties too.
+      // Marketing/MITS details are saved either way — they're useful to unmarketed properties too.
       listing: { name, category: this.chargeCategoryFor(code), marketing: v('m-marketing'), requirement: req, feeDue: v('m-due'), schedule: isOne ? '' : v('m-sched'), refundable: chkd('m-refund') }
     };
     if (m.edit) {
@@ -857,7 +857,7 @@ class Component extends DCLogic {
     return `<div class="tile" style="border-color:var(--ac,#008dd5)"><div style="padding:16px 20px;display:flex;flex-direction:column;gap:12px">
       <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px"><span style="font-size:14px;color:#666">Total monthly price</span><span style="font-size:26px;font-weight:700;color:#13314c">${this.money(monthly)}<span style="font-size:14px;font-weight:400;color:#8a9aa8"> /mo</span></span></div>
       <div style="display:flex;align-items:baseline;justify-content:space-between"><span style="font-size:13px;color:#666">One-time move-in costs</span><span style="font-size:16px;font-weight:600;color:#424e5b">${this.money(oneTime)}</span></div>
-      <div style="border-top:1px solid #ebf1f5;padding-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:#4d8a2a;font-weight:500"><span class="material-symbols-outlined" style="font-size:15px">visibility</span>ILS-visible</span>${ils.map(nm=>`<span class="loz" style="background:#e2f1da;color:#4d8a2a;text-transform:none;letter-spacing:0">${nm}</span>`).join('')||'<span style="font-size:12px;color:#b3b3b3">None</span>'}</div>
+      <div style="border-top:1px solid #ebf1f5;padding-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:#4d8a2a;font-weight:500"><span class="material-symbols-outlined" style="font-size:15px">visibility</span>On listings</span>${ils.map(nm=>`<span class="loz" style="background:#e2f1da;color:#4d8a2a;text-transform:none;letter-spacing:0">${nm}</span>`).join('')||'<span style="font-size:12px;color:#b3b3b3">None</span>'}</div>
       <div style="font-size:12px;color:#8a9aa8;line-height:1.45">Total monthly price = market rent + mandatory recurring fees. Optional and situational fees are added only when the tenant selects them. Recalculates as fees change.</div></div></div>`;
   }
   feeIcon(kind,size){ const src={ property:'assets/icon-fee-property.svg', unittype:'assets/icon-fee-unittype.svg', unit:'assets/icon-fee-unit.svg' }[kind]; return `<img src="${src}" alt="" style="width:${size}px;height:${size}px;object-fit:contain;flex:none;display:block">`; }
@@ -1283,9 +1283,9 @@ class Component extends DCLogic {
     if (missing.length) {
       return `<span class="tipw" style="display:inline-flex">${pill(missing.length + ' needed')}<span class="tip" style="left:auto;right:-4px;top:26px;width:auto;min-width:190px;max-width:280px;padding:14px 16px"><span style="display:block;font-size:14px;font-weight:600;color:#13314c;padding-bottom:9px;border-bottom:1px solid #e3e9ee">${missing.length} fields still required:</span><span style="display:flex;flex-direction:column;gap:10px;padding-top:11px">${missing.map(n=>`<span style="font-size:14px;color:#13314c;white-space:nowrap">${n}</span>`).join('')}</span></span></span>`;
     }
-    // Every field is in place; Show on ILS decides whether the charge actually goes out.
+    // Every field is in place; Include on listings decides whether the charge actually goes out.
     if (!r.ils) {
-      return `<span style="display:inline-flex;align-items:center;gap:5px" title="All fields filled in — Show on ILS is off, so this charge is left off listings"><span class="material-symbols-outlined" style="font-size:17px;color:#8a9aa8">visibility_off</span><span style="font-size:13px;color:#8a9aa8;white-space:nowrap">Charge excluded</span></span>`;
+      return `<span style="display:inline-flex;align-items:center;gap:5px" title="All fields filled in — this charge isn't included on listings"><span class="material-symbols-outlined" style="font-size:17px;color:#8a9aa8">visibility_off</span><span style="font-size:13px;color:#8a9aa8;white-space:nowrap">Charge excluded</span></span>`;
     }
     return `<span style="display:inline-flex;align-items:center;gap:5px"><span class="material-symbols-outlined" style="font-size:17px;color:#12a150">check_circle</span><span style="font-size:13px;color:#13314c;white-space:nowrap">Charge ready</span></span>`;
   }
@@ -1364,7 +1364,7 @@ class Component extends DCLogic {
     const left = Math.max(8, p.x - 260);
     const item = (t,act,arg) => `<div data-act="${act||'profAct'}" data-arg="${arg!=null?arg:t}" style="padding:10px 14px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''">${t}</div>`;
     const on = this.ilsOn();
-    const ilsItem = `<div data-act="ilsPropToggle" style="display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''"><span class="material-symbols-outlined" style="font-size:18px;color:${on?'#12a150':'#c9d4dd'}">${on?'check_box':'check_box_outline_blank'}</span>Market this property on ILS</div>`;
+    const ilsItem = `<div data-act="ilsPropToggle" style="display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''"><span class="material-symbols-outlined" style="font-size:18px;color:${on?'#12a150':'#c9d4dd'}">${on?'check_box':'check_box_outline_blank'}</span>Market this property on online listings</div>`;
     return `<div data-act="profMenuClose" style="position:fixed;inset:0;z-index:150"></div>
       <div style="position:fixed;left:${left}px;top:${p.y}px;background:#fff;border:1px solid #cedbe7;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);z-index:151;overflow:hidden;padding:4px 0">
         ${ilsItem}<div style="height:1px;background:#ebf1f5;margin:4px 0"></div>
@@ -1376,7 +1376,7 @@ class Component extends DCLogic {
   profileTable(kind, rows, group, opts){
     const rec = kind === 'rec';
     const noLabel = !!(opts && opts.noLabel);
-    // The ILS status column only appears on properties that market on ILS.
+    // The listing status column only appears on properties that market on online listings.
     const ils = this.ilsOn();
     const cols = rec ? (ils ? '120px minmax(160px,1fr) 110px 100px 90px 110px 120px 130px 40px'
                             : '120px minmax(160px,1fr) 110px 100px 90px 110px 120px 40px')
@@ -1418,18 +1418,18 @@ class Component extends DCLogic {
     const need = this.mitsIncompleteCount();
     const total = this.profileRows().length;
     const ils = this.ilsOn();
-    // Marketing/MITS completeness only matters when the property publishes to ILS.
+    // Marketing/MITS completeness only matters when the property publishes to online listings.
     if (!ils || !total) return '';
     if (!need) {
       const shown = this.profileRows().filter(r => r.ils).length;
       return `<div style="display:flex;align-items:center;gap:10px;background:#eaf7ef;border:1px solid #b7e4c6;border-radius:4px;padding:10px 16px">
         <span class="material-symbols-outlined" style="font-size:20px;color:#12a150">check_circle</span>
-        <span style="font-size:13px;color:#2f5d43">Marketing details are complete on all ${total} charges. ${shown} shown on ILS listings.</span></div>`;
+        <span style="font-size:13px;color:#2f5d43">Marketing details are complete on all ${total} charges. ${shown} included on listings.</span></div>`;
     }
     return `<div style="display:flex;align-items:flex-start;gap:10px;background:#fef4e8;border:1px solid #f6d9ac;border-radius:4px;padding:12px 16px">
       <span class="material-symbols-outlined" style="font-size:20px;color:#b35a00;flex:none">error</span>
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
-        <span style="font-size:13px;color:#13314c;line-height:1.5">${need} of ${total} charges still need marketing details before they can show on listings via ILS. Open a charge to fill in what's missing, or hover its Listing Ready status to see the exact fields required.</span>
+        <span style="font-size:13px;color:#13314c;line-height:1.5">${need} of ${total} charges still need marketing details before they can be included on listings. Open a charge to fill in what's missing, or hover its Listing Ready status to see the exact fields required.</span>
       </div>
       <a data-act="bulkOpen" style="flex:none;font-size:13px;color:var(--ac,#008dd5);white-space:nowrap;cursor:pointer">Bulk Update Fees</a></div>`;
   }
@@ -1756,8 +1756,8 @@ class Component extends DCLogic {
   // ================= PRICING PREVIEW =================
   pricePreviewHTML(){
     const p = this.state.pricePreview; if (!p) return '';
-    // On an ILS-marketed property the preview mirrors exactly what publishes, so it honours Show on
-    // ILS. Everywhere else nothing publishes at all, so it shows every charge — the point there is to
+    // On a marketed property the preview mirrors exactly what publishes, so it honours Include on
+    // listings. Everywhere else nothing publishes at all, so it shows every charge — the point is to
     // see what a listing would look like, not what is being filtered out.
     const ilsProp = this.ilsOn(p.prop);
     const rows = ilsProp ? this.profileRows().filter(r => r.ils) : this.profileRows();
@@ -1781,8 +1781,8 @@ class Component extends DCLogic {
       <div data-act="noop" style="width:940px;max-width:96vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid #cedbe7"><span style="font-size:20px;color:#13314c">Pricing Preview</span><span style="display:inline-flex;align-items:center;gap:10px"><span data-act="toast" data-arg="Help" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">help</span><span data-act="pricePreviewClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span></span></div>
         <div style="flex:none;background:#f5f8fa;border-bottom:1px solid #e3e9ee;padding:11px 20px;font-size:14px;color:#4a5b6b;line-height:1.45">${ilsProp
-          ? 'Only charges with the Show on ILS option enabled will display in the pricing preview.'
-          : `${p.prop} isn't marketed on ILS, so every charge is shown here to preview how a listing would look.`}</div>
+          ? 'Only charges included on listings will display in the pricing preview.'
+          : `${p.prop} isn't marketed on online listings, so every charge is shown here to preview how a listing would look.`}</div>
         <div style="flex:1;min-height:0;overflow-y:auto;display:flex;gap:0;flex-wrap:wrap">
           <div style="flex:1;min-width:300px;padding:16px 20px;display:flex;flex-direction:column;gap:14px;box-sizing:border-box">
             <div style="font-size:14px;font-weight:600;color:#13314c;border-bottom:1px solid #ebf1f5;padding-bottom:8px">Select Unit</div>
@@ -1806,7 +1806,7 @@ class Component extends DCLogic {
                   : `<div style="padding:16px 0;border-top:1px solid #eef2f5;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center">
                       <span class="material-symbols-outlined" style="font-size:30px;color:#c9d4dd">visibility_off</span>
                       <span style="font-size:13px;font-weight:600;color:#13314c">${ilsProp?'No charges are set to show on listings yet':'No charges on this profile yet'}</span>
-                      <span style="font-size:12px;color:#8a9aa8;line-height:1.5;max-width:300px">${ilsProp?'Turn on <b>Show on ILS</b> for a charge to see it here.':'Add a charge to the profile to preview it here.'}</span>
+                      <span style="font-size:12px;color:#8a9aa8;line-height:1.5;max-width:300px">${ilsProp?'Turn on <b>Include on listings</b> for a charge to see it here.':'Add a charge to the profile to preview it here.'}</span>
                     </div>` }
               </div>
               <div style="margin:12px 16px 16px;background:#13314c;border-radius:4px;padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="font-size:13px;color:#fff">Due monthly</span><span style="font-size:15px;font-weight:700;color:#fff">${money(mTotal)}</span><div style="flex:1"></div><span style="font-size:13px;color:#fff">Due one-time</span><span style="font-size:15px;font-weight:700;color:#fff">${money(oTotal)}</span></div>
@@ -2599,7 +2599,7 @@ class Component extends DCLogic {
     // Nothing publishes from a property that isn't marketed, so there's no listing status to show —
     // same rule the Listing Ready column follows.
     const showFlags = this.ilsOn();
-    // Repaints the selected row's status from what's on screen, so toggling Show on ILS turns it green
+    // Repaints the selected row's status from what's on screen, so toggling Include on listings turns it green
     // straight away rather than waiting for the charge to be saved on navigation.
     window.__bulkFlag = (need) => {
       const slot = this.q('#bulk-flag-cur'); if (!slot) return;
@@ -2661,7 +2661,7 @@ class Component extends DCLogic {
     window.__catAssign = (code, cat) => { this._catAdds = Object.assign({}, this._catAdds, { [code]: cat }); };
     const opts = this.chargeCategoryOptions().map(c => `<option value="${c}">${c}</option>`).join('');
     // Applies the choice to the field behind, records it against the charge type, then re-checks the
-    // MITS fields so the ILS toggle unlocks if this was the last thing missing.
+    // MITS fields so the listings toggle unlocks if this was the last thing missing.
     const add = "var s=document.getElementById('m-catadd-sel');var cc=s.value;if(!cc)return;"
       + "var code=(document.getElementById('m-ctype').value||'').toUpperCase();"
       + "document.getElementById('m-cat').value=cc;"
