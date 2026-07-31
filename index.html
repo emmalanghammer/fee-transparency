@@ -2015,7 +2015,7 @@ class Component extends DCLogic {
     const searchField = (id,val,ph) => `<div style="display:flex;align-items:center;gap:6px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5)">search</span><input id="${id}" value="${esc(val)}" placeholder="${ph}" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:#13314c"></div>`;
     const tgt = (key,label,id,val,ph) => `<div id="m-appt-${key}-wrap" style="display:${app===label?'flex':'none'};flex-direction:column;gap:4px;flex:1;min-width:0">${lab(label+' *')}${searchField(id,val,ph)}</div>`;
     const chargeApp = `<div style="display:flex;gap:12px;align-items:flex-start">
-      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Application *')}${dd('m-app',['Property','Unit Type','Unit','ORI'],app,{noSearch:true,js:appToggle})}</div>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Level *')}${dd('m-app',['Property','Unit Type','Unit','ORI'],app,{noSearch:true,js:appToggle})}</div>
       ${tgt('ut','Unit Type','m-appt-ut', app==='Unit Type'?(ed&&ed.target||''):'', '2BR/2BA')}
       ${tgt('unit','Unit','m-appt-unit', app==='Unit'?(ed&&ed.target||''):'', '2C')}
       ${tgt('ori','ORI','m-appt-ori', app==='ORI'?(ed&&ed.target||''):'', 'Garage Spot 1')}
@@ -2070,7 +2070,7 @@ class Component extends DCLogic {
     const disSel = (v) => `<div style="display:flex;align-items:center;justify-content:space-between;gap:4px;height:36px;box-sizing:border-box;padding:0 6px 0 10px;background:#f5f8fa;border:1px solid #e3e9ee;border-radius:4px;font-size:14px;color:#a6b2bd"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v}</span><span class="material-symbols-outlined" style="font-size:20px;color:#c9d4dd">expand_more</span></div>`;
     const disSearch = (v) => `<div style="display:flex;align-items:center;gap:6px;height:36px;box-sizing:border-box;padding:0 10px;background:#f5f8fa;border:1px solid #e3e9ee;border-radius:4px;font-size:14px;color:#a6b2bd"><span class="material-symbols-outlined" style="font-size:18px;color:#c9d4dd">search</span>${v}</div>`;
     const specGeneral = !spec ? '' : `
-      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Application *')}${disSel('Property')}</div>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Level *')}${disSel('Property')}</div>
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Type *')}${disSearch(ed.mits)}</div>
       <div style="display:flex;gap:12px;align-items:flex-start">
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('From')}${dis(ed.from||'—')}</div>
@@ -2140,12 +2140,20 @@ class Component extends DCLogic {
       <label style="display:inline-flex;align-items:center;gap:8px;align-self:flex-start;font-size:14px;color:#13314c;cursor:pointer"><input type="checkbox" id="m-refund" ${refundable?'checked':''} style="width:16px;height:16px;margin:0;accent-color:#f58220">Refundable</label>
       <div id="m-sitdesc-wrap" style="display:${req==='Situational'?'flex':'none'};flex-direction:column;gap:4px">${lab('Situational Charge Description')}<textarea id="m-sitdesc" class="fld" style="height:48px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${esc(ed?ed.cond:'')}</textarea></div>`;
 
-    // ILS box that sits at the top of Marketing Details (mock 2489-119627). Lists the MITS fields
-    // still missing as chips and keeps "Show on ILS" disabled until they're all filled in.
+    // ---- Listing readiness (mock 2625-29821) ----
+    // The Marketing Details heading carries the status, the toggle reads "Include on listings", and a
+    // Required charge that's been left off listings gets called out.
     const missing = ed ? this.mitsMissing(ed) : this.mitsFields().map(f => f.label);
     const chip = (n) => `<span style="display:inline-flex;align-items:center;gap:5px;background:#fdf3e3;border-radius:12px;padding:2px 9px;font-size:13px;color:#7a5a2a;white-space:nowrap"><span class="material-symbols-outlined" style="font-size:15px;color:#b35a00">error</span>${n}</span>`;
     const complete = !missing.length;
-    // Live re-check so the toggle unlocks as the fields get filled in.
+    const swOn = ilsOn && complete;
+    const lrDot = (c) => `<span style="width:8px;height:8px;border-radius:50%;background:${c};flex:none"></span>`;
+    const lrMarkup = (need, on) => !need
+      ? (on ? lrDot('#12a150') + '<span>Listing Ready</span>'
+            : lrDot('#8a9aa8') + '<span>Listing Ready - Excluded</span>')
+      : lrDot('#d02830') + '<span>Not Ready for Listings</span>';
+    // Live re-check: unlocks the toggle as fields are filled, and keeps the heading status, the
+    // missing-field chips and the Required callout in step with whatever is on screen.
     window.__mitsRecheck = () => {
       const g = (id) => { const e = this.q('#' + id); return e ? String(e.value || '').trim() : ''; };
       const need = [];
@@ -2155,41 +2163,50 @@ class Component extends DCLogic {
       if (!g('m-due')) need.push('Fee Due');
       if (!isOne && !g('m-sched')) need.push('Charge Schedule');
       if (window.__bulkFlag) window.__bulkFlag(need);
-      const msg = this.q('#m-ils-msg'), ok = this.q('#m-ils-ok'), sw = this.q('#m-ils-sw'), lbl = this.q('#m-ils-lbl'), needEl = this.q('#m-ils-need');
+      const msg = this.q('#m-ils-msg'), sw = this.q('#m-ils-sw'), lbl = this.q('#m-ils-lbl'),
+            needEl = this.q('#m-ils-need'), st = this.q('#m-lr-status'), warn = this.q('#m-req-warn');
       if (!msg || !sw) return;
       if (need.length) {
         needEl.innerHTML = need.map(chip).join('');
-        msg.style.display = 'flex'; ok.style.display = 'none';
+        msg.style.display = 'flex';
         sw.setAttribute('data-dis', '1'); sw.style.background = '#dfe6ec'; sw.style.cursor = 'default';
         sw.setAttribute('data-on', '0'); sw.firstElementChild.style.left = '2px';
+        sw.firstElementChild.firstElementChild.style.display = 'none';
         const h = this.q('#m-ils'); if (h) h.value = '0';
         lbl.style.color = '#a6b2bd';
       } else {
-        msg.style.display = 'none'; ok.style.display = 'inline-flex';
+        msg.style.display = 'none';
         sw.setAttribute('data-dis', '0'); sw.style.cursor = 'pointer';
         sw.style.background = sw.getAttribute('data-on') === '1' ? 'var(--ac,#008dd5)' : '#cedbe7';
         lbl.style.color = '#13314c';
       }
+      const on = ((this.q('#m-ils') || {}).value) === '1';
+      if (st) st.innerHTML = lrMarkup(need.length, on);
+      if (warn) warn.style.display = (g('m-req') === 'Required' && !on) ? 'flex' : 'none';
     };
-    const swOn = ilsOn && complete;
-    const ilsBox = this.ilsOn() ? `<div style="border:1px solid #cedbe7;border-radius:4px;padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+    const reqWarn = `<div id="m-req-warn" style="display:${(req === 'Required' && !swOn) ? 'flex' : 'none'};align-items:center;gap:10px;border:1px solid #f0b357;border-radius:4px;padding:10px 12px"><span class="material-symbols-outlined" style="font-size:20px;color:#e59f2e;flex:none">warning</span><span style="font-size:13px;color:#4a5b6b;line-height:1.45">This is a Required charge. Required fees must be disclosed on listings when Fee Transparency is on.</span></div>`;
+    const knob = `<span style="position:absolute;top:2px;left:${swOn?'16px':'2px'};width:14px;height:14px;border-radius:50%;background:#fff;transition:left 120ms ease-out;display:flex;align-items:center;justify-content:center"><span class="material-symbols-outlined" style="display:${swOn?'block':'none'};font-size:12px;color:var(--ac,#008dd5);font-weight:700">check</span></span>`;
+    const swJs = "if(this.getAttribute('data-dis')==='1')return;var on=this.getAttribute('data-on')==='1';on=!on;this.setAttribute('data-on',on?'1':'0');document.getElementById('m-ils').value=on?'1':'0';this.style.background=on?'var(--ac,#008dd5)':'#cedbe7';this.firstElementChild.style.left=on?'16px':'2px';this.firstElementChild.firstElementChild.style.display=on?'block':'none';if(window.__calcNote)window.__calcNote();if(window.__mitsRecheck)window.__mitsRecheck()";
+    const ilsBox = this.ilsOn() ? `
         <div id="m-ils-msg" style="display:${complete?'none':'flex'};align-items:center;gap:10px;flex-wrap:wrap">
-          <span style="font-size:14px;color:#13314c">Fill in the following fields to have this charge appear on listings:</span>
+          <span style="font-size:14px;color:#13314c">Fill in the following fields above to have this charge appear on listings:</span>
           <span id="m-ils-need" style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap">${missing.map(chip).join('')}</span>
         </div>
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-          <label style="display:inline-flex;align-items:center;gap:10px;cursor:${complete?'pointer':'default'}"><span id="m-ils-sw" data-dis="${complete?'0':'1'}" onclick="if(this.getAttribute('data-dis')==='1')return;var on=this.getAttribute('data-on')==='1';on=!on;this.setAttribute('data-on',on?'1':'0');document.getElementById('m-ils').value=on?'1':'0';this.style.background=on?'var(--ac,#008dd5)':'#cedbe7';this.firstElementChild.style.left=on?'16px':'2px';if(window.__calcNote)window.__calcNote();if(window.__mitsRecheck)window.__mitsRecheck()" data-on="${swOn?'1':'0'}" style="display:inline-block;width:32px;height:18px;border-radius:999px;background:${!complete?'#dfe6ec':(swOn?'var(--ac,#008dd5)':'#cedbe7')};position:relative;flex:none;cursor:${complete?'pointer':'default'}"><span style="position:absolute;top:2px;left:${swOn?'16px':'2px'};width:14px;height:14px;border-radius:50%;background:#fff;transition:left 120ms ease-out"></span></span><span id="m-ils-lbl" style="font-size:14px;color:${complete?'#13314c':'#a6b2bd'}">Show on ILS</span></label>
-          <span id="m-ils-ok" style="display:${complete?'inline-flex':'none'};align-items:center;gap:6px"><span class="material-symbols-outlined" style="font-size:17px;color:#12a150">check_circle</span><span style="font-size:13px;color:#4a5b6b">All required fields filled out to display charge on listings.</span></span>
+        <div style="border:1px solid #cedbe7;border-radius:4px;padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+          <label style="display:inline-flex;align-items:center;gap:10px;align-self:flex-start;cursor:${complete?'pointer':'default'}"><span id="m-ils-sw" data-dis="${complete?'0':'1'}" onclick="${swJs}" data-on="${swOn?'1':'0'}" style="display:inline-block;width:32px;height:18px;border-radius:999px;background:${!complete?'#dfe6ec':(swOn?'var(--ac,#008dd5)':'#cedbe7')};position:relative;flex:none;cursor:${complete?'pointer':'default'}">${knob}</span><span id="m-ils-lbl" style="font-size:14px;color:${complete?'#13314c':'#a6b2bd'}">Include on listings</span></label>
+          ${reqWarn}
         </div>
-        <input type="hidden" id="m-ils" value="${swOn?'1':'0'}">
-      </div>` : `<input type="hidden" id="m-ils" value="0">`;
+        <input type="hidden" id="m-ils" value="${swOn?'1':'0'}">` : `<input type="hidden" id="m-ils" value="0">`;
 
     return { title, body: `
       ${specNote}
       ${sect('General Details', spec ? specGeneral : general)}
       ${creSections}
       <div style="display:flex;flex-direction:column;gap:10px">
-        <span style="font-size:15px;font-weight:600;color:#13314c">Marketing Details</span>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="font-size:15px;font-weight:600;color:#13314c">Marketing Details</span><div style="flex:1"></div>
+          ${this.ilsOn() ? `<span id="m-lr-status" style="display:inline-flex;align-items:center;gap:7px;font-size:14px;font-style:italic;color:#13314c;white-space:nowrap">${lrMarkup(missing.length, swOn)}</span>` : ''}
+        </div>
         ${ilsBox}
         <div style="border:1px solid #cedbe7;border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:12px">${listing}</div>
       </div>` };
