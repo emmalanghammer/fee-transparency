@@ -2152,7 +2152,7 @@ class Component extends DCLogic {
     const src = ed ? (ed.amtMethod || 'Flat') : 'Flat';
     const amtFlat = ed && /^\$/.test(ed.amount||'') ? (ed.amount||'').replace(/^\$/,'') : '';
     const radio = (label,value,blk) => `<label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#666;cursor:pointer"><input type="radio" name="m-amt-r" value="${value}" data-blk="${blk}" ${src===value?'checked':''} onchange="var b=this.getAttribute('data-blk');document.getElementById('m-source').value=this.value;['flat','ref','calc'].forEach(function(k){document.getElementById('m-blk-'+k).style.display=(k===b?'flex':'none')});if(window.__calcNote)window.__calcNote()" style="accent-color:var(--ac,#008dd5);width:16px;height:16px;margin:0">${label}</label>`;
-    const iconInput = (id,val,ph,icon) => `<div style="display:flex;align-items:center;gap:4px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><input id="${id}" value="${esc(val)}" placeholder="${ph}" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:#13314c"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5)">${icon}</span></div>`;
+    const iconInput = (id,val,ph,icon) => `<div style="display:flex;align-items:center;gap:4px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><input id="${id}" value="${esc(val)}" placeholder="${ph}" oninput="if(window.__mitsRecheck)window.__mitsRecheck()" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:#13314c"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5)">${icon}</span></div>`;
     // A calculated amount has no single figure to publish, so listing providers show it as a varying
     // amount. Only worth saying once the charge is actually going out to listings.
     const calcNote = (src === 'Calculation' && ed && ed.ils) ? 'block' : 'none';
@@ -2264,7 +2264,7 @@ class Component extends DCLogic {
     const missing = ed ? this.mitsMissing(ed) : this.mitsFields().map(f => f.label);
     const chip = (n) => `<span style="display:inline-flex;align-items:center;gap:5px;background:#fdf3e3;border-radius:12px;padding:2px 9px;font-size:13px;color:#7a5a2a;white-space:nowrap"><span class="material-symbols-outlined" style="font-size:15px;color:#b35a00">error</span>${n}</span>`;
     const complete = !missing.length;
-    const swOn = ilsOn && complete;
+    const swOn = ilsOn && complete && !di0.expired;
     const lrDot = (c) => `<span style="width:8px;height:8px;border-radius:50%;background:${c};flex:none"></span>`;
     const lrMarkup = (need, on) => !need
       ? (on ? lrDot('#12a150') + '<span>Listing Ready</span>'
@@ -2272,6 +2272,22 @@ class Component extends DCLogic {
       : lrDot('#d02830') + '<span>Not Ready for Listings</span>';
     // Live re-check: unlocks the toggle as fields are filled, and keeps the heading status, the
     // missing-field chips and the Required callout in step with whatever is on screen.
+    // A charge only markets inside its own date window: nothing before From, nothing after To.
+    const parseD = (v) => { const m = String(v || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/); if (!m) return null;
+      let y = +m[3]; if (y < 100) y += 2000;
+      const d = new Date(y, +m[1] - 1, +m[2]); return isNaN(d.getTime()) ? null : d; };
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    // Reads the live inputs when they exist, and the stored values on the locked property specific form.
+    const dateInfo = () => {
+      const fEl = this.q('#m-from'), tEl = this.q('#m-to');
+      const f = fEl ? fEl.value : (ed ? ed.from : ''), t = tEl ? tEl.value : (ed ? ed.to : '');
+      const df = parseD(f), dt = parseD(t);
+      return { future: !!(df && df > today), expired: !!(dt && dt < today), from: f, to: t };
+    };
+    const di0 = dateInfo();
+    const dateNoteHTML = (d) => d.expired
+      ? `<span class="material-symbols-outlined" style="font-size:17px;color:#e59f2e;flex:none">event_busy</span><span style="font-size:13px;color:#8a9aa8;line-height:1.45">This charge ended on ${d.to}, so it can't be marketed. Change the To date to market it again, or add a new charge.</span>`
+      : `<span class="material-symbols-outlined" style="font-size:17px;color:#a6b2bd;flex:none">schedule</span><span style="font-size:13px;color:#8a9aa8;line-height:1.45">This charge starts ${d.from}, so it won't be marketed until then.</span>`;
     window.__mitsRecheck = () => {
       const g = (id) => { const e = this.q('#' + id); return e ? String(e.value || '').trim() : ''; };
       const need = [];
@@ -2284,17 +2300,18 @@ class Component extends DCLogic {
       const msg = this.q('#m-ils-msg'), sw = this.q('#m-ils-sw'), lbl = this.q('#m-ils-lbl'),
             needEl = this.q('#m-ils-need'), st = this.q('#m-lr-status'), note = this.q('#m-ils-note');
       if (!msg || !sw) return;
-      if (need.length) {
-        needEl.innerHTML = need.map(chip).join('');
-        msg.style.display = 'flex';
+      const di = dateInfo();
+      // An expired charge can't be marketed at all, so the toggle is forced off and locked.
+      const lock = need.length > 0 || di.expired;
+      if (need.length) { needEl.innerHTML = need.map(chip).join(''); msg.style.display = 'flex'; }
+      else { needEl.innerHTML = ''; msg.style.display = 'none'; }
+      if (lock) {
         sw.setAttribute('data-dis', '1'); sw.style.background = '#dfe6ec'; sw.style.cursor = 'default';
         sw.setAttribute('data-on', '0'); sw.firstElementChild.style.left = '2px';
         sw.firstElementChild.firstElementChild.style.display = 'none';
         const h = this.q('#m-ils'); if (h) h.value = '0';
         lbl.style.color = '#a6b2bd';
       } else {
-        needEl.innerHTML = '';
-        msg.style.display = 'none';
         sw.setAttribute('data-dis', '0'); sw.style.cursor = 'pointer';
         sw.style.background = sw.getAttribute('data-on') === '1' ? 'var(--ac,#008dd5)' : '#cedbe7';
         lbl.style.color = '#13314c';
@@ -2302,10 +2319,17 @@ class Component extends DCLogic {
       const on = ((this.q('#m-ils') || {}).value) === '1';
       if (st) st.innerHTML = lrMarkup(need.length, on);
       if (note) note.style.display = on ? 'none' : 'flex';
+      const dn = this.q('#m-date-note');
+      if (dn) { const show = di.expired || di.future;
+        dn.style.display = show ? 'flex' : 'none';
+        dn.innerHTML = show ? dateNoteHTML(di) : ''; }
     };
     // Any charge left off listings gets a quiet nudge rather than an alert — nothing is wrong, it just
     // won't be visible to residents up front.
-    const ilsNote = `<div id="m-ils-note" style="display:${swOn ? 'none' : 'flex'};align-items:center;gap:8px"><span class="material-symbols-outlined" style="font-size:17px;color:#a6b2bd;flex:none">info</span><span style="font-size:13px;color:#8a9aa8;line-height:1.45">For full fee transparency, include this charge on listings so residents see it up front.</span></div>`;
+    const ilsNote = `<div id="m-ils-note" style="display:${swOn ? 'none' : 'flex'};align-items:center;gap:8px"><span class="material-symbols-outlined" style="font-size:17px;color:#a6b2bd;flex:none">info</span><span style="font-size:13px;color:#8a9aa8;line-height:1.45">For full fee transparency, include this charge on listings so residents see it up front.</span></div>`
+      + `<div id="m-date-note" style="display:${(di0.expired||di0.future)?'flex':'none'};align-items:center;gap:8px">${(di0.expired||di0.future)?dateNoteHTML(di0):''}</div>`;
+    // A future From date still lets them opt in; only an expired To date locks the toggle.
+    const swLive = complete && !di0.expired;
     const knob = `<span style="position:absolute;top:2px;left:${swOn?'16px':'2px'};width:14px;height:14px;border-radius:50%;background:#fff;transition:left 120ms ease-out;display:flex;align-items:center;justify-content:center"><span class="material-symbols-outlined" style="display:${swOn?'block':'none'};font-size:12px;color:var(--ac,#008dd5);font-weight:700">check</span></span>`;
     const swJs = "if(this.getAttribute('data-dis')==='1')return;var on=this.getAttribute('data-on')==='1';on=!on;this.setAttribute('data-on',on?'1':'0');document.getElementById('m-ils').value=on?'1':'0';this.style.background=on?'var(--ac,#008dd5)':'#cedbe7';this.firstElementChild.style.left=on?'16px':'2px';this.firstElementChild.firstElementChild.style.display=on?'block':'none';if(window.__calcNote)window.__calcNote();if(window.__mitsRecheck)window.__mitsRecheck()";
     const ilsBox = this.ilsOn() ? `
@@ -2314,7 +2338,7 @@ class Component extends DCLogic {
           <span id="m-ils-need" style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap">${missing.map(chip).join('')}</span>
         </div>
         <div style="border:1px solid #cedbe7;border-radius:4px;padding:12px 14px;display:flex;flex-direction:column;gap:10px">
-          <label style="display:inline-flex;align-items:center;gap:10px;align-self:flex-start;cursor:${complete?'pointer':'default'}"><span id="m-ils-sw" data-dis="${complete?'0':'1'}" onclick="${swJs}" data-on="${swOn?'1':'0'}" style="display:inline-block;width:32px;height:18px;border-radius:999px;background:${!complete?'#dfe6ec':(swOn?'var(--ac,#008dd5)':'#cedbe7')};position:relative;flex:none;cursor:${complete?'pointer':'default'}">${knob}</span><span id="m-ils-lbl" style="font-size:14px;color:${complete?'#13314c':'#a6b2bd'}">Include on listings</span></label>
+          <label style="display:inline-flex;align-items:center;gap:10px;align-self:flex-start;cursor:${swLive?'pointer':'default'}"><span id="m-ils-sw" data-dis="${swLive?'0':'1'}" onclick="${swJs}" data-on="${swOn?'1':'0'}" style="display:inline-block;width:32px;height:18px;border-radius:999px;background:${!swLive?'#dfe6ec':(swOn?'var(--ac,#008dd5)':'#cedbe7')};position:relative;flex:none;cursor:${swLive?'pointer':'default'}">${knob}</span><span id="m-ils-lbl" style="font-size:14px;color:${swLive?'#13314c':'#a6b2bd'}">Include on listings</span></label>
           ${ilsNote}
         </div>
         <input type="hidden" id="m-ils" value="${swOn?'1':'0'}">` : `<input type="hidden" id="m-ils" value="0">`;
