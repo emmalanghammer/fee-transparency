@@ -1188,13 +1188,17 @@ class Component extends DCLogic {
   // work required is visible from the list without opening every charge.
   mitsStatusCell(r){
     const missing = this.mitsMissing(r);
+    const pill = (t) => `<span style="display:inline-flex;align-items:center;gap:5px;background:#fdf3e3;border-radius:12px;padding:2px 9px;cursor:default"><span class="material-symbols-outlined" style="font-size:15px;color:#b35a00">error</span><span style="font-size:13px;color:#7a5a2a;white-space:nowrap">${t}</span></span>`;
+    // One missing field is named outright; more than one needs the hover to list them.
+    if (missing.length === 1) return pill('Needs ' + missing[0]);
     if (missing.length) {
-      return `<span class="tipw" style="display:inline-flex"><span style="display:inline-flex;align-items:center;gap:5px;background:#fdf3e3;border-radius:12px;padding:2px 9px;cursor:default"><span class="material-symbols-outlined" style="font-size:15px;color:#b35a00">error</span><span style="font-size:13px;color:#7a5a2a;white-space:nowrap">${missing.length} needed</span></span><span class="tip" style="left:auto;right:-4px;top:26px;width:auto;min-width:190px;max-width:280px;padding:14px 16px"><span style="display:block;font-size:14px;font-weight:600;color:#13314c;padding-bottom:9px;border-bottom:1px solid #e3e9ee">${missing.length} field${missing.length===1?'':'s'} still required:</span><span style="display:flex;flex-direction:column;gap:10px;padding-top:11px">${missing.map(n=>`<span style="font-size:14px;color:#13314c;white-space:nowrap">${n}</span>`).join('')}</span></span></span>`;
+      return `<span class="tipw" style="display:inline-flex">${pill(missing.length + ' needed')}<span class="tip" style="left:auto;right:-4px;top:26px;width:auto;min-width:190px;max-width:280px;padding:14px 16px"><span style="display:block;font-size:14px;font-weight:600;color:#13314c;padding-bottom:9px;border-bottom:1px solid #e3e9ee">${missing.length} fields still required:</span><span style="display:flex;flex-direction:column;gap:10px;padding-top:11px">${missing.map(n=>`<span style="font-size:14px;color:#13314c;white-space:nowrap">${n}</span>`).join('')}</span></span></span>`;
     }
+    // Every field is in place; Show on ILS decides whether the charge actually goes out.
     if (!r.ils) {
-      return `<span style="display:inline-flex;align-items:center;gap:5px" title="Marketing details complete — not shown on listings"><span class="material-symbols-outlined" style="font-size:17px;color:#8a9aa8">visibility_off</span><span style="font-size:13px;color:#8a9aa8;white-space:nowrap">Not listed</span></span>`;
+      return `<span style="display:inline-flex;align-items:center;gap:5px" title="All fields filled in — Show on ILS is off, so this charge is left off listings"><span class="material-symbols-outlined" style="font-size:17px;color:#8a9aa8">visibility_off</span><span style="font-size:13px;color:#8a9aa8;white-space:nowrap">Charge excluded</span></span>`;
     }
-    return `<span style="display:inline-flex;align-items:center;gap:5px"><span class="material-symbols-outlined" style="font-size:17px;color:#12a150">check_circle</span><span style="font-size:13px;color:#13314c;white-space:nowrap">Charge listed</span></span>`;
+    return `<span style="display:inline-flex;align-items:center;gap:5px"><span class="material-symbols-outlined" style="font-size:17px;color:#12a150">check_circle</span><span style="font-size:13px;color:#13314c;white-space:nowrap">Charge ready</span></span>`;
   }
   levelCounts(){
     const rows = this.profileRows();
@@ -1289,8 +1293,8 @@ class Component extends DCLogic {
                             : '120px minmax(160px,1fr) 110px 100px 90px 110px 120px 40px')
                      : (ils ? '120px minmax(160px,1fr) 100px 90px 110px 120px 130px 40px'
                             : '120px minmax(160px,1fr) 100px 90px 110px 120px 40px');
-    const heads = rec ? ['Charge Type','Comment','Frequency','From','To','Amount','Charge Level'].concat(ils?['Listing Status']:[]).concat([''])
-                      : ['Charge Type','Comment','From','To','Amount','Charge Level'].concat(ils?['Listing Status']:[]).concat(['']);
+    const heads = rec ? ['Charge Type','Comment','Frequency','From','To','Amount','Charge Level'].concat(ils?['Listing Ready']:[]).concat([''])
+                      : ['Charge Type','Comment','From','To','Amount','Charge Level'].concat(ils?['Listing Ready']:[]).concat(['']);
     const hc = (t,i) => `<span style="display:flex;align-items:center;padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:600;color:#13314c;white-space:nowrap;${/Amount/.test(t)?'justify-content:flex-end;':''}">${t}</span>`;
     const cell = (t,extra) => `<span style="display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:8px 12px;font-size:14px;color:#13314c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
     const body = rows.length ? rows.map(r => {
@@ -1336,7 +1340,7 @@ class Component extends DCLogic {
     return `<div style="display:flex;align-items:flex-start;gap:10px;background:#fef4e8;border:1px solid #f6d9ac;border-radius:4px;padding:12px 16px">
       <span class="material-symbols-outlined" style="font-size:20px;color:#b35a00;flex:none">error</span>
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
-        <span style="font-size:13px;color:#13314c;line-height:1.5">${need} of ${total} charges still need marketing details before they can show on listings via ILS. Open a charge to fill in what's missing, or hover its listing status to see the exact fields required.</span>
+        <span style="font-size:13px;color:#13314c;line-height:1.5">${need} of ${total} charges still need marketing details before they can show on listings via ILS. Open a charge to fill in what's missing, or hover its Listing Ready status to see the exact fields required.</span>
       </div>
       <a data-act="bulkOpen" style="flex:none;font-size:13px;color:var(--ac,#008dd5);white-space:nowrap;cursor:pointer">Bulk Update Fees</a></div>`;
   }
@@ -2274,7 +2278,7 @@ class Component extends DCLogic {
   bulkLabel(r){ return r.desc || r.name || r.mits; }
   // Bulk Update Fees (mock 2608-112274). A rail of every charge beside the shared charge form, so
   // they can be worked through one after another. Each rail row carries the same warning as the
-  // Listing Status column, so it's clear which ones still need fields.
+  // Listing Ready column, so it's clear which ones still need fields.
   bulkHTML(){
     const b = this.state.bulk; if (!b) return '';
     const rows = this.bulkRows();
@@ -2283,8 +2287,8 @@ class Component extends DCLogic {
     // Mirrors mitsStatusCell, condensed to icon + count for the narrow rail.
     const flagFor = (missing, on) => {
       if (!missing.length) return on
-        ? `<span class="material-symbols-outlined" style="font-size:17px;color:#12a150" title="Shown on listings">check_circle</span>`
-        : `<span class="material-symbols-outlined" style="font-size:17px;color:#c9d4dd" title="Marketing details complete — not shown on listings">visibility_off</span>`;
+        ? `<span class="material-symbols-outlined" style="font-size:17px;color:#12a150" title="Charge ready">check_circle</span>`
+        : `<span class="material-symbols-outlined" style="font-size:17px;color:#c9d4dd" title="Charge excluded — all fields filled in, Show on ILS is off">visibility_off</span>`;
       return `<span class="tipw" style="display:inline-flex"><span class="material-symbols-outlined" style="font-size:17px;color:#b35a00;cursor:default">error</span><span class="tip" style="left:auto;right:-4px;top:24px;width:auto;min-width:190px;max-width:280px;padding:14px 16px"><span style="display:block;font-size:14px;font-weight:600;color:#13314c;padding-bottom:9px;border-bottom:1px solid #e3e9ee">${missing.length} field${missing.length===1?'':'s'} still required:</span><span style="display:flex;flex-direction:column;gap:10px;padding-top:11px">${missing.map(n=>`<span style="font-size:14px;color:#13314c;white-space:nowrap">${n}</span>`).join('')}</span></span></span>`;
     };
     const flag = (r) => flagFor(this.mitsMissing(r), !!r.ils);
