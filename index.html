@@ -1512,7 +1512,7 @@ class Component extends DCLogic {
     const chrome = c.step === 'saving' || c.step === 'done';
     return `<div data-act="setupClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:120">
       <div data-act="noop" style="width:960px;max-width:96vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
-        <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:12px 16px 0"><span data-act="toast" data-arg="Help" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">help</span><span data-act="setupClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span></div>
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:12px 16px 0"><span data-act="setupClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span></div>
         <div style="text-align:center;font-size:20px;color:#13314c;padding:0 24px 16px">Rental Fee Profile Setup</div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:0 24px 8px">${body}</div>
         ${ackBar}
@@ -1521,17 +1521,11 @@ class Component extends DCLogic {
       </div></div>`;
   }
   setupStep1(){
-    const card = (t,b) => `<div style="flex:1;min-width:180px;background:#f7f9fb;border:1px solid #e3e9ee;border-radius:4px;padding:14px 16px;display:flex;flex-direction:column;gap:6px"><span style="font-size:14px;font-weight:600;color:#13314c">${t}</span><span style="font-size:13px;color:#4a5b6b;line-height:1.45">${b}</span></div>`;
     const src = this.setupSources();
     const total = src.reduce((n,r)=>n+r[1],0);
     const pill = lvl => this.chargeLevelPill({ level: lvl, target: lvl === 'Unit Type' ? 'Unit Type' : '' });
     const cols = 'minmax(200px,1fr) 140px 40px 130px';
     return `<div style="display:flex;flex-direction:column;gap:18px">
-      <div style="display:flex;gap:12px;flex-wrap:wrap">
-        ${card('One place for every fee','Charges, deposits, and pricing managed together on the property.')}
-        ${card('Faster move-ins and quotes','New residents and rent quotes pull the right charges automatically.')}
-        ${card('Ready for fee transparency','If you advertise listings, your complete pricing displays accurately.')}
-      </div>
       ${(() => { const props = this.setupProps(); if (props.length < 2) return '';
         // Says up front that this is a run over several properties, each answered on its own.
         return `<div style="display:flex;flex-direction:column;gap:8px;background:#f0f6fb;border:1px solid #cedbe7;border-radius:4px;padding:12px 14px">
