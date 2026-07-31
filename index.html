@@ -1487,8 +1487,10 @@ class Component extends DCLogic {
     });
   }
   setupHTML(){
-    const c = this.state.setup; if (!c || c.step === 'saving') return '';
-    const body = c.step === 'done' ? this.setupDone() : c.step === 1 ? this.setupStep1() : c.step === 2 ? this.setupStep2() : this.setupStep3();
+    const c = this.state.setup; if (!c) return '';
+    const body = c.step === 'saving' ? this.setupSaving()
+      : c.step === 'done' ? this.setupDone()
+      : c.step === 1 ? this.setupStep1() : c.step === 2 ? this.setupStep2() : this.setupStep3();
     const back = `<button data-act="setupBack" class="btn-out" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px">Back</button>`;
     const props = this.setupProps();
     const nextLabel = (c.step === 2 && props.length > 1 && (c.pi || 0) < props.length - 1)
@@ -1497,18 +1499,24 @@ class Component extends DCLogic {
     // Saving stays behind the acknowledgement, since the profile takes over charging for the property.
     const totalRows = props.reduce((n, p) => n + this.setupRows(p).length, 0);
     const save = `<button ${c.ack?'data-act="setupSave"':''} class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px;${c.ack?'':'opacity:0.45;cursor:default'}">Save ${totalRows} Charges</button>`;
-    const foot = c.step === 'done'
+    const foot = c.step === 'saving' ? ''
+      : c.step === 'done'
       ? `<div style="flex:1"></div><button data-act="setupClose" class="btn-pri" style="height:36px;min-height:36px;padding:0 26px;border-radius:4px;font-size:14px">Done</button>`
       : c.step === 1
         ? `<div style="flex:1"></div>${next}`
         : `${back}<div style="flex:1"></div>${c.step === 2 ? next : save}`;
+    // The acknowledgement is pinned above the buttons rather than scrolling with the review, so the
+    // thing gating Save is never out of sight.
+    const ackBar = c.step === 3 ? this.setupAckBar() : '';
+    const chrome = c.step === 'saving' || c.step === 'done';
     return `<div data-act="setupClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:120">
       <div data-act="noop" style="width:960px;max-width:96vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:12px 16px 0"><span data-act="toast" data-arg="Help" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">help</span><span data-act="setupClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span></div>
         <div style="text-align:center;font-size:20px;color:#13314c;padding:0 24px 16px">Rental Fee Profile Setup</div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:0 24px 8px">${body}</div>
-        <div style="display:flex;align-items:center;gap:12px;padding:12px 24px 16px">${foot}</div>
-        ${c.step === 'done' ? '' : `<div style="position:relative;height:0"><div style="position:absolute;left:50%;transform:translateX(-50%);bottom:26px">${this.setupDots(c.step)}</div></div>`}
+        ${ackBar}
+        ${foot ? `<div style="display:flex;align-items:center;gap:12px;padding:12px 24px 16px">${foot}</div>` : '<div style="height:16px"></div>'}
+        ${chrome ? '' : `<div style="position:relative;height:0"><div style="position:absolute;left:50%;transform:translateX(-50%);bottom:26px">${this.setupDots(c.step)}</div></div>`}
       </div></div>`;
   }
   setupStep1(){
@@ -1631,6 +1639,18 @@ class Component extends DCLogic {
       ${table('One-Time Charges', all.filter(r=>/-one$/.test(r.group)), false)}
     </div>`;
   }
+  // Saving happens inside the same overlay, so review → saving → success is one continuous surface.
+  setupSaving(){
+    const props = this.setupProps();
+    return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:56px 0 44px;text-align:center">
+      <span style="position:relative;width:88px;height:88px;display:flex;align-items:center;justify-content:center">
+        <span style="position:absolute;inset:0;border:5px solid #fbe4cf;border-top-color:#f58220;border-radius:50%;animation:spin 0.9s linear infinite"></span>
+        <span class="material-symbols-outlined" style="font-size:40px;color:var(--ac,#008dd5)">apartment</span>
+      </span>
+      <span style="font-size:16px;font-weight:600;color:#13314c">${props.length > 1 ? `Creating ${props.length} Rental Fee Profiles` : 'Creating the Rental Fee Profile'}</span>
+      <span style="font-size:13px;color:#8a9aa8">Moving your charges onto ${props.length > 1 ? 'each property' : props[0] || 'the property'}&hellip;</span>
+    </div>`;
+  }
   // Closing step: confirms what landed, per property, so a bulk run doesn't end on a vanished overlay.
   setupDone(){
     const c = this.state.setup;
@@ -1653,7 +1673,6 @@ class Component extends DCLogic {
   // Step 3: the profile takes over charging for the whole property, so the change gets reviewed and
   // acknowledged before it lands. Listed properties additionally get told what it does to the listing.
   setupStep3(){
-    const c = this.state.setup;
     const props = this.setupProps();
     const one = props.length === 1;
     // Reads as one property or as a set, without two versions of the screen.
@@ -1672,8 +1691,8 @@ class Component extends DCLogic {
     // What the conversion does and doesn't reach. The dash row is the carve-out the user needs to see.
     const line = (icon, color, t, b) => `<div style="display:flex;gap:12px;align-items:flex-start;padding:12px 16px;border-bottom:1px solid #f0f4f7"><span class="material-symbols-outlined" style="font-size:20px;color:${color};flex:none">${icon}</span><span style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:14px;color:#13314c">${t}</span><span style="font-size:13px;color:#8a9aa8;line-height:1.45">${b}</span></span></div>`;
     const scope = `<div style="border:1px solid #e3e9ee;border-radius:4px;overflow:hidden">
-      ${line('check_circle','#12a150','Property, unit type, unit and rentable item charges',(one?'All '+rows.length+' move onto one page for '+prop:'They move onto one page per property')+'. Editing a charge here changes it everywhere it applies.')}
-      ${line('remove','#8a9aa8','Existing tenant charges','Not touched. Tenant-level charges stay where they are and keep billing exactly as they do today.')}
+      ${line('check_circle','#12a150','Property, unit type, unit and rentable item charges',(one?'All '+rows.length+' move onto one page':'They move onto one page per property')+'. Edit a charge once and it applies everywhere.')}
+      ${line('remove','#8a9aa8','Existing tenant charges','Not touched &mdash; they keep billing as they do today.')}
     </div>`;
     // Fee transparency raises the bar on every charge, so a listed property is told what is still missing.
     const ready = rows.filter(r => this.mitsComplete(r)).length;
@@ -1684,16 +1703,15 @@ class Component extends DCLogic {
       <span class="material-symbols-outlined" style="font-size:20px;color:#b35a00;flex:none">warning</span>
       <span style="display:flex;flex-direction:column;gap:6px;min-width:0">
         <span style="font-size:14px;font-weight:600;color:#13314c">${listedLabel} enabled for online listings</span>
-        <span style="font-size:13px;color:#4a5b6b;line-height:1.5">This conversion changes how your fees reach online listings. Fee transparency asks for more detail on every charge, so each one needs a Name, Charge Category, Charge Requirement, Fee Due and Charge Schedule before it can be enabled for online listings. Charges missing any of those stay off the listing until you fill them in.</span>
-        <span style="font-size:13px;color:#4a5b6b">${short ? `<strong style="font-weight:600">${short} of ${rows.length} charges still need fields</strong>${one?'':' on each of those properties'} — the Rental Fee Profile flags each one after setup.` : `All ${rows.length} charges already have what listings need.`}</span>
+        <span style="font-size:13px;color:#4a5b6b;line-height:1.5">Fee transparency needs a Name, Charge Category, Charge Requirement, Fee Due and Charge Schedule on every charge. Anything missing one of those stays off the listing until you fill it in.</span>
+        <span style="font-size:13px;color:#4a5b6b">${short ? `<strong style="font-weight:600">${short} of ${rows.length} charges still need fields.</strong> The profile flags each one after setup.` : `All ${rows.length} charges already have what listings need.`}</span>
       </span></div>`;
-    const box = on => `<span style="width:18px;height:18px;border-radius:3px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;margin-top:1px;${on?'background:#f58220;border:1px solid #f58220':'background:#fff;border:1px solid #b3b3b3'}">${on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span>`;
     return `<div style="display:flex;flex-direction:column;gap:18px">
       <div style="display:flex;flex-direction:column;gap:4px">
         <span style="font-size:14px;font-weight:600;color:#13314c">Review and confirm</span>
         <span style="font-size:13px;color:#8a9aa8;line-height:1.5">${one
-          ? `This applies to all of ${prop}, not just one unit or lease. Check it over before you create the profile.`
-          : `A profile is created on each of the ${props.length} properties below, with the charges you picked for each. It applies to all of each property, not just one unit or lease.`}</span>
+          ? `This applies to all of ${prop}, not just one unit or lease.`
+          : `One profile per property below, with the charges you picked for each. Each applies to the whole property.`}</span>
       </div>
       ${one ? '' : `<div style="display:flex;flex-direction:column;gap:6px">
         <span style="font-size:14px;font-weight:600;color:#13314c">What each property gets</span>
@@ -1711,9 +1729,16 @@ class Component extends DCLogic {
       </div>
       ${ils}
       ${scope}
-      <div data-act="setupAck" style="display:flex;gap:10px;align-items:flex-start;background:#f7f9fb;border:1px solid ${c.ack?'#cedbe7':'#e3e9ee'};border-radius:4px;padding:12px 16px;cursor:pointer">
-        ${box(!!c.ack)}<span style="font-size:14px;color:#13314c;line-height:1.45">I understand this profile will charge every future move-in, quote and renewal on ${one ? prop : 'all ' + props.length + ' properties'}.</span>
-      </div>
+    </div>`;
+  }
+  // Pinned above the footer buttons on step 3 — it gates Save, so it stays on screen.
+  setupAckBar(){
+    const c = this.state.setup;
+    const props = this.setupProps();
+    const on = !!c.ack;
+    const box = `<span style="width:18px;height:18px;border-radius:3px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${on?'background:#f58220;border:1px solid #f58220':'background:#fff;border:1px solid #b3b3b3'}">${on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span>`;
+    return `<div data-act="setupAck" style="display:flex;gap:10px;align-items:center;background:#f7f9fb;border-top:1px solid #e3e9ee;padding:13px 24px;cursor:pointer">
+      ${box}<span style="font-size:14px;color:#13314c;line-height:1.45">I understand this profile will charge every future move-in, quote and renewal on ${props.length === 1 ? props[0] : 'all ' + props.length + ' properties'}.</span>
     </div>`;
   }
 
