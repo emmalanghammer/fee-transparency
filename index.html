@@ -850,16 +850,6 @@ class Component extends DCLogic {
   // lives in Charge Schedule, so the column shows the number on its own.
   freqNum(r){ const f = String((r && r.freq) || ''); if (!f) return ''; const m = f.match(/\d+/); return m ? m[0] : '1'; }
   money(n){ return '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
-  priceSummary(mr){
-    const pf=this.profileRows().filter(f=>!f.excluded);
-    let monthly=mr, oneTime=0; const ils=[];
-    pf.forEach(f=>{ const a=this.parseAmt(f.amount); if(f.group==='req-rec') monthly+=a; if(f.group==='req-one') oneTime+=a; if(f.ils) ils.push(f.name.replace(/ — .*/,'')); });
-    return `<div class="tile" style="border-color:var(--ac,#008dd5)"><div style="padding:16px 20px;display:flex;flex-direction:column;gap:12px">
-      <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px"><span style="font-size:14px;color:#666">Total monthly price</span><span style="font-size:26px;font-weight:700;color:#13314c">${this.money(monthly)}<span style="font-size:14px;font-weight:400;color:#8a9aa8"> /mo</span></span></div>
-      <div style="display:flex;align-items:baseline;justify-content:space-between"><span style="font-size:13px;color:#666">One-time move-in costs</span><span style="font-size:16px;font-weight:600;color:#424e5b">${this.money(oneTime)}</span></div>
-      <div style="border-top:1px solid #ebf1f5;padding-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:#4d8a2a;font-weight:500"><span class="material-symbols-outlined" style="font-size:15px">visibility</span>On listings</span>${ils.map(nm=>`<span class="loz" style="background:#e2f1da;color:#4d8a2a;text-transform:none;letter-spacing:0">${nm}</span>`).join('')||'<span style="font-size:12px;color:#b3b3b3">None</span>'}</div>
-      <div style="font-size:12px;color:#8a9aa8;line-height:1.45">Total monthly price = market rent + mandatory recurring fees. Optional and situational fees are added only when the tenant selects them. Recalculates as fees change.</div></div></div>`;
-  }
   feeIcon(kind,size){ const src={ property:'assets/icon-fee-property.svg', unittype:'assets/icon-fee-unittype.svg', unit:'assets/icon-fee-unit.svg' }[kind]; return `<img src="${src}" alt="" style="width:${size}px;height:${size}px;object-fit:contain;flex:none;display:block">`; }
   // Reusable multi-select checklist dropdown (summary + overlay panel with search, select-all, checkboxes).
   multiSelect(id, options, selected){
@@ -2045,7 +2035,6 @@ class Component extends DCLogic {
         <div style="display:flex;align-items:center;gap:16px"><span style="font-size:13px;color:#666;white-space:nowrap">Market Rent: <span style="color:#13314c;font-weight:500">${info.rent.replace('$','')}.00</span></span><button data-act="toast" data-arg="Add note" class="btn-pri" style="padding:8px 18px;font-size:14px;min-width:118px">Add Note</button></div>
       </div></div></div>`;
     // images
-    h += `<div style="padding:16px 16px 0">${this.priceSummary(this.parseAmt(info.rent))}</div>`;
     h += `<div style="padding:16px 16px 0"><div class="tile"><div class="cardhd"><span class="cardtt">Images</span><a data-act="toast" data-arg="Add Image" style="font-size:13px;display:inline-flex;align-items:center;gap:4px"><span class="material-symbols-outlined" style="font-size:16px">add</span>Add Image</a></div><div style="display:flex;align-items:center;gap:12px;padding:14px 16px;overflow-x:auto"><span class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer;flex:none">chevron_left</span>${imgs}<span class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer;flex:none">chevron_right</span></div></div></div>`;
     // recurring charges (all levels trickle down to the unit)
     h += `<div style="padding:16px 16px 0">${this.recChargesTile('unit')}</div>`;
