@@ -1958,13 +1958,19 @@ class Component extends DCLogic {
     const lvl = { 'Property':'#1570ef', 'Unit Type':'#d92d20', 'Unit type':'#d92d20', 'Unit':'#099250', 'ORI':'#6a4aa8' };
     const cb = (label) => `<label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer"><span style="width:18px;height:18px;border-radius:3px;box-sizing:border-box;border:1px solid var(--ac,#008dd5);background:#fff;flex:none"></span>${label}</label>`;
     const orange = `<span style="width:18px;height:18px;border-radius:3px;box-sizing:border-box;background:#f58220;border:1px solid #f58220;display:flex;align-items:center;justify-content:center;flex:none"><span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span></span>`;
-    const cols = '10px 44px 110px 120px minmax(160px,1fr) 90px 100px 100px 110px 44px';
-    const heads = ['','','','Charge Type','Comment','Frequency','From Date','To Date','Amount',''];
+    // Once the property runs on a Rental Fee Profile, charges are added and selected there — this
+    // overlay is read-only, so the Add button and the row selection column come off.
+    const managed = this.profStatus(prop) === 'active';
+    const cols = managed
+      ? '10px 110px 120px minmax(160px,1fr) 90px 100px 100px 110px 44px'
+      : '10px 44px 110px 120px minmax(160px,1fr) 90px 100px 100px 110px 44px';
+    const heads = (managed ? ['',''] : ['','',''])
+      .concat(['Charge Type','Comment','Frequency','From Date','To Date','Amount','']);
     const hc = (t,i) => `<span style="display:flex;align-items:center;height:36px;box-sizing:border-box;padding:0 10px;font-size:13px;font-weight:600;color:#13314c;white-space:nowrap;${/Amount|Frequency/.test(t)?'justify-content:flex-end;':''}">${t}</span>`;
     const cell = (t,extra) => `<span style="display:flex;align-items:center;height:44px;box-sizing:border-box;padding:0 10px;font-size:14px;color:#13314c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
     const body = rows.map((r,i) => `<div style="display:grid;grid-template-columns:${cols};align-items:center;background:${i%2?'#f7fafc':'#fff'}">
       <span style="align-self:stretch;background:${lvl[r.level]||lvl['Property']}"></span>
-      <span style="display:flex;align-items:center;justify-content:center;height:44px">${orange}</span>
+      ${managed ? '' : `<span style="display:flex;align-items:center;justify-content:center;height:44px">${orange}</span>`}
       ${cell(r.target && r.level !== 'Property' ? r.level : r.level)}
       ${cell(r.mits)}${cell(r.desc||r.name)}
       ${cell(this.freqNum(r)||'1','justify-content:flex-end')}
@@ -1975,8 +1981,9 @@ class Component extends DCLogic {
     return `<div data-act="recViewClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:100"><div data-act="noop" style="width:1200px;max-width:96vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.28);display:flex;flex-direction:column;overflow:hidden">
       <div style="display:flex;align-items:center;gap:14px;height:56px;box-sizing:border-box;padding:8px 16px 8px 20px;flex:none">
         <span style="font-size:17px;font-weight:600;color:#666">View Recurring Charges</span><div style="flex:1"></div>
+        ${!managed ? '' : `<a data-act="openFeeProfile" data-arg="${prop}" style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap">Open Rental Fee Profile<span class="material-symbols-outlined" style="font-size:17px">open_in_new</span></a>`}
         <button data-act="toast" data-arg="Print" class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px">Print</button>
-        <button data-act="toast" data-arg="Add charge" class="btn-pri" style="height:36px;min-height:36px;padding:0 12px;border-radius:4px;font-size:14px;display:inline-flex;align-items:center;gap:6px"><span class="material-symbols-outlined" style="font-size:19px">add_circle</span>Add<span class="material-symbols-outlined" style="font-size:19px">arrow_drop_down</span></button>
+        ${managed ? '' : `<button data-act="toast" data-arg="Add charge" class="btn-pri" style="height:36px;min-height:36px;padding:0 12px;border-radius:4px;font-size:14px;display:inline-flex;align-items:center;gap:6px"><span class="material-symbols-outlined" style="font-size:19px">add_circle</span>Add<span class="material-symbols-outlined" style="font-size:19px">arrow_drop_down</span></button>`}
         <span data-act="recViewClose" class="material-symbols-outlined" style="font-size:24px;color:var(--ac,#008dd5);cursor:pointer">close</span>
       </div>
       <div style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column">
