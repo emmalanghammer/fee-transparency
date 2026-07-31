@@ -640,10 +640,10 @@ class Component extends DCLogic {
             log.push({ prop: p, by: 'Emma Langhammer', charge: 'Rental Fee Profile',
               change: 'Profile created · ' + perProp[p].length + ' charges added', level: p });
           });
-          return { setup: null, profileStatus: status, profileFees: fees, nextFeeId: 101 + total, histLog: log };
-        }, () => this.flash(props.length === 1
-          ? rows.length + ' charges added to the Rental Fee Profile'
-          : total + ' charges added across ' + props.length + ' properties')), 1200);
+          const done = props.map(p => ({ p, count: perProp[p].length }));
+          return { setup: Object.assign({}, c, { step: 'done', done }), profileStatus: status, profileFees: fees,
+            nextFeeId: 101 + total, histLog: log };
+        }), 1200);
         break; }
       case 'profBannerDismiss': this.setState(s => ({ bannerDismissed: Object.assign({}, s.bannerDismissed, { [this.state.property]: true }) })); break;
       case 'recViewNoteDismiss': this.setState({ recViewNote: false }); break;
@@ -1488,7 +1488,7 @@ class Component extends DCLogic {
   }
   setupHTML(){
     const c = this.state.setup; if (!c || c.step === 'saving') return '';
-    const body = c.step === 1 ? this.setupStep1() : c.step === 2 ? this.setupStep2() : this.setupStep3();
+    const body = c.step === 'done' ? this.setupDone() : c.step === 1 ? this.setupStep1() : c.step === 2 ? this.setupStep2() : this.setupStep3();
     const back = `<button data-act="setupBack" class="btn-out" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px">Back</button>`;
     const props = this.setupProps();
     const nextLabel = (c.step === 2 && props.length > 1 && (c.pi || 0) < props.length - 1)
@@ -1497,16 +1497,18 @@ class Component extends DCLogic {
     // Saving stays behind the acknowledgement, since the profile takes over charging for the property.
     const totalRows = props.reduce((n, p) => n + this.setupRows(p).length, 0);
     const save = `<button ${c.ack?'data-act="setupSave"':''} class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px;${c.ack?'':'opacity:0.45;cursor:default'}">Save ${totalRows} Charges</button>`;
-    const foot = c.step === 1
-      ? `<div style="flex:1"></div>${next}`
-      : `${back}<div style="flex:1"></div>${c.step === 2 ? next : save}`;
+    const foot = c.step === 'done'
+      ? `<div style="flex:1"></div><button data-act="setupClose" class="btn-pri" style="height:36px;min-height:36px;padding:0 26px;border-radius:4px;font-size:14px">Done</button>`
+      : c.step === 1
+        ? `<div style="flex:1"></div>${next}`
+        : `${back}<div style="flex:1"></div>${c.step === 2 ? next : save}`;
     return `<div data-act="setupClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:120">
       <div data-act="noop" style="width:960px;max-width:96vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:12px 16px 0"><span data-act="toast" data-arg="Help" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">help</span><span data-act="setupClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span></div>
         <div style="text-align:center;font-size:20px;color:#13314c;padding:0 24px 16px">Rental Fee Profile Setup</div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:0 24px 8px">${body}</div>
         <div style="display:flex;align-items:center;gap:12px;padding:12px 24px 16px">${foot}</div>
-        <div style="position:relative;height:0"><div style="position:absolute;left:50%;transform:translateX(-50%);bottom:26px">${this.setupDots(c.step)}</div></div>
+        ${c.step === 'done' ? '' : `<div style="position:relative;height:0"><div style="position:absolute;left:50%;transform:translateX(-50%);bottom:26px">${this.setupDots(c.step)}</div></div>`}
       </div></div>`;
   }
   setupStep1(){
@@ -1521,6 +1523,13 @@ class Component extends DCLogic {
         ${card('Faster move-ins and quotes','New residents and rent quotes pull the right charges automatically.')}
         ${card('Ready for fee transparency','If you advertise listings, your complete pricing displays accurately.')}
       </div>
+      ${(() => { const props = this.setupProps(); if (props.length < 2) return '';
+        // Says up front that this is a run over several properties, each answered on its own.
+        return `<div style="display:flex;flex-direction:column;gap:8px;background:#f0f6fb;border:1px solid #cedbe7;border-radius:4px;padding:12px 14px">
+          <span style="font-size:15px;font-weight:600;color:#13314c">Setting up ${props.length} properties</span>
+          <span style="font-size:13px;color:#4a5b6b;line-height:1.45">You'll choose which charges to include for each property in turn, one screen per property, then review them all together before anything is created.</span>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">${props.map(p=>`<span style="display:inline-flex;align-items:center;gap:5px;background:#fff;border:1px solid #cedbe7;border-radius:12px;padding:3px 10px;font-size:13px;color:#13314c;white-space:nowrap"><span class="material-symbols-outlined" style="font-size:15px;color:var(--ac,#008dd5)">home</span>${p}</span>`).join('')}</div>
+        </div>`; })()}
       <div style="display:flex;flex-direction:column;gap:4px">
         <span style="font-size:14px;font-weight:600;color:#13314c">${total} charges configured in ${src.length} places</span>
         <span style="font-size:13px;color:#8a9aa8">The profile brings them into one page, organized by who they apply to:</span>
@@ -1602,17 +1611,43 @@ class Component extends DCLogic {
       return { setup: Object.assign({}, s.setup, { req: all }) };
     });
     const many = props.length > 1;
+    // A pill per property, so it's plain that this step repeats and which one is being answered.
+    const pill = (p, i) => { const done = i < (c.pi || 0), now = i === (c.pi || 0);
+      return `<span style="display:inline-flex;align-items:center;gap:5px;border-radius:12px;padding:3px 10px;font-size:13px;white-space:nowrap;${now?'background:var(--ac,#008dd5);color:#fff':(done?'background:#e4f3ea;color:#2f5d43':'background:#eef2f5;color:#8a9aa8')}">${done?'<span class="material-symbols-outlined" style="font-size:15px">check</span>':''}${p}</span>`; };
     return `<div style="display:flex;flex-direction:column;gap:2px">
-      ${!many ? '' : `<div style="display:flex;align-items:center;gap:10px;background:#f0f6fb;border:1px solid #cedbe7;border-radius:4px;padding:10px 14px;margin-bottom:10px">
-        <span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);flex:none">home</span>
-        <span style="font-size:14px;font-weight:600;color:#13314c">${cur}</span>
-        <div style="flex:1"></div>
-        <span style="font-size:13px;color:#4a5b6b;white-space:nowrap">Property ${(c.pi||0)+1} of ${props.length}</span>
+      ${!many ? '' : `<div style="display:flex;flex-direction:column;gap:8px;background:#f0f6fb;border:1px solid #cedbe7;border-radius:4px;padding:12px 14px;margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="material-symbols-outlined" style="font-size:19px;color:var(--ac,#008dd5);flex:none">home</span>
+          <span style="font-size:15px;font-weight:600;color:#13314c">${cur}</span>
+          <div style="flex:1"></div>
+          <span style="font-size:13px;font-weight:600;color:var(--ac,#008dd5);white-space:nowrap">Property ${(c.pi||0)+1} of ${props.length}</span>
+        </div>
+        <span style="font-size:13px;color:#4a5b6b;line-height:1.45">You're choosing charges for <strong style="font-weight:600">${cur}</strong> only. Each property is set up separately, so you'll pick again for ${props.length - (c.pi||0) - 1 === 1 ? 'the last one' : 'each of the remaining ' + (props.length - (c.pi||0) - 1)} after this.</span>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">${props.map(pill).join('')}</div>
       </div>`}
       <div style="display:flex;align-items:baseline;gap:12px"><span style="font-size:14px;font-weight:600;color:#13314c">Select which charges to include</span><div style="flex:1"></div><span style="font-size:13px;color:#4a5b6b">${inc} of ${all.length} included</span></div>
       <span style="font-size:13px;color:#8a9aa8;line-height:1.5">Unchecked charges won't be added. They won't apply to future move-ins, quotes, or listings. Existing tenant charges are unaffected either way. Set a Charge Requirement on any charge you want enabled for online listings &mdash; a charge can't be listed without one.</span>
       ${table('Recurring Charges', all.filter(r=>!/-one$/.test(r.group)), true)}
       ${table('One-Time Charges', all.filter(r=>/-one$/.test(r.group)), false)}
+    </div>`;
+  }
+  // Closing step: confirms what landed, per property, so a bulk run doesn't end on a vanished overlay.
+  setupDone(){
+    const c = this.state.setup;
+    const per = c.done || [];
+    const n = per.length;
+    const total = per.reduce((a, x) => a + x.count, 0);
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:18px 0 6px;text-align:center">
+      <span style="width:64px;height:64px;border-radius:50%;background:#e4f3ea;display:flex;align-items:center;justify-content:center"><span class="material-symbols-outlined" style="font-size:36px;color:#12a150">check</span></span>
+      <span style="font-size:17px;font-weight:600;color:#13314c">${n === 1 ? per[0].p + ' is set up' : n + ' properties successfully updated with charges'}</span>
+      <span style="font-size:13px;color:#4a5b6b;line-height:1.5;max-width:520px">${n === 1
+        ? `${total} charges were added to its Rental Fee Profile. Fill in the marketing details on each charge to get them ready for online listings.`
+        : `${total} charges were added across ${n} Rental Fee Profiles. Open any property to fill in the marketing details and get its charges ready for online listings.`}</span>
+      ${n < 2 ? '' : `<div style="align-self:stretch;border:1px solid #e3e9ee;border-radius:4px;overflow:hidden;margin-top:4px;text-align:left">${per.map((x,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:11px 16px;${i?'border-top:1px solid #f0f4f7':''}">
+        <span class="material-symbols-outlined" style="font-size:18px;color:#12a150;flex:none">check_circle</span>
+        <span style="font-size:14px;color:#13314c">${x.p}</span><div style="flex:1"></div>
+        <span style="font-size:13px;color:#4a5b6b;white-space:nowrap">${x.count} charges added</span>
+      </div>`).join('')}</div>`}
     </div>`;
   }
   // Step 3: the profile takes over charging for the whole property, so the change gets reviewed and
@@ -1660,12 +1695,14 @@ class Component extends DCLogic {
           ? `This applies to all of ${prop}, not just one unit or lease. Check it over before you create the profile.`
           : `A profile is created on each of the ${props.length} properties below, with the charges you picked for each. It applies to all of each property, not just one unit or lease.`}</span>
       </div>
-      ${one ? '' : `<div style="border:1px solid #e3e9ee;border-radius:4px;overflow:hidden">${per.map((x,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;${i?'border-top:1px solid #f0f4f7':''}">
+      ${one ? '' : `<div style="display:flex;flex-direction:column;gap:6px">
+        <span style="font-size:14px;font-weight:600;color:#13314c">What each property gets</span>
+        <div style="border:1px solid #e3e9ee;border-radius:4px;overflow:hidden">${per.map((x,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:11px 16px;${i?'border-top:1px solid #f0f4f7':''}">
         <span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);flex:none">home</span>
         <span style="font-size:14px;color:#13314c">${x.p}</span><div style="flex:1"></div>
-        <span style="font-size:13px;color:#4a5b6b;white-space:nowrap">${x.rows.length} of ${all.length} charges</span>
         ${this.ilsOn(x.p)?`<span style="font-size:12px;color:#7a5a2a;background:#fdf3e3;border-radius:12px;padding:2px 9px;white-space:nowrap">On listings</span>`:''}
-      </div>`).join('')}</div>`}
+        <span style="font-size:13px;color:#4a5b6b;white-space:nowrap">${x.rows.length === all.length ? `all ${all.length} charges` : `${x.rows.length} of ${all.length} charges`}</span>
+      </div>`).join('')}</div></div>`}
       <div style="display:flex;gap:12px;flex-wrap:wrap">
         ${stat(rows.length, 'Charges added' + (rows.length ? ` · ${rec} recurring, ${rows.length - rec} one-time` : ''))}
         ${stat(left, left === 1 ? 'Charge left out' : 'Charges left out')}
