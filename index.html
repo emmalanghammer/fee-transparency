@@ -610,7 +610,8 @@ class Component extends DCLogic {
 
       // ---- profile list ----
       case 'lvlSel': this.setState({ lvlSel: arg }); break;
-      case 'addPropOpen': this.setState({ addProp: { nav:'Property Information', fee:'blank', copyFrom:'', excl:{}, err:false } }); break;
+      case 'addPropOpen': this.setState({ addProp: { nav:'Property Information', mkt:'property', fee:'blank', copyFrom:'', excl:{}, err:false } }); break;
+      case 'addPropMkt': this.setState(s => ({ addProp: Object.assign({}, s.addProp, { mkt: arg }) })); break;
       case 'addPropClose': this.setState({ addProp: null }); break;
       case 'addPropNav': this.setState(s => ({ addProp: Object.assign({}, s.addProp, { nav: arg }) })); break;
       case 'addPropFee': this.setState(s => ({ addProp: Object.assign({}, s.addProp, { fee: arg, copyFrom: arg === 'copy' ? (s.addProp.copyFrom || this.copyableProfiles()[0] || '') : s.addProp.copyFrom }) })); break;
@@ -621,7 +622,9 @@ class Component extends DCLogic {
         const name = ((this.q('#ap-name') || {}).value || '').trim();
         if (!name) { this.setState(s => ({ addProp: Object.assign({}, s.addProp, { err: true }) })); this.flash('Property Name is required'); break; }
         const short = ((this.q('#ap-short') || {}).value || '').trim() || name.slice(0, 6).toUpperCase();
-        const copied = a.fee === 'copy' && a.copyFrom
+        // Unit-level marketing has no property-wide profile, so nothing is copied even if a source
+        // was picked before switching.
+        const copied = a.mkt !== 'unit' && a.fee === 'copy' && a.copyFrom
           ? this.profileRows(a.copyFrom).filter(r => !a.excl[r.id]).map(r => Object.assign({}, r))
           : null;
         const row = { name, short, email:'', manager:'', addr:'', billing:'', color:'', loc:'', units:0, occupied:0, owner:'' };
@@ -1884,6 +1887,8 @@ class Component extends DCLogic {
     // ---- Rental Fee Profile: Blank, or copy charges from a property that already has one ----
     const copyable = this.copyableProfiles();
     const isCopy = a.fee === 'copy';
+    // Unit-level marketing keeps fees on each unit, so there's no property-wide profile to configure.
+    const unitMkt = a.mkt === 'unit';
     const srcRows = isCopy && a.copyFrom ? this.profileRows(a.copyFrom) : [];
     const chargeTable = (label, rows, rec) => {
       const cols = rec ? '38px 110px minmax(140px,1fr) 80px 90px 50px 100px 90px' : '38px 110px minmax(140px,1fr) 100px 90px';
@@ -1938,8 +1943,10 @@ class Component extends DCLogic {
         fld('&nbsp;', chk(false, 'Automatically create a unit')),
         fld('Type of Unit to create', `<div style="height:32px;box-sizing:border-box;border:1px solid #cedbe7;border-radius:4px;background:#f5f8fa;display:flex;align-items:center;gap:6px;padding:0 8px"><span class="material-symbols-outlined" style="font-size:16px;color:#8a9aa8">search</span></div>`)
       ))}
-      ${sect('Marketing Configuration', `<div style="display:flex;align-items:center;gap:24px">${radio(true,'Property-level Marketing','toast','Property-level Marketing')}${radio(false,'Unit-level Marketing','toast','Unit-level Marketing')}</div>`)}
-      ${sect('Rental Fee Profile', `
+      ${sect('Marketing Configuration', `<div style="display:flex;align-items:center;gap:24px">${radio(unitMkt===false,'Property-level Marketing','addPropMkt','property')}${radio(unitMkt,'Unit-level Marketing','addPropMkt','unit')}</div>`)}
+      ${sect('Rental Fee Profile', unitMkt
+        ? `<div style="display:flex;align-items:flex-start;gap:10px;opacity:0.55"><span class="material-symbols-outlined" style="font-size:18px;color:#8a9aa8;flex:none">block</span><span style="font-size:13px;color:#8a9aa8;line-height:1.5">Not available with unit-level marketing. A Rental Fee Profile centralizes charges for the whole property, so fees stay on each unit instead. Switch to property-level marketing to set one up.</span></div>`
+        : `
         ${radio(!isCopy,'Blank','addPropFee','blank')}
         ${hint('Start with no fees, and add charges after the property is created.')}
         ${radio(isCopy,'Copy From','addPropFee','copy')}
