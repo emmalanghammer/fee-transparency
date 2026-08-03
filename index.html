@@ -523,6 +523,21 @@ class Component extends DCLogic {
           if (p.style.display && p.style.display !== 'none' && p.parentElement && !p.parentElement.contains(e.target)) p.style.display = 'none';
         });
       });
+      // Bulk Update Fees: any edit to the charge on screen flags that charge in the rail. Done on the
+      // DOM rather than through state so the form keeps whatever is being typed.
+      const touch = (e) => {
+        const b = this.state.bulk; if (!b || !this.rootEl) return;
+        const t = e.target; if (!t || !this.rootEl.contains(t)) return;
+        const rail = this.q('#bulk-rail'); if (!rail || rail.contains(t)) return;
+        // The dropdowns write to a hidden input, so they raise no change event — a click on an option
+        // row, the listings toggle or a checkbox counts as an edit. Everything else typed does fire.
+        if (e.type === 'click' && !(t.closest && t.closest('[data-v],#m-ils-sw,input[type=checkbox]'))) return;
+        this._bulkTouched = Object.assign({}, this._bulkTouched, { [b.idx]: true });
+        const d = this.q('#bulk-dot-' + b.idx); if (d) d.style.display = 'inline-block';
+      };
+      el.addEventListener('input', touch, true);
+      el.addEventListener('change', touch, true);
+      el.addEventListener('click', touch, true);
     }
   };
   scrollPanes(){ return this.rootEl ? [...this.rootEl.querySelectorAll('div')].filter(d=>(d.getAttribute('style')||'').includes('overflow-y:auto')) : []; }
@@ -695,9 +710,10 @@ class Component extends DCLogic {
 
       // ---- Bulk Update Fees ----
       case 'bulkOpen': { const rows = this.bulkRows(); if (!rows.length) { this.flash('No charges to update'); break; }
+        this._bulkTouched = {};
         this.setState({ profMenu: null, bulk: { idx: 0, open: { rec: true, one: true } },
           modal: { group: rows[0].group, edit: rows[0], cre: !!rows[0].cre } }); break; }
-      case 'bulkClose': this.setState({ bulk: null, modal: null }); break;
+      case 'bulkClose': this._bulkTouched = {}; this.setState({ bulk: null, modal: null }); break;
       // Saves whatever is on screen before moving, so clicking through the list keeps every edit.
       case 'bulkGo': { const rows = this.bulkRows();
         if (this.saveFee({ keep: true }) === false) break;
@@ -709,6 +725,7 @@ class Component extends DCLogic {
       case 'bulkAcc': this.setState(s => ({ bulk: Object.assign({}, s.bulk, { open: Object.assign({}, s.bulk.open, { [arg]: !s.bulk.open[arg] }) }) })); break;
       case 'bulkSave': { if (this.saveFee({ keep: true }) === false) break;
         const n = this.bulkRows().length;
+        this._bulkTouched = {};
         this.setState({ bulk: null, modal: null });
         this.flash('Changes saved across ' + n + ' charges');
         break; }
@@ -2848,10 +2865,14 @@ class Component extends DCLogic {
     const rows = this.bulkRows();
     const cur = rows[b.idx] || rows[0];
     const f = this.chargeForm(this.state.modal || { group: cur.group, edit: cur });
+    // A dot marks a charge edited during this bulk session; the listener in setRoot lights up the
+    // current one the moment a field changes, and it stays lit as the user moves on.
+    const touched = this._bulkTouched || {};
     const railRow = (r) => {
       const i = rows.indexOf(r), on = i === b.idx;
       return `<div data-act="bulkGo" data-arg="${i}" data-lbl="${this.bulkLabel(r).toLowerCase().replace(/"/g,'&quot;')}" style="display:flex;align-items:center;gap:8px;padding:9px 12px 9px ${on?'9px':'12px'};border-left:${on?'3px solid var(--ac,#008dd5)':'none'};background:${on?'#eaf4fb':'transparent'};cursor:pointer" onmouseover="if(this.style.background!=='rgb(234, 244, 251)')this.style.background='#f5f8fa'" onmouseout="if(this.style.background!=='rgb(234, 244, 251)')this.style.background='transparent'">
-        <span style="flex:1;min-width:0;font-size:14px;color:#13314c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${this.bulkLabel(r)}</span></div>`;
+        <span style="flex:1;min-width:0;font-size:14px;color:#13314c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${this.bulkLabel(r)}</span>
+        <span id="bulk-dot-${i}" title="Unsaved changes" style="display:${touched[i]?'inline-block':'none'};width:7px;height:7px;border-radius:50%;background:#f58220;flex:none"></span></div>`;
     };
     const group = (key, title, list) => `<div data-act="bulkAcc" data-arg="${key}" style="display:flex;align-items:center;gap:6px;padding:9px 12px;cursor:pointer;background:#f5f8fa;border-top:1px solid #ebf1f5;border-bottom:1px solid #ebf1f5">
         <span class="material-symbols-outlined" style="font-size:18px;color:#666">${b.open[key]?'arrow_drop_down':'arrow_right'}</span>
