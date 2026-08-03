@@ -1005,9 +1005,8 @@ class Component extends DCLogic {
   // Reads the charge form's exclusion checkboxes. DOM-only like the rest of the form, so the section
   // can be edited without a re-render wiping what's been typed elsewhere.
   readExclFields(){
-    const pick = kind => [...(this.rootEl ? this.rootEl.querySelectorAll('[data-excl="' + kind + '"]') : [])]
-      .filter(e => e.checked).map(e => e.getAttribute('data-name'));
-    const out = { types: pick('type'), units: pick('unit') };
+    const pick = id => { const l = this.q('#' + id + '-list'); return l ? [...l.querySelectorAll('input:checked')].map(e => e.value) : []; };
+    const out = { types: pick('m-excl-types'), units: pick('m-excl-units') };
     return (out.types.length || out.units.length) ? out : undefined;
   }
   // ---- Charge exclusions ----
@@ -2726,10 +2725,8 @@ class Component extends DCLogic {
     // ---- Exclusions: collapsed by default, since most charges have none ----
     const exSaved = this.exclOf(ed);
     const exOn = this.exclEligible(ed);
-    const exCheck = (kind, name, on) => `<label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;color:#13314c;white-space:nowrap"><input type="checkbox" data-excl="${kind}" data-name="${esc(name)}" ${on?'checked':''} style="width:16px;height:16px;margin:0;accent-color:#f58220">${name}</label>`;
-    const exGroup = (label, kind, list, saved) => !list.length ? '' : `<div style="display:flex;flex-direction:column;gap:8px">
-        <span style="font-size:13px;color:#666">${label}</span>
-        <div style="display:flex;flex-wrap:wrap;gap:10px 22px">${list.map(o=>exCheck(kind,o,saved.indexOf(o)>=0)).join('')}</div>
+    const exField = (label, id, opts, saved) => !opts.length ? '' : `<div style="flex:1;min-width:180px;display:flex;flex-direction:column;gap:4px">
+        <span style="font-size:13px;color:#666">${label}</span>${this.multiSelect(id, opts, saved)}
       </div>`;
     const exToggleJs = "var b=document.getElementById('m-excl-body');var c=document.getElementById('m-excl-caret');var open=b.style.display==='none';b.style.display=open?'flex':'none';c.textContent=open?'arrow_drop_down':'arrow_right'";
     const exclSection = !exOn ? '' : `<div style="flex:none;border:1px solid #cedbe7;border-radius:4px;overflow:hidden">
@@ -2740,9 +2737,11 @@ class Component extends DCLogic {
           <span style="font-size:13px;color:#8a9aa8">${this.exclCount(ed) ? 'Excluded from ' + this.exclSummary(exSaved) : 'Applies everywhere at the ' + String(ed.level||'').toLowerCase() + ' level'}</span>
         </div>
         <div id="m-excl-body" style="display:none;flex-direction:column;gap:14px;padding:14px">
-          <span style="font-size:13px;color:#8a9aa8;line-height:1.45">Uncheck nothing to keep this charge everywhere. Anything checked here won't be charged, quoted or listed for that unit type or unit; existing tenant charges aren't affected.</span>
-          ${ed.level === 'Property' ? exGroup('Unit types', 'type', this.exclOptions(ed,'Unit Type'), exSaved.types) : ''}
-          ${exGroup('Units', 'unit', this.exclOptions(ed,'Unit'), exSaved.units)}
+          <span style="font-size:13px;color:#8a9aa8;line-height:1.45">Anything selected here won't be charged, quoted or listed for that unit type or unit; existing tenant charges aren't affected.</span>
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            ${ed.level === 'Property' ? exField('Unit types', 'm-excl-types', this.exclOptions(ed,'Unit Type'), exSaved.types) : ''}
+            ${exField('Units', 'm-excl-units', this.exclOptions(ed,'Unit'), exSaved.units)}
+          </div>
         </div>
       </div>`;
     return { title, body: `
