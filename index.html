@@ -482,9 +482,12 @@ class Component extends DCLogic {
     return Object.assign(base, this._catAdds || {});
   }
   chargeCategoryFor(code){ return this.chargeCategoryMap()[(code||'').toUpperCase()] || ''; }
+  // Categories no seeded charge type maps to yet, so they'd otherwise never appear in the list.
+  extraChargeCategories(){ return ['Accounting','Hold','Legal','Other','Term','Upgrade']; }
   // The categories available to assign, derived from the map so anything added shows up here too.
   chargeCategoryOptions(){
     const seen = {}; Object.keys(this.chargeCategoryMap()).forEach(k => { seen[this.chargeCategoryMap()[k]] = 1; });
+    this.extraChargeCategories().forEach(c => { seen[c] = 1; });
     return Object.keys(seen).sort();
   }
   chargeTypeList(){
