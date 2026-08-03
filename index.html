@@ -513,12 +513,6 @@ class Component extends DCLogic {
     ];
   }
   unitInfo(u){ return this.units().find(x => x.u === u) || this.units()[1]; }
-  // The property's rentable items, so an ORI charge picks from a list instead of a free-text search.
-  // Twelve garage spots to match the covered-parking charge's "12 spots total".
-  oriList(){
-    const spots = []; for (let i = 1; i <= 12; i++) spots.push('Garage Spot ' + i);
-    return spots.concat(['Carport 1','Carport 2','Storage Unit A','Storage Unit B','Boat Slip 1']);
-  }
 
 
   // ---------- theming ----------
@@ -2387,12 +2381,12 @@ class Component extends DCLogic {
     const app = ed ? (ed.level || 'Property') : 'Property';
     const appToggle = "var v=_v;['ut','unit','ori'].forEach(function(k){var e=document.getElementById('m-appt-'+k+'-wrap');if(e)e.style.display='none'});var t={'Unit Type':'ut','Unit':'unit','ORI':'ori'}[v];if(t){var w=document.getElementById('m-appt-'+t+'-wrap');if(w)w.style.display='flex'}";
     const searchField = (id,val,ph) => `<div style="display:flex;align-items:center;gap:6px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5)">search</span><input id="${id}" value="${esc(val)}" placeholder="${ph}" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:#13314c"></div>`;
-    const tgt = (key,label,id,val,ph,opts) => `<div id="m-appt-${key}-wrap" style="display:${app===label?'flex':'none'};flex-direction:column;gap:4px;flex:1;min-width:0">${lab(label+' *')}${opts ? dd(id, opts, val, { placeholder: label === 'ORI' ? 'Select an ORI' : 'Select a ' + label.toLowerCase() }) : searchField(id,val,ph)}</div>`;
+    const tgt = (key,label,id,val,ph,opts) => `<div id="m-appt-${key}-wrap" style="display:${app===label?'flex':'none'};flex-direction:column;gap:4px;flex:1;min-width:0">${lab(label+' *')}${opts ? dd(id, opts, val, { placeholder:'Select a '+label.toLowerCase() }) : searchField(id,val,ph)}</div>`;
     const chargeApp = `<div style="display:flex;gap:12px;align-items:flex-start">
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Level *')}${dd('m-app',['Property','Unit Type','Unit','ORI'],app,{noSearch:true,js:appToggle})}</div>
       ${tgt('ut','Unit Type','m-appt-ut', app==='Unit Type'?(ed&&ed.target||''):'', '2BR/2BA')}
       ${tgt('unit','Unit','m-appt-unit', app==='Unit'?(ed&&ed.target||''):'', '2C', this.units().map(u=>u.u))}
-      ${tgt('ori','ORI','m-appt-ori', app==='ORI'?(ed&&ed.target||''):'', 'Garage Spot 1', this.oriList())}
+      ${tgt('ori','ORI','m-appt-ori', app==='ORI'?(ed&&ed.target||''):'', 'Garage Spot 1')}
     </div>`;
 
     // ---- Charge Type typeahead; selecting one derives the Charge Category below ----
@@ -2405,12 +2399,8 @@ class Component extends DCLogic {
     </div>`;
 
     // ---- Amount method ----
-    // A new charge opens on Reference / Market Rent — the common case — instead of an empty flat amount.
-    const src = ed ? (ed.amtMethod || 'Flat') : 'Reference';
+    const src = ed ? (ed.amtMethod || 'Flat') : 'Flat';
     const amtFlat = ed && /^\$/.test(ed.amount||'') ? (ed.amount||'').replace(/^\$/,'') : '';
-    const refOpts = ['Market Rent','Field: Market Rent','Unit UDF: Parking Spot #'];
-    // Editing a referenced charge keeps whatever it points at; everything else starts at Market Rent.
-    const refSel = (ed && refOpts.indexOf(ed.amount) >= 0) ? ed.amount : 'Market Rent';
     const radio = (label,value,blk) => `<label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#666;cursor:pointer"><input type="radio" name="m-amt-r" value="${value}" data-blk="${blk}" ${src===value?'checked':''} onchange="var b=this.getAttribute('data-blk');document.getElementById('m-source').value=this.value;['flat','ref','calc'].forEach(function(k){document.getElementById('m-blk-'+k).style.display=(k===b?'flex':'none')});if(window.__calcNote)window.__calcNote()" style="accent-color:var(--ac,#008dd5);width:16px;height:16px;margin:0">${label}</label>`;
     const iconInput = (id,val,ph,icon) => `<div style="display:flex;align-items:center;gap:4px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><input id="${id}" value="${esc(val)}" placeholder="${ph}" oninput="if(window.__mitsRecheck)window.__mitsRecheck()" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:#13314c"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5)">${icon}</span></div>`;
     // A calculated amount has no single figure to publish, so listing providers show it as a varying
@@ -2429,7 +2419,7 @@ class Component extends DCLogic {
       <div style="flex:1;min-width:0">
         <input type="hidden" id="m-source" value="${src}">
         <div id="m-blk-flat" style="display:${src==='Flat'?'flex':'none'};flex-direction:column;gap:4px">${lab('Amount')}${iconInput('m-amount',amtFlat,'00.00','calculate')}</div>
-        <div id="m-blk-ref" style="display:${src==='Reference'?'flex':'none'};flex-direction:column;gap:4px">${lab('Amount')}${dd('m-ref',refOpts,refSel,{noSearch:true})}</div>
+        <div id="m-blk-ref" style="display:${src==='Reference'?'flex':'none'};flex-direction:column;gap:4px">${lab('Amount')}${dd('m-ref',['Market Rent','Field: Market Rent','Unit UDF: Parking Spot #'],'Market Rent',{noSearch:true})}</div>
         <div id="m-blk-calc" style="display:${src==='Calculation'?'flex':'none'};flex-direction:column;gap:4px">${lab('Amount')}${iconInput('m-calc','','','edit')}</div>
       </div></div>
       <span id="m-calc-note" style="display:${calcNote};font-size:13px;color:#666;line-height:1.45">Calculated charges may be labeled as a <i>Varying Amount</i> on the listing provider site.</span></div>`;
