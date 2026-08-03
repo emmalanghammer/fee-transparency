@@ -1748,7 +1748,6 @@ class Component extends DCLogic {
     const props = this.setupProps();
     const one = props.length === 1;
     // Reads as one property or as a set, without two versions of the screen.
-    const prop = one ? props[0] : props.length + ' properties';
     const all = this.setupCandidates();
     // Each property carries its own selections, so the totals add up across them.
     const per = props.map(p => ({ p, rows: this.setupRows(p) }));
@@ -1777,9 +1776,7 @@ class Component extends DCLogic {
     return `<div style="display:flex;flex-direction:column;gap:18px">
       <div style="display:flex;flex-direction:column;gap:4px">
         <span style="font-size:14px;font-weight:600;color:#13314c">Review and confirm</span>
-        <span style="font-size:13px;color:#8a9aa8;line-height:1.5">${one
-          ? `This applies to all of ${prop}, not just one unit or lease.`
-          : `One profile per property below, with the charges you picked for each. Each applies to the whole property.`}</span>
+        ${one ? '' : `<span style="font-size:13px;color:#8a9aa8;line-height:1.5">One profile per property below, with the charges you picked for each. Each applies to the whole property.</span>`}
       </div>
       ${one ? '' : `<div style="display:flex;flex-direction:column;gap:6px">
         <span style="font-size:14px;font-weight:600;color:#13314c">What each property gets</span>
