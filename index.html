@@ -193,8 +193,10 @@ class Component extends DCLogic {
   inferRequirement(r){
     const code = String(r.mits || '').toUpperCase();
     const text = ((r.desc || '') + ' ' + (r.name || '')).toLowerCase();
-    if (/^PET/.test(code) || /\bpets?\b/.test(text)) return 'Situational';
-    if (/^(LATE|LC|NSF|DAMAGE|VIOLATION|LEGAL)/.test(code)) return 'Situational';
+    // Damage and violation charges are conditions, not choices — checked before the pet rules so a
+    // pet damage charge doesn't read as an add-on.
+    if (/^(LATE|LC|NSF|DAMAGE|VIOLATION|LEGAL)/.test(code) || /\bdamage\b/.test(text)) return 'Situational';
+    if (/^PET/.test(code) || /\bpets?\b/.test(text)) return 'Optional';
     if (/^(SF|STORAGE|COVPARK|PARK|PARKING|GARAGE|HOLD|AMENFEE|AMENITY|UPGRADE|TECH|CABLE|TRANSFER|EVCHG)/.test(code)) return 'Optional';
     if (/\b(optional|add-?on|valet|storage|parking|garage|reservation|locker|access)\b/.test(text)) return 'Optional';
     return 'Required';
@@ -440,8 +442,10 @@ class Component extends DCLogic {
       Object.assign({ id:11, group:'opt-rec', mits:'AMENFEE',    name:'Pool & fitness',    desc:'Pool & fitness access',        freq:'Every Month', from:'01/01/2026', to:'', amount:'$28.00',      amtMethod:'Flat', ils:false  }, L('Property')),
       Object.assign({ id:12, group:'opt-rec', mits:'COVPARK',    name:'Covered parking',   desc:'Covered parking, 12 spots total',freq:'Every Month',from:'01/01/2026', to:'', amount:'Market Rent', amtMethod:'Reference', est:75, ils:false }, L('ORI','Garage Spot 1')),
       Object.assign({ id:13, group:'opt-one', mits:'HOLD',       name:'Hold fee',          desc:'Unit reservation fee',         from:'01/01/2026', to:'', amount:'$200.00',   amtMethod:'Flat', ils:false  }, L('Property')),
-      Object.assign({ id:14, group:'sit-rec', mits:'PETFEE',     name:'Pet rent',          desc:'Per pet, max $90',             freq:'Every Month', from:'01/01/2026', to:'', amount:'$45.00',      amtMethod:'Flat', ils:false, cond:'If a pet is on the lease' }, L('Property')),
-      Object.assign({ id:15, group:'sit-one', mits:'PETDP',      name:'Pet deposit',       desc:'Pet deposit',                  from:'01/01/2026', to:'', amount:'$300.00',   amtMethod:'Flat', ils:false, cond:'If a pet is on the lease' }, L('Property')),
+      // Pet rent and pet deposit are add-ons a resident chooses by bringing a pet, so they're optional.
+      // Damage-type charges stay situational — nobody opts into those.
+      Object.assign({ id:14, group:'opt-rec', mits:'PETFEE',     name:'Pet rent',          desc:'Per pet, max $90',             freq:'Every Month', from:'01/01/2026', to:'', amount:'$45.00',      amtMethod:'Flat', ils:false }, L('Property')),
+      Object.assign({ id:15, group:'opt-one', mits:'PETDP',      name:'Pet deposit',       desc:'Pet deposit',                  from:'01/01/2026', to:'', amount:'$300.00',   amtMethod:'Flat', ils:false }, L('Property')),
       // A charge type created at the property that nobody assigned a MITS category to. Deliberately
       // absent from chargeCategoryMap so the Charge Category error state is always demoable.
       Object.assign({ id:18, group:'opt-rec', mits:'EVCHG',      name:'EV charging',       desc:'EV charging station access',   freq:'Every Month', from:'01/01/2026', to:'', amount:'$35.00', amtMethod:'Flat', ils:false }, L('Property')),
@@ -2013,12 +2017,14 @@ class Component extends DCLogic {
     const atMoveIn = oneTime.filter(r => dueOf(r) === 'Move-In');
     const otherOne = oneTime.filter(r => ['At Application','Move-In'].indexOf(dueOf(r)) < 0);
     const chosenOpt = optRows.filter(r => p.opt[r.id] && !/-one$/.test(r.group));
+    const chosenOptOne = optRows.filter(r => p.opt[r.id] && /-one$/.test(r.group));
     const mTotal = monthly.reduce((n,r)=>n+amtOf(r),0) + chosenOpt.reduce((n,r)=>n+amtOf(r),0);
     const sum = rws => rws.reduce((n,r)=>n+amtOf(r),0);
-    const oTotal = sum(oneTime);
+    // A one-time add-on the prospect ticks is money due like any other one-time charge.
+    const oTotal = sum(oneTime) + sum(chosenOptOne);
     const line = (l,v,bold) => `<div style="display:flex;align-items:baseline;justify-content:space-between;padding:5px 0"><span style="font-size:13px;color:${bold?'#13314c':'#4a5b6b'};${bold?'font-weight:600':''}">${l}</span><span style="font-size:13px;color:#13314c;${bold?'font-weight:600':''}">${v}</span></div>`;
     const grp = (t, rws, suffix, subLabel) => rws.length ? `<div style="padding:12px 0;border-top:1px solid #eef2f5"><div style="font-size:13px;font-style:italic;color:#8a9aa8;margin-bottom:4px">${t}</div>${rws.map(r=>line(r.name, money(amtOf(r))+(suffix||''))).join('')}${subLabel?line(subLabel, money(sum(rws)), true):''}</div>` : '';
-    const optCb = r => `<label data-act="ppOpt" data-arg="${r.id}" style="display:flex;align-items:center;gap:10px;padding:5px 0;cursor:pointer;font-size:14px;color:#13314c"><span style="width:18px;height:18px;border-radius:3px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${p.opt[r.id]?'background:#f58220;border:1px solid #f58220':'background:#fff;border:1px solid #b3b3b3'}">${p.opt[r.id]?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span>${r.name}</label>`;
+    const optCb = r => `<label data-act="ppOpt" data-arg="${r.id}" style="display:flex;align-items:center;gap:10px;padding:5px 0;cursor:pointer;font-size:14px;color:#13314c"><span style="width:18px;height:18px;border-radius:3px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${p.opt[r.id]?'background:#f58220;border:1px solid #f58220':'background:#fff;border:1px solid #b3b3b3'}">${p.opt[r.id]?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name}</span><span style="font-size:13px;color:#4a5b6b;white-space:nowrap">${money(amtOf(r))}${/-one$/.test(r.group)?'/one-time':'/mo'}</span></label>`;
     const info = this.propInfo(p.prop);
     return `<div data-act="pricePreviewClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:120">
       <div data-act="noop" style="width:940px;max-width:96vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
@@ -2045,7 +2051,7 @@ class Component extends DCLogic {
                 <span style="display:inline-flex;align-items:center;gap:10px;font-size:13px;color:#4a5b6b;white-space:nowrap"><span style="display:inline-flex;align-items:center;gap:4px"><span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5)">home</span>${info.short}</span><span style="display:inline-flex;align-items:center;gap:4px"><span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5)">apartment</span>${p.unit}</span></span>
               </div>
               <div style="padding:8px 16px 0">
-                ${rows.length ? `${grp('Included every month', monthly)}${grp('Due At Application', atApp, '', 'At application total')}${grp('Due at Move In', atMoveIn, '', 'Move-in total')}${grp('Due one-time', otherOne, '', otherOne.length>1?'One-time total':'')}${chosenOpt.length?grp('Optional add-ons', chosenOpt, '/mo'):''}`
+                ${rows.length ? `${grp('Included every month', monthly)}${grp('Due At Application', atApp, '', 'At application total')}${grp('Due at Move In', atMoveIn, '', 'Move-in total')}${grp('Due one-time', otherOne, '', otherOne.length>1?'One-time total':'')}${chosenOpt.length?grp('Optional add-ons', chosenOpt, '/mo'):''}${chosenOptOne.length?grp('Optional add-ons, one-time', chosenOptOne):''}`
                   : `<div style="padding:16px 0;border-top:1px solid #eef2f5;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center">
                       <span class="material-symbols-outlined" style="font-size:30px;color:#c9d4dd">visibility_off</span>
                       <span style="font-size:13px;font-weight:600;color:#13314c">${ilsProp?'No charges are set to show on listings yet':'No charges on this profile yet'}</span>
