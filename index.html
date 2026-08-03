@@ -1585,8 +1585,10 @@ class Component extends DCLogic {
       : c.step === 1 ? this.setupStep1() : c.step === 2 ? this.setupStep2() : this.setupStep3();
     const back = `<button data-act="setupBack" class="btn-out" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px">Back</button>`;
     const props = this.setupProps();
-    const nextLabel = (c.step === 2 && props.length > 1 && (c.pi || 0) < props.length - 1)
-      ? 'Next Property' : 'Next';
+    // Step 1 is the intro, so its button starts the flow; step 2 walks the properties.
+    const nextLabel = (c.step || 1) === 1 ? 'Start'
+      : (c.step === 2 && props.length > 1 && (c.pi || 0) < props.length - 1) ? 'Next Property'
+      : 'Next';
     const next = `<button data-act="setupNext" class="btn-pri" style="height:36px;min-height:36px;padding:0 22px;border-radius:4px;font-size:14px">${nextLabel}</button>`;
     // Saving stays behind the acknowledgement, since the profile takes over charging for the property.
     const totalRows = props.reduce((n, p) => n + this.setupRows(p).length, 0);
