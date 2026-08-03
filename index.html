@@ -200,11 +200,6 @@ class Component extends DCLogic {
   // Which selected property step 2 is currently reviewing.
   setupCurProp(){ const c = this.state.setup; if (!c) return ''; return this.setupProps()[c.pi || 0] || ''; }
   setupExclFor(prop){ const c = this.state.setup; return (c && c.excl && c.excl[prop]) || {}; }
-  setupRequirement(r, prop){
-    const c = this.state.setup; if (!c) return '';
-    const m = (c.req && c.req[prop || this.setupCurProp()]) || {};
-    return m[r.id] || '';
-  }
   // Requirement comes from the charge's group when marketing details haven't been saved yet.
   defaultRequirement(r){
     const g = String(r.group || '');
@@ -1538,23 +1533,24 @@ class Component extends DCLogic {
     const c = this.state.setup; if (!c) return [];
     const p = prop || this.setupCurProp();
     const ex = this.setupExclFor(p);
+    // Setup no longer asks for a Charge Requirement, so converted charges land unclassified and get
+    // their requirement on the charge itself. Charges that arrive with pulled-in marketing details
+    // (NSF, late fees) keep the requirement they came with.
     return this.setupCandidates().filter(r => !ex[r.id]).map(r => {
-      const req = this.setupRequirement(r, p);
+      const req = (r.listing && r.listing.requirement) || '';
       const suffix = /-one$/.test(r.group) ? '-one' : '-rec';
       const prefix = req === 'Optional' ? 'opt' : req === 'Situational' ? 'sit' : req === 'Required' ? 'req' : 'ind';
-      // The setup choice satisfies the MITS requirement field up front. Merge so charges that
-      // already carry pulled-in marketing details (NSF, late fees) keep them.
-      return Object.assign({}, r, { group: prefix + suffix, listing: Object.assign({}, r.listing, { requirement: req }) });
+      return Object.assign({}, r, { group: prefix + suffix });
     });
   }
-  // True once there's something to lose: past step 1, or a charge unchecked / a requirement picked /
-  // the acknowledgement ticked. The saving and success steps have already committed, so they're clean.
+  // True once there's something to lose: past step 1, or a charge unchecked / the acknowledgement
+  // ticked. The saving and success steps have already committed, so they're clean.
   setupDirty(c){
     if (!c || c.step === 'saving' || c.step === 'done') return false;
     if ((c.step || 1) > 1) return true;
     if (c.ack) return true;
     const any = m => Object.keys(m || {}).some(k => Object.keys(m[k] || {}).length);
-    return any(c.excl) || any(c.req);
+    return any(c.excl);
   }
   // "Leave Setup" confirmation (mock 2637-31905).
   setupExitHTML(){
@@ -1679,18 +1675,10 @@ class Component extends DCLogic {
     const inc = all.filter(r => !ex[r.id]).length;
     const box = on => `<span style="width:18px;height:18px;border-radius:3px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${on?'background:#f58220;border:1px solid #f58220':'background:#fff;border:1px solid #b3b3b3'}">${on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span>`;
     const table = (label, rows, rec) => {
-      const cols = '44px 120px minmax(150px,1fr) 110px 110px 190px';
-      const heads = ['','Charge Type','Comment','Amount','Charge Level','Charge Requirement'];
-      const hc = (t,i) => `<span style="padding:8px 10px;font-size:12px;font-weight:600;color:#13314c;white-space:nowrap;${/Amount/.test(t)?'justify-content:flex-end;display:flex;':''}${t===heads[5]?'display:flex;align-items:center;gap:5px;':''}">${t}${t===heads[5]?this.reqHelp():''}</span>`;
+      const cols = '44px 130px minmax(180px,1fr) 130px 130px';
+      const heads = ['','Charge Type','Comment','Amount','Charge Level'];
+      const hc = (t,i) => `<span style="padding:8px 10px;font-size:12px;font-weight:600;color:#13314c;white-space:nowrap;${/Amount/.test(t)?'justify-content:flex-end;display:flex;':''}">${t}</span>`;
       const cell = (t,extra,off) => `<span style="display:flex;align-items:center;min-height:38px;padding:6px 10px;font-size:13px;color:${off?'#a6b2bd':'#13314c'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
-      // An excluded charge isn't going anywhere, so its requirement can't be set — the select is
-      // disabled until the row is checked back on. The row click toggles inclusion, so the select
-      // stops propagation to stay independently changeable.
-      // Nothing picked yet reads as an italic placeholder rather than a real value; the options
-      // themselves stay upright, so only the unset state looks unset.
-      const reqSel = (r, off) => { const v = this.setupRequirement(r);
-        const ph = !v || off;
-        return `<span style="display:flex;align-items:center;min-height:38px;padding:6px 10px" onclick="event.stopPropagation()"><select ${off?'disabled':''} onchange="window.__setupReq('${r.id}', this.value);this.style.fontStyle=this.value?'normal':'italic';this.style.color=this.value?'#13314c':'#a6b2bd'" style="width:100%;height:30px;border:1px solid ${off?'#e3e9ee':'#cedbe7'};border-radius:4px;background:${off?'#f7f9fb':'#f5f8fa'};font:400 13px Roboto,sans-serif;font-style:${ph?'italic':'normal'};color:${ph?'#a6b2bd':'#13314c'};padding:0 6px;cursor:${off?'default':'pointer'}"><option value="" ${v?'':'selected'} style="font-style:italic;color:#a6b2bd">Select a requirement</option>${['Required','Optional','Situational'].map(o=>`<option ${o===v?'selected':''} style="font-style:normal;color:#13314c">${o}</option>`).join('')}</select></span>`; };
       return `<div style="font-size:13px;color:#666;padding:12px 0 6px">${label} (${rows.length})</div>
         <div style="border:1px solid #e3e9ee;border-radius:4px;overflow:hidden"><div style="overflow-x:auto"><div style="min-width:700px">
         <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #e3e9ee">${heads.map(hc).join('')}</div>
@@ -1699,17 +1687,9 @@ class Component extends DCLogic {
           ${cell(r.mits,'',off)}${cell(r.desc||r.name,'',off)}
           ${cell(r.amount,'justify-content:flex-end;text-align:right',off)}
           <span style="display:flex;align-items:center;min-height:38px;padding:6px 10px;${off?'opacity:0.45':''}">${this.chargeLevelPill(r)}</span>
-          ${reqSel(r, off)}</div>`; }).join('')}
+        </div>`; }).join('')}
         </div></div></div>`;
     };
-    // Records a per-row requirement choice against the property being reviewed, without losing it
-    // when the list re-renders.
-    window.__setupReq = (id, val) => this.setState(s => {
-      const p = this.setupCurProp();
-      const all = Object.assign({}, s.setup.req);
-      all[p] = Object.assign({}, all[p], { [id]: val });
-      return { setup: Object.assign({}, s.setup, { req: all }) };
-    });
     const many = props.length > 1;
     // A pill per property, so it's plain that this step repeats and which one is being answered.
     const pill = (p, i) => { const done = i < (c.pi || 0), now = i === (c.pi || 0);
@@ -1726,7 +1706,7 @@ class Component extends DCLogic {
         <div style="display:flex;flex-wrap:wrap;gap:6px">${props.map(pill).join('')}</div>
       </div>`}
       <div style="display:flex;align-items:baseline;gap:12px"><span style="font-size:14px;font-weight:600;color:#13314c">Select which charges to include</span><div style="flex:1"></div><span style="font-size:13px;color:#4a5b6b">${inc} of ${all.length} included</span></div>
-      <span style="font-size:13px;color:#8a9aa8;line-height:1.5">Unchecked charges won't be added. They won't apply to future move-ins, quotes, or listings. Existing tenant charges are unaffected either way. Set a Charge Requirement on any charge you want enabled for online listings &mdash; a charge can't be listed without one.</span>
+      <span style="font-size:13px;color:#8a9aa8;line-height:1.5">Unchecked charges won't be added. They won't apply to future move-ins, quotes, or listings. Existing tenant charges are unaffected either way.</span>
       ${table('Recurring Charges', all.filter(r=>!/-one$/.test(r.group)), true)}
       ${table('One-Time Charges', all.filter(r=>/-one$/.test(r.group)), false)}
     </div>`;
@@ -1775,10 +1755,6 @@ class Component extends DCLogic {
     const rows = per.reduce((a, x) => a.concat(x.rows), []);
     const left = all.length * props.length - rows.length;
     const rec = rows.filter(r => !/-one$/.test(r.group)).length;
-    const reqN = rows.filter(r => /^req/.test(r.group)).length;
-    const optN = rows.filter(r => /^opt/.test(r.group)).length;
-    const sitN = rows.filter(r => /^sit/.test(r.group)).length;
-    const indN = rows.filter(r => /^ind/.test(r.group)).length;
     const stat = (n, l) => `<div style="flex:1;min-width:130px;background:#f7f9fb;border:1px solid #e3e9ee;border-radius:4px;padding:12px 16px;display:flex;flex-direction:column;gap:2px"><span style="font-size:22px;font-weight:600;color:#13314c;line-height:1.2">${n}</span><span style="font-size:13px;color:#4a5b6b">${l}</span></div>`;
     // What the conversion does and doesn't reach. The dash row is the carve-out the user needs to see.
     const line = (icon, color, t, b) => `<div style="display:flex;gap:12px;align-items:flex-start;padding:12px 16px;border-bottom:1px solid #f0f4f7"><span class="material-symbols-outlined" style="font-size:20px;color:${color};flex:none">${icon}</span><span style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:14px;color:#13314c">${t}</span><span style="font-size:13px;color:#8a9aa8;line-height:1.45">${b}</span></span></div>`;
@@ -1816,8 +1792,6 @@ class Component extends DCLogic {
       <div style="display:flex;gap:12px;flex-wrap:wrap">
         ${stat(rows.length, 'Charges added' + (rows.length ? ` · ${rec} recurring, ${rows.length - rec} one-time` : ''))}
         ${stat(left, left === 1 ? 'Charge left out' : 'Charges left out')}
-        ${stat(indN ? `${reqN} / ${optN} / ${sitN} / ${indN}` : `${reqN} / ${optN} / ${sitN}`,
-          'Required / Optional / Situational' + (indN ? ' / Not set' : ''))}
       </div>
       ${ils}
       ${scope}
@@ -2538,7 +2512,7 @@ class Component extends DCLogic {
       </div>
       <div style="display:flex;flex-direction:column;gap:4px">${lab('Marketing Description')}<textarea id="m-marketing" class="fld" style="height:56px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${ed&&ed.listing?(ed.listing.marketing||''):''}</textarea></div>
       <div style="display:flex;gap:12px;align-items:flex-start">
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Requirement')}${dd('m-req',['Required','Optional','Situational'],req,{noSearch:true,placeholder:'Select a charge requirement',js:"document.getElementById('m-sitdesc-wrap').style.display=(_v==='Situational'?'flex':'none');if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px"><span style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:#666">Charge Requirement${this.reqHelp()}</span>${dd('m-req',['Required','Optional','Situational'],req,{noSearch:true,placeholder:'Select a charge requirement',js:"document.getElementById('m-sitdesc-wrap').style.display=(_v==='Situational'?'flex':'none');if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Fee Due')}${dd('m-due',['At Application','During Term','Move-Out'],(ed&&ed.listing&&ed.listing.feeDue)||'',{noSearch:true,placeholder:'Select when the fee is due',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>
         ${isOne?'':`<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Schedule',true)}${dd('m-sched',['Monthly','Weekly','Daily'],(ed&&ed.listing&&ed.listing.schedule)||'',{noSearch:true,placeholder:'Select a charge schedule',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`}
       </div>
