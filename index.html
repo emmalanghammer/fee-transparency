@@ -97,7 +97,8 @@ class Component extends DCLogic {
     // every property; this flag only controls whether listing publishing is surfaced at all.
     // The Berkshires is listed but not yet converted, so the setup review can warn about the
     // listing impact. The opt-in itself only surfaces once a profile exists.
-    ilsProps: { 'Riverview Apartments': true, 'The Berkshires': true },
+    // The Hamptons is the finished example — marketed, with every charge listing-ready.
+    ilsProps: { 'Riverview Apartments': true, 'The Berkshires': true, 'The Hamptons': true },
     profileStatus: {},
     profileFees: {},
     profHist: null,
@@ -363,7 +364,51 @@ class Component extends DCLogic {
     const n = p || this.state.property;
     const rows = this.state.profileFees[n];
     if (rows) return rows;
+    if (this.listingReadyProps().indexOf(n) >= 0) return this.listingReadyRows();
     return this.seededProfiles().indexOf(n) >= 0 ? this.setupCandidates() : [];
+  }
+  // The worked example: a property whose profile is finished — every charge carries its marketing
+  // details and is included on listings — so the "done" state can be shown next to the properties
+  // still missing fields. It has to be marketed on listings for any of that to be visible.
+  listingReadyProps(){ return ['The Hamptons']; }
+  listingReadyRows(){
+    // Resident-facing name and description per charge; everything else follows from the charge.
+    const M = {
+      RC:         ['Rent', 'Base monthly rent for the unit.'],
+      GARBAG:     ['Trash Collection', 'Weekly curbside trash and recycling pickup.'],
+      WATER:      ['Water & Sewer', 'Water and sewer, billed monthly based on the unit’s share of the property total.'],
+      GARBAGEFEE: ['Trash Valet', 'Door-to-door trash pickup five nights a week.'],
+      ADMIN:      ['Administrative Fee', 'One-time fee to prepare and process the lease.'],
+      APPFEE:     ['Application Fee', 'Charged per applicant to run screening and credit checks.'],
+      DP:         ['Security Deposit', 'Refundable deposit held for the term of the lease.'],
+      LMR:        ['Last Month’s Rent', 'Final month of rent, collected before move-in.'],
+      KEY:        ['Key & Fob Deposit', 'Refundable deposit for unit keys and building fobs.'],
+      SF:         ['Storage Closet', 'Private storage closet, available to reserve while supplies last.'],
+      AMENFEE:    ['Pool & Fitness Access', 'Optional access to the pool and fitness center.'],
+      COVPARK:    ['Covered Parking', 'Reserved covered parking space, priced at market rate.'],
+      HOLD:       ['Hold Fee', 'Holds the unit off the market while your application is processed.'],
+      PETFEE:     ['Pet Rent', 'Monthly rent per pet on the lease, up to two pets.'],
+      PETDP:      ['Pet Deposit', 'Refundable deposit charged when a pet is added to the lease.'],
+      EVCHG:      ['EV Charging', 'Access to the property’s EV charging stations.'],
+      NSFFEE:     ['NSF Fee', 'Charged when a payment is returned for non-sufficient funds.'],
+      LC:         ['Late Fee', 'Charged when rent is received after the grace period.']
+    };
+    // Anything collected before the lease starts is due at application; the rest during the term.
+    const dueAtApp = /^(ADMIN|APPFEE|DP|LMR|KEY|HOLD|PETDP)$/;
+    const req = g => /^req/.test(g) ? 'Required' : /^opt/.test(g) ? 'Optional' : 'Situational';
+    return this.setupCandidates().map(r => {
+      const m = M[r.mits] || [r.name, ''];
+      const oneTime = /-one$/.test(r.group || '');
+      return Object.assign({}, r, { ils: true, listing: Object.assign({}, r.listing, {
+        name: m[0],
+        // EV charging has no mapped category on purpose, so this example spells one out.
+        category: this.chargeCategoryFor(r.mits) || 'Utility',
+        marketing: m[1],
+        requirement: req(r.group),
+        feeDue: dueAtApp.test(r.mits) ? 'At Application' : 'During Term',
+        schedule: oneTime ? '' : 'Monthly'
+      }) });
+    });
   }
   // A property's charges: its Rental Fee Profile once set up, otherwise the charges that already
   // exist in its operational setup (what the setup wizard would pull in).
@@ -2466,17 +2511,6 @@ class Component extends DCLogic {
     // ---- Listing readiness (mock 2625-29821) ----
     // The Marketing Details heading carries the status, the toggle reads "Include on listings", and a
     // Required charge that's been left off listings gets called out.
-    const missing = ed ? this.mitsMissing(ed) : this.mitsFields().map(f => f.label);
-    const chip = (n) => `<span style="display:inline-flex;align-items:center;gap:5px;background:#fdf3e3;border-radius:12px;padding:2px 9px;font-size:13px;color:#7a5a2a;white-space:nowrap"><span class="material-symbols-outlined" style="font-size:15px;color:#b35a00">error</span>${n}</span>`;
-    const complete = !missing.length;
-    const swOn = ilsOn && complete && !di0.expired;
-    const lrDot = (c) => `<span style="width:8px;height:8px;border-radius:50%;background:${c};flex:none"></span>`;
-    const lrMarkup = (need, on) => !need
-      ? (on ? lrDot('#12a150') + '<span>Listing Ready</span>'
-            : lrDot('#8a9aa8') + '<span>Listing Ready - Excluded</span>')
-      : lrDot('#d02830') + '<span>Not Ready for Listings</span>';
-    // Live re-check: unlocks the toggle as fields are filled, and keeps the heading status, the
-    // missing-field chips and the Required callout in step with whatever is on screen.
     // A charge only markets inside its own date window: nothing before From, nothing after To.
     const parseD = (v) => { const m = String(v || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/); if (!m) return null;
       let y = +m[3]; if (y < 100) y += 2000;
@@ -2490,6 +2524,17 @@ class Component extends DCLogic {
       return { future: !!(df && df > today), expired: !!(dt && dt < today), from: f, to: t };
     };
     const di0 = dateInfo();
+    const missing = ed ? this.mitsMissing(ed) : this.mitsFields().map(f => f.label);
+    const chip = (n) => `<span style="display:inline-flex;align-items:center;gap:5px;background:#fdf3e3;border-radius:12px;padding:2px 9px;font-size:13px;color:#7a5a2a;white-space:nowrap"><span class="material-symbols-outlined" style="font-size:15px;color:#b35a00">error</span>${n}</span>`;
+    const complete = !missing.length;
+    const swOn = ilsOn && complete && !di0.expired;
+    const lrDot = (c) => `<span style="width:8px;height:8px;border-radius:50%;background:${c};flex:none"></span>`;
+    const lrMarkup = (need, on) => !need
+      ? (on ? lrDot('#12a150') + '<span>Listing Ready</span>'
+            : lrDot('#8a9aa8') + '<span>Listing Ready - Excluded</span>')
+      : lrDot('#d02830') + '<span>Not Ready for Listings</span>';
+    // Live re-check: unlocks the toggle as fields are filled, and keeps the heading status, the
+    // missing-field chips and the Required callout in step with whatever is on screen.
     const dateNoteHTML = (d) => d.expired
       ? `<span class="material-symbols-outlined" style="font-size:17px;color:#e59f2e;flex:none">event_busy</span><span style="font-size:13px;color:#8a9aa8;line-height:1.45">This charge ended on ${d.to}, so it can't be marketed. Change the To date to market it again, or add a new charge.</span>`
       : `<span class="material-symbols-outlined" style="font-size:17px;color:#a6b2bd;flex:none">schedule</span><span style="font-size:13px;color:#8a9aa8;line-height:1.45">This charge starts ${d.from}, so it won't be marketed until then.</span>`;
