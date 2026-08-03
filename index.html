@@ -127,6 +127,9 @@ class Component extends DCLogic {
     recView: null,
     recViewNote: true,
     rowMenu: null,
+    // "Exclude Charge" overlay: { id, scope:'Unit Type'|'Unit', sel:{name:true} }. A charge's own
+    // exclusions live on the row as exclFrom:{ types:[], units:[] }.
+    chargeExcl: null,
     modal: null,
     toast: null
   };
@@ -573,6 +576,37 @@ class Component extends DCLogic {
         if (gone) this.logChange(this.state.property, this.histLabelFor(gone), 'Charge removed from the profile', gone.target || gone.level);
         this.setState({ rowMenu: null }); this.flash('Charge deleted'); break; }
 
+      // ---- Exclude a charge from specific unit types / units ----
+      case 'exclOpen': { const r = this.profileRows().find(x => String(x.id) === String(arg));
+        if (!r) break;
+        const ex = this.exclOf(r);
+        // Reopen on whichever scope already has exclusions; a unit-type charge only reaches units.
+        const scope = r.level === 'Unit Type' ? 'Unit' : (ex.types.length && !ex.units.length ? 'Unit Type' : (ex.units.length ? 'Unit' : 'Unit Type'));
+        const sel = {}; (scope === 'Unit Type' ? ex.types : ex.units).forEach(n => { sel[n] = true; });
+        this.setState({ rowMenu: null, chargeExcl: { id: r.id, scope, sel } }); break; }
+      case 'exclClose': this.setState({ chargeExcl: null }); break;
+      // Switching scope keeps whatever was already saved for that scope, so a flip doesn't lose work.
+      case 'exclScope': this.setState(s => { const r = this.profileRows().find(x => String(x.id) === String(s.chargeExcl.id));
+        const ex = this.exclOf(r); const sel = {};
+        (arg === 'Unit Type' ? ex.types : ex.units).forEach(n => { sel[n] = true; });
+        return { chargeExcl: Object.assign({}, s.chargeExcl, { scope: arg, sel }) }; }); break;
+      case 'exclToggle': this.setState(s => { const sel = Object.assign({}, s.chargeExcl.sel);
+        if (sel[arg]) delete sel[arg]; else sel[arg] = true;
+        return { chargeExcl: Object.assign({}, s.chargeExcl, { sel }) }; }); break;
+      case 'exclSave': { const c = this.state.chargeExcl;
+        const row = this.profileRows().find(x => String(x.id) === String(c.id));
+        const picked = Object.keys(c.sel);
+        const next = c.scope === 'Unit Type'
+          ? { types: picked, units: this.exclOf(row).units }
+          : { types: this.exclOf(row).types, units: picked };
+        this.mutFee(c.id, f => Object.assign({}, f, { exclFrom: next }));
+        const n = next.types.length + next.units.length;
+        if (row) this.logChange(this.state.property, this.histLabelFor(row),
+          n ? 'Excluded from ' + this.exclSummary(next) : 'Exclusions removed', row.target || row.level, { chargeId: row.id });
+        this.setState({ chargeExcl: null });
+        this.flash(n ? 'Charge excluded from ' + this.exclSummary(next) : 'Exclusions removed');
+        break; }
+
       // ---- Rental Fee Profile setup wizard ----
       case 'setupOpen': this.setState({ recView: null, setup: { props: [arg || this.state.property], step: 1, excl: {} } }); break;
       // Leaving mid-flow throws away the charge selections and requirements picked so far, so it asks
@@ -865,6 +899,9 @@ class Component extends DCLogic {
       cre: !!(m.cre || (m.edit && m.edit.cre)) || undefined,
       creDist: v('m-cre-dist') || undefined, creDivide: v('m-cre-divide') || undefined, creUdf: v('m-cre-udf') || undefined,
       cond: req === 'Situational' ? v('m-sitdesc') : '',
+      // Exclusions only mean something on a charge that covers more than one thing, so a charge moved
+      // down to unit or ORI level drops them.
+      exclFrom: (app === 'Property' || app === 'Unit Type') ? this.readExclFields() : undefined,
       // Marketing/MITS details are saved either way — they're useful to unmarketed properties too.
       listing: { name, category: this.chargeCategoryFor(code), marketing: v('m-marketing'), requirement: req, feeDue: v('m-due'), schedule: isOne ? '' : v('m-sched'), refundable: chkd('m-refund') }
     };
@@ -965,15 +1002,98 @@ class Component extends DCLogic {
       { name:'RV Space', qty:0, reqRec:[], optRec:[] },
     ];
   }
+  // Reads the charge form's exclusion checkboxes. DOM-only like the rest of the form, so the section
+  // can be edited without a re-render wiping what's been typed elsewhere.
+  readExclFields(){
+    const pick = kind => [...(this.rootEl ? this.rootEl.querySelectorAll('[data-excl="' + kind + '"]') : [])]
+      .filter(e => e.checked).map(e => e.getAttribute('data-name'));
+    const out = { types: pick('type'), units: pick('unit') };
+    return (out.types.length || out.units.length) ? out : undefined;
+  }
+  // ---- Charge exclusions ----
+  // A charge applies to everything at its level; an exclusion carves out specific unit types or units.
+  exclOf(r){ const e = (r && r.exclFrom) || {}; return { types: e.types || [], units: e.units || [] }; }
+  // Only a property or unit-type charge covers more than one thing, so only those can be carved up.
+  exclEligible(r){ return !!r && (r.level === 'Property' || r.level === 'Unit Type'); }
+  // The unit types / units an exclusion can name. A unit-type charge only reaches its own units.
+  exclOptions(r, scope){
+    if (scope === 'Unit Type') return this.utData().map(t => t.name);
+    return (r && r.level === 'Unit Type' && r.target)
+      ? this.units().filter(u => u.type === r.target).map(u => u.u)
+      : this.units().map(u => u.u);
+  }
+  exclCount(r){ const e = this.exclOf(r); return e.types.length + e.units.length; }
+  // "2BR/2BA", "3 units", "1 unit type and 2 units" — reads the same in the tag, the log and the toast.
+  exclSummary(e){
+    const part = (list, one, many) => !list.length ? '' : (list.length === 1 ? list[0] : list.length + ' ' + many);
+    const t = part(e.types, 'unit type', 'unit types'), u = part(e.units, 'unit', 'units');
+    return t && u ? t + ' and ' + u : (t || u);
+  }
+  exclTag(r){
+    const e = this.exclOf(r); if (!e.types.length && !e.units.length) return '';
+    const all = e.types.concat(e.units).join(', ');
+    return `<span class="loz" title="Excluded from ${all}" style="background:#f1f3f5;color:#5c6b7a;text-transform:none;letter-spacing:0;flex:none">Excluded: ${this.exclSummary(e)}</span>`;
+  }
   rowMenuHTML(){
     const p=this.state.rowMenu; if(!p) return '';
+    const row = this.profileRows().find(x => String(x.id) === String(p.id));
     const left=Math.max(8, p.x-180);
     const item=(label,act)=>`<div data-act="${act}" data-arg="${p.id}" style="display:flex;align-items:center;height:36px;box-sizing:border-box;padding:8px 16px;cursor:pointer;font-size:14px;line-height:20px;color:var(--ac,#008dd5)" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''">${label}</div>`;
     return `<div data-act="rowMenuClose" style="position:fixed;inset:0;z-index:150"></div>
       <div style="position:fixed;left:${left}px;top:${p.y}px;width:180px;background:#fff;border-radius:4px;box-shadow:0 3px 6px rgba(0,0,0,0.15);z-index:151;overflow:hidden">
         ${item('Details','rowDetails')}
+        ${this.exclEligible(row) ? item(this.exclCount(row) ? 'Edit Exclusions' : 'Exclude Charge','exclOpen') : ''}
         ${item('Delete','rowDelete')}
       </div>`;
+  }
+  // "Exclude Charge" overlay: the charge, the scope to carve out of, then a multi-select of targets.
+  chargeExclHTML(){
+    const c = this.state.chargeExcl; if (!c) return '';
+    const r = this.profileRows().find(x => String(x.id) === String(c.id)); if (!r) return '';
+    const opts = this.exclOptions(r, c.scope);
+    const n = Object.keys(c.sel).length;
+    const box = on => `<span style="width:18px;height:18px;border-radius:3px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${on?'background:#f58220;border:1px solid #f58220':'background:#fff;border:1px solid #b3b3b3'}">${on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span>`;
+    const radio = (val) => `<label data-act="exclScope" data-arg="${val}" style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;color:#13314c"><span style="width:18px;height:18px;border-radius:50%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;border:1px solid ${c.scope===val?'var(--ac,#008dd5)':'#b3b3b3'}">${c.scope===val?'<span style="width:10px;height:10px;border-radius:50%;background:var(--ac,#008dd5)"></span>':''}</span>${val}</label>`;
+    // A unit-type charge has only one thing below it, so there's no scope to choose.
+    const scopeRow = r.level === 'Property' ? `<div style="display:flex;flex-direction:column;gap:8px">
+        <span style="font-size:14px;font-weight:600;color:#13314c">Exclude from</span>
+        <div style="display:flex;align-items:center;gap:24px">${radio('Unit Type')}${radio('Unit')}</div>
+      </div>` : '';
+    return `<div data-act="exclClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:170">
+      <div data-act="noop" style="width:520px;max-width:94vw;max-height:88vh;background:#fff;border-radius:4px;border:1px solid #cedbe7;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="flex:none;display:flex;align-items:center;gap:12px;padding:13px 20px;border-bottom:1px solid #cedbe7">
+          <span style="font-size:20px;color:#13314c">Exclude Charge</span><div style="flex:1"></div>
+          <span data-act="exclClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span>
+        </div>
+        <div style="flex:1;min-height:0;overflow-y:auto;padding:18px 20px;display:flex;flex-direction:column;gap:16px">
+          <div style="display:flex;align-items:center;gap:12px;background:#f7f9fb;border:1px solid #e3e9ee;border-radius:4px;padding:12px 14px">
+            <span style="font-size:14px;font-weight:600;color:#13314c;white-space:nowrap">${r.mits}</span>
+            <span style="font-size:14px;color:#4a5b6b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.desc||r.name}</span>
+            <div style="flex:1"></div>
+            <span style="font-size:14px;color:#13314c;white-space:nowrap">${r.amount||''}</span>
+            ${this.chargeLevelPill(r)}
+          </div>
+          ${scopeRow}
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:baseline;gap:10px">
+              <span style="font-size:14px;font-weight:600;color:#13314c">Select ${c.scope === 'Unit Type' ? 'unit types' : 'units'} to exclude</span>
+              <div style="flex:1"></div>
+              <span style="font-size:13px;color:#8a9aa8">${n} selected</span>
+            </div>
+            <span style="font-size:13px;color:#8a9aa8;line-height:1.45">The charge keeps applying everywhere else at the ${r.level.toLowerCase()} level. Existing tenant charges aren't affected.</span>
+            <div style="border:1px solid #e3e9ee;border-radius:4px;overflow:hidden">
+              ${opts.map((o,i)=>`<div data-act="exclToggle" data-arg="${o}" style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;${i?'border-top:1px solid #f0f4f7':''};background:${c.sel[o]?'#fdf6ef':'#fff'}">
+                ${box(!!c.sel[o])}<span style="font-size:14px;color:#13314c">${o}</span></div>`).join('')
+                || '<div style="padding:12px 14px;font-size:13px;font-style:italic;color:#b3b3b3">Nothing available to exclude.</div>'}
+            </div>
+          </div>
+        </div>
+        <div style="flex:none;display:flex;align-items:center;gap:12px;padding:14px 20px;background:#f5f8fa;border-top:1px solid #cedbe7">
+          <div style="flex:1"></div>
+          <button data-act="exclSave" class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px">Save Exclusions</button>
+          <button data-act="exclClose" class="btn-out" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px">Cancel</button>
+        </div>
+      </div></div>`;
   }
   // Shared "Add Exception" / "Exception details" modal shell (matches Figma).
   header(){
@@ -1423,10 +1543,14 @@ class Component extends DCLogic {
     const noLabel = !!(opts && opts.noLabel);
     // The listing status column only appears on properties that market on online listings.
     const ils = this.ilsOn();
-    const cols = rec ? (ils ? '120px minmax(160px,1fr) 110px 100px 90px 110px 120px 130px 40px'
-                            : '120px minmax(160px,1fr) 110px 100px 90px 110px 120px 40px')
-                     : (ils ? '120px minmax(160px,1fr) 100px 90px 110px 120px 130px 40px'
-                            : '120px minmax(160px,1fr) 100px 90px 110px 120px 40px');
+    // An exclusion tag rides in the Comment cell, so that column gets more room when any row has one
+    // rather than squeezing the comment down to an ellipsis.
+    const tagged = rows.some(r => this.exclCount(r));
+    const cmt = tagged ? 'minmax(260px,1.5fr)' : 'minmax(160px,1fr)';
+    const cols = rec ? (ils ? `120px ${cmt} 110px 100px 90px 110px 120px 130px 40px`
+                            : `120px ${cmt} 110px 100px 90px 110px 120px 40px`)
+                     : (ils ? `120px ${cmt} 100px 90px 110px 120px 130px 40px`
+                            : `120px ${cmt} 100px 90px 110px 120px 40px`);
     const heads = rec ? ['Charge Type','Comment','Frequency','From','To','Amount','Charge Level'].concat(ils?['Listing Ready']:[]).concat([''])
                       : ['Charge Type','Comment','From','To','Amount','Charge Level'].concat(ils?['Listing Ready']:[]).concat(['']);
     const hc = (t,i) => `<span style="display:flex;align-items:center;padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:600;color:#13314c;white-space:nowrap;${/Amount/.test(t)?'justify-content:flex-end;':''}">${t}</span>`;
@@ -1437,13 +1561,13 @@ class Component extends DCLogic {
         ? cell(this.freqNum(r)||'—') + cell(r.from||'—') + cell(r.to||'-')
         : cell(r.from||'—') + cell(r.to||'-');
       return `<div data-act="rowDetails" data-arg="${r.id}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5;cursor:pointer" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background=''">
-        ${cell(r.mits,'padding-left:16px')}${cell(r.desc||r.name)}${mid}${cell(String(r.amount||'').replace(/^\$/,''),'justify-content:flex-end;text-align:right')}
+        ${cell(r.mits,'padding-left:16px')}<span style="display:flex;align-items:center;gap:8px;min-height:44px;box-sizing:border-box;padding:8px 12px;font-size:14px;color:#13314c;min-width:0"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.desc||r.name}</span>${this.exclTag(r)}</span>${mid}${cell(String(r.amount||'').replace(/^\$/,''),'justify-content:flex-end;text-align:right')}
         <span style="display:flex;align-items:center;min-height:44px;padding:8px 12px">${this.chargeLevelPill(r)}</span>
         ${ils?`<span style="display:flex;align-items:center;min-height:44px;padding:8px 12px">${this.mitsStatusCell(r)}</span>`:''}${kebab}</div>`;
     }).join('') : `<div style="padding:14px 16px;font-size:13px;font-style:italic;color:#b3b3b3;border-bottom:1px solid #ebf1f5">No ${rec?'recurring':'one-time'} charges in this section.</div>`;
     const add = `<div data-act="addopen" data-arg="${group}" style="background:#f5f9fc;padding:9px 16px;cursor:pointer"><span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,#008dd5)"><span class="material-symbols-outlined" style="font-size:18px">add</span>Add ${rec?'Recurring':'One-Time'} Charge</span></div>`;
     return `${noLabel?'':`<div style="font-size:13px;color:#666;padding:12px 20px 8px">${rec?'Recurring':'One-Time'}</div>`}
-      <div style="padding:${noLabel?'4px':'0'} 20px 0;overflow-x:auto"><div style="min-width:${rec?(ils?1020:900):(ils?950:830)}px;border:1px solid #cedbe7;border-radius:4px;overflow:hidden">
+      <div style="padding:${noLabel?'4px':'0'} 20px 0;overflow-x:auto"><div style="min-width:${(rec?(ils?1020:900):(ils?950:830)) + (tagged?100:0)}px;border:1px solid #cedbe7;border-radius:4px;overflow:hidden">
         <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #cedbe7">${heads.map(hc).join('')}</div>
         ${body}${add}</div></div>`;
   }
@@ -2599,6 +2723,28 @@ class Component extends DCLogic {
         </div>
         <input type="hidden" id="m-ils" value="${swOn?'1':'0'}">` : `<input type="hidden" id="m-ils" value="0">`;
 
+    // ---- Exclusions: collapsed by default, since most charges have none ----
+    const exSaved = this.exclOf(ed);
+    const exOn = this.exclEligible(ed);
+    const exCheck = (kind, name, on) => `<label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;color:#13314c;white-space:nowrap"><input type="checkbox" data-excl="${kind}" data-name="${esc(name)}" ${on?'checked':''} style="width:16px;height:16px;margin:0;accent-color:#f58220">${name}</label>`;
+    const exGroup = (label, kind, list, saved) => !list.length ? '' : `<div style="display:flex;flex-direction:column;gap:8px">
+        <span style="font-size:13px;color:#666">${label}</span>
+        <div style="display:flex;flex-wrap:wrap;gap:10px 22px">${list.map(o=>exCheck(kind,o,saved.indexOf(o)>=0)).join('')}</div>
+      </div>`;
+    const exToggleJs = "var b=document.getElementById('m-excl-body');var c=document.getElementById('m-excl-caret');var open=b.style.display==='none';b.style.display=open?'flex':'none';c.textContent=open?'arrow_drop_down':'arrow_right'";
+    const exclSection = !exOn ? '' : `<div style="flex:none;border:1px solid #cedbe7;border-radius:4px;overflow:hidden">
+        <div onclick="${exToggleJs}" style="display:flex;align-items:center;gap:8px;padding:11px 14px;cursor:pointer;background:#f7f9fb">
+          <span id="m-excl-caret" class="material-symbols-outlined" style="font-size:20px;color:#666">arrow_right</span>
+          <span style="font-size:15px;font-weight:600;color:#13314c">Exclusions</span>
+          <div style="flex:1"></div>
+          <span style="font-size:13px;color:#8a9aa8">${this.exclCount(ed) ? 'Excluded from ' + this.exclSummary(exSaved) : 'Applies everywhere at the ' + String(ed.level||'').toLowerCase() + ' level'}</span>
+        </div>
+        <div id="m-excl-body" style="display:none;flex-direction:column;gap:14px;padding:14px">
+          <span style="font-size:13px;color:#8a9aa8;line-height:1.45">Uncheck nothing to keep this charge everywhere. Anything checked here won't be charged, quoted or listed for that unit type or unit; existing tenant charges aren't affected.</span>
+          ${ed.level === 'Property' ? exGroup('Unit types', 'type', this.exclOptions(ed,'Unit Type'), exSaved.types) : ''}
+          ${exGroup('Units', 'unit', this.exclOptions(ed,'Unit'), exSaved.units)}
+        </div>
+      </div>`;
     return { title, body: `
       ${specNote}
       ${sect('General Details', spec ? specGeneral : general)}
@@ -2610,7 +2756,8 @@ class Component extends DCLogic {
         </div>
         <div style="border:1px solid #cedbe7;border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:12px">${listing}</div>
         ${ilsBox}
-      </div>` };
+      </div>
+      ${exclSection}` };
   }
   // Two charges are the same charge for copy purposes when they share charge type, frequency and
   // name at the same level — the definition the Copy Property Fees tooltip gives.
@@ -2910,6 +3057,7 @@ class Component extends DCLogic {
     }
     out += this.modalHTML();
     out += this.rowMenuHTML();
+    out += this.chargeExclHTML();
     out += this.recViewHTML();
     out += this.setupHTML();
     out += this.setupExitHTML();
