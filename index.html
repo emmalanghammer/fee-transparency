@@ -807,13 +807,21 @@ class Component extends DCLogic {
 
       // ---- profile list ----
       case 'lvlSel': this.setState({ lvlSel: arg }); break;
-      case 'addPropOpen': this.setState({ addProp: { nav:'Property Information', mkt:'property', fee:'blank', copyFrom:'', excl:{}, err:false } }); break;
+      case 'addPropOpen': this.setState({ addProp: { nav:'Property Information', mkt:'property', fee:'blank', copyFrom:'', sel:{}, err:false } }); break;
       case 'addPropMkt': this.setState(s => ({ addProp: Object.assign({}, s.addProp, { mkt: arg }) })); break;
       case 'addPropClose': this.setState({ addProp: null }); break;
       case 'addPropNav': this.setState(s => ({ addProp: Object.assign({}, s.addProp, { nav: arg }) })); break;
       case 'addPropFee': this.setState(s => ({ addProp: Object.assign({}, s.addProp, { fee: arg, copyFrom: arg === 'copy' ? (s.addProp.copyFrom || this.copyableProfiles()[0] || '') : s.addProp.copyFrom }) })); break;
-      case 'addPropCopyFrom': this.setState(s => ({ addProp: Object.assign({}, s.addProp, { copyFrom: arg, excl: {} }) })); break;
-      case 'addPropToggle': this.setState(s => { const e = Object.assign({}, s.addProp.excl); if (e[arg]) delete e[arg]; else e[arg] = true; return { addProp: Object.assign({}, s.addProp, { excl: e }) }; }); break;
+      // A new source starts with nothing picked, the same as Copy Property Fees.
+      case 'addPropCopyFrom': this.setState(s => ({ addProp: Object.assign({}, s.addProp, { copyFrom: arg, sel: {} }) })); break;
+      case 'addPropToggle': this.setState(s => { const sel = Object.assign({}, s.addProp.sel); if (sel[arg]) delete sel[arg]; else sel[arg] = true; return { addProp: Object.assign({}, s.addProp, { sel }) }; }); break;
+      case 'addPropAll': { const a = this.state.addProp; const rows = this.profileRows(a.copyFrom)
+          .filter(r => arg === 'one' ? /-one$/.test(r.group) : !/-one$/.test(r.group));
+        const on = rows.length && rows.every(r => a.sel[r.id]);
+        this.setState(s => { const sel = Object.assign({}, s.addProp.sel);
+          rows.forEach(r => { if (on) delete sel[r.id]; else sel[r.id] = true; });
+          return { addProp: Object.assign({}, s.addProp, { sel }) }; });
+        break; }
       case 'addPropSave': {
         const a = this.state.addProp;
         const name = ((this.q('#ap-name') || {}).value || '').trim();
@@ -821,9 +829,11 @@ class Component extends DCLogic {
         const short = ((this.q('#ap-short') || {}).value || '').trim() || name.slice(0, 6).toUpperCase();
         // Unit-level marketing has no property-wide profile, so nothing is copied even if a source
         // was picked before switching.
-        const copied = a.mkt !== 'unit' && a.fee === 'copy' && a.copyFrom
-          ? this.profileRows(a.copyFrom).filter(r => !a.excl[r.id]).map(r => Object.assign({}, r))
-          : null;
+        const picked = a.mkt !== 'unit' && a.fee === 'copy' && a.copyFrom
+          ? this.profileRows(a.copyFrom).filter(r => a.sel[r.id]).map(r => Object.assign({}, r))
+          : [];
+        // Copy From with nothing ticked is the same as Blank — no profile rather than an empty one.
+        const copied = picked.length ? picked : null;
         const row = { name, short, email:'', manager:'', addr:'', billing:'', color:'', loc:'', units:0, occupied:0, owner:'' };
         this.setState(s => {
           const st = { addProp: null, newProps: [row].concat(s.newProps || []) };
@@ -2433,13 +2443,16 @@ class Component extends DCLogic {
     const chargeTable = (label, rows, rec) => {
       const cols = rec ? '38px 110px minmax(140px,1fr) 80px 90px 50px 100px 90px' : '38px 110px minmax(140px,1fr) 100px 90px';
       const heads = rec ? ['','Charge Type','Comment','Frequency','From','To','Amount','Charge Level'] : ['','Charge Type','Comment','Amount','Charge Level'];
-      const hc = (t) => `<span style="padding:6px 8px;font-size:11px;font-weight:600;color:#13314c;white-space:nowrap;${/Amount/.test(t)?'display:flex;justify-content:flex-end;':''}">${t}</span>`;
+      const allOn = rows.length && rows.every(r => a.sel[r.id]);
+      const hc = (t,i) => i === 0
+        ? `<span data-act="addPropAll" data-arg="${rec?'rec':'one'}" title="${allOn?'Clear all':'Select all'}" style="display:flex;align-items:center;justify-content:center;padding:6px 8px;cursor:pointer">${chk(!!allOn,'')}</span>`
+        : `<span style="padding:6px 8px;font-size:11px;font-weight:600;color:#13314c;white-space:nowrap;${/Amount/.test(t)?'display:flex;justify-content:flex-end;':''}">${t}</span>`;
       const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:34px;padding:5px 8px;font-size:12px;color:#13314c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
       return `<div style="font-size:12px;color:#666;padding:8px 0 4px">${label} (${rows.length})</div>
         <div style="border:1px solid #e3e9ee;border-radius:4px;overflow:hidden">
         <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #e3e9ee;background:#fff">${heads.map(hc).join('')}</div>
         ${rows.map(r=>`<div data-act="addPropToggle" data-arg="${r.id}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #f0f4f7;cursor:pointer;background:#fff">
-          <span style="display:flex;align-items:center;justify-content:center;min-height:34px">${chk(!a.excl[r.id],'')}</span>
+          <span style="display:flex;align-items:center;justify-content:center;min-height:34px">${chk(!!a.sel[r.id],'')}</span>
           ${cell(r.mits)}${cell(r.desc||r.name)}${rec?(cell(this.freqNum(r)||'1')+cell(r.from||'—')+cell(r.to||'-')):''}
           ${cell(String(r.amount||'').replace(/^\$/,''),'justify-content:flex-end;text-align:right')}
           <span style="display:flex;align-items:center;min-height:34px;padding:5px 8px">${this.chargeLevelPill(r)}</span></div>`).join('')}
@@ -2449,7 +2462,7 @@ class Component extends DCLogic {
         <div style="max-width:340px">${this.singleSelect('ap-copy', copyable.length?copyable:['No properties with a profile'], a.copyFrom, { act:'addPropCopyFrom' })}</div>
         <span style="font-size:12px;color:#8a9aa8">Copy recurring and one-time charges from properties that have a rental fee profile set up.</span>
         ${srcRows.length?`<div style="margin-top:6px;display:flex;flex-direction:column;gap:2px">
-          <span style="font-size:13px;font-weight:600;color:#13314c">Select Recurring and One-Time Charges to Include</span>
+          <div style="display:flex;align-items:baseline;gap:10px"><span style="font-size:13px;font-weight:600;color:#13314c">Select Recurring and One-Time Charges to Include</span><div style="flex:1"></div><span style="font-size:12px;color:#4a5b6b">${srcRows.filter(r=>a.sel[r.id]).length} of ${srcRows.length} selected</span></div>
           <div style="border:1px solid #e3e9ee;border-radius:4px;background:#f7f9fb;padding:10px 12px;max-height:260px;overflow-y:auto">
             ${chargeTable('Recurring Charges', srcRows.filter(r=>!/-one$/.test(r.group)), true)}
             ${chargeTable('One-Time Charges', srcRows.filter(r=>/-one$/.test(r.group)), false)}
