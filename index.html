@@ -392,8 +392,9 @@ class Component extends DCLogic {
       NSFFEE:     ['NSF Fee', 'Charged when a payment is returned for non-sufficient funds.'],
       LC:         ['Late Fee', 'Charged when rent is received after the grace period.']
     };
-    // Anything collected before the lease starts is due at application; the rest during the term.
-    const dueAtApp = /^(ADMIN|APPFEE|DP|LMR|KEY|HOLD|PETDP)$/;
+    // Screening costs are collected with the application; deposits and prepaid rent at move-in.
+    const dueAtApp = /^(ADMIN|APPFEE)$/;
+    const dueAtMoveIn = /^(DP|LMR|KEY|PETDP)$/;
     const req = g => /^req/.test(g) ? 'Required' : /^opt/.test(g) ? 'Optional' : 'Situational';
     // The hold fee is left off this property: its charge type has no MITS category, and inventing one
     // would be the opposite of what this example is for.
@@ -406,7 +407,7 @@ class Component extends DCLogic {
         category: this.chargeCategoryFor(r.mits) || (r.mits === 'EVCHG' ? 'Utility' : ''),
         marketing: m[1],
         requirement: req(r.group),
-        feeDue: dueAtApp.test(r.mits) ? 'At Application' : 'During Term',
+        feeDue: dueAtApp.test(r.mits) ? 'At Application' : (dueAtMoveIn.test(r.mits) ? 'Move-In' : 'During Term'),
         schedule: oneTime ? '' : 'Monthly'
       }) });
     });
@@ -2004,12 +2005,19 @@ class Component extends DCLogic {
     const of = pre => rows.filter(r => r.group.indexOf(pre) === 0 || (pre === 'req' && r.group.indexOf('ind') === 0));
     const optRows = of('opt'), sitRows = of('sit');
     const monthly = of('req').filter(r => !/-one$/.test(r.group));
-    const moveIn = of('req').filter(r => /-one$/.test(r.group));
+    const oneTime = of('req').filter(r => /-one$/.test(r.group));
+    // One-time charges split by when they're actually collected, so a prospect can see what's due at
+    // application versus at move-in. Anything without one of those two lands in a general group.
+    const dueOf = r => (r.listing && r.listing.feeDue) || '';
+    const atApp = oneTime.filter(r => dueOf(r) === 'At Application');
+    const atMoveIn = oneTime.filter(r => dueOf(r) === 'Move-In');
+    const otherOne = oneTime.filter(r => ['At Application','Move-In'].indexOf(dueOf(r)) < 0);
     const chosenOpt = optRows.filter(r => p.opt[r.id] && !/-one$/.test(r.group));
     const mTotal = monthly.reduce((n,r)=>n+amtOf(r),0) + chosenOpt.reduce((n,r)=>n+amtOf(r),0);
-    const oTotal = moveIn.reduce((n,r)=>n+amtOf(r),0);
+    const sum = rws => rws.reduce((n,r)=>n+amtOf(r),0);
+    const oTotal = sum(oneTime);
     const line = (l,v,bold) => `<div style="display:flex;align-items:baseline;justify-content:space-between;padding:5px 0"><span style="font-size:13px;color:${bold?'#13314c':'#4a5b6b'};${bold?'font-weight:600':''}">${l}</span><span style="font-size:13px;color:#13314c;${bold?'font-weight:600':''}">${v}</span></div>`;
-    const grp = (t, rws, suffix) => rws.length ? `<div style="padding:12px 0;border-top:1px solid #eef2f5"><div style="font-size:13px;font-style:italic;color:#8a9aa8;margin-bottom:4px">${t}</div>${rws.map(r=>line(r.name, money(amtOf(r))+(suffix||''))).join('')}${t==='Due at move-in'?line('Move-in fees total', money(oTotal), true):''}</div>` : '';
+    const grp = (t, rws, suffix, subLabel) => rws.length ? `<div style="padding:12px 0;border-top:1px solid #eef2f5"><div style="font-size:13px;font-style:italic;color:#8a9aa8;margin-bottom:4px">${t}</div>${rws.map(r=>line(r.name, money(amtOf(r))+(suffix||''))).join('')}${subLabel?line(subLabel, money(sum(rws)), true):''}</div>` : '';
     const optCb = r => `<label data-act="ppOpt" data-arg="${r.id}" style="display:flex;align-items:center;gap:10px;padding:5px 0;cursor:pointer;font-size:14px;color:#13314c"><span style="width:18px;height:18px;border-radius:3px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${p.opt[r.id]?'background:#f58220;border:1px solid #f58220':'background:#fff;border:1px solid #b3b3b3'}">${p.opt[r.id]?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span>${r.name}</label>`;
     const info = this.propInfo(p.prop);
     return `<div data-act="pricePreviewClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:120">
@@ -2037,7 +2045,7 @@ class Component extends DCLogic {
                 <span style="display:inline-flex;align-items:center;gap:10px;font-size:13px;color:#4a5b6b;white-space:nowrap"><span style="display:inline-flex;align-items:center;gap:4px"><span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5)">home</span>${info.short}</span><span style="display:inline-flex;align-items:center;gap:4px"><span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5)">apartment</span>${p.unit}</span></span>
               </div>
               <div style="padding:8px 16px 0">
-                ${rows.length ? `${grp('Included every month', monthly)}${grp('Due at move-in', moveIn)}${chosenOpt.length?grp('Optional add-ons', chosenOpt, '/mo'):''}`
+                ${rows.length ? `${grp('Included every month', monthly)}${grp('Due At Application', atApp, '', 'At application total')}${grp('Due at Move In', atMoveIn, '', 'Move-in total')}${grp('Due one-time', otherOne, '', otherOne.length>1?'One-time total':'')}${chosenOpt.length?grp('Optional add-ons', chosenOpt, '/mo'):''}`
                   : `<div style="padding:16px 0;border-top:1px solid #eef2f5;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center">
                       <span class="material-symbols-outlined" style="font-size:30px;color:#c9d4dd">visibility_off</span>
                       <span style="font-size:13px;font-weight:600;color:#13314c">${ilsProp?'No charges are set to show on listings yet':'No charges on this profile yet'}</span>
@@ -2699,7 +2707,7 @@ class Component extends DCLogic {
       <div style="display:flex;flex-direction:column;gap:4px">${lab('Marketing Description')}<textarea id="m-marketing" class="fld" style="height:56px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${ed&&ed.listing?(ed.listing.marketing||''):''}</textarea></div>
       <div style="display:flex;gap:12px;align-items:flex-start">
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px"><span style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:#666">Charge Requirement${this.reqHelp()}</span>${dd('m-req',['Required','Optional','Situational'],req,{noSearch:true,placeholder:'Select a charge requirement',js:"document.getElementById('m-sitdesc-wrap').style.display=(_v==='Situational'?'flex':'none');if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Fee Due')}${dd('m-due',['At Application','During Term','Move-Out'],(ed&&ed.listing&&ed.listing.feeDue)||'',{noSearch:true,placeholder:'Select when the fee is due',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Fee Due')}${dd('m-due',['At Application','Move-In','During Term','Move-Out'],(ed&&ed.listing&&ed.listing.feeDue)||'',{noSearch:true,placeholder:'Select when the fee is due',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>
         ${isOne?'':`<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Schedule',true)}${dd('m-sched',['Monthly','Weekly','Daily'],(ed&&ed.listing&&ed.listing.schedule)||'',{noSearch:true,placeholder:'Select a charge schedule',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`}
       </div>
       <label style="display:inline-flex;align-items:center;gap:8px;align-self:flex-start;font-size:14px;color:#13314c;cursor:pointer"><input type="checkbox" id="m-refund" ${refundable?'checked':''} style="width:16px;height:16px;margin:0;accent-color:#f58220">Refundable</label>
