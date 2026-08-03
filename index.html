@@ -650,6 +650,9 @@ class Component extends DCLogic {
         if (c && this.setupDirty(c)) { this.setState({ setupExit: true }); break; }
         this.setState({ setup: null, setupExit: false });
         break; }
+      case 'setupOv': this.setState(s => { const c = s.setup, m = Object.assign({}, c.ovx);
+        m[arg] = !this.setupOvOpen(arg);
+        return { setup: Object.assign({}, c, { ovx: m }) }; }); break;
       case 'setupExitCancel': this.setState({ setupExit: false }); break;
       case 'setupExitConfirm': this.setState({ setup: null, setupExit: false }); this.flash('Setup canceled — nothing was changed'); break;
       // Step 2 is walked once per selected property, then the review closes the flow.
@@ -1768,31 +1771,46 @@ class Component extends DCLogic {
         ${chrome ? '' : `<div style="position:relative;height:0"><div style="position:absolute;left:50%;transform:translateX(-50%);bottom:26px">${this.setupDots(c.step)}</div></div>`}
       </div></div>`;
   }
+  // Whether a property's breakdown is expanded on the overview: a single-property run opens on it,
+  // a bulk run keeps every property collapsed until asked.
+  setupOvOpen(p){
+    const c = this.state.setup; const m = (c && c.ovx) || {};
+    return (p in m) ? !!m[p] : this.setupProps().length === 1;
+  }
   setupStep1(){
     const src = this.setupSources();
     const total = src.reduce((n,r)=>n+r[1],0);
+    const props = this.setupProps();
     const pill = lvl => this.chargeLevelPill({ level: lvl, target: lvl === 'Unit Type' ? 'Unit Type' : '' });
     const cols = 'minmax(200px,1fr) 140px 40px 130px';
-    return `<div style="display:flex;flex-direction:column;gap:18px">
-      ${(() => { const props = this.setupProps(); if (props.length < 2) return '';
-        // Says up front that this is a run over several properties, each answered on its own.
-        return `<div style="display:flex;flex-direction:column;gap:8px;background:#f0f6fb;border:1px solid #cedbe7;border-radius:4px;padding:12px 14px">
-          <span style="font-size:15px;font-weight:600;color:#13314c">Setting up ${props.length} properties</span>
-          <span style="font-size:13px;color:#4a5b6b;line-height:1.45">You'll choose which charges to include for each property in turn, one screen per property, then review them all together before anything is created.</span>
-          <div style="display:flex;flex-wrap:wrap;gap:6px">${props.map(p=>`<span style="display:inline-flex;align-items:center;gap:5px;background:#fff;border:1px solid #cedbe7;border-radius:12px;padding:3px 10px;font-size:13px;color:#13314c;white-space:nowrap"><span class="material-symbols-outlined" style="font-size:15px;color:var(--ac,#008dd5)">home</span>${p}</span>`).join('')}</div>
-        </div>`; })()}
-      <div style="display:flex;flex-direction:column;gap:4px">
-        <span style="font-size:14px;font-weight:600;color:#13314c">${total} charges configured in ${src.length} places</span>
-        <span style="font-size:13px;color:#8a9aa8">The profile brings them into one page, organized by who they apply to:</span>
-      </div>
+    // The breakdown of where a property's charges come from — the same sources for every property.
+    const breakdown = `<div style="padding:0 14px 14px;display:flex;flex-direction:column;gap:8px">
+      <span style="font-size:13px;color:#8a9aa8">The profile brings them into one page, organized by who they apply to:</span>
       <div style="border:1px solid #e3e9ee;border-radius:4px;overflow:hidden">
-        <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #e3e9ee">${['Source','Number of Charges','','Charge Application'].map((h,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:600;color:#13314c">${h}</span>`).join('')}</div>
-        ${src.map(r=>`<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #f0f4f7">
+        <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #e3e9ee;background:#f7f9fb">${['Source','Number of Charges','','Charge Application'].map((h,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:600;color:#13314c">${h}</span>`).join('')}</div>
+        ${src.map((r,ri)=>`<div style="display:grid;grid-template-columns:${cols};align-items:center;${ri===src.length-1?'':'border-bottom:1px solid #f0f4f7'}">
           <span style="padding:9px 12px 9px 16px;font-size:13px;color:#13314c">${r[0]}</span>
           <span style="padding:9px 12px;font-size:13px;color:#13314c">${r[1]}</span>
-          <span style="padding:9px 12px;color:#8a9aa8;font-size:16px">→</span>
+          <span style="padding:9px 12px;color:#8a9aa8;font-size:16px">&rarr;</span>
           <span style="padding:9px 12px">${pill(r[2])}</span></div>`).join('')}
-      </div>
+      </div></div>`;
+    const section = (p) => { const open = this.setupOvOpen(p);
+      return `<div style="border:1px solid #cedbe7;border-radius:4px;overflow:hidden">
+        <div data-act="setupOv" data-arg="${p}" style="display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;background:${open?'#f7f9fb':'#fff'}">
+          <span class="material-symbols-outlined" style="font-size:20px;color:#666">${open?'arrow_drop_down':'arrow_right'}</span>
+          <span class="material-symbols-outlined" style="font-size:19px;color:var(--ac,#008dd5)">home</span>
+          <span style="font-size:15px;font-weight:600;color:#13314c">${p}</span>
+          <div style="flex:1"></div>
+          <span style="font-size:14px;color:#4a5b6b;white-space:nowrap">${total} charges in ${src.length} places</span>
+        </div>
+        ${open ? breakdown : ''}
+      </div>`; };
+    return `<div style="display:flex;flex-direction:column;gap:14px">
+      ${props.length < 2 ? '' : `<div style="display:flex;flex-direction:column;gap:8px;background:#f0f6fb;border:1px solid #cedbe7;border-radius:4px;padding:12px 14px">
+        <span style="font-size:15px;font-weight:600;color:#13314c">Setting up ${props.length} properties</span>
+        <span style="font-size:13px;color:#4a5b6b;line-height:1.45">You'll choose which charges to include for each property in turn, one screen per property, then review them all together before anything is created.</span>
+      </div>`}
+      ${props.map(section).join('')}
       <div style="display:flex;align-items:flex-start;gap:10px;background:#13314c;border-radius:4px;padding:12px 16px">
         <span class="material-symbols-outlined" style="font-size:20px;color:#fff;flex:none">help</span>
         <span style="font-size:13px;color:#fff;line-height:1.5">Going forward, new move-ins, quotes, and renewals will charge from this profile. Existing tenant charges are unaffected.</span>
