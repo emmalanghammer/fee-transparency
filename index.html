@@ -2617,11 +2617,11 @@ class Component extends DCLogic {
     const knob = `<span style="position:absolute;top:2px;left:${swOn?'16px':'2px'};width:14px;height:14px;border-radius:50%;background:#fff;transition:left 120ms ease-out;display:flex;align-items:center;justify-content:center"><span class="material-symbols-outlined" style="display:${swOn?'block':'none'};font-size:12px;color:var(--ac,#008dd5);font-weight:700">check</span></span>`;
     const swJs = "if(this.getAttribute('data-dis')==='1')return;var on=this.getAttribute('data-on')==='1';on=!on;this.setAttribute('data-on',on?'1':'0');document.getElementById('m-ils').value=on?'1':'0';this.style.background=on?'var(--ac,#008dd5)':'#cedbe7';this.firstElementChild.style.left=on?'16px':'2px';this.firstElementChild.firstElementChild.style.display=on?'block':'none';if(window.__calcNote)window.__calcNote();if(window.__mitsRecheck)window.__mitsRecheck()";
     const ilsBox = this.ilsOn() ? `
-        <div id="m-ils-msg" style="display:${complete?'none':'flex'};align-items:center;gap:10px;flex-wrap:wrap">
-          <span style="font-size:14px;color:#13314c">Fill in the following fields above to have this charge appear on listings:</span>
-          <span id="m-ils-need" style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap">${missing.map(chip).join('')}</span>
-        </div>
         <div style="border:1px solid #cedbe7;border-radius:4px;padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+          <div id="m-ils-msg" style="display:${complete?'none':'flex'};align-items:center;gap:10px;flex-wrap:wrap">
+            <span style="font-size:14px;color:#13314c">Fill in the following fields above to have this charge appear on listings:</span>
+            <span id="m-ils-need" style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap">${missing.map(chip).join('')}</span>
+          </div>
           <label style="display:inline-flex;align-items:center;gap:10px;align-self:flex-start;cursor:${swLive?'pointer':'default'}"><span id="m-ils-sw" data-dis="${swLive?'0':'1'}" onclick="${swJs}" data-on="${swOn?'1':'0'}" style="display:inline-block;width:32px;height:18px;border-radius:999px;background:${!swLive?'#dfe6ec':(swOn?'var(--ac,#008dd5)':'#cedbe7')};position:relative;flex:none;cursor:${swLive?'pointer':'default'}">${knob}</span><span id="m-ils-lbl" style="font-size:14px;color:${swLive?'#13314c':'#a6b2bd'}">Include on listings</span></label>
           ${ilsNote}
         </div>
