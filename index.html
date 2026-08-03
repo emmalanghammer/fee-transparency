@@ -1879,8 +1879,11 @@ class Component extends DCLogic {
   // Selected-scope header row (mirrors the property scoreboard) used by the Unit Type Fees and Unit Fees tabs.
   ufUnits(){ const p=this.state.property; return this.units().map(u=>Object.assign({}, u, { prop:p })); }
   recChargesTile(scope){
+    // Nothing to open until the property actually has a profile.
+    const link = this.profStatus() === 'active'
+      ? `<a data-act="openFeeProfile" style="font-size:14px;color:var(--ac,#008dd5)">Open Rental Fee Profile</a>` : '';
     return `<div class="tile">
-      <div class="thead2"><span class="ttl">Recurring Charges</span><div style="flex:1"></div><a data-act="openFeeProfile" style="font-size:14px;color:var(--ac,#008dd5)">Open Rental Fee Profile</a><span data-act="recViewOpen" data-arg="${scope}" class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);cursor:pointer" title="View recurring charges">open_in_new</span></div>
+      <div class="thead2"><span class="ttl">Recurring Charges</span><div style="flex:1"></div>${link}<span data-act="recViewOpen" data-arg="${scope}" class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);cursor:pointer" title="View recurring charges">open_in_new</span></div>
       ${this.recChargesTableHTML({scope, edge:true})}
     </div>`;
   }
