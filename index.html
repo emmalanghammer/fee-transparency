@@ -2362,10 +2362,10 @@ class Component extends DCLogic {
     // falls back to this one.
     const oriProp = (ed && ed.level === 'ORI' && this.propNames().indexOf(ed.target) >= 0) ? ed.target : this.state.property;
     const chargeApp = `<div style="display:flex;gap:12px;align-items:flex-start">
-      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Level *')}${dd('m-app',['Property','Unit Type','Unit','ORI'],app,{noSearch:true,js:appToggle})}</div>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Level *')}${dd('m-app',['Property','Unit Type','Unit'].concat(cre ? [] : ['ORI']),app,{noSearch:true,js:appToggle})}</div>
       ${tgt('ut','Unit Type','Unit Type','m-appt-ut', app==='Unit Type'?(ed&&ed.target||''):'', '2BR/2BA')}
       ${tgt('unit','Unit','Unit','m-appt-unit', app==='Unit'?(ed&&ed.target||''):'', '2C', this.units().map(u=>u.u))}
-      ${tgt('ori','Property','ORI','m-appt-ori', oriProp, '', this.propNames())}
+      ${cre ? '' : tgt('ori','Property','ORI','m-appt-ori', oriProp, '', this.propNames())}
     </div>`;
 
     // ---- Charge Type typeahead; selecting one derives the Charge Category below ----
