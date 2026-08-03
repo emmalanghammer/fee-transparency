@@ -2379,21 +2379,55 @@ class Component extends DCLogic {
 
     // ---- Charge Application + its target field ----
     const app = ed ? (ed.level || 'Property') : 'Property';
-    const appToggle = "var v=_v;['ut','unit','ori'].forEach(function(k){var e=document.getElementById('m-appt-'+k+'-wrap');if(e)e.style.display='none'});var t={'Unit Type':'ut','Unit':'unit','ORI':'ori'}[v];if(t){var w=document.getElementById('m-appt-'+t+'-wrap');if(w)w.style.display='flex'}";
+    const appToggle = "if(window.__lvlChange)window.__lvlChange(_v)";
     const searchField = (id,val,ph) => `<div style="display:flex;align-items:center;gap:6px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5)">search</span><input id="${id}" value="${esc(val)}" placeholder="${ph}" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:#13314c"></div>`;
-    const tgt = (key,label,id,val,ph,opts) => `<div id="m-appt-${key}-wrap" style="display:${app===label?'flex':'none'};flex-direction:column;gap:4px;flex:1;min-width:0">${lab(label+' *')}${opts ? dd(id, opts, val, { placeholder:'Select a '+label.toLowerCase() }) : searchField(id,val,ph)}</div>`;
+    // lvl is the Charge Level this target belongs to — usually the same as its label, except ORI,
+    // whose target is the property the rentable item comes from.
+    const tgt = (key,label,lvl,id,val,ph,opts) => `<div id="m-appt-${key}-wrap" style="display:${app===lvl?'flex':'none'};flex-direction:column;gap:4px;flex:1;min-width:0">${lab(label+' *')}${opts ? dd(id, opts, val, { placeholder:'Select a '+label.toLowerCase() }) : searchField(id,val,ph)}</div>`;
+    // An ORI charge only names the property here; the specific rentable item is chosen when the charge
+    // is applied to a prospect. Legacy rows stored an item name, so anything that isn't a property
+    // falls back to this one.
+    const oriProp = (ed && ed.level === 'ORI' && this.propNames().indexOf(ed.target) >= 0) ? ed.target : this.state.property;
     const chargeApp = `<div style="display:flex;gap:12px;align-items:flex-start">
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Level *')}${dd('m-app',['Property','Unit Type','Unit','ORI'],app,{noSearch:true,js:appToggle})}</div>
-      ${tgt('ut','Unit Type','m-appt-ut', app==='Unit Type'?(ed&&ed.target||''):'', '2BR/2BA')}
-      ${tgt('unit','Unit','m-appt-unit', app==='Unit'?(ed&&ed.target||''):'', '2C', this.units().map(u=>u.u))}
-      ${tgt('ori','ORI','m-appt-ori', app==='ORI'?(ed&&ed.target||''):'', 'Garage Spot 1')}
+      ${tgt('ut','Unit Type','Unit Type','m-appt-ut', app==='Unit Type'?(ed&&ed.target||''):'', '2BR/2BA')}
+      ${tgt('unit','Unit','Unit','m-appt-unit', app==='Unit'?(ed&&ed.target||''):'', '2C', this.units().map(u=>u.u))}
+      ${tgt('ori','Property','ORI','m-appt-ori', oriProp, '', this.propNames())}
     </div>`;
 
     // ---- Charge Type typeahead; selecting one derives the Charge Category below ----
     const setCat = "var cc=this.getAttribute('data-cat');var d=document.getElementById('m-cat-disp');var e=document.getElementById('m-cat-err');var ph=document.getElementById('m-cat-ph');document.getElementById('m-cat').value=cc||'';ph.style.display='none';if(cc){d.textContent=cc;d.style.display='block';e.style.display='none';}else{d.style.display='none';e.style.display='flex';}if(window.__mitsRecheck)window.__mitsRecheck();";
-    const ctItems = this.chargeTypeList().map(([c,d2]) => `<div data-cat="${catFor(c)}" data-ct="${(c+' '+d2).toLowerCase()}" onmousedown="document.getElementById('m-ctype').value='${c}';document.getElementById('m-ctype-desc').value='${d2.replace(/'/g,"")}';${setCat}document.getElementById('m-ctype-panel').style.display='none'" style="padding:8px 12px;cursor:pointer" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''"><div style="font-size:15px;color:#13314c">${c}</div><div style="font-size:13px;color:#8a9aa8">${d2}</div></div>`).join('');
+    // Charge types that can sit on a rentable item — the only ones offered at the ORI level.
+    const oriTypes = /^(COVPARK|GARAGE|PARK|SF|STORAGE|EVCHG)$/;
+    const ctItems = this.chargeTypeList().map(([c,d2]) => `<div data-cat="${catFor(c)}" data-ori="${oriTypes.test(c)?'1':'0'}" data-ct="${(c+' '+d2).toLowerCase()}" onmousedown="document.getElementById('m-ctype').value='${c}';document.getElementById('m-ctype-desc').value='${d2.replace(/'/g,"")}';${setCat}document.getElementById('m-ctype-panel').style.display='none'" style="padding:8px 12px;cursor:pointer" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''"><div style="font-size:15px;color:#13314c">${c}</div><div style="font-size:13px;color:#8a9aa8">${d2}</div></div>`).join('');
+    // The type list is filtered by the search box and, at the ORI level, narrowed to rentable-item types.
+    window.__ctFilter = () => {
+      const list = this.q('#m-ctype-list'); if (!list) return;
+      const q = ((this.q('#m-ctype') || {}).value || '').toLowerCase();
+      const oriOnly = ((this.q('#m-app') || {}).value) === 'ORI';
+      list.querySelectorAll('[data-ct]').forEach(el => {
+        const ok = el.getAttribute('data-ct').indexOf(q) >= 0 && (!oriOnly || el.getAttribute('data-ori') === '1');
+        el.style.display = ok ? 'block' : 'none';
+      });
+    };
+    // Charge Level changes swap the target field, and ORI additionally narrows the charge types and
+    // prices off market rent, since a rentable item's rate follows the property's market rate.
+    window.__lvlChange = (v) => {
+      ['ut','unit','ori'].forEach(k => { const e = this.q('#m-appt-' + k + '-wrap'); if (e) e.style.display = 'none'; });
+      const t = { 'Unit Type':'ut', 'Unit':'unit', 'ORI':'ori' }[v];
+      if (t) { const w = this.q('#m-appt-' + t + '-wrap'); if (w) w.style.display = 'flex'; }
+      if (v === 'ORI') {
+        const m = this.q('#m-method'), md = this.q('#m-method-disp'), s = this.q('#m-source');
+        if (m) m.value = 'Reference';
+        if (s) s.value = 'Reference';
+        if (md) { md.textContent = 'Reference'; md.style.color = '#13314c'; md.style.fontStyle = 'normal'; }
+        ['flat','ref','calc'].forEach(k => { const b = this.q('#m-blk-' + k); if (b) b.style.display = (k === 'ref' ? 'flex' : 'none'); });
+        if (window.__calcNote) window.__calcNote();
+      }
+      window.__ctFilter();
+    };
     const ctypeField = `<div style="position:relative">
-      <div style="display:flex;align-items:center;gap:4px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">search</span><input id="m-ctype" autocomplete="off" placeholder="Search charge types" value="${esc(ed?ed.mits:'')}" onfocus="document.getElementById('m-ctype-panel').style.display='block'" onblur="var p=document.getElementById('m-ctype-panel');setTimeout(function(){p.style.display='none'},200)" oninput="var q=this.value.toLowerCase();document.getElementById('m-ctype-panel').style.display='block';document.getElementById('m-ctype-list').querySelectorAll('[data-ct]').forEach(function(el){el.style.display=(el.getAttribute('data-ct').indexOf(q)>=0?'block':'none')})" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:#13314c"></div>
+      <div style="display:flex;align-items:center;gap:4px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">search</span><input id="m-ctype" autocomplete="off" placeholder="Search charge types" value="${esc(ed?ed.mits:'')}" onfocus="document.getElementById('m-ctype-panel').style.display='block';if(window.__ctFilter)window.__ctFilter()" onblur="var p=document.getElementById('m-ctype-panel');setTimeout(function(){p.style.display='none'},200)" oninput="document.getElementById('m-ctype-panel').style.display='block';if(window.__ctFilter)window.__ctFilter()" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:#13314c"></div>
       <input type="hidden" id="m-ctype-desc" value="${esc(ed?ed.name:'')}">
       <div id="m-ctype-panel" style="display:none;position:absolute;left:0;right:0;top:40px;z-index:20;background:#fff;border:1px solid #cedbe7;border-radius:4px;box-shadow:0 3px 6px rgba(0,0,0,0.15);max-height:220px;overflow-y:auto"><div id="m-ctype-list">${ctItems}</div></div>
     </div>`;
