@@ -116,6 +116,7 @@ class Component extends DCLogic {
     histLog: [],
     nextFeeId: 101,
     setup: null,            // { prop, step:1|2|'saving', excl:{} }
+    setupExit: false,       // the "leave setup?" confirmation over the wizard
     lvlSel: 'all',          // 'all' | 'Property' | 'Unit Type' | 'Unit' | 'ORI'
     bannerDismissed: {},
     pricePreview: null,     // { prop, unit, opt:{}, sitOpen }
@@ -532,7 +533,16 @@ class Component extends DCLogic {
 
       // ---- Rental Fee Profile setup wizard ----
       case 'setupOpen': this.setState({ recView: null, setup: { props: [arg || this.state.property], step: 1, excl: {} } }); break;
-      case 'setupClose': this.setState({ setup: null }); break;
+      // Leaving mid-flow throws away the charge selections and requirements picked so far, so it asks
+      // first. Nothing to lose on step 1 before anything is touched, and the saving/success steps
+      // have already written the profile — those close straight away.
+      case 'setupClose': {
+        const c = this.state.setup;
+        if (c && this.setupDirty(c)) { this.setState({ setupExit: true }); break; }
+        this.setState({ setup: null, setupExit: false });
+        break; }
+      case 'setupExitCancel': this.setState({ setupExit: false }); break;
+      case 'setupExitConfirm': this.setState({ setup: null, setupExit: false }); this.flash('Setup canceled — nothing was changed'); break;
       // Step 2 is walked once per selected property, then the review closes the flow.
       case 'setupNext': this.setState(s => { const c = s.setup, n = (c.props || []).length;
         if ((c.step || 1) === 1) return { setup: Object.assign({}, c, { step: 2, pi: 0 }) };
@@ -1486,6 +1496,34 @@ class Component extends DCLogic {
       // already carry pulled-in marketing details (NSF, late fees) keep them.
       return Object.assign({}, r, { group: prefix + suffix, listing: Object.assign({}, r.listing, { requirement: req }) });
     });
+  }
+  // True once there's something to lose: past step 1, or a charge unchecked / a requirement picked /
+  // the acknowledgement ticked. The saving and success steps have already committed, so they're clean.
+  setupDirty(c){
+    if (!c || c.step === 'saving' || c.step === 'done') return false;
+    if ((c.step || 1) > 1) return true;
+    if (c.ack) return true;
+    const any = m => Object.keys(m || {}).some(k => Object.keys(m[k] || {}).length);
+    return any(c.excl) || any(c.req);
+  }
+  setupExitHTML(){
+    if (!this.state.setupExit || !this.state.setup) return '';
+    const props = this.setupProps();
+    return `<div data-act="setupExitCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.35);display:flex;align-items:center;justify-content:center;z-index:160">
+      <div data-act="noop" style="width:440px;max-width:92vw;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:flex-start;gap:12px;padding:20px 22px 6px">
+          <span class="material-symbols-outlined" style="font-size:24px;color:#b35a00;flex:none">warning</span>
+          <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
+            <span style="font-size:16px;font-weight:600;color:#13314c">Leave setup without saving?</span>
+            <span style="font-size:13px;color:#4a5b6b;line-height:1.5">The charges and requirements you've picked won't be saved, and no Rental Fee Profile will be created${props.length > 1 ? ' on any of the ' + props.length + ' properties' : ''}. Your existing charges stay exactly as they are.</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:16px 22px 20px">
+          <div style="flex:1"></div>
+          <button data-act="setupExitCancel" class="btn-out" style="height:36px;min-height:36px;padding:0 18px;border-radius:4px;font-size:14px">Keep Setting Up</button>
+          <button data-act="setupExitConfirm" class="btn-pri" style="height:36px;min-height:36px;padding:0 18px;border-radius:4px;font-size:14px">Leave Setup</button>
+        </div>
+      </div></div>`;
   }
   setupHTML(){
     const c = this.state.setup; if (!c) return '';
@@ -2830,6 +2868,7 @@ class Component extends DCLogic {
     out += this.rowMenuHTML();
     out += this.recViewHTML();
     out += this.setupHTML();
+    out += this.setupExitHTML();
     out += this.addPropHTML();
     out += this.pfFilterHTML();
     out += this.pricePreviewHTML();
