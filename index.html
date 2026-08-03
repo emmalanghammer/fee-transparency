@@ -9,7 +9,9 @@
 <x-dc>
 <helmet>
   <link rel="stylesheet" href="_ds/rmx-design-system-019dd9a2-6db7-79d2-bf37-c82345a95d1d/colors_and_type.css">
-  <link href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" rel="stylesheet">
+  <!-- The variable request (not the legacy /icon endpoint) so the FILL axis is actually available;
+       icons stay outlined by default and opt into the filled variant individually. -->
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
   <script src="_ds/rmx-design-system-019dd9a2-6db7-79d2-bf37-c82345a95d1d/_ds_bundle.js"></script>
   <style>
     body { margin: 0; background: #f5f8fa; font-family: Roboto, sans-serif; }
@@ -1506,22 +1508,25 @@ class Component extends DCLogic {
     const any = m => Object.keys(m || {}).some(k => Object.keys(m[k] || {}).length);
     return any(c.excl) || any(c.req);
   }
+  // "Leave Setup" confirmation (mock 2637-31905).
   setupExitHTML(){
     if (!this.state.setupExit || !this.state.setup) return '';
-    const props = this.setupProps();
     return `<div data-act="setupExitCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.35);display:flex;align-items:center;justify-content:center;z-index:160">
-      <div data-act="noop" style="width:440px;max-width:92vw;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
-        <div style="display:flex;align-items:flex-start;gap:12px;padding:20px 22px 6px">
-          <span class="material-symbols-outlined" style="font-size:24px;color:#b35a00;flex:none">warning</span>
-          <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
-            <span style="font-size:16px;font-weight:600;color:#13314c">Leave setup without saving?</span>
-            <span style="font-size:13px;color:#4a5b6b;line-height:1.5">The charges and requirements you've picked won't be saved, and no Rental Fee Profile will be created${props.length > 1 ? ' on any of the ' + props.length + ' properties' : ''}. Your existing charges stay exactly as they are.</span>
+      <div data-act="noop" style="width:512px;max-width:92vw;background:#fff;border:1px solid #cedbe7;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:12px;padding:13px 20px;border-bottom:1px solid #cedbe7">
+          <span style="font-size:20px;color:#13314c">Leave Setup</span><div style="flex:1"></div>
+          <span data-act="setupExitCancel" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:20px;padding:24px 24px 26px">
+          <span class="material-symbols-outlined" style="font-size:36px;color:var(--ac,#008dd5);flex:none;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">warning</span>
+          <div style="display:flex;flex-direction:column;gap:18px;min-width:0;font-size:15px;color:#666;line-height:1.5">
+            <span>The charges and requirements you've picked won't be saved, and no Rental Fee Profile will be created. Your existing charges stay exactly as they are.</span>
+            <span>Are you sure you want to exit the Rental Fee Profile Setup?</span>
           </div>
         </div>
-        <div style="display:flex;align-items:center;gap:12px;padding:16px 22px 20px">
-          <div style="flex:1"></div>
-          <button data-act="setupExitCancel" class="btn-out" style="height:36px;min-height:36px;padding:0 18px;border-radius:4px;font-size:14px">Keep Setting Up</button>
-          <button data-act="setupExitConfirm" class="btn-pri" style="height:36px;min-height:36px;padding:0 18px;border-radius:4px;font-size:14px">Leave Setup</button>
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:14px 20px;background:#f5f8fa;border-top:1px solid #cedbe7">
+          <button data-act="setupExitConfirm" class="btn-pri" style="height:38px;min-height:38px;padding:0 22px;border-radius:4px;font-size:15px">Leave Setup</button>
+          <button data-act="setupExitCancel" class="btn-out" style="height:38px;min-height:38px;padding:0 22px;border-radius:4px;font-size:15px">Cancel</button>
         </div>
       </div></div>`;
   }
@@ -2054,10 +2059,10 @@ class Component extends DCLogic {
         ${!unitScope ? '' : `<div style="display:flex;align-items:center;justify-content:space-between;gap:20px;background:#fff;border:1px solid #e3e9ee;border-radius:4px;margin:12px 20px 0;padding:14px 20px">
           <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;min-width:0">
           <span style="font-size:15px;color:#13314c">${this.state.unit}</span>
-          <span style="display:inline-flex;align-items:center;gap:10px;font-size:15px;color:#13314c"><span class="material-symbols-outlined" style="font-size:21px;color:var(--ac,#008dd5);font-variation-settings:'FILL' 1">home</span>${prop}</span>
+          <span style="display:inline-flex;align-items:center;gap:10px;font-size:15px;color:#13314c"><span class="material-symbols-outlined" style="font-size:21px;color:var(--ac,#008dd5);font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">home</span>${prop}</span>
           ${(() => { const occupied = info.tenant && !/vacant|notice/i.test(info.tenant);
             // The co-tenant chip only makes sense when someone is actually on the lease.
-            return `<span style="display:inline-flex;align-items:center;gap:10px;font-size:15px;color:#13314c"><span class="material-symbols-outlined" style="font-size:21px;color:var(--ac,#008dd5);font-variation-settings:'FILL' 1">person</span>${info.tenant}${occupied?`<span style="display:inline-flex;align-items:center;gap:2px;border:1px solid var(--ac,#008dd5);border-radius:12px;padding:1px 8px;font-size:13px;color:var(--ac,#008dd5)">+1<span class="material-symbols-outlined" style="font-size:16px">arrow_drop_down</span></span>`:''}</span>
+            return `<span style="display:inline-flex;align-items:center;gap:10px;font-size:15px;color:#13314c"><span class="material-symbols-outlined" style="font-size:21px;color:var(--ac,#008dd5);font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">person</span>${info.tenant}${occupied?`<span style="display:inline-flex;align-items:center;gap:2px;border:1px solid var(--ac,#008dd5);border-radius:12px;padding:1px 8px;font-size:13px;color:var(--ac,#008dd5)">+1<span class="material-symbols-outlined" style="font-size:16px">arrow_drop_down</span></span>`:''}</span>
           <span style="font-size:15px;color:#13314c">Unit Type: ${info.type} / ${this.state.unit}</span>`; })()}
           </div>
           <span style="font-size:15px;color:#13314c;white-space:nowrap">Market Rent: ${this.money(this.parseAmt(info.rent)).replace(/^\$/,'')}</span>
@@ -2090,8 +2095,8 @@ class Component extends DCLogic {
       <div style="flex:1;display:flex;flex-direction:column;gap:12px;min-width:0">
         <div style="font-size:18px;font-weight:600;color:#13314c">${info.u}</div>
         <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">
-          <span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:#13314c"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);font-variation-settings:'FILL' 1">home</span>${this.state.property}</span>
-          <span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:#13314c"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);font-variation-settings:'FILL' 1">person</span>${info.tenant}</span>
+          <span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:#13314c"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">home</span>${this.state.property}</span>
+          <span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:#13314c"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">person</span>${info.tenant}</span>
           <span style="font-size:14px;color:#666">Unit Type: <span style="color:#13314c">${info.type}</span></span>
         </div>
       </div>
