@@ -384,7 +384,6 @@ class Component extends DCLogic {
       SF:         ['Storage Closet', 'Private storage closet, available to reserve while supplies last.'],
       AMENFEE:    ['Pool & Fitness Access', 'Optional access to the pool and fitness center.'],
       COVPARK:    ['Covered Parking', 'Reserved covered parking space, priced at market rate.'],
-      HOLD:       ['Hold Fee', 'Holds the unit off the market while your application is processed.'],
       PETFEE:     ['Pet Rent', 'Monthly rent per pet on the lease, up to two pets.'],
       PETDP:      ['Pet Deposit', 'Refundable deposit charged when a pet is added to the lease.'],
       EVCHG:      ['EV Charging', 'Access to the property’s EV charging stations.'],
@@ -394,13 +393,15 @@ class Component extends DCLogic {
     // Anything collected before the lease starts is due at application; the rest during the term.
     const dueAtApp = /^(ADMIN|APPFEE|DP|LMR|KEY|HOLD|PETDP)$/;
     const req = g => /^req/.test(g) ? 'Required' : /^opt/.test(g) ? 'Optional' : 'Situational';
-    return this.setupCandidates().map(r => {
+    // The hold fee is left off this property: its charge type has no MITS category, and inventing one
+    // would be the opposite of what this example is for.
+    return this.setupCandidates().filter(r => r.mits !== 'HOLD').map(r => {
       const m = M[r.mits] || [r.name, ''];
       const oneTime = /-one$/.test(r.group || '');
       return Object.assign({}, r, { ils: true, listing: Object.assign({}, r.listing, {
         name: m[0],
-        // EV charging has no mapped category on purpose, so this example spells one out.
-        category: this.chargeCategoryFor(r.mits) || 'Utility',
+        // EV charging has no mapped category on purpose, so this example spells its own out.
+        category: this.chargeCategoryFor(r.mits) || (r.mits === 'EVCHG' ? 'Utility' : ''),
         marketing: m[1],
         requirement: req(r.group),
         feeDue: dueAtApp.test(r.mits) ? 'At Application' : 'During Term',
@@ -2632,7 +2633,9 @@ class Component extends DCLogic {
       </div>`;
 
     // ---- Marketing Details (always available; MITS 5.0 / listing fields) ----
-    const edCat = ed ? catFor(ed.mits) : '';
+    // A category stored on the charge wins over the charge-type map — the same order the completeness
+    // check uses, so the display can't claim "no category" on a charge that reads as Listing Ready.
+    const edCat = ed ? ((ed.listing && ed.listing.category) || catFor(ed.mits)) : '';
     const hasCode = !!(ed && ed.mits);
     const req = (ed && ed.listing && ed.listing.requirement) || (ed ? this.defaultRequirement(ed) : '');
     const refundable = ed && ed.listing && ed.listing.refundable !== undefined ? ed.listing.refundable : this.defaultRefundable(ed);
