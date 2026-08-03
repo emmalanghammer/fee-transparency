@@ -1144,11 +1144,13 @@ class Component extends DCLogic {
          <span class="material-symbols-outlined" style="color:#666;cursor:pointer;flex:none">chevron_right</span>
        </div>`);
 
+    // General runs the full width of the page, so its fields sit three across instead of stacking.
+    const gcols = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px';
     const general = tile(`General <span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,#008dd5);vertical-align:-3px">info</span>`,'',
-      `${input('Full Name', p)}
-       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">${input('Short Name',P.short)}${select('Display Color','Apartment Complex')}</div>
-       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">${input('Manager',P.manager)}${input('Email',P.email,'Manage Subscriptions')}</div>
-       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:end"><div style="display:flex;flex-direction:column;gap:4px;min-width:0"><span style="font-size:13px;color:#666">Property Type</span><select class="fld" style="height:34px">${this.ptOpts('Apartment')}</select></div><div style="padding-bottom:8px">${check('Active',true)}</div></div>`);
+      `<div style="${gcols}">${input('Full Name', p)}${input('Short Name',P.short)}${select('Display Color','Apartment Complex')}</div>
+       <div style="${gcols}">${input('Manager',P.manager)}${input('Email',P.email,'Manage Subscriptions')}
+         <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end"><div style="display:flex;flex-direction:column;gap:4px;min-width:0"><span style="font-size:13px;color:#666">Property Type</span><select class="fld" style="height:34px">${this.ptOpts('Apartment')}</select></div><div style="padding-bottom:8px">${check('Active',true)}</div></div>
+       </div>`);
 
     const address = tile('Primary Address', `<span data-act="toast" data-arg="Open addresses" class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);cursor:pointer">open_in_new</span>`,
       `<div style="display:flex;align-items:center;border-bottom:1px solid #cedbe7">${['Primary','Alternate','Forwarding'].map((t,i)=>`<span data-act="toast" data-arg="${t} address" style="padding:8px 14px;font-size:13px;cursor:pointer;${i===0?'color:#13314c;font-weight:600;border-bottom:2px solid var(--ac,#008dd5)':'color:#666'}">${t}</span>`).join('')}<div style="flex:1"></div><span class="material-symbols-outlined" style="font-size:18px;color:#666">menu</span></div>
@@ -1203,7 +1205,8 @@ class Component extends DCLogic {
     let h='';
     h+=this.profileSetupBanner(p);
     h+=images;
-    h+=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;align-items:stretch">${general}${address}${logo}</div>`;
+    h+=general;
+    h+=two(address,logo);
     h+=two(other,history);
     h+=recurring;
     h+=two(fiscal,tz);
@@ -1628,15 +1631,18 @@ class Component extends DCLogic {
     const inc = all.filter(r => !ex[r.id]).length;
     const box = on => `<span style="width:18px;height:18px;border-radius:3px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${on?'background:#f58220;border:1px solid #f58220':'background:#fff;border:1px solid #b3b3b3'}">${on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span>`;
     const table = (label, rows, rec) => {
-      const cols = '44px 120px minmax(150px,1fr) 110px 110px 150px';
+      const cols = '44px 120px minmax(150px,1fr) 110px 110px 190px';
       const heads = ['','Charge Type','Comment','Amount','Charge Level','Charge Requirement'];
       const hc = (t,i) => `<span style="padding:8px 10px;font-size:12px;font-weight:600;color:#13314c;white-space:nowrap;${/Amount/.test(t)?'justify-content:flex-end;display:flex;':''}${t===heads[5]?'display:flex;align-items:center;gap:5px;':''}">${t}${t===heads[5]?this.reqHelp():''}</span>`;
       const cell = (t,extra,off) => `<span style="display:flex;align-items:center;min-height:38px;padding:6px 10px;font-size:13px;color:${off?'#a6b2bd':'#13314c'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
       // An excluded charge isn't going anywhere, so its requirement can't be set — the select is
       // disabled until the row is checked back on. The row click toggles inclusion, so the select
       // stops propagation to stay independently changeable.
+      // Nothing picked yet reads as an italic placeholder rather than a real value; the options
+      // themselves stay upright, so only the unset state looks unset.
       const reqSel = (r, off) => { const v = this.setupRequirement(r);
-        return `<span style="display:flex;align-items:center;min-height:38px;padding:6px 10px" onclick="event.stopPropagation()"><select ${off?'disabled':''} onchange="window.__setupReq('${r.id}', this.value)" style="width:100%;height:30px;border:1px solid ${off?'#e3e9ee':'#cedbe7'};border-radius:4px;background:${off?'#f7f9fb':'#f5f8fa'};font:400 13px Roboto,sans-serif;color:${off?'#c1cbd4':'#13314c'};padding:0 4px;cursor:${off?'default':'pointer'}"><option value="" ${v?'':'selected'}>Select</option>${['Required','Optional','Situational'].map(o=>`<option ${o===v?'selected':''}>${o}</option>`).join('')}</select></span>`; };
+        const ph = !v || off;
+        return `<span style="display:flex;align-items:center;min-height:38px;padding:6px 10px" onclick="event.stopPropagation()"><select ${off?'disabled':''} onchange="window.__setupReq('${r.id}', this.value);this.style.fontStyle=this.value?'normal':'italic';this.style.color=this.value?'#13314c':'#a6b2bd'" style="width:100%;height:30px;border:1px solid ${off?'#e3e9ee':'#cedbe7'};border-radius:4px;background:${off?'#f7f9fb':'#f5f8fa'};font:400 13px Roboto,sans-serif;font-style:${ph?'italic':'normal'};color:${ph?'#a6b2bd':'#13314c'};padding:0 6px;cursor:${off?'default':'pointer'}"><option value="" ${v?'':'selected'} style="font-style:italic;color:#a6b2bd">Select a requirement</option>${['Required','Optional','Situational'].map(o=>`<option ${o===v?'selected':''} style="font-style:normal;color:#13314c">${o}</option>`).join('')}</select></span>`; };
       return `<div style="font-size:13px;color:#666;padding:12px 0 6px">${label} (${rows.length})</div>
         <div style="border:1px solid #e3e9ee;border-radius:4px;overflow:hidden"><div style="overflow-x:auto"><div style="min-width:700px">
         <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #e3e9ee">${heads.map(hc).join('')}</div>
