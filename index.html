@@ -711,15 +711,24 @@ class Component extends DCLogic {
         this.setState({ bulkSetup: null, setup: { props: sel, step: 1, excl: {} } }); break; }
 
       // ---- Copy Property Fees ----
-      case 'copyOpen': this.setState({ profMenu: null, copyFees: { from: '', dup: 'skip', excl: {} } }); break;
+      case 'copyOpen': this.setState({ profMenu: null, copyFees: { from: '', dup: 'skip', sel: {} } }); break;
       case 'copyClose': this.setState({ copyFees: null }); break;
-      // Switching source resets the exclusions, since the ids belong to the previous property.
-      case 'copyFrom': this.setState(s => ({ copyFees: Object.assign({}, s.copyFees, { from: arg, excl: {} }) })); break;
+      // Switching source clears the selection, since the ids belong to the previous property. Nothing
+      // is picked by default — copying one charge shouldn't mean unticking seventeen.
+      case 'copyFrom': this.setState(s => ({ copyFees: Object.assign({}, s.copyFees, { from: arg, sel: {} }) })); break;
       case 'copyDup': this.setState(s => ({ copyFees: Object.assign({}, s.copyFees, { dup: arg }) })); break;
-      case 'copyToggle': this.setState(s => { const ex = Object.assign({}, s.copyFees.excl); if (ex[arg]) delete ex[arg]; else ex[arg] = true; return { copyFees: Object.assign({}, s.copyFees, { excl: ex }) }; }); break;
+      case 'copyToggle': this.setState(s => { const sel = Object.assign({}, s.copyFees.sel); if (sel[arg]) delete sel[arg]; else sel[arg] = true; return { copyFees: Object.assign({}, s.copyFees, { sel }) }; }); break;
+      // Select-all works per table, so recurring and one-time can be taken separately.
+      case 'copyAll': { const c = this.state.copyFees; const rows = this.profileRows(c.from)
+          .filter(r => arg === 'one' ? /-one$/.test(r.group) : !/-one$/.test(r.group));
+        const on = rows.length && rows.every(r => c.sel[r.id]);
+        this.setState(s => { const sel = Object.assign({}, s.copyFees.sel);
+          rows.forEach(r => { if (on) delete sel[r.id]; else sel[r.id] = true; });
+          return { copyFees: Object.assign({}, s.copyFees, { sel }) }; });
+        break; }
       case 'copySave': { const c = this.state.copyFees;
         if (!c || !c.from) { this.flash('Choose a property to copy from'); break; }
-        const picked = this.profileRows(c.from).filter(r => !c.excl[r.id]);
+        const picked = this.profileRows(c.from).filter(r => c.sel[r.id]);
         if (!picked.length) { this.flash('Select at least one charge'); break; }
         const out = this.profileRows().slice();
         let added = 0, replaced = 0, skipped = 0, nextId = this.state.nextFeeId;
@@ -734,7 +743,13 @@ class Component extends DCLogic {
         this.setState({ copyFees: null, nextFeeId: nextId });
         this.logChange(prop, 'Rental Fee Profile',
           'Copied fees from ' + c.from + ' · ' + added + ' added, ' + replaced + ' replaced, ' + skipped + ' skipped', prop);
-        this.flash(added + ' charges copied from ' + c.from);
+        // "0 charges copied" on its own reads like a failure, so the toast says what happened to the
+        // ones that didn't land.
+        const bits = [];
+        if (added) bits.push(added + ' copied');
+        if (replaced) bits.push(replaced + ' replaced');
+        if (skipped) bits.push(skipped + ' skipped as duplicate' + (skipped === 1 ? '' : 's'));
+        this.flash(bits.join(' · ') + ' from ' + c.from);
         break; }
 
       // ---- Bulk Update Fees ----
@@ -2853,7 +2868,7 @@ class Component extends DCLogic {
     const rows = c.from ? this.profileRows(c.from) : [];
     const rec = rows.filter(r => !/-one$/.test(r.group));
     const one = rows.filter(r => /-one$/.test(r.group));
-    const picked = rows.filter(r => !c.excl[r.id]).length;
+    const picked = rows.filter(r => c.sel[r.id]).length;
     const box = on => `<span style="width:18px;height:18px;border-radius:3px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${on?'background:#f58220;border:1px solid #f58220':'background:#fff;border:1px solid #b3b3b3'}">${on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span>`;
     const radio = (val, label, em) => `<label data-act="copyDup" data-arg="${val}" style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;color:#13314c"><span style="width:18px;height:18px;border-radius:50%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;border:1px solid ${c.dup===val?'var(--ac,#008dd5)':'#b3b3b3'}">${c.dup===val?'<span style="width:10px;height:10px;border-radius:50%;background:var(--ac,#008dd5)"></span>':''}</span><span>${label}<i style="color:#4a5b6b"> ${em}</i></span></label>`;
     const dupTip = this.infoTip(`<span style="display:block;white-space:normal">A duplicate is a charge matching one this profile already has; same charge type, frequency, and name, at the same level (property, unit type, or unit). For example, if both profiles have a recurring property Rent charge, that's a duplicate.</span>`, 330);
@@ -2862,13 +2877,15 @@ class Component extends DCLogic {
                          : '44px 120px minmax(150px,1fr) 100px 90px 110px 110px';
       const heads = isRec ? ['','Charge Type','Comment','Frequency','From','To','Amount','Charge Level']
                           : ['','Charge Type','Comment','From','To','Amount','Charge Level'];
-      const hc = (t,i) => `<span style="display:flex;align-items:center;padding:8px 10px${i===1?' 8px 14px':''};font-size:12px;font-weight:600;color:#13314c;white-space:nowrap;${/Amount/.test(t)?'justify-content:flex-end;':''}">${t}</span>`;
+      const allOn = list.length && list.every(r => c.sel[r.id]);
+      const headBox = `<span data-act="copyAll" data-arg="${isRec?'rec':'one'}" title="${allOn?'Clear all':'Select all'}" style="display:flex;align-items:center;justify-content:center;cursor:pointer">${box(!!allOn)}</span>`;
+      const hc = (t,i) => i === 0 ? headBox : `<span style="display:flex;align-items:center;padding:8px 10px${i===1?' 8px 14px':''};font-size:12px;font-weight:600;color:#13314c;white-space:nowrap;${/Amount/.test(t)?'justify-content:flex-end;':''}">${t}</span>`;
       const cell = (t,extra) => `<span style="display:flex;align-items:center;min-height:38px;padding:6px 10px;font-size:13px;color:#13314c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
       return `<div style="font-size:13px;color:#666;padding:12px 0 6px">${label} (${list.length})</div>
         <div style="border:1px solid #e3e9ee;border-radius:4px;overflow:hidden"><div style="overflow-x:auto"><div style="min-width:${isRec?760:680}px">
         <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #e3e9ee">${heads.map(hc).join('')}</div>
         ${list.length ? list.map(r=>`<div data-act="copyToggle" data-arg="${r.id}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #f0f4f7;cursor:pointer">
-          <span style="display:flex;align-items:center;justify-content:center;min-height:38px">${box(!c.excl[r.id])}</span>
+          <span style="display:flex;align-items:center;justify-content:center;min-height:38px">${box(!!c.sel[r.id])}</span>
           ${cell(r.mits,'padding-left:14px')}${cell(r.desc||r.name)}
           ${isRec?cell(this.freqNum(r)||'—'):''}${cell(r.from||'—')}${cell(r.to||'-')}
           ${cell(String(r.amount||'').replace(/^\$/,''),'justify-content:flex-end;text-align:right')}
