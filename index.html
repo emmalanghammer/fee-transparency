@@ -621,25 +621,31 @@ class Component extends DCLogic {
       case 'exclOpen': { const r = this.profileRows().find(x => String(x.id) === String(arg));
         if (!r) break;
         const ex = this.exclOf(r);
-        // Reopen on whichever scope already has exclusions; a unit-type charge only reaches units.
-        const scope = r.level === 'Unit Type' ? 'Unit' : (ex.types.length && !ex.units.length ? 'Unit Type' : (ex.units.length ? 'Unit' : 'Unit Type'));
-        const sel = {}; (scope === 'Unit Type' ? ex.types : ex.units).forEach(n => { sel[n] = true; });
-        this.setState({ rowMenu: null, chargeExcl: { id: r.id, scope, sel } }); break; }
+        // Unit types and units are picked together, so both lists open on what's already saved.
+        const selT = {}, selU = {};
+        ex.types.forEach(n => { selT[n] = true; });
+        ex.units.forEach(n => { selU[n] = true; });
+        this.setState({ rowMenu: null, chargeExcl: { id: r.id, selT, selU } }); break; }
       case 'exclClose': this.setState({ chargeExcl: null }); break;
-      // Switching scope keeps whatever was already saved for that scope, so a flip doesn't lose work.
-      case 'exclScope': this.setState(s => { const r = this.profileRows().find(x => String(x.id) === String(s.chargeExcl.id));
-        const ex = this.exclOf(r); const sel = {};
-        (arg === 'Unit Type' ? ex.types : ex.units).forEach(n => { sel[n] = true; });
-        return { chargeExcl: Object.assign({}, s.chargeExcl, { scope: arg, sel }) }; }); break;
-      case 'exclToggle': this.setState(s => { const sel = Object.assign({}, s.chargeExcl.sel);
-        if (sel[arg]) delete sel[arg]; else sel[arg] = true;
-        return { chargeExcl: Object.assign({}, s.chargeExcl, { sel }) }; }); break;
+      // arg is "type:<name>" or "unit:<name>" — one handler for both lists.
+      case 'exclToggle': this.setState(s => { const c = s.chargeExcl;
+        const at = arg.indexOf(':'); const kind = arg.slice(0, at), name = arg.slice(at + 1);
+        const key = kind === 'type' ? 'selT' : 'selU';
+        const m = Object.assign({}, c[key]);
+        if (m[name]) delete m[name]; else m[name] = true;
+        return { chargeExcl: Object.assign({}, c, { [key]: m }) }; }); break;
+      case 'exclAll': { const c = this.state.chargeExcl;
+        const row0 = this.profileRows().find(x => String(x.id) === String(c.id));
+        const key = arg === 'type' ? 'selT' : 'selU';
+        const opts = this.exclOptions(row0, arg === 'type' ? 'Unit Type' : 'Unit');
+        const on = opts.length && opts.every(n => c[key][n]);
+        this.setState(s => { const m = Object.assign({}, s.chargeExcl[key]);
+          opts.forEach(n => { if (on) delete m[n]; else m[n] = true; });
+          return { chargeExcl: Object.assign({}, s.chargeExcl, { [key]: m }) }; });
+        break; }
       case 'exclSave': { const c = this.state.chargeExcl;
         const row = this.profileRows().find(x => String(x.id) === String(c.id));
-        const picked = Object.keys(c.sel);
-        const next = c.scope === 'Unit Type'
-          ? { types: picked, units: this.exclOf(row).units }
-          : { types: this.exclOf(row).types, units: picked };
+        const next = { types: Object.keys(c.selT || {}), units: Object.keys(c.selU || {}) };
         this.mutFee(c.id, f => Object.assign({}, f, { exclFrom: next }));
         const n = next.types.length + next.units.length;
         if (row) this.logChange(this.state.property, this.histLabelFor(row),
@@ -1100,9 +1106,13 @@ class Component extends DCLogic {
     return t && u ? t + ' and ' + u : (t || u);
   }
   exclTag(r){
-    const e = this.exclOf(r); if (!e.types.length && !e.units.length) return '';
-    const all = e.types.concat(e.units).join(', ');
-    return `<span class="loz" title="Excluded from ${all}" style="background:#f1f3f5;color:#5c6b7a;text-transform:none;letter-spacing:0;flex:none">Excluded: ${this.exclSummary(e)}</span>`;
+    const e = this.exclOf(r); const all = e.types.concat(e.units);
+    if (!all.length) return '';
+    const pill = (t) => `<span class="loz" style="background:#f1f3f5;color:#5c6b7a;text-transform:none;letter-spacing:0;flex:none;cursor:default">Excluded: ${t}</span>`;
+    // One exclusion is named outright; more than one gets the same hover panel the Listing Ready
+    // column uses, so the list is one hover away instead of a browser tooltip.
+    if (all.length === 1) return pill(all[0]);
+    return `<span class="tipw" style="display:inline-flex;flex:none">${pill(this.exclSummary(e))}<span class="tip" style="left:auto;right:-4px;top:24px;width:auto;min-width:170px;max-width:280px;padding:14px 16px"><span style="display:block;font-size:14px;font-weight:600;color:#13314c;padding-bottom:9px;border-bottom:1px solid #e3e9ee">Excluded from ${all.length}:</span><span style="display:flex;flex-direction:column;gap:10px;padding-top:11px">${e.types.map(n=>`<span style="font-size:14px;color:#13314c;white-space:nowrap">${n} <i style="color:#8a9aa8">unit type</i></span>`).join('')}${e.units.map(n=>`<span style="font-size:14px;color:#13314c;white-space:nowrap">Unit ${n}</span>`).join('')}</span></span></span>`;
   }
   rowMenuHTML(){
     const p=this.state.rowMenu; if(!p) return '';
@@ -1120,17 +1130,28 @@ class Component extends DCLogic {
   chargeExclHTML(){
     const c = this.state.chargeExcl; if (!c) return '';
     const r = this.profileRows().find(x => String(x.id) === String(c.id)); if (!r) return '';
-    const opts = this.exclOptions(r, c.scope);
-    const n = Object.keys(c.sel).length;
+    // A property charge can be carved out of unit types and units at the same time; a unit-type charge
+    // only reaches its own units.
+    const types = r.level === 'Property' ? this.exclOptions(r, 'Unit Type') : [];
+    const units = this.exclOptions(r, 'Unit');
+    const selT = c.selT || {}, selU = c.selU || {};
+    const n = Object.keys(selT).length + Object.keys(selU).length;
     const box = on => `<span style="width:18px;height:18px;border-radius:3px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${on?'background:#f58220;border:1px solid #f58220':'background:#fff;border:1px solid #b3b3b3'}">${on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span>`;
-    const radio = (val) => `<label data-act="exclScope" data-arg="${val}" style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;color:#13314c"><span style="width:18px;height:18px;border-radius:50%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;border:1px solid ${c.scope===val?'var(--ac,#008dd5)':'#b3b3b3'}">${c.scope===val?'<span style="width:10px;height:10px;border-radius:50%;background:var(--ac,#008dd5)"></span>':''}</span>${val}</label>`;
-    // A unit-type charge has only one thing below it, so there's no scope to choose.
-    const scopeRow = r.level === 'Property' ? `<div style="display:flex;flex-direction:column;gap:8px">
-        <span style="font-size:14px;font-weight:600;color:#13314c">Exclude from</span>
-        <div style="display:flex;align-items:center;gap:24px">${radio('Unit Type')}${radio('Unit')}</div>
-      </div>` : '';
+    const list = (label, kind, opts, sel) => { if (!opts.length) return '';
+      const allOn = opts.every(o => sel[o]);
+      return `<div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:14px;font-weight:600;color:#13314c">${label}</span>
+          <div style="flex:1"></div>
+          <span data-act="exclAll" data-arg="${kind}" style="display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--ac,#008dd5);cursor:pointer">${box(allOn)}${allOn?'Clear all':'Select all'}</span>
+        </div>
+        <div style="border:1px solid #e3e9ee;border-radius:4px;overflow:hidden">
+          ${opts.map((o,i)=>`<div data-act="exclToggle" data-arg="${kind}:${o}" style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;${i?'border-top:1px solid #f0f4f7':''};background:${sel[o]?'#fdf6ef':'#fff'}">
+            ${box(!!sel[o])}<span style="font-size:14px;color:#13314c">${o}</span></div>`).join('')}
+        </div>
+      </div>`; };
     return `<div data-act="exclClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:170">
-      <div data-act="noop" style="width:520px;max-width:94vw;max-height:88vh;background:#fff;border-radius:4px;border:1px solid #cedbe7;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+      <div data-act="noop" style="width:560px;max-width:94vw;max-height:88vh;background:#fff;border-radius:4px;border:1px solid #cedbe7;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="flex:none;display:flex;align-items:center;gap:12px;padding:13px 20px;border-bottom:1px solid #cedbe7">
           <span style="font-size:20px;color:#13314c">Exclude Charge</span><div style="flex:1"></div>
           <span data-act="exclClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span>
@@ -1143,20 +1164,13 @@ class Component extends DCLogic {
             <span style="font-size:14px;color:#13314c;white-space:nowrap">${r.amount||''}</span>
             ${this.chargeLevelPill(r)}
           </div>
-          ${scopeRow}
-          <div style="display:flex;flex-direction:column;gap:8px">
-            <div style="display:flex;align-items:baseline;gap:10px">
-              <span style="font-size:14px;font-weight:600;color:#13314c">Select ${c.scope === 'Unit Type' ? 'unit types' : 'units'} to exclude</span>
-              <div style="flex:1"></div>
-              <span style="font-size:13px;color:#8a9aa8">${n} selected</span>
-            </div>
-            <span style="font-size:13px;color:#8a9aa8;line-height:1.45">The charge keeps applying everywhere else at the ${r.level.toLowerCase()} level. Existing tenant charges aren't affected.</span>
-            <div style="border:1px solid #e3e9ee;border-radius:4px;overflow:hidden">
-              ${opts.map((o,i)=>`<div data-act="exclToggle" data-arg="${o}" style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;${i?'border-top:1px solid #f0f4f7':''};background:${c.sel[o]?'#fdf6ef':'#fff'}">
-                ${box(!!c.sel[o])}<span style="font-size:14px;color:#13314c">${o}</span></div>`).join('')
-                || '<div style="padding:12px 14px;font-size:13px;font-style:italic;color:#b3b3b3">Nothing available to exclude.</div>'}
-            </div>
+          <div style="display:flex;align-items:baseline;gap:10px">
+            <span style="font-size:13px;color:#8a9aa8;line-height:1.45">Pick any unit types and units this charge shouldn't apply to. It keeps applying everywhere else at the ${String(r.level||'').toLowerCase()} level, and existing tenant charges aren't affected.</span>
+            <div style="flex:1"></div>
+            <span style="font-size:13px;color:#8a9aa8;white-space:nowrap">${n} selected</span>
           </div>
+          ${list('Unit types', 'type', types, selT)}
+          ${list('Units', 'unit', units, selU)}
         </div>
         <div style="flex:none;display:flex;align-items:center;gap:12px;padding:14px 20px;background:#f5f8fa;border-top:1px solid #cedbe7">
           <div style="flex:1"></div>
