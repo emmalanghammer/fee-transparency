@@ -512,6 +512,20 @@ class Component extends DCLogic {
     ];
   }
   unitInfo(u){ return this.units().find(x => x.u === u) || this.units()[1]; }
+  // What each property rents out as an item, as charge-type codes. An ORI charge can only be one of
+  // these, so picking a property narrows the charge types on offer. Prototype seed data — swap in the
+  // real rentable-item inventory when there is one.
+  oriChargeTypes(){
+    return {
+      'Riverview Apartments': ['COVPARK','GARAGE','SF'],
+      'The Berkshires':       ['COVPARK','PARK'],
+      'The Hamptons':         ['COVPARK','GARAGE','EVCHG'],
+      'Cedar Ridge':          ['PARK','STORAGE'],
+      'The Windermere':       ['COVPARK','STORAGE','EVCHG']
+    };
+  }
+  // Anywhere without its own inventory offers the full set of rentable-item types.
+  oriTypesFor(prop){ return this.oriChargeTypes()[prop] || ['COVPARK','GARAGE','PARK','SF','STORAGE','EVCHG']; }
 
 
   // ---------- theming ----------
@@ -2497,7 +2511,9 @@ class Component extends DCLogic {
     const searchField = (id,val,ph) => `<div style="display:flex;align-items:center;gap:6px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5)">search</span><input id="${id}" value="${esc(val)}" placeholder="${ph}" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:#13314c"></div>`;
     // lvl is the Charge Level this target belongs to — usually the same as its label, except ORI,
     // whose target is the property the rentable item comes from.
-    const tgt = (key,label,lvl,id,val,ph,opts) => `<div id="m-appt-${key}-wrap" style="display:${app===lvl?'flex':'none'};flex-direction:column;gap:4px;flex:1;min-width:0">${lab(label+' *')}${opts ? dd(id, opts, val, { placeholder:'Select a '+label.toLowerCase() }) : searchField(id,val,ph)}</div>`;
+    const tgt = (key,label,lvl,id,val,ph,opts) => `<div id="m-appt-${key}-wrap" style="display:${app===lvl?'flex':'none'};flex-direction:column;gap:4px;flex:1;min-width:0">${lab(label+' *')}${opts ? dd(id, opts, val, { placeholder:'Select a '+label.toLowerCase(),
+      // The ORI charge's property decides which charge types are on offer, so re-filter on change.
+      js: lvl === 'ORI' ? "if(window.__ctFilter)window.__ctFilter()" : '' }) : searchField(id,val,ph)}</div>`;
     // An ORI charge only names the property here; the specific rentable item is chosen when the charge
     // is applied to a prospect. Legacy rows stored an item name, so anything that isn't a property
     // falls back to this one.
@@ -2512,15 +2528,17 @@ class Component extends DCLogic {
     // ---- Charge Type typeahead; selecting one derives the Charge Category below ----
     const setCat = "var cc=this.getAttribute('data-cat');var d=document.getElementById('m-cat-disp');var e=document.getElementById('m-cat-err');var ph=document.getElementById('m-cat-ph');document.getElementById('m-cat').value=cc||'';ph.style.display='none';if(cc){d.textContent=cc;d.style.display='block';e.style.display='none';}else{d.style.display='none';e.style.display='flex';}if(window.__mitsRecheck)window.__mitsRecheck();";
     // Charge types that can sit on a rentable item — the only ones offered at the ORI level.
-    const oriTypes = /^(COVPARK|GARAGE|PARK|SF|STORAGE|EVCHG)$/;
-    const ctItems = this.chargeTypeList().map(([c,d2]) => `<div data-cat="${catFor(c)}" data-ori="${oriTypes.test(c)?'1':'0'}" data-ct="${(c+' '+d2).toLowerCase()}" onmousedown="document.getElementById('m-ctype').value='${c}';document.getElementById('m-ctype-desc').value='${d2.replace(/'/g,"")}';${setCat}document.getElementById('m-ctype-panel').style.display='none'" style="padding:8px 12px;cursor:pointer" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''"><div style="font-size:15px;color:#13314c">${c}</div><div style="font-size:13px;color:#8a9aa8">${d2}</div></div>`).join('');
-    // The type list is filtered by the search box and, at the ORI level, narrowed to rentable-item types.
+    const ctItems = this.chargeTypeList().map(([c,d2]) => `<div data-cat="${catFor(c)}" data-code="${c}" data-ct="${(c+' '+d2).toLowerCase()}" onmousedown="document.getElementById('m-ctype').value='${c}';document.getElementById('m-ctype-desc').value='${d2.replace(/'/g,"")}';${setCat}document.getElementById('m-ctype-panel').style.display='none'" style="padding:8px 12px;cursor:pointer" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''"><div style="font-size:15px;color:#13314c">${c}</div><div style="font-size:13px;color:#8a9aa8">${d2}</div></div>`).join('');
+    // Every charge type is on offer, except on an ORI charge — there the list is what the selected
+     // property actually rents out as items. The search box narrows whatever is left.
     window.__ctFilter = () => {
       const list = this.q('#m-ctype-list'); if (!list) return;
       const q = ((this.q('#m-ctype') || {}).value || '').toLowerCase();
-      const oriOnly = ((this.q('#m-app') || {}).value) === 'ORI';
+      const onOri = ((this.q('#m-app') || {}).value) === 'ORI';
+      const allowed = onOri ? this.oriTypesFor(((this.q('#m-appt-ori') || {}).value) || '') : null;
       list.querySelectorAll('[data-ct]').forEach(el => {
-        const ok = el.getAttribute('data-ct').indexOf(q) >= 0 && (!oriOnly || el.getAttribute('data-ori') === '1');
+        const ok = el.getAttribute('data-ct').indexOf(q) >= 0
+          && (!allowed || allowed.indexOf(el.getAttribute('data-code')) >= 0);
         el.style.display = ok ? 'block' : 'none';
       });
     };
