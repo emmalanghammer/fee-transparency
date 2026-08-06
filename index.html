@@ -114,6 +114,7 @@ class Component extends DCLogic {
     kickoff: false,
     // The "Introducing Rental Fee Profiles" launch announcement, opened from the same nav menu.
     announce: false,
+    announceStep: 1,     // the announcement walks three steps
     // Changes made while using the prototype. The seeded history stops at today, so everything in
     // here is something the user did this session.
     histLog: [],
@@ -680,7 +681,8 @@ class Component extends DCLogic {
         return { setup: Object.assign({}, c, { step: 1 }) }; }); break;
       case 'kickoffOpen': this.setState({ kickoff: true }); break;
       case 'kickoffClose': this.setState({ kickoff: false }); break;
-      case 'announceOpen': this.setState({ announce: true }); break;
+      case 'announceOpen': this.setState({ announce: true, announceStep: 1 }); break;
+      case 'announceNext': this.setState(s => ({ announceStep: Math.min(3, (s.announceStep || 1) + 1) })); break;
       case 'announceClose': this.setState({ announce: false }); break;
       // Setup from the announcement drops the user into the register's selection mode, so they choose
       // properties first and then run the same bulk setup flow as the Bulk Actions entry point.
@@ -3121,38 +3123,104 @@ class Component extends DCLogic {
         <div style="display:flex;align-items:center;gap:12px;padding:12px 24px 16px;flex:none"><a data-act="kickoffClose" style="font-size:14px;color:var(--ac,#008dd5);cursor:pointer">I'll do this later</a><div style="flex:1"></div><button data-act="kickoffSave" class="btn-pri" style="height:36px;min-height:36px;padding:0 24px;border-radius:4px;font-size:14px">Save</button></div>
       </div></div>`;
   }
-  // "Introducing Rental Fee Profiles" launch announcement (mock 2632-31755). Setup sends the user to
-  // the register in selection mode, so the properties get picked before the bulk flow starts.
+  // Launch announcement (mock 2699-105684): three steps — why now, how it works, what happens next.
   announceHTML(){
     if (!this.state.announce) return '';
-    const card = (icon, t, b) => `<div style="flex:1;min-width:0;background:#f2f6f9;border-radius:4px;padding:18px 20px 22px;display:flex;flex-direction:column;gap:12px">
-      <span class="material-symbols-outlined" style="font-size:26px;color:var(--ac,#008dd5)">${icon}</span>
-      <span style="font-size:15px;font-weight:600;color:#13314c;line-height:1.3">${t}</span>
-      <span style="font-size:14px;color:#666;line-height:1.5">${b}</span>
+    const step = this.state.announceStep || 1;
+    const dot = (n) => `<span style="width:8px;height:8px;border-radius:50%;background:${n===step?'#4a5b6b':'#cedbe7'};flex:none"></span>`;
+    const closeX = `<span data-act="announceClose" class="material-symbols-outlined" style="position:absolute;top:14px;right:16px;font-size:20px;color:rgba(255,255,255,0.8);cursor:pointer" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,0.8)'">close</span>`;
+    // Step 1 keeps the full-dress header; later steps carry just a title.
+    const head1 = `<div style="position:relative;background:#13314c;padding:26px 32px;display:flex;align-items:center;gap:20px;flex:none">
+      ${closeX}
+      <span style="display:flex;flex-direction:column;gap:14px;min-width:0;flex:1">
+        <span style="align-self:flex-start;background:#f58220;color:#fff;font-size:11px;font-weight:700;letter-spacing:0.06em;border-radius:12px;padding:4px 11px">NEW FEATURE</span>
+        <span style="font-size:24px;font-weight:600;color:#fff;line-height:1.2">Introducing Fee Transparency</span>
+        <span style="font-size:14px;color:#e8eef4;line-height:1.6">Manage every charge your property collects in one place.<br>Show renters complete, transparent pricing on your online listings.</span>
+      </span>
+      <span style="flex:none;width:74px;height:74px;border-radius:50%;border:2px solid var(--ac,#008dd5);display:flex;align-items:center;justify-content:center">
+        <img src="assets/logo-rentmanager-mark-white.svg" alt="" style="width:42px;height:42px">
+      </span>
     </div>`;
+    const head = (title) => `<div style="position:relative;background:#13314c;padding:26px 32px;display:flex;align-items:center;flex:none;min-height:86px;box-sizing:border-box">
+      ${closeX}<span style="font-size:22px;font-weight:600;color:#fff">${title}</span></div>`;
+
+    // ---- Step 1: why now, and what it gets you ----
+    const benefit = (icon, title, body) => `<div style="display:flex;align-items:flex-start;gap:14px;background:#f2f6f9;border-radius:4px;padding:12px 16px">
+      <span class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);flex:none;margin-top:1px">${icon}</span>
+      <span style="display:flex;flex-direction:column;gap:3px;min-width:0">
+        <span style="font-size:14px;font-weight:600;color:#13314c">${title}</span>
+        <span style="font-size:14px;color:#666;line-height:1.5">${body}</span>
+      </span></div>`;
+    const body1 = `<div style="display:flex;flex-direction:column;gap:12px">
+      <span style="text-align:center;font-size:14px;font-weight:600;color:#13314c">Why now?</span>
+      <span style="font-size:14px;color:#666;line-height:1.6">A growing number of states now require advertised rent to include all mandatory fees, and renters increasingly expect it. Rent Manager brings your charges together so complete pricing happens automatically.</span>
+      ${benefit('layers','Every charge in one place.','Recurring charges, deposits, rentable items, and more all come together per property.')}
+      ${benefit('person_add','Accurate quotes and move-ins.','The same pricing flows into rent quotes, applications, and new leases seamlessly.')}
+      ${benefit('verified','Complete pricing on listings.','If you advertise online, your listings can show a total monthly price for compliance.')}
+    </div>`;
+
+    // ---- Step 2: the three things they'll do, and where ----
+    const stepRow = (n, title, note, body, last) => `<div style="display:flex;gap:14px">
+      <span style="display:flex;flex-direction:column;align-items:center;flex:none">
+        <span style="width:22px;height:22px;border-radius:50%;background:var(--ac,#008dd5);color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">${n}</span>
+        ${last?'':'<span style="flex:1;width:1px;background:#dfe6ec;margin:4px 0"></span>'}
+      </span>
+      <span style="display:flex;flex-direction:column;gap:4px;min-width:0;padding-bottom:${last?'0':'18px'}">
+        <span style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><span style="font-size:15px;font-weight:600;color:#13314c">${title}</span>${note?`<i style="font-size:13px;color:#4a5b6b">${note}</i>`:''}</span>
+        <span style="font-size:14px;color:#666;line-height:1.55">${body}</span>
+      </span></div>`;
+    const where = (icon, title, body) => `<div style="flex:1;min-width:0;display:flex;align-items:flex-start;gap:12px;background:#f2f6f9;border-radius:4px;padding:14px 16px">
+      <span class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);flex:none">${icon}</span>
+      <span style="display:flex;flex-direction:column;gap:3px;min-width:0">
+        <span style="font-size:14px;font-weight:600;color:#13314c">${title}</span>
+        <span style="font-size:13px;color:#666;line-height:1.5">${body}</span>
+      </span></div>`;
+    const body2 = `<div style="display:flex;flex-direction:column;gap:18px">
+      <div style="display:flex;flex-direction:column">
+        ${stepRow(1,'Set up charges','','We find every charge already configured for a property and bring them onto a new Charges tab. Nothing re-entered.')}
+        ${stepRow(2,'Add fee details','','Fill out additional marketing details to choose how each charge appears to renters. Your current listings stay unaffected until you have your charges set the way you want.')}
+        ${stepRow(3,'Publish complete pricing','Only properties enabled for online listings.','Go to the Fee Transparency page to switch that property\'s listing feed to the updated transparent pricing structure, with a more accurate total monthly price on listings.', true)}
+      </div>
+      <div style="display:flex;gap:14px">
+        ${where('space_dashboard','Fee Transparency page','Track every property\'s progress and set up several at once.')}
+        ${where('assignment','Charges tab','Manage one property\'s charges, fee details, and pricing preview.')}
+      </div>
+    </div>`;
+
+    // ---- Step 3: what changes, what doesn't, and the one-way door ----
+    const expect = (t) => `<div style="display:flex;align-items:flex-start;gap:10px">
+      <span class="material-symbols-outlined" style="font-size:19px;color:var(--ac,#008dd5);flex:none;margin-top:1px">check_circle</span>
+      <span style="font-size:14px;color:#666;line-height:1.55">${t}</span></div>`;
+    const body3 = `<div style="display:flex;flex-direction:column;gap:16px">
+      <div style="border:1px solid #e3e9ee;border-radius:4px;padding:16px 18px;display:flex;flex-direction:column;gap:14px">
+        <span style="text-align:center;font-size:14px;font-weight:600;color:#13314c">What to Expect</span>
+        ${expect('Tenant-level charges will be unaffected, and won\'t be pulled into the property\'s charges.')}
+        ${expect('Your listings keep publishing as they do now until you choose to publish complete pricing.')}
+        ${expect('Late and NSF fees will pull into the Charges tab for centralization, but the charges themselves will not change functionality.')}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <span style="text-align:center;font-size:14px;font-weight:600;color:#13314c">Start Here</span>
+        <div style="background:#f2f6f9;border-radius:4px;padding:14px 16px;font-size:14px;color:#666;line-height:1.55">Open the <strong style="color:#13314c">Fee Transparency</strong> page to see every property's status and begin, or set up a single property from its <strong style="color:#13314c">Charges</strong> tab anytime.</div>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:10px;border:1px solid #f0b357;border-radius:4px;padding:12px 14px">
+        <span class="material-symbols-outlined" style="font-size:20px;color:#e59f2e;flex:none">warning</span>
+        <span style="font-size:13px;color:#666;line-height:1.5"><strong style="color:#13314c">Warning!</strong> Turning on Fee Transparency for a property is an irreversible process, and will permanently centralize charges for your property.</span>
+      </div>
+    </div>`;
+
+    const cta = step < 3
+      ? `<button data-act="announceNext" class="btn-pri" style="height:34px;min-height:34px;padding:0 20px;border-radius:4px;font-size:14px">Next</button>`
+      : `<button data-act="announceSetup" class="btn-pri" style="height:34px;min-height:34px;padding:0 20px;border-radius:4px;font-size:14px">Go to Fee Transparency</button>`;
     return `<div data-act="announceClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:145">
       <div data-act="noop" style="width:660px;max-width:96vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
-        <div style="position:relative;background:#13314c;padding:30px 32px;display:flex;align-items:center;gap:20px;flex:none">
-          <span data-act="announceClose" class="material-symbols-outlined" style="position:absolute;top:10px;right:12px;font-size:20px;color:rgba(255,255,255,0.75);cursor:pointer" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,0.75)'">close</span>
-          <span style="display:flex;flex-direction:column;gap:16px;min-width:0;flex:1">
-            <span style="align-self:flex-start;background:#f58220;color:#fff;font-size:12px;font-weight:600;letter-spacing:0.06em;border-radius:12px;padding:4px 13px">NEW FEATURE</span>
-            <span style="font-size:26px;font-weight:600;color:#fff;line-height:1.2">Introducing Rental Fee Profiles</span>
-            <span style="font-size:15px;color:#e8eef4;line-height:1.55">Manage every fee your property charges in one place.<br>Show renters complete, transparent pricing on your online listings.</span>
-          </span>
-          <span style="flex:none;width:82px;height:82px;border-radius:50%;border:2px solid var(--ac,#008dd5);display:flex;align-items:center;justify-content:center">
-            <img src="assets/logo-rentmanager-mark-white.svg" alt="" style="width:46px;height:46px">
-          </span>
-        </div>
-        <div style="flex:1;min-height:0;overflow-y:auto;padding:24px 32px 8px">
-          <div style="display:flex;gap:14px">
-            ${card('layers', 'One place<br>for every fee', 'Charges, deposits, and pricing managed together on the property.')}
-            ${card('person_add', 'Faster move-ins<br>and quotes', 'New residents and rent quotes pull the right charges automatically.')}
-            ${card('verified', 'Fee transparency,<br>built in', 'If you advertise listings, your complete pricing displays accurately.')}
-          </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px;padding:20px 32px 26px;flex:none">
-          <a data-act="announceClose" style="font-size:14px;color:#666;cursor:pointer">Remind me later</a><div style="flex:1"></div>
-          <button data-act="announceSetup" class="btn-pri" style="height:40px;min-height:40px;padding:0 22px;border-radius:4px;font-size:15px">Setup Rental Fee Profiles</button>
+        ${step === 1 ? head1 : head(step === 2 ? 'How it works' : 'What happens next')}
+        <div style="flex:1;min-height:0;overflow-y:auto;padding:22px 32px 6px">${step === 1 ? body1 : step === 2 ? body2 : body3}</div>
+        <div style="flex:none;display:flex;align-items:center;padding:16px 32px 22px">
+          <a data-act="announceClose" style="font-size:14px;color:#666;cursor:pointer">Remind me later</a>
+          <div style="flex:1"></div>
+          <span style="display:inline-flex;align-items:center;gap:6px">${dot(1)}${dot(2)}${dot(3)}</span>
+          <div style="flex:1"></div>
+          ${cta}
         </div>
       </div></div>`;
   }
