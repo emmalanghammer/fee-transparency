@@ -696,9 +696,9 @@ class Component extends DCLogic {
       case 'announceClose': this.setState({ announce: false }); break;
       // Setup from the announcement drops the user into the register's selection mode, so they choose
       // properties first and then run the same bulk setup flow as the Bulk Actions entry point.
+      // The tracker page exists now, so the announcement's CTA goes straight there.
       case 'announceSetup':
-        this.go('register', { announce: false, bulkSetup: { sel: {} } });
-        this.flash('Select the properties to set up');
+        this.go('feetrans', { announce: false });
         break;
       // Applies each row's category to its charge type, the same store the Add Charge Category
       // overlay writes to, so the choices made here show up on charges everywhere.
@@ -3287,31 +3287,44 @@ class Component extends DCLogic {
       ${benefit('verified','Complete pricing on listings.','If you advertise online, your listings can show a total monthly price for compliance.')}
     </div>`;
 
-    // ---- Step 2: the three things they'll do, and where ----
+    // ---- Step 2: a skeleton preview of the Charges tab, then the three things they'll do ----
+    // The preview is decorative — greyed bars where real data would be, real chrome where it helps
+    // the screen be recognizable later (section header, charge codes, level pills, statuses).
+    const skel = (w) => `<span style="display:inline-block;width:${w}px;height:7px;border-radius:4px;background:#e3e9ee"></span>`;
+    const miniPill = (t) => `<span style="font-size:8px;color:#0071aa;background:#e5f3fb;border-radius:2px;padding:1px 5px;white-space:nowrap">${t}</span>`;
+    const miniStatus = (t, kind) => kind==='warn'
+      ? `<span style="font-size:8px;color:#7a5a2a;background:#fdf3e3;border:1px solid #f6d9ac;border-radius:2px;padding:1px 5px;white-space:nowrap">&#9888; ${t}</span>`
+      : `<span style="font-size:8px;color:#2f5d43;background:#e4f3ea;border:1px solid #b7e4c6;border-radius:2px;padding:1px 5px;white-space:nowrap">&#10003; ${t}</span>`;
+    const miniRow = (code, status, kind) => `<div style="display:grid;grid-template-columns:64px 1fr 58px 44px 44px 50px 52px 64px 14px;align-items:center;gap:6px;padding:5px 10px;border-top:1px solid #f0f4f7;background:#fff">
+      <span style="font-size:8.5px;color:#13314c;white-space:nowrap">${code}</span>
+      ${skel(120)}<span style="font-size:8px;color:#8a9aa8;white-space:nowrap">Every Month</span>${skel(38)}${skel(38)}${skel(34)}
+      <span>${miniPill('Property')}</span><span>${miniStatus(status, kind)}</span>
+      <span style="width:5px;height:5px;border-radius:50%;background:#dfe6ec"></span>
+    </div>`;
+    const preview = `<div style="background:#f2f6f9;border-radius:4px;padding:10px 12px">
+      <div style="background:#fff;border:1px solid #e3e9ee;border-radius:4px;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:6px;padding:7px 10px"><span style="font-size:9px;color:#666">&#9662;</span><span style="font-size:9.5px;font-weight:600;color:#13314c">Recurring Charges (9)</span><div style="flex:1"></div><span style="font-size:8px;color:#b3b3b3">System and landlord mandated fees</span></div>
+        <div style="display:grid;grid-template-columns:64px 1fr 58px 44px 44px 50px 52px 64px 14px;gap:6px;padding:4px 10px;background:#f7f9fb;border-top:1px solid #f0f4f7">${['Charge Type','Comment','Frequency','From','To','Amount','Charge Level','Listing Status',''].map(h=>`<span style="font-size:7.5px;color:#8a9aa8;white-space:nowrap;overflow:hidden">${h}</span>`).join('')}</div>
+        ${miniRow('RC','3 needed','warn')}${miniRow('GARBAG','Included','ok')}${miniRow('WATER','Ready','ok')}${miniRow('GARBAGEFEE','Ready','ok')}
+        <div style="padding:7px 10px;border-top:1px solid #f0f4f7"><span style="font-size:8.5px;color:var(--ac,#008dd5)">+ Add New Charge</span></div>
+        <div style="display:flex;align-items:center;gap:6px;padding:7px 10px;border-top:1px solid #e3e9ee"><span style="font-size:9px;color:#666">&#9662;</span><span style="font-size:9.5px;font-weight:600;color:#13314c">Optional Charges (4)</span><div style="flex:1"></div><span style="font-size:8px;color:#b3b3b3">Tenant selected add-ons (amenities, storage, etc.)</span></div>
+      </div>
+    </div>`;
     const stepRow = (n, title, note, body, last) => `<div style="display:flex;gap:14px">
       <span style="display:flex;flex-direction:column;align-items:center;flex:none">
         <span style="width:22px;height:22px;border-radius:50%;background:var(--ac,#008dd5);color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">${n}</span>
         ${last?'':'<span style="flex:1;width:1px;background:#dfe6ec;margin:4px 0"></span>'}
       </span>
-      <span style="display:flex;flex-direction:column;gap:4px;min-width:0;padding-bottom:${last?'0':'18px'}">
+      <span style="display:flex;flex-direction:column;gap:4px;min-width:0;padding-bottom:${last?'0':'14px'}">
         <span style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><span style="font-size:15px;font-weight:600;color:#13314c">${title}</span>${note?`<i style="font-size:13px;color:#4a5b6b">${note}</i>`:''}</span>
-        <span style="font-size:14px;color:#666;line-height:1.55">${body}</span>
+        <span style="font-size:14px;color:#666;line-height:1.5">${body}</span>
       </span></div>`;
-    const where = (icon, title, body) => `<div style="flex:1;min-width:0;display:flex;align-items:flex-start;gap:12px;background:#f2f6f9;border-radius:4px;padding:14px 16px">
-      <span class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);flex:none">${icon}</span>
-      <span style="display:flex;flex-direction:column;gap:3px;min-width:0">
-        <span style="font-size:14px;font-weight:600;color:#13314c">${title}</span>
-        <span style="font-size:13px;color:#666;line-height:1.5">${body}</span>
-      </span></div>`;
-    const body2 = `<div style="display:flex;flex-direction:column;gap:18px">
+    const body2 = `<div style="display:flex;flex-direction:column;gap:14px">
+      ${preview}
       <div style="display:flex;flex-direction:column">
-        ${stepRow(1,'Set up charges','','We find every charge already configured for a property and bring them onto a new Charges tab. Nothing re-entered.')}
-        ${stepRow(2,'Add fee details','','Fill out additional marketing details to choose how each charge appears to renters. Your current listings stay unaffected until you have your charges set the way you want.')}
-        ${stepRow(3,'Publish complete pricing','Only properties enabled for online listings.','Go to the Fee Transparency page to switch that property\'s listing feed to the updated transparent pricing structure, with a more accurate total monthly price on listings.', true)}
-      </div>
-      <div style="display:flex;gap:14px">
-        ${where('space_dashboard','Fee Transparency page','Track every property\'s progress and set up several at once.')}
-        ${where('assignment','Charges tab','Manage one property\'s charges, fee details, and pricing preview.')}
+        ${stepRow(1,'Consolidate charges.','','We find every charge already configured for a property and bring them onto a new Charges tab. Nothing re-entered.')}
+        ${stepRow(2,'Add fee details.','','Fill out additional marketing details to choose how each charge appears to renters. Your current listings stay unaffected until you have your charges set the way you want.')}
+        ${stepRow(3,'Publish complete pricing.','Only properties enabled for online listings.','Go to the Fee Transparency page to switch that property\'s listing feed to the updated transparent pricing structure, with a more accurate total monthly price on listings.', true)}
       </div>
     </div>`;
 
@@ -3326,8 +3339,8 @@ class Component extends DCLogic {
         ${expect('Your listings keep publishing as they do now until you choose to publish complete pricing.')}
         ${expect('Late and NSF fees will pull into the Charges tab for centralization, but the charges themselves will not change functionality.')}
       </div>
-      <div style="display:flex;flex-direction:column;gap:10px">
-        <span style="text-align:center;font-size:14px;font-weight:600;color:#13314c">Start Here</span>
+      <div style="border:1px solid #e3e9ee;border-radius:4px;padding:14px 16px;display:flex;flex-direction:column;gap:12px">
+        <span style="text-align:center;font-size:14px;font-weight:600;color:#13314c">Where to Start</span>
         <div style="background:#f2f6f9;border-radius:4px;padding:14px 16px;font-size:14px;color:#666;line-height:1.55">Open the <strong style="color:#13314c">Fee Transparency</strong> page to see every property's status and begin, or set up a single property from its <strong style="color:#13314c">Charges</strong> tab anytime.</div>
       </div>
       <div style="display:flex;align-items:flex-start;gap:10px;border:1px solid #f0b357;border-radius:4px;padding:12px 14px">
@@ -3340,7 +3353,7 @@ class Component extends DCLogic {
       ? `<button data-act="announceNext" class="btn-pri" style="height:34px;min-height:34px;padding:0 20px;border-radius:4px;font-size:14px">Next</button>`
       : `<button data-act="announceSetup" class="btn-pri" style="height:34px;min-height:34px;padding:0 20px;border-radius:4px;font-size:14px">Go to Fee Transparency</button>`;
     return `<div data-act="announceClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:145">
-      <div data-act="noop" style="width:660px;max-width:96vw;height:630px;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+      <div data-act="noop" style="width:660px;max-width:96vw;height:716px;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         ${step === 1 ? head1 : head(step === 2 ? 'How it works' : 'What happens next')}
         <div style="flex:1;min-height:0;overflow-y:auto;padding:22px 32px 6px">${step === 1 ? body1 : step === 2 ? body2 : body3}</div>
         <div style="position:relative;flex:none;display:flex;align-items:center;justify-content:space-between;padding:16px 32px 22px">
