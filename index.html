@@ -119,7 +119,7 @@ class Component extends DCLogic {
     // here is something the user did this session.
     histLog: [],
     nextFeeId: 101,
-    setup: null,            // { prop, step:1|2|'saving', excl:{} }
+    setup: null,            // { props, step:1|2|3|'saving'|'done', pi, ack }
     setupExit: false,       // the "leave setup?" confirmation over the wizard
     lvlSel: 'all',          // 'all' | 'Property' | 'Unit Type' | 'Unit' | 'ORI'
     bannerDismissed: {},
@@ -209,7 +209,6 @@ class Component extends DCLogic {
   // left unset land in the Individual Charges group and get flagged as missing the MITS field.
   // Which selected property step 2 is currently reviewing.
   setupCurProp(){ const c = this.state.setup; if (!c) return ''; return this.setupProps()[c.pi || 0] || ''; }
-  setupExclFor(prop){ const c = this.state.setup; return (c && c.excl && c.excl[prop]) || {}; }
   // Requirement comes from the charge's group when marketing details haven't been saved yet.
   defaultRequirement(r){
     const g = String(r.group || '');
@@ -665,7 +664,7 @@ class Component extends DCLogic {
         break; }
 
       // ---- Turn on Fee Transparency wizard ----
-      case 'setupOpen': this.setState({ recView: null, setup: { props: [arg || this.state.property], step: 1, excl: {} } }); break;
+      case 'setupOpen': this.setState({ recView: null, setup: { props: [arg || this.state.property], step: 1 } }); break;
       // Leaving mid-flow throws away the charge selections and requirements picked so far, so it asks
       // first. Nothing to lose on step 1 before anything is touched, and the saving/success steps
       // have already written the profile — those close straight away.
@@ -674,9 +673,6 @@ class Component extends DCLogic {
         if (c && this.setupDirty(c)) { this.setState({ setupExit: true }); break; }
         this.setState({ setup: null, setupExit: false });
         break; }
-      case 'setupOv': this.setState(s => { const c = s.setup, m = Object.assign({}, c.ovx);
-        m[arg] = !this.setupOvOpen(arg);
-        return { setup: Object.assign({}, c, { ovx: m }) }; }); break;
       case 'setupExitCancel': this.setState({ setupExit: false }); break;
       case 'setupExitConfirm': this.setState({ setup: null, setupExit: false }); this.flash('Setup canceled — nothing was changed'); break;
       // Step 2 is walked once per selected property, then the review closes the flow.
@@ -726,7 +722,7 @@ class Component extends DCLogic {
       // Hands off to the same three-step wizard a single property uses.
       case 'bulkSetupGo': { const sel = Object.keys(this.state.bulkSetup.sel);
         if (!sel.length) { this.flash('Select at least one property'); break; }
-        this.setState({ bulkSetup: null, setup: { props: sel, step: 1, excl: {} } }); break; }
+        this.setState({ bulkSetup: null, setup: { props: sel, step: 1 } }); break; }
 
       // ---- Copy Charges from Property ----
       case 'copyOpen': this.setState({ profMenu: null, copyFees: { from: '', dup: 'skip', sel: {} } }); break;
@@ -795,10 +791,6 @@ class Component extends DCLogic {
       case 'profHistClose': this.setState({ profHist: null }); break;
       case 'profHistExp': this.setState(s => ({ profHist: Object.assign({}, s.profHist, { exp: Object.assign({}, s.profHist.exp, { [arg]: !s.profHist.exp[arg] }) }) })); break;
       case 'setupAck': this.setState(s => ({ setup: Object.assign({}, s.setup, { ack: !s.setup.ack }) })); break;
-      case 'setupToggle': this.setState(s => { const p = this.setupCurProp();
-        const all = Object.assign({}, s.setup.excl); const ex = Object.assign({}, all[p]);
-        if (ex[arg]) delete ex[arg]; else ex[arg] = true;
-        all[p] = ex; return { setup: Object.assign({}, s.setup, { excl: all }) }; }); break;
       case 'setupSave': { const c = this.state.setup;
         const props = this.setupProps();
         const perProp = {}; let total = 0;
@@ -1868,27 +1860,22 @@ class Component extends DCLogic {
   setupProps(){ const c = this.state.setup; return (c && c.props) || []; }
   // The rows exactly as save will write them, so the review step counts what actually lands.
   setupRows(prop){
-    const c = this.state.setup; if (!c) return [];
-    const p = prop || this.setupCurProp();
-    const ex = this.setupExclFor(p);
-    // Setup no longer asks for a Charge Requirement, so converted charges land unclassified and get
-    // their requirement on the charge itself. Charges that arrive with pulled-in marketing details
-    // (NSF, late fees) keep the requirement they came with.
-    return this.setupCandidates().filter(r => !ex[r.id]).map(r => {
+    // The new setup moves every discovered charge — nothing is excluded during setup; charges are
+    // managed (or removed) on the Charges tab afterwards. Charges that arrive with pulled-in
+    // marketing details (NSF, late fees) keep the requirement they came with.
+    return this.setupCandidates().map(r => {
       const req = (r.listing && r.listing.requirement) || '';
       const suffix = /-one$/.test(r.group) ? '-one' : '-rec';
       const prefix = req === 'Optional' ? 'opt' : req === 'Situational' ? 'sit' : req === 'Required' ? 'req' : 'ind';
       return Object.assign({}, r, { group: prefix + suffix });
     });
   }
-  // True once there's something to lose: past step 1, or a charge unchecked / the acknowledgement
-  // ticked. The saving and success steps have already committed, so they're clean.
+  // True once there's something to lose: past step 1, or the acknowledgement ticked. The saving and
+  // success steps have already committed, so they're clean.
   setupDirty(c){
     if (!c || c.step === 'saving' || c.step === 'done') return false;
     if ((c.step || 1) > 1) return true;
-    if (c.ack) return true;
-    const any = m => Object.keys(m || {}).some(k => Object.keys(m[k] || {}).length);
-    return any(c.excl);
+    return !!c.ack;
   }
   // "Leave Setup" confirmation (mock 2637-31905).
   setupExitHTML(){
@@ -1902,8 +1889,8 @@ class Component extends DCLogic {
         <div style="display:flex;align-items:flex-start;gap:20px;padding:24px 24px 26px">
           <span class="material-symbols-outlined" style="font-size:36px;color:var(--ac,#008dd5);flex:none;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">warning</span>
           <div style="display:flex;flex-direction:column;gap:18px;min-width:0;font-size:15px;color:#666;line-height:1.5">
-            <span>The charges and requirements you've picked won't be saved, and Fee Transparency won't be turned on. Your existing charges stay exactly as they are.</span>
-            <span>Are you sure you want to exit turning on Fee Transparency?</span>
+            <span>Your changes will not be saved.</span>
+            <span>Are you sure you want to exit the Fee Transparency Setup?</span>
           </div>
         </div>
         <div style="display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:14px 20px;background:#f5f8fa;border-top:1px solid #cedbe7">
@@ -1921,77 +1908,66 @@ class Component extends DCLogic {
     const props = this.setupProps();
     // Step 1 is the intro, so its button starts the flow; step 2 walks the properties, and the last
     // one hands off to the review.
-    const nextLabel = (c.step || 1) === 1 ? 'Start'
+    const nextLabel = (c.step || 1) === 1 ? 'Next'
       : (c.step === 2 && props.length > 1 && (c.pi || 0) < props.length - 1) ? 'Next Property'
       : 'Review';
     const next = `<button data-act="setupNext" class="btn-pri" style="height:36px;min-height:36px;padding:0 22px;border-radius:4px;font-size:14px">${nextLabel}</button>`;
     // Saving stays behind the acknowledgement, since the profile takes over charging for the property.
     const totalRows = props.reduce((n, p) => n + this.setupRows(p).length, 0);
-    const save = `<button ${c.ack?'data-act="setupSave"':''} class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px;${c.ack?'':'opacity:0.45;cursor:default'}">Save ${totalRows} Charges</button>`;
+    const save = `<button ${c.ack?'data-act="setupSave"':''} class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px;${c.ack?'':'opacity:0.45;cursor:default'}">Save Charges</button>`;
     const foot = c.step === 'saving' ? ''
       : c.step === 'done'
       ? `<div style="flex:1"></div><button data-act="setupClose" class="btn-pri" style="height:36px;min-height:36px;padding:0 26px;border-radius:4px;font-size:14px">Done</button>`
       : c.step === 1
         ? `<div style="flex:1"></div>${next}`
         : `${back}<div style="flex:1"></div>${c.step === 2 ? next : save}`;
-    // The acknowledgement is pinned above the buttons rather than scrolling with the review, so the
-    // thing gating Save is never out of sight.
-    const ackBar = c.step === 3 ? this.setupAckBar() : '';
     const chrome = c.step === 'saving' || c.step === 'done';
     return `<div data-act="setupClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:120">
       <div data-act="noop" style="width:960px;max-width:96vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:12px 16px 0"><span data-act="setupClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span></div>
-        <div style="text-align:center;font-size:20px;color:#13314c;padding:0 24px 16px">Turn on Fee Transparency</div>
+        <div style="text-align:center;font-size:20px;color:#13314c;padding:0 24px 16px">Fee Transparency Setup</div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:0 24px 8px">${body}</div>
-        ${ackBar}
         ${foot ? `<div style="display:flex;align-items:center;gap:12px;padding:12px 24px 16px">${foot}</div>` : '<div style="height:16px"></div>'}
         ${chrome ? '' : `<div style="position:relative;height:0"><div style="position:absolute;left:50%;transform:translateX(-50%);bottom:26px">${this.setupDots(c.step)}</div></div>`}
       </div></div>`;
   }
-  // Whether a property's breakdown is expanded on the overview: a single-property run opens on it,
-  // a bulk run keeps every property collapsed until asked.
-  setupOvOpen(p){
-    const c = this.state.setup; const m = (c && c.ovx) || {};
-    return (p in m) ? !!m[p] : this.setupProps().length === 1;
-  }
   setupStep1(){
     const src = this.setupSources();
-    const total = src.reduce((n,r)=>n+r[1],0);
     const props = this.setupProps();
-    const pill = lvl => this.chargeLevelPill({ level: lvl, target: lvl === 'Unit Type' ? 'Unit Type' : '' });
-    const cols = 'minmax(200px,1fr) 140px 40px 130px';
-    // The breakdown of where a property's charges come from — the same sources for every property.
-    const breakdown = `<div style="padding:0 14px 14px;display:flex;flex-direction:column;gap:8px">
-      <span style="font-size:13px;color:#8a9aa8">The profile brings them into one page, organized by who they apply to:</span>
-      <div style="border:1px solid #e3e9ee;border-radius:4px;overflow:hidden">
-        <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #e3e9ee;background:#f7f9fb">${['Source','Number of Charges','','Charge Application'].map((h,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:600;color:#13314c">${h}</span>`).join('')}</div>
-        ${src.map((r,ri)=>`<div style="display:grid;grid-template-columns:${cols};align-items:center;${ri===src.length-1?'':'border-bottom:1px solid #f0f4f7'}">
-          <span style="padding:9px 12px 9px 16px;font-size:13px;color:#13314c">${r[0]}</span>
-          <span style="padding:9px 12px;font-size:13px;color:#13314c">${r[1]}</span>
-          <span style="padding:9px 12px;color:#8a9aa8;font-size:16px">&rarr;</span>
-          <span style="padding:9px 12px">${pill(r[2])}</span></div>`).join('')}
-      </div></div>`;
-    const section = (p) => { const open = this.setupOvOpen(p);
-      return `<div style="border:1px solid #cedbe7;border-radius:4px;overflow:hidden">
-        <div data-act="setupOv" data-arg="${p}" style="display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;background:${open?'#f7f9fb':'#fff'}">
-          <span class="material-symbols-outlined" style="font-size:20px;color:#666">${open?'arrow_drop_down':'arrow_right'}</span>
-          <span class="material-symbols-outlined" style="font-size:19px;color:var(--ac,#008dd5)">home</span>
-          <span style="font-size:15px;font-weight:600;color:#13314c">${p}</span>
+    const one = props.length === 1;
+    const all = this.setupCandidates();
+    const rec = all.filter(r => !/-one$/.test(r.group)).length;
+    const perTotal = all.length;
+    const total = perTotal * props.length;
+    // "Where are these charges from?" opens the source breakdown on hover instead of taking a
+    // whole screen: the same list the old overview showed.
+    const srcTip = this.infoTip(`<span style="display:block;font-size:14px;font-weight:600;color:#13314c;padding-bottom:9px;border-bottom:1px solid #e3e9ee">Where these charges come from</span>
+      <span style="display:flex;flex-direction:column;gap:8px;padding-top:10px">${src.map(r=>`<span style="display:flex;align-items:baseline;gap:10px"><span style="flex:1;font-size:13px;color:#13314c;white-space:nowrap">${r[0]}</span><span style="font-size:13px;color:#8a9aa8;white-space:nowrap">${r[1]} &rarr; ${r[2]}</span></span>`).join('')}</span>`, 330);
+    const point = (icon, color, t, b) => `<div style="display:flex;gap:10px;align-items:flex-start">
+      <span class="material-symbols-outlined" style="font-size:19px;color:${color};flex:none;margin-top:1px;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">${icon}</span>
+      <span style="display:flex;flex-direction:column;gap:3px;min-width:0">
+        <span style="font-size:14px;font-weight:600;color:#13314c">${t}</span>
+        <span style="font-size:13px;color:#666;line-height:1.55">${b}</span>
+      </span></div>`;
+    return `<div style="display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <span style="font-size:14px;font-weight:600;color:#13314c">Centralize Charges for ${one ? props[0] : props.length + ' Properties'}</span>
+        <span style="font-size:13px;color:#666;line-height:1.55">A growing number of states now require advertised rent to include all mandatory fees, and renters increasingly expect it. Rent Manager brings your charges together so complete pricing happens automatically.</span>
+      </div>
+      <div style="border:1px solid #e3e9ee;border-radius:4px;padding:16px 18px;display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;align-items:baseline;gap:12px;padding-bottom:10px;border-bottom:1px solid #eef2f5">
+          <span style="font-size:14px;font-weight:600;color:#13314c">${total} total charges found, ${rec * props.length} recurring, ${(perTotal - rec) * props.length} one-time</span>
           <div style="flex:1"></div>
-          <span style="font-size:14px;color:#4a5b6b;white-space:nowrap">${total} total charges</span>
+          <span style="display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--ac,#008dd5);white-space:nowrap">${srcTip}Where are these charges from?</span>
         </div>
-        ${open ? breakdown : ''}
-      </div>`; };
-    return `<div style="display:flex;flex-direction:column;gap:14px">
-      ${props.length < 2 ? '' : `<div style="display:flex;flex-direction:column;gap:8px;background:#f0f6fb;border:1px solid #cedbe7;border-radius:4px;padding:12px 14px">
-        <span style="font-size:15px;font-weight:600;color:#13314c">Setting up ${props.length} properties</span>
-        <span style="font-size:13px;color:#4a5b6b;line-height:1.45">You'll choose which charges to include for each property in turn, one screen per property, then review them all together before anything is created.</span>
-      </div>`}
-      ${props.map(section).join('')}
-      <div style="display:flex;align-items:flex-start;gap:10px;background:#13314c;border-radius:4px;padding:12px 16px">
-        <span class="material-symbols-outlined" style="font-size:20px;color:#fff;flex:none">help</span>
-        <span style="font-size:13px;color:#fff;line-height:1.5">Going forward, new move-ins, quotes, and renewals will charge from this profile. Existing tenant charges are unaffected.</span>
-      </div></div>`;
+        ${point('check_circle','var(--ac,#008dd5)','What will be updated?','All charges pulled from the property, unit, unit type, or rentable item will only be editable on the property details. Additional marketing fields have been added to all charges, helpful for being compliant with fee transparency on listings.')}
+        ${point('cancel','var(--ac,#008dd5)','What will not change?','Your listings will display as they are today and will be updated when you publish complete pricing, after you\'ve updated charge details to have the necessary marketing information. Tenant charges will also remain editable on the tenant level and will be unaffected.')}
+      </div>
+      <div style="display:flex;gap:10px;align-items:flex-start;background:#fdf3e3;border:1px solid #f6d9ac;border-radius:4px;padding:12px 14px">
+        <span class="material-symbols-outlined" style="font-size:19px;color:#e59f2e;flex:none">warning</span>
+        <span style="font-size:13px;color:#4a5b6b;line-height:1.5"><strong style="color:#13314c">Before you begin:</strong> Setting up charges permanently changes how ${one ? "this property's" : "these properties'"} charges are managed. You'll review everything before confirming.</span>
+      </div>
+    </div>`;
   }
   // Explains the Charge Requirement field. Sent to online listings as the MITS "Requirement" value,
   // so the wording matches what a prospect would read on the listing.
@@ -2023,45 +1999,43 @@ class Component extends DCLogic {
     const c = this.state.setup;
     const props = this.setupProps();
     const cur = this.setupCurProp();
-    const ex = this.setupExclFor(cur);
     const all = this.setupCandidates();
-    const inc = all.filter(r => !ex[r.id]).length;
-    const box = on => `<span style="width:18px;height:18px;border-radius:3px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${on?'background:#f58220;border:1px solid #f58220':'background:#fff;border:1px solid #b3b3b3'}">${on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span>`;
-    const table = (label, rows, rec) => {
-      const cols = '44px 130px minmax(180px,1fr) 130px 130px';
-      const heads = ['','Charge Type','Comment','Amount','Charge Level'];
-      const hc = (t,i) => `<span style="padding:8px 10px;font-size:12px;font-weight:600;color:#13314c;white-space:nowrap;${/Amount/.test(t)?'justify-content:flex-end;display:flex;':''}">${t}</span>`;
-      const cell = (t,extra,off) => `<span style="display:flex;align-items:center;min-height:38px;padding:6px 10px;font-size:13px;color:${off?'#a6b2bd':'#13314c'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
-      return `<div style="font-size:13px;color:#666;padding:12px 0 6px">${label} (${rows.length})</div>
-        <div style="border:1px solid #e3e9ee;border-radius:4px;overflow:hidden"><div style="overflow-x:auto"><div style="min-width:700px">
+    const table = (label, rows) => {
+      const cols = '130px minmax(220px,1fr) 130px 130px';
+      const heads = ['Charge Type','Comment','Amount','Charge Level'];
+      const hc = (t) => `<span style="padding:8px 12px;font-size:12px;font-weight:600;color:#13314c;white-space:nowrap;${/Amount/.test(t)?'justify-content:flex-end;display:flex;':''}">${t}</span>`;
+      const cell = (t,extra) => `<span style="display:flex;align-items:center;min-height:36px;padding:6px 12px;font-size:13px;color:#13314c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
+      return `<div style="font-size:13px;color:#666;padding:12px 12px 6px">${label} (${rows.length})</div>
         <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #e3e9ee">${heads.map(hc).join('')}</div>
-        ${rows.map(r=>{ const off = !!ex[r.id]; return `<div data-act="setupToggle" data-arg="${r.id}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #f0f4f7;cursor:pointer;background:${off?'#fbfcfd':'transparent'}">
-          <span style="display:flex;align-items:center;justify-content:center;min-height:38px">${box(!off)}</span>
-          ${cell(r.mits,'',off)}${cell(r.desc||r.name,'',off)}
-          ${cell(r.amount,'justify-content:flex-end;text-align:right',off)}
-          <span style="display:flex;align-items:center;min-height:38px;padding:6px 10px;${off?'opacity:0.45':''}">${this.chargeLevelPill(r)}</span>
-        </div>`; }).join('')}
-        </div></div></div>`;
+        ${rows.map((r,ri)=>`<div style="display:grid;grid-template-columns:${cols};align-items:center;${ri===rows.length-1?'':'border-bottom:1px solid #f0f4f7'}">
+          ${cell(r.mits)}${cell(r.desc||r.name)}
+          ${cell(String(r.amount||'').replace(/^\$/,''),'justify-content:flex-end;text-align:right')}
+          <span style="display:flex;align-items:center;min-height:36px;padding:6px 12px">${this.chargeLevelPill(r)}</span>
+        </div>`).join('')}`;
     };
     const many = props.length > 1;
-    // A pill per property, so it's plain that this step repeats and which one is being answered.
     const pill = (p, i) => { const done = i < (c.pi || 0), now = i === (c.pi || 0);
       return `<span style="display:inline-flex;align-items:center;gap:5px;border-radius:12px;padding:3px 10px;font-size:13px;white-space:nowrap;${now?'background:var(--ac,#008dd5);color:#fff':(done?'background:#e4f3ea;color:#2f5d43':'background:#eef2f5;color:#8a9aa8')}">${done?'<span class="material-symbols-outlined" style="font-size:15px">check</span>':''}${p}</span>`; };
-    return `<div style="display:flex;flex-direction:column;gap:2px">
-      ${!many ? '' : `<div style="display:flex;flex-direction:column;gap:8px;background:#f0f6fb;border:1px solid #cedbe7;border-radius:4px;padding:12px 14px;margin-bottom:12px">
+    return `<div style="display:flex;flex-direction:column;gap:6px">
+      ${!many ? '' : `<div style="display:flex;flex-direction:column;gap:8px;background:#f0f6fb;border:1px solid #cedbe7;border-radius:4px;padding:12px 14px;margin-bottom:8px">
         <div style="display:flex;align-items:center;gap:10px">
           <span class="material-symbols-outlined" style="font-size:19px;color:var(--ac,#008dd5);flex:none">home</span>
           <span style="font-size:15px;font-weight:600;color:#13314c">${cur}</span>
           <div style="flex:1"></div>
           <span style="font-size:13px;font-weight:600;color:var(--ac,#008dd5);white-space:nowrap">Property ${(c.pi||0)+1} of ${props.length}</span>
         </div>
-        <span style="font-size:13px;color:#4a5b6b;line-height:1.45">You're choosing charges for <strong style="font-weight:600">${cur}</strong> only. Each property is set up separately, so you'll pick again for ${props.length - (c.pi||0) - 1 === 1 ? 'the last one' : 'each of the remaining ' + (props.length - (c.pi||0) - 1)} after this.</span>
         <div style="display:flex;flex-wrap:wrap;gap:6px">${props.map(pill).join('')}</div>
       </div>`}
-      <div style="display:flex;align-items:baseline;gap:12px"><span style="font-size:14px;font-weight:600;color:#13314c">Select which charges to include</span><div style="flex:1"></div><span style="font-size:13px;color:#4a5b6b">${inc} of ${all.length} included</span></div>
-      <span style="font-size:13px;color:#8a9aa8;line-height:1.5">Unchecked charges won't be added. They won't apply to future move-ins, quotes, or listings. Existing tenant charges are unaffected either way.</span>
-      ${table('Recurring Charges', all.filter(r=>!/-one$/.test(r.group)), true)}
-      ${table('One-Time Charges', all.filter(r=>/-one$/.test(r.group)), false)}
+      <span style="font-size:14px;font-weight:600;color:#13314c">These ${all.length} charges will move to the Charges tab</span>
+      <span style="font-size:13px;color:#8a9aa8;line-height:1.5">Everything found comes along, like amounts, levels, and dates are unchanged. You can add, edit, or remove any charge after setup.</span>
+      <div style="border:1px solid #e3e9ee;border-radius:4px;overflow:hidden;margin-top:6px"><div style="overflow-x:auto"><div style="min-width:640px">
+        ${table('Recurring Charges', all.filter(r=>!/-one$/.test(r.group)))}
+        ${table('One-Time Charges', all.filter(r=>/-one$/.test(r.group)))}
+      </div></div></div>
+      <div style="display:flex;align-items:center;gap:10px;border:1px solid var(--ac,#008dd5);border-radius:4px;padding:9px 14px;margin-top:8px">
+        <span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);flex:none">info</span>
+        <span style="font-size:13px;color:#13314c">Not included: Tenant-specific charges stay on the tenant level.</span>
+      </div>
     </div>`;
   }
   // Saving happens inside the same overlay, so review → saving → success is one continuous surface.
@@ -2095,65 +2069,55 @@ class Component extends DCLogic {
       </div>`).join('')}</div>`}
     </div>`;
   }
-  // Step 3: the profile takes over charging for the whole property, so the change gets reviewed and
-  // acknowledged before it lands. Listed properties additionally get told what it does to the listing.
+  // Step 3 "Confirm Setup": the irreversible-action warning, what lands, what to do after, and the
+  // acknowledgement that gates Save.
   setupStep3(){
-    const props = this.setupProps();
-    const one = props.length === 1;
-    // Reads as one property or as a set, without two versions of the screen.
-    const all = this.setupCandidates();
-    // Each property carries its own selections, so the totals add up across them.
-    const per = props.map(p => ({ p, rows: this.setupRows(p) }));
-    const rows = per.reduce((a, x) => a.concat(x.rows), []);
-    const left = all.length * props.length - rows.length;
-    const rec = rows.filter(r => !/-one$/.test(r.group)).length;
-    const stat = (n, l) => `<div style="flex:1;min-width:130px;background:#f7f9fb;border:1px solid #e3e9ee;border-radius:4px;padding:12px 16px;display:flex;flex-direction:column;gap:2px"><span style="font-size:22px;font-weight:600;color:#13314c;line-height:1.2">${n}</span><span style="font-size:13px;color:#4a5b6b">${l}</span></div>`;
-    // What the conversion does and doesn't reach. The dash row is the carve-out the user needs to see.
-    const line = (icon, color, t, b) => `<div style="display:flex;gap:12px;align-items:flex-start;padding:12px 16px;border-bottom:1px solid #f0f4f7"><span class="material-symbols-outlined" style="font-size:20px;color:${color};flex:none">${icon}</span><span style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:14px;color:#13314c">${t}</span><span style="font-size:13px;color:#8a9aa8;line-height:1.45">${b}</span></span></div>`;
-    const scope = `<div style="border:1px solid #e3e9ee;border-radius:4px;overflow:hidden">
-      ${line('check_circle','#12a150','Property, unit type, unit and rentable item charges',(one?'All '+rows.length+' move onto one page':'They move onto one page per property')+'. Edit a charge once and it applies everywhere.')}
-      ${line('remove','#8a9aa8','Existing tenant charges','Not touched &mdash; they keep billing as they do today.')}
-    </div>`;
-    // Fee transparency raises the bar on every charge, so a listed property is told what is still missing.
-    const ready = rows.filter(r => this.mitsComplete(r)).length;
-    const short = rows.length - ready;
-    const listed = props.filter(p => this.ilsOn(p));
-    const listedLabel = listed.length === 1 ? listed[0] + ' is' : listed.join(', ') + ' are';
-    const ils = !listed.length ? '' : `<div style="display:flex;gap:12px;background:#fdf8ef;border:1px solid #f0d9ae;border-radius:4px;padding:14px 16px">
-      <span class="material-symbols-outlined" style="font-size:20px;color:#b35a00;flex:none">warning</span>
-      <span style="display:flex;flex-direction:column;gap:6px;min-width:0">
-        <span style="font-size:14px;font-weight:600;color:#13314c">${listedLabel} enabled for online listings</span>
-        <span style="font-size:13px;color:#4a5b6b;line-height:1.5">Fee transparency needs a Name, Charge Category, Charge Requirement, Fee Due and Charge Schedule on every charge. Anything missing one of those stays off the listing until you fill it in.</span>
-        <span style="font-size:13px;color:#4a5b6b">${short ? `<strong style="font-weight:600">${short} of ${rows.length} charges still need fields.</strong> The profile flags each one after setup.` : `All ${rows.length} charges already have what listings need.`}</span>
-      </span></div>`;
-    return `<div style="display:flex;flex-direction:column;gap:18px">
-      <div style="display:flex;flex-direction:column;gap:4px">
-        <span style="font-size:14px;font-weight:600;color:#13314c">Review and confirm</span>
-      </div>
-      ${one ? '' : `<div style="display:flex;flex-direction:column;gap:6px">
-        <span style="font-size:14px;font-weight:600;color:#13314c">What each property gets</span>
-        <div style="border:1px solid #e3e9ee;border-radius:4px;overflow:hidden">${per.map((x,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:11px 16px;${i?'border-top:1px solid #f0f4f7':''}">
-        <span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);flex:none">home</span>
-        <span style="font-size:14px;color:#13314c">${x.p}</span><div style="flex:1"></div>
-        ${this.ilsOn(x.p)?`<span style="font-size:12px;color:#7a5a2a;background:#fdf3e3;border-radius:12px;padding:2px 9px;white-space:nowrap">On listings</span>`:''}
-        <span style="font-size:13px;color:#4a5b6b;white-space:nowrap">${x.rows.length === all.length ? `all ${all.length} charges` : `${x.rows.length} of ${all.length} charges`}</span>
-      </div>`).join('')}</div></div>`}
-      <div style="display:flex;gap:12px;flex-wrap:wrap">
-        ${stat(rows.length, 'Charges added' + (rows.length ? ` · ${rec} recurring, ${rows.length - rec} one-time` : ''))}
-        ${stat(left, left === 1 ? 'Charge left out' : 'Charges left out')}
-      </div>
-      ${ils}
-      ${scope}
-    </div>`;
-  }
-  // Pinned above the footer buttons on step 3 — it gates Save, so it stays on screen.
-  setupAckBar(){
     const c = this.state.setup;
     const props = this.setupProps();
+    const one = props.length === 1;
+    const who = one ? props[0] : 'these ' + props.length + ' properties';
+    const per = props.map(p => ({ p, rows: this.setupRows(p) }));
+    const rows = per.reduce((a, x) => a.concat(x.rows), []);
+    const rec = rows.filter(r => !/-one$/.test(r.group)).length;
+    const units = props.reduce((n, p) => n + (this.propInfo(p).units || 0), 0);
     const on = !!c.ack;
     const box = `<span style="width:18px;height:18px;border-radius:3px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${on?'background:#f58220;border:1px solid #f58220':'background:#fff;border:1px solid #b3b3b3'}">${on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span>`;
-    return `<div data-act="setupAck" style="display:flex;gap:10px;align-items:center;background:#f7f9fb;border-top:1px solid #e3e9ee;padding:13px 24px;cursor:pointer">
-      ${box}<span style="font-size:14px;color:#13314c;line-height:1.45">I understand this profile will charge every future move-in, quote and renewal on ${props.length === 1 ? props[0] : 'all ' + props.length + ' properties'}.</span>
+    const stat = (t, sub) => `<div style="flex:1;min-width:180px;background:#eef4f9;border-radius:4px;padding:12px 16px;display:flex;flex-direction:column;gap:3px">
+      <span style="font-size:14px;font-weight:600;color:#13314c">${t}</span>
+      <span style="font-size:13px;color:#4a5b6b">${sub}</span></div>`;
+    const after = (n, title, note, body) => `<div style="display:flex;gap:12px">
+      <span style="width:20px;height:20px;border-radius:50%;background:var(--ac,#008dd5);color:#fff;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:none;margin-top:1px">${n}</span>
+      <span style="display:flex;flex-direction:column;gap:3px;min-width:0">
+        <span style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><span style="font-size:14px;font-weight:600;color:#13314c">${title}</span>${note?`<i style="font-size:12px;color:#4a5b6b">${note}</i>`:''}</span>
+        <span style="font-size:13px;color:#666;line-height:1.5">${body}</span>
+      </span></div>`;
+    return `<div style="display:flex;flex-direction:column;gap:14px">
+      <span style="font-size:14px;font-weight:600;color:#13314c">Confirm Setup</span>
+      <div style="background:#fbe9e9;border:1px solid #eb343c;border-radius:4px;padding:12px 16px;display:flex;flex-direction:column;gap:6px">
+        <span style="font-size:14px;font-weight:600;color:#eb343c">Warning! This is an irreversible action.</span>
+        <span style="font-size:13px;color:#13314c;line-height:1.5">Setting up charges permanently converts how ${one ? props[0] : props.length + ' properties'} manage${one?'s':''} ${one?'its':'their'} charges. There is no way to return ${one?'this property':'these properties'} to ${one?'its':'their'} previous setup.</span>
+        <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:3px">
+          <li style="font-size:13px;color:#13314c;line-height:1.5">All ${rows.length} charges move to the Charges tab on the Property Details and are managed there from now on.</li>
+          <li style="font-size:13px;color:#13314c;line-height:1.5">All charges will have additional fields to manage fee transparency and marketing information.</li>
+          <li style="font-size:13px;color:#13314c;line-height:1.5">Every future move-in, quote, and renewal charges from this setup.</li>
+        </ul>
+      </div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap">
+        ${stat(rows.length + ' Charges', rec + ' recurring, ' + (rows.length - rec) + ' one-time')}
+        ${stat(units + ' Units Affected', 'Across ' + (one ? props[0] : props.length + ' properties'))}
+      </div>
+      <div style="border:1px solid #e3e9ee;border-radius:4px;padding:16px 18px;display:flex;flex-direction:column;gap:14px">
+        <span style="text-align:center;font-size:14px;font-weight:600;color:#13314c">After Setup</span>
+        ${after(1, 'On the Charges tab - Add more details to your charges.', '', 'Each charge has required fields it needs to be Fee Transparency compliant. Fill out the necessary fields on each charge in the Charges tab.')}
+        ${after(2, 'On the Fee Transparency page: Publish complete pricing.', 'Only properties enabled for online listings.', 'Once your charges are set up how you want them, go to Fee Transparency to publish complete pricing. This is the most important step, it updates your listing to use all of the new marketing details.')}
+        <div style="display:flex;gap:10px;align-items:flex-start;border:1px solid #f0d9ae;border-radius:4px;padding:10px 14px;margin-left:32px">
+          <span class="material-symbols-outlined" style="font-size:17px;color:#e59f2e;flex:none">warning</span>
+          <span style="font-size:12.5px;color:#666;line-height:1.5">You can publish complete pricing immediately, but any charges that do not have the required fields will not display on listings and is non-compliant.</span>
+        </div>
+      </div>
+      <div data-act="setupAck" style="display:flex;gap:10px;align-items:center;cursor:pointer;padding-top:2px">
+        ${box}<span style="font-size:13px;color:#13314c;line-height:1.45">I understand this permanently changes how ${who} manage${one?'s':''} charges and cannot be undone.</span>
+      </div>
     </div>`;
   }
 
