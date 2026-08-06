@@ -102,10 +102,10 @@ class Component extends DCLogic {
     profileStatus: {},
     profileFees: {},
     profHist: null,
-    // Bulk Update Fees: { idx, open:{rec,one} }. state.modal carries the charge being edited, so the
+    // Bulk Update Charges: { idx, open:{rec,one} }. state.modal carries the charge being edited, so the
     // shared form and saveFee work unchanged.
     bulk: null,
-    // Copy Property Fees: { from, dup:'skip'|'replace', excl }
+    // Copy Charges from Property: { from, dup:'skip'|'replace', excl }
     copyFees: null,
     // Register selection mode for the bulk profile setup: { sel: {propName:true} }
     bulkSetup: null,
@@ -551,7 +551,7 @@ class Component extends DCLogic {
           if (p.style.display && p.style.display !== 'none' && p.parentElement && !p.parentElement.contains(e.target)) p.style.display = 'none';
         });
       });
-      // Bulk Update Fees: any edit to the charge on screen flags that charge in the rail. Done on the
+      // Bulk Update Charges: any edit to the charge on screen flags that charge in the rail. Done on the
       // DOM rather than through state so the form keeps whatever is being typed.
       const touch = (e) => {
         const b = this.state.bulk; if (!b || !this.rootEl) return;
@@ -728,7 +728,7 @@ class Component extends DCLogic {
         if (!sel.length) { this.flash('Select at least one property'); break; }
         this.setState({ bulkSetup: null, setup: { props: sel, step: 1, excl: {} } }); break; }
 
-      // ---- Copy Property Fees ----
+      // ---- Copy Charges from Property ----
       case 'copyOpen': this.setState({ profMenu: null, copyFees: { from: '', dup: 'skip', sel: {} } }); break;
       case 'copyClose': this.setState({ copyFees: null }); break;
       // Switching source clears the selection, since the ids belong to the previous property. Nothing
@@ -770,7 +770,7 @@ class Component extends DCLogic {
         this.flash(bits.join(' · ') + ' from ' + c.from);
         break; }
 
-      // ---- Bulk Update Fees ----
+      // ---- Bulk Update Charges ----
       case 'bulkOpen': { const rows = this.bulkRows(); if (!rows.length) { this.flash('No charges to update'); break; }
         this._bulkTouched = {};
         this.setState({ profMenu: null, bulk: { idx: 0, open: { rec: true, one: true } },
@@ -830,7 +830,7 @@ class Component extends DCLogic {
       case 'addPropClose': this.setState({ addProp: null }); break;
       case 'addPropNav': this.setState(s => ({ addProp: Object.assign({}, s.addProp, { nav: arg }) })); break;
       case 'addPropFee': this.setState(s => ({ addProp: Object.assign({}, s.addProp, { fee: arg, copyFrom: arg === 'copy' ? (s.addProp.copyFrom || this.copyableProfiles()[0] || '') : s.addProp.copyFrom }) })); break;
-      // A new source starts with nothing picked, the same as Copy Property Fees.
+      // A new source starts with nothing picked, the same as Copy Charges from Property.
       case 'addPropCopyFrom': this.setState(s => ({ addProp: Object.assign({}, s.addProp, { copyFrom: arg, sel: {} }) })); break;
       case 'addPropToggle': this.setState(s => { const sel = Object.assign({}, s.addProp.sel); if (sel[arg]) delete sel[arg]; else sel[arg] = true; return { addProp: Object.assign({}, s.addProp, { sel }) }; }); break;
       case 'addPropAll': { const a = this.state.addProp; const rows = this.profileRows(a.copyFrom)
@@ -924,7 +924,7 @@ class Component extends DCLogic {
   };
 
   // Read the Add/Edit Charge modal into one row on this property's profile.
-  // opts.keep leaves the overlay open and skips the toast, so Bulk Update Fees can save the
+  // opts.keep leaves the overlay open and skips the toast, so Bulk Update Charges can save the
   // current charge and move straight on. Returns false when validation blocked the save.
   saveFee(opts){
     const keep = !!(opts && opts.keep);
@@ -1752,7 +1752,7 @@ class Component extends DCLogic {
     return `<div data-act="profMenuClose" style="position:fixed;inset:0;z-index:150"></div>
       <div style="position:fixed;left:${left}px;top:${p.y}px;background:#fff;border:1px solid #cedbe7;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);z-index:151;overflow:hidden;padding:4px 0">
         ${ilsItem}<div style="height:1px;background:#ebf1f5;margin:4px 0"></div>
-        ${item('Bulk Update Fees','bulkOpen')}${item('Copy Property Fees','copyOpen')}<div style="height:1px;background:#ebf1f5;margin:4px 0"></div>
+        ${item('Bulk Update Charges','bulkOpen')}${item('Copy Charges from Property','copyOpen')}<div style="height:1px;background:#ebf1f5;margin:4px 0"></div>
         ${item('Charge History', 'profHistOpen')}${item('About Fee Transparency')}
       </div>`;
   }
@@ -1814,7 +1814,7 @@ class Component extends DCLogic {
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
         <span style="font-size:13px;color:#13314c;line-height:1.5">${need} of ${total} charges still need marketing details before they can be included on listings. Open a charge to fill in what's missing, or hover its Listing Ready status to see the exact fields required.</span>
       </div>
-      <a data-act="bulkOpen" style="flex:none;font-size:13px;color:var(--ac,#008dd5);white-space:nowrap;cursor:pointer">Bulk Update Fees</a></div>`;
+      <a data-act="bulkOpen" style="flex:none;font-size:13px;color:var(--ac,#008dd5);white-space:nowrap;cursor:pointer">Bulk Update Charges</a></div>`;
   }
   feeProfileBody(){
     const rows = this.visibleRows();
@@ -2684,7 +2684,7 @@ class Component extends DCLogic {
   // ================= MODAL / TOAST =================
   modalHTML(){
     const m = this.state.modal; if (!m) return '';
-    // Bulk Update Fees hosts the same form in its own chrome, so the standalone overlay stands down.
+    // Bulk Update Charges hosts the same form in its own chrome, so the standalone overlay stands down.
     if (this.state.bulk) return '';
     const f = this.chargeForm(m);
     return `<div data-act="addclose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:${this.state.profHist?130:100}">
@@ -2703,7 +2703,7 @@ class Component extends DCLogic {
       </div></div>${this.catAddHTML()}`;
   }
   // The charge form itself — General Details, the CRE sections and Marketing Details — shared by the
-  // Charge Details overlay and by Bulk Update Fees, which frames it differently.
+  // Charge Details overlay and by Bulk Update Charges, which frames it differently.
   chargeForm(m){
     const ed = m.edit || null;
     const isOne = /-one$/.test(m.group);
@@ -3015,7 +3015,7 @@ class Component extends DCLogic {
       ${exclSection}` };
   }
   // Two charges are the same charge for copy purposes when they share charge type, frequency and
-  // name at the same level — the definition the Copy Property Fees tooltip gives.
+  // name at the same level — the definition the Copy Charges from Property tooltip gives.
   sameCharge(a, b){
     const fq = v => { const s = String(v || ''); const m = s.match(/\d+/); return s ? (m ? m[0] : '1') : ''; };
     return String(a.mits || '').toUpperCase() === String(b.mits || '').toUpperCase()
@@ -3024,7 +3024,7 @@ class Component extends DCLogic {
       && String(a.level || '') === String(b.level || '')
       && String(a.target || '') === String(b.target || '');
   }
-  // Copy Property Fees (mock 2575-81218). Pick a property with a profile, decide what happens to
+  // Copy Charges from Property (mock 2575-81218). Pick a property with a profile, decide what happens to
   // charges this profile already has, then choose which of the source's charges to bring over.
   copyFeesHTML(){
     const c = this.state.copyFees; if (!c) return '';
@@ -3061,7 +3061,7 @@ class Component extends DCLogic {
     return `<div data-act="copyClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:120">
       <div data-act="noop" style="width:960px;max-width:96vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="flex:none;display:flex;align-items:center;gap:10px;padding:12px 16px 12px 20px;border-bottom:1px solid #cedbe7">
-          <span style="font-size:20px;color:#13314c">Copy Property Fees</span><div style="flex:1"></div>
+          <span style="font-size:20px;color:#13314c">Copy Charges from Property</span><div style="flex:1"></div>
           <span data-act="toast" data-arg="Help" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">help</span>
           <span data-act="copyClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span>
         </div>
@@ -3098,7 +3098,7 @@ class Component extends DCLogic {
   // The rail lists charges by their Comment — the internal label, stable whether or not a marketing
   // name has been filled in.
   bulkLabel(r){ return r.desc || r.name || r.mits; }
-  // Bulk Update Fees (mock 2608-112274). A rail of every charge beside the shared charge form, so
+  // Bulk Update Charges (mock 2608-112274). A rail of every charge beside the shared charge form, so
   // they can be worked through one after another. Each rail row carries the same warning as the
   // Listing Ready column, so it's clear which ones still need fields.
   bulkHTML(){
@@ -3127,7 +3127,7 @@ class Component extends DCLogic {
     return `<div data-act="bulkClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:120">
       <div data-act="noop" style="width:1040px;max-width:96vw;height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="flex:none;display:flex;align-items:center;gap:12px;padding:12px 16px 12px 20px;border-bottom:1px solid #cedbe7">
-          <span style="font-size:20px;color:#13314c">Bulk Update Fees</span><div style="flex:1"></div>
+          <span style="font-size:20px;color:#13314c">Bulk Update Charges</span><div style="flex:1"></div>
           ${arrow('chevron_left', b.idx - 1, b.idx === 0)}
           <span style="font-size:14px;color:#13314c;white-space:nowrap">${b.idx + 1} of ${rows.length}</span>
           ${arrow('chevron_right', b.idx + 1, b.idx === rows.length - 1)}
