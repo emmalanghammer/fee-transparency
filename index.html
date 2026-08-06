@@ -91,7 +91,7 @@ class Component extends DCLogic {
     property: 'Riverview Apartments',
     unit: '1B',
     toggles: {},
-    // Per-property Rental Fee Profile. profileStatus[prop]='active' once set up;
+    // Per-property Fee Transparency. profileStatus[prop]='active' once turned on;
     // profileFees[prop] holds that property's charge rows.
     // Properties opted into marketing on online listings. Marketing/MITS details are editable on
     // every property; this flag only controls whether listing publishing is surfaced at all.
@@ -112,7 +112,7 @@ class Component extends DCLogic {
     // The "Coming Soon" kickoff announcement. Starts closed on purpose — it's opened from the nav
     // menu when it needs showing, rather than interrupting every refresh.
     kickoff: false,
-    // The "Introducing Rental Fee Profiles" launch announcement, opened from the same nav menu.
+    // The "Introducing Fee Transparency" launch announcement, opened from the same nav menu.
     announce: false,
     announceStep: 1,     // the announcement walks three steps
     // Changes made while using the prototype. The seeded history stops at today, so everything in
@@ -128,7 +128,7 @@ class Component extends DCLogic {
     recView: null,
     recViewNote: true,
     rowMenu: null,
-    // The register's "Using Rental Fee Profile" column is opt-in, so the default view matches today's.
+    // The register's "Fee Transparency" column is opt-in, so the default view matches today's.
     showProfileCol: false,
     // Properties whose complete pricing has been published from the Fee Transparency page.
     publishedProps: {},
@@ -158,14 +158,14 @@ class Component extends DCLogic {
       { name:'The Hamptons', short:'HAMPTON', email:'zavier@thehamptons.com', manager:'Zavier Burks', addr:'0246 Fields Ertel Rd, Cincinnati, OH 45241', billing:'1357 Loveland Madeira Rd, Loveland, OH 45140', color:'#f58220', loc:'Cincinnati, OH', units:34, occupied:31 }
     ]);
   }
-  // Properties whose Rental Fee Profile can be copied when adding a property.
+  // Properties whose charges can be copied when adding a property.
   copyableProfiles(){ return this.propertiesData().map(p=>p.name).filter(n=>this.usingProfile(n)); }
   propNames(){ return this.propertiesData().map(p => p.name); }
   propInfo(name){ const n = name || this.state.property; return this.propertiesData().find(p => p.name === n) || this.propertiesData()[0]; }
   properties(){ return this.propertiesData(); }
 
-  // ---------- per-property Rental Fee Profile ----------
-  // Properties that already have a Rental Fee Profile — the register's "Using Rental Fee Profile"
+  // ---------- per-property Fee Transparency ----------
+  // Properties that already have Fee Transparency on — the register's "Fee Transparency"
   // column. Opening one of these lands on the populated profile; the rest land on pre-setup.
   seededProfiles(){
     return ['Riverview Apartments','The Windermere','The Estates','Willow Creek','Greenbriar Village',
@@ -217,7 +217,7 @@ class Component extends DCLogic {
     if (g.indexOf('ind') === 0) return '';
     return g.indexOf('opt') === 0 ? 'Optional' : g.indexOf('sit') === 0 ? 'Situational' : 'Required';
   }
-  // ---------- Rental Fee Profile history ----------
+  // ---------- Charges history ----------
   // Preloaded demo history, running up to today. Keyed to charge codes so it only surfaces for
   // charges the property actually has. Keys sort as 'YYYY-MM'; anything after this is tracked live.
   profileAmountSeed(){
@@ -327,8 +327,8 @@ class Component extends DCLogic {
     // Profiles converted this session log their own creation entry, so only preloaded ones need one.
     if (this.state.profileStatus[p] !== 'active') {
       const n = this.setupCandidates().length;
-      log.push({ k:'2026-01', by:'Admin', charge:'Rental Fee Profile',
-        change:'Profile created · ' + n + ' charges added', level:p });
+      log.push({ k:'2026-01', by:'Admin', charge:'Fee Transparency',
+        change:'Fee Transparency turned on · ' + n + ' charges added', level:p });
     }
     return log;
   }
@@ -417,7 +417,7 @@ class Component extends DCLogic {
       }) });
     });
   }
-  // A property's charges: its Rental Fee Profile once set up, otherwise the charges that already
+  // A property's charges: its Charges tab once Fee Transparency is on, otherwise the charges that already
   // exist in its operational setup (what the setup wizard would pull in).
   propertyCharges(p){ const rows = this.profileRows(p); return rows.length ? rows : this.setupCandidates(); }
   setProfileRows(fn){
@@ -605,16 +605,16 @@ class Component extends DCLogic {
       // Publishing a property's complete pricing moves it to Published on the tracker.
       case 'ftPublish': { const pr = arg;
         this.setState(s => ({ publishedProps: Object.assign({}, s.publishedProps, { [pr]: true }) }));
-        this.logChange(pr, 'Rental Fee Profile', 'Complete pricing published to listings', pr);
+        this.logChange(pr, 'Fee Transparency', 'Complete pricing published to listings', pr);
         this.flash('Complete pricing published for ' + pr); break; }
       case 'toggleProfileCol': this.setState(s => ({ showProfileCol: !s.showProfileCol })); break;
       case 'navProperty': this.go('property', arg ? { property: arg, propTab: 'General' } : { propTab: 'General' }); break;
       case 'navUnit': this.go('unit', { unit: arg }); break;
       case 'proptab':
-        if (arg === 'General' || arg === 'Rental Fee Profile') { this._resetScroll = true; this.setState({ propTab: arg }); }
+        if (arg === 'General' || arg === 'Charges') { this._resetScroll = true; this.setState({ propTab: arg }); }
         else this.flash(arg + ' tab is out of scope for this prototype');
         break;
-      case 'openFeeProfile': this.setState({ recView: null }); this.go('property', { property: arg || this.state.property, propTab: 'Rental Fee Profile' }); break;
+      case 'openFeeProfile': this.setState({ recView: null }); this.go('property', { property: arg || this.state.property, propTab: 'Charges' }); break;
 
       // ---- row menu ----
       case 'rowMenu': { const r = el.getBoundingClientRect(); this.setState({ rowMenu: { id: arg, x: r.right, y: r.bottom + 4 } }); break; }
@@ -664,7 +664,7 @@ class Component extends DCLogic {
         this.flash(n ? 'Charge excluded from ' + this.exclSummary(next) : 'Exclusions removed');
         break; }
 
-      // ---- Rental Fee Profile setup wizard ----
+      // ---- Turn on Fee Transparency wizard ----
       case 'setupOpen': this.setState({ recView: null, setup: { props: [arg || this.state.property], step: 1, excl: {} } }); break;
       // Leaving mid-flow throws away the charge selections and requirements picked so far, so it asks
       // first. Nothing to lose on step 1 before anything is touched, and the saving/success steps
@@ -759,7 +759,7 @@ class Component extends DCLogic {
         const prop = this.state.property;
         this.setProfileRows(() => out);
         this.setState({ copyFees: null, nextFeeId: nextId });
-        this.logChange(prop, 'Rental Fee Profile',
+        this.logChange(prop, 'Fee Transparency',
           'Copied fees from ' + c.from + ' · ' + added + ' added, ' + replaced + ' replaced, ' + skipped + ' skipped', prop);
         // "0 charges copied" on its own reads like a failure, so the toast says what happened to the
         // ones that didn't land.
@@ -804,7 +804,7 @@ class Component extends DCLogic {
         const perProp = {}; let total = 0;
         props.forEach(p => { perProp[p] = this.setupRows(p); total += perProp[p].length; });
         const rows = perProp[props[0]] || [];
-        this.setState({ setup: Object.assign({}, c, { step: 'saving' }), propTab: 'Rental Fee Profile' });
+        this.setState({ setup: Object.assign({}, c, { step: 'saving' }), propTab: 'Charges' });
         clearTimeout(this._sut); this._sut = setTimeout(() => this.setState(s => {
           const status = Object.assign({}, s.profileStatus), fees = Object.assign({}, s.profileFees);
           const log = s.histLog.slice();
@@ -812,8 +812,8 @@ class Component extends DCLogic {
             status[p] = 'active';
             // Each property keeps the selections made on its own step, in its own copy of the rows.
             fees[p] = perProp[p].map(r => Object.assign({}, r));
-            log.push({ prop: p, by: 'Emma Langhammer', charge: 'Rental Fee Profile',
-              change: 'Profile created · ' + perProp[p].length + ' charges added', level: p });
+            log.push({ prop: p, by: 'Emma Langhammer', charge: 'Fee Transparency',
+              change: 'Fee Transparency turned on · ' + perProp[p].length + ' charges added', level: p });
           });
           const done = props.map(p => ({ p, count: perProp[p].length }));
           return { setup: Object.assign({}, c, { step: 'done', done }), profileStatus: status, profileFees: fees,
@@ -881,7 +881,7 @@ class Component extends DCLogic {
       case 'groupByReq': this.setState(s => ({ groupByReq: !s.groupByReq })); break;
       case 'ilsPropToggle': { const p = this.state.property; const turningOn = !this.ilsOn(p);
         this.setState(s => { const m = Object.assign({}, s.ilsProps); if (turningOn) m[p] = true; else delete m[p]; return { ilsProps: m, profMenu: null }; });
-        this.logChange(p, 'Rental Fee Profile', 'Online listings turned ' + (turningOn ? 'on' : 'off'), p);
+        this.logChange(p, 'Fee Transparency', 'Online listings turned ' + (turningOn ? 'on' : 'off'), p);
         this.flash(turningOn ? p + ' will market on online listings' : p + ' removed from online listing marketing'); break; }
       case 'profMenuOpen': { const r = el.getBoundingClientRect(); this.setState({ profMenu: { x: r.right, y: r.bottom + 4 } }); break; }
       case 'profMenuClose': this.setState({ profMenu: null }); break;
@@ -1281,19 +1281,22 @@ class Component extends DCLogic {
     const published = !!this.state.publishedProps[p];
     const ils = this.ilsOn(p);
     const short = rows.filter(r => !this.mitsComplete(r)).length;
-    if (!active) return { key:'none', label:'Not Set Up', icon:'settings', color:'#b3b3b3',
-      next:'Set Up', act:'setupOpen', ready:'' };
+    // Fee Transparency off entirely.
+    if (!active) return { key:'none', order:4, label:'Not Set Up', icon:'settings', color:'#b3b3b3',
+      next:'Turn on Fee Transparency', act:'setupOpen' };
+    // On, but the property doesn't advertise — nothing to publish, so it's done as it stands.
+    if (!ils) return { key:'notEnabled', order:5, label:'Done - Not Enabled for Listings', icon:'verified', color:'#6eb744',
+      next:'View Charges', act:'openFeeProfile' };
     if (short) return published
-      ? { key:'pubshort', label:'Published - Needs Details', icon:'warning', color:'#eb343c',
+      ? { key:'pubshort', order:2, label:'Published - Needs Details', icon:'warning', color:'#eb343c',
           next:'Add Charge Details', act:'openFeeProfile', issues:short }
-      : { key:'short', label:'Needs Details', icon:'warning', color:'#faa61c',
+      : { key:'short', order:1, label:'Needs Details', icon:'warning', color:'#faa61c',
           next:'Add Charge Details', act:'openFeeProfile' };
-    if (published) return { key:'pub', label:'Published', icon:'verified', color:'#6eb744',
-      next:'View Charges', act:'openFeeProfile' };
-    if (!ils) return { key:'done', label:'Done - Not Enabled for Listings', icon:'verified', color:'#6eb744',
-      next:'View Charges', act:'openFeeProfile' };
-    return { key:'ready', label:'Ready to Publish', icon:'check_circle', color:'#008dd5',
-      next:'Publish Complete Pricing', act:'ftPublish' };
+    return published
+      ? { key:'pub', order:6, label:'Published', icon:'verified', color:'#6eb744',
+          next:'View Charges', act:'openFeeProfile' }
+      : { key:'ready', order:3, label:'Ready to Publish', icon:'check_circle', color:'#008dd5',
+          next:'Publish Complete Pricing', act:'ftPublish' };
   }
   ftCounts(){
     const c = { none:0, needs:0, ready:0, done:0, pubshort:0, pub:0, notEnabled:0 };
@@ -1307,7 +1310,10 @@ class Component extends DCLogic {
     return c;
   }
   feeTransBody(){
-    const rows = this.propertiesData();
+    // Grouped by status in the order the work happens: what needs attention first, then what's ready,
+    // then what hasn't started, then everything already finished.
+    const rows = this.propertiesData().slice()
+      .sort((x, y) => (this.ftStatus(x.name).order - this.ftStatus(y.name).order) || x.name.localeCompare(y.name));
     const c = this.ftCounts();
     // ---- status tiles: 8px colour strip, label, count, and any qualifier beside it ----
     const tile = (icon, iconColor, label, count, strip, sub) => `<div style="flex:1;min-width:0;display:flex;align-items:stretch;background:#fff;border-radius:2px;overflow:hidden">
@@ -1395,7 +1401,7 @@ class Component extends DCLogic {
     const avail = this.bulkSetupCandidates().map(p => p.name);
     const allOn = bs && avail.length && avail.every(n => bs.sel[n]);
     const headBox = !bs ? '' : `<span data-act="bulkSetupAll" style="display:flex;align-items:center;justify-content:center;height:28px;cursor:pointer">${box(!!allOn)}</span>`;
-    const heads = ['Name'].concat(showProf ? ['Using Rental Fee Profile'] : []).concat(['Short Name','Email','Manager Name','Primary Address','Billing Address']);
+    const heads = ['Name'].concat(showProf ? ['Fee Transparency'] : []).concat(['Short Name','Email','Manager Name','Primary Address','Billing Address']);
     const header = `<div style="display:grid;grid-template-columns:${cols};background:#737373">${headBox}<span></span>${heads.map(hcell).join('')}<span style="display:flex;align-items:center;justify-content:center;height:28px"><span class="material-symbols-outlined" style="font-size:20px;color:#fff">view_column</span></span></div>`;
     const cell = (t, extra) => `<span style="padding:8px;font-size:14px;color:#13314c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
     // The whole row navigates, so the name is plain navy text rather than a link. The kebab keeps its
@@ -1404,7 +1410,7 @@ class Component extends DCLogic {
       ${!bs ? '' : `<span style="display:flex;align-items:center;justify-content:center">${pickable(r.name) ? box(!!bs.sel[r.name]) : ''}</span>`}
       <span style="align-self:stretch;background:${r.color||'transparent'}"></span>
       <span style="padding:8px;overflow:hidden"><span style="font-size:14px;color:#13314c;white-space:nowrap">${r.name}</span></span>
-      ${!showProf ? '' : `<span style="display:flex;align-items:center;justify-content:center;padding:8px">${this.usingProfile(r.name)?`<span class="material-symbols-outlined" style="font-size:20px;color:#12a150" title="Using a Rental Fee Profile">check_circle</span>`:''}</span>`}
+      ${!showProf ? '' : `<span style="display:flex;align-items:center;justify-content:center;padding:8px">${this.usingProfile(r.name)?`<span class="material-symbols-outlined" style="font-size:20px;color:#12a150" title="Fee Transparency is on">check_circle</span>`:''}</span>`}
       ${cell(r.short)}
       <span style="padding:8px;display:flex;align-items:center;gap:8px;min-width:0"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);flex:none">mail</span><span style="font-size:14px;color:#13314c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.email}</span></span>
       ${cell(r.manager)}${cell(r.addr)}${cell(r.billing)}
@@ -1416,7 +1422,7 @@ class Component extends DCLogic {
     const selBar = !bs ? '' : `<div style="position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:130;display:flex;align-items:center;gap:18px;background:var(--ac,#008dd5);border-radius:4px;box-shadow:0 8px 24px rgba(0,0,0,0.28);padding:12px 14px 12px 20px;white-space:nowrap">
         <span style="font-size:15px;font-weight:600;color:#fff">Select properties</span>
         <span style="font-size:13px;color:rgba(255,255,255,0.85)">${nSel} of ${avail.length} selected</span>
-        <button ${nSel?'data-act="bulkSetupGo"':''} style="height:34px;min-height:34px;padding:0 18px;border-radius:4px;font:400 14px Roboto,sans-serif;color:#fff;background:rgba(255,255,255,${nSel?'0.2':'0.08'});border:1px solid rgba(255,255,255,${nSel?'0.65':'0.3'});cursor:${nSel?'pointer':'default'}">Setup Fee Profiles</button>
+        <button ${nSel?'data-act="bulkSetupGo"':''} style="height:34px;min-height:34px;padding:0 18px;border-radius:4px;font:400 14px Roboto,sans-serif;color:#fff;background:rgba(255,255,255,${nSel?'0.2':'0.08'});border:1px solid rgba(255,255,255,${nSel?'0.65':'0.3'});cursor:${nSel?'pointer':'default'}">Turn on Fee Transparency</button>
         <span data-act="bulkSetupCancel" class="material-symbols-outlined" style="font-size:24px;color:#fff;cursor:pointer">close</span>
       </div>`;
     const dim = bs ? 'opacity:0.45;pointer-events:none;' : '';
@@ -1432,7 +1438,7 @@ class Component extends DCLogic {
                 const head = (t) => `<div style="padding:10px 16px 4px;font-size:14px;font-weight:600;color:#13314c">${t}</div>`;
                 const rule = `<div style="height:1px;background:#ebf1f5;margin:5px 0"></div>`;
                 return `<div data-act="toast" data-arg="Mass Edit Mode" style="display:flex;align-items:center;gap:10px;padding:9px 16px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''"><span class="material-symbols-outlined" style="font-size:18px">edit_square</span>Mass Edit Mode<div style="flex:1"></div><span style="font-size:13px;color:#8a9aa8">F2</span></div>${rule}`
-                  + head('Rental Fee Profile') + item('Setup Property Rental Fee Profiles', 'bulkSetupStart')
+                  + head('Fee Transparency') + item('Turn on Fee Transparency', 'bulkSetupStart')
                   + head('Service Manager') + item('Add Issue')
                   + head('Reports') + item('Report Writer')
                   + head('Communication') + item('Write Letters') + item('Send Email') + item('Send Text') + item('Add to Phone Broadcasts')
@@ -1456,7 +1462,7 @@ class Component extends DCLogic {
           <label style="display:inline-flex;align-items:center;gap:8px;height:36px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer"><input type="checkbox" style="width:18px;height:18px;accent-color:#f58220;margin:0">Show Inactive</label>
           <!-- data-act sits on the input, not the label: a label click activates the input too, which
                would run the action twice and cancel itself out. -->
-          <label style="display:inline-flex;align-items:center;gap:8px;height:36px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap"><input type="checkbox" data-act="toggleProfileCol" ${showProf?'checked':''} style="width:18px;height:18px;accent-color:#f58220;margin:0">Using Rental Fee Profile</label>
+          <label style="display:inline-flex;align-items:center;gap:8px;height:36px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap"><input type="checkbox" data-act="toggleProfileCol" ${showProf?'checked':''} style="width:18px;height:18px;accent-color:#f58220;margin:0">Fee Transparency</label>
         </div>
         <button data-act="addPropOpen" class="btn-pri" style="height:36px;padding:8px 16px 8px 8px;border-radius:4px;font:400 14px Roboto,sans-serif;display:inline-flex;align-items:center;gap:8px"><span class="material-symbols-outlined" style="font-size:20px">add_circle</span>Add Property</button>
       </div>
@@ -1632,8 +1638,8 @@ class Component extends DCLogic {
     return `<div style="flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:48px 24px;text-align:center">
       <img src="assets/logo-rentmanager-mark.svg" alt="" style="width:76px;height:76px">
       <div style="font-size:16px;font-weight:600;color:#666">Manage this property&rsquo;s charges in one place</div>
-      <div style="font-size:14px;color:#666;line-height:1.5">A Rental Fee Profile brings your charges, deposits, and pricing together for setup, move-ins, quotes, and listings.&nbsp; <a data-act="toast" data-arg="Opens contextual help" style="color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap">Learn More</a></div>
-      <button data-act="setupOpen" class="btn-pri" style="margin-top:4px;height:36px;padding:0 18px;border-radius:4px;font-size:14px">Setup Fee Profile</button>
+      <div style="font-size:14px;color:#666;line-height:1.5">Fee Transparency brings your charges, deposits, and pricing together for setup, move-ins, quotes, and listings.&nbsp; <a data-act="toast" data-arg="Opens contextual help" style="color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap">Learn More</a></div>
+      <button data-act="setupOpen" class="btn-pri" style="margin-top:4px;height:36px;padding:0 18px;border-radius:4px;font-size:14px">Turn on Fee Transparency</button>
     </div>`;
   }
   feeProfileLoading(){
@@ -1843,9 +1849,9 @@ class Component extends DCLogic {
     return `<div style="display:flex;align-items:flex-start;gap:12px;background:#eef6fb;border:1px solid #cedbe7;border-radius:4px;padding:16px 18px">
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
         <span style="font-size:14px;font-weight:600;color:#13314c">This property has ${n} fees. Manage them in one place.</span>
-        <span style="font-size:13px;color:#4a5b6b;line-height:1.5">A Rental Fee Profile centralizes your charges, deposits, and pricing on the property, simplifying setup, move-ins, and quotes. If you publish listings, fee transparency comes ready-made. Current tenants are unaffected.</span>
+        <span style="font-size:13px;color:#4a5b6b;line-height:1.5">Fee Transparency centralizes your charges, deposits, and pricing on the property's Charges tab, simplifying setup, move-ins, and quotes. If you publish listings, complete pricing comes ready-made. Current tenants are unaffected.</span>
         <div style="display:flex;align-items:center;gap:16px;margin-top:6px">
-          <button data-act="setupOpen" class="btn-pri" style="height:34px;padding:0 16px;border-radius:4px;font-size:14px">Setup Fee Profile</button>
+          <button data-act="setupOpen" class="btn-pri" style="height:34px;padding:0 16px;border-radius:4px;font-size:14px">Turn on Fee Transparency</button>
           <a data-act="toast" data-arg="Opens contextual help" style="font-size:14px;color:var(--ac,#008dd5);cursor:pointer">Learn More</a>
         </div>
       </div>
@@ -1896,8 +1902,8 @@ class Component extends DCLogic {
         <div style="display:flex;align-items:flex-start;gap:20px;padding:24px 24px 26px">
           <span class="material-symbols-outlined" style="font-size:36px;color:var(--ac,#008dd5);flex:none;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">warning</span>
           <div style="display:flex;flex-direction:column;gap:18px;min-width:0;font-size:15px;color:#666;line-height:1.5">
-            <span>The charges and requirements you've picked won't be saved, and no Rental Fee Profile will be created. Your existing charges stay exactly as they are.</span>
-            <span>Are you sure you want to exit the Rental Fee Profile Setup?</span>
+            <span>The charges and requirements you've picked won't be saved, and Fee Transparency won't be turned on. Your existing charges stay exactly as they are.</span>
+            <span>Are you sure you want to exit turning on Fee Transparency?</span>
           </div>
         </div>
         <div style="display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:14px 20px;background:#f5f8fa;border-top:1px solid #cedbe7">
@@ -1935,7 +1941,7 @@ class Component extends DCLogic {
     return `<div data-act="setupClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:120">
       <div data-act="noop" style="width:960px;max-width:96vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:12px 16px 0"><span data-act="setupClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span></div>
-        <div style="text-align:center;font-size:20px;color:#13314c;padding:0 24px 16px">Rental Fee Profile Setup</div>
+        <div style="text-align:center;font-size:20px;color:#13314c;padding:0 24px 16px">Turn on Fee Transparency</div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:0 24px 8px">${body}</div>
         ${ackBar}
         ${foot ? `<div style="display:flex;align-items:center;gap:12px;padding:12px 24px 16px">${foot}</div>` : '<div style="height:16px"></div>'}
@@ -2066,7 +2072,7 @@ class Component extends DCLogic {
         <span style="position:absolute;inset:0;border:5px solid #fbe4cf;border-top-color:#f58220;border-radius:50%;animation:spin 0.9s linear infinite"></span>
         <span class="material-symbols-outlined" style="font-size:40px;color:var(--ac,#008dd5)">apartment</span>
       </span>
-      <span style="font-size:16px;font-weight:600;color:#13314c">${props.length > 1 ? `Creating ${props.length} Rental Fee Profiles` : 'Creating the Rental Fee Profile'}</span>
+      <span style="font-size:16px;font-weight:600;color:#13314c">${props.length > 1 ? `Turning on Fee Transparency for ${props.length} properties` : 'Turning on Fee Transparency'}</span>
       <span style="font-size:13px;color:#8a9aa8">Moving your charges onto ${props.length > 1 ? 'each property' : props[0] || 'the property'}&hellip;</span>
     </div>`;
   }
@@ -2080,8 +2086,8 @@ class Component extends DCLogic {
       <span style="width:64px;height:64px;border-radius:50%;background:#e4f3ea;display:flex;align-items:center;justify-content:center"><span class="material-symbols-outlined" style="font-size:36px;color:#12a150">check</span></span>
       <span style="font-size:17px;font-weight:600;color:#13314c">${n === 1 ? per[0].p + ' is set up' : n + ' properties successfully updated with charges'}</span>
       <span style="font-size:13px;color:#4a5b6b;line-height:1.5;max-width:520px">${n === 1
-        ? `${total} charges were added to its Rental Fee Profile. Fill in the marketing details on each charge to get them ready for online listings.`
-        : `${total} charges were added across ${n} Rental Fee Profiles. Open any property to fill in the marketing details and get its charges ready for online listings.`}</span>
+        ? `${total} charges were added to its Charges tab. Fill in the marketing details on each charge to get them ready for online listings.`
+        : `${total} charges were added across ${n} properties. Open any property to fill in the marketing details and get its charges ready for online listings.`}</span>
       ${n < 2 ? '' : `<div style="align-self:stretch;border:1px solid #e3e9ee;border-radius:4px;overflow:hidden;margin-top:4px;text-align:left">${per.map((x,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:11px 16px;${i?'border-top:1px solid #f0f4f7':''}">
         <span class="material-symbols-outlined" style="font-size:18px;color:#12a150;flex:none">check_circle</span>
         <span style="font-size:14px;color:#13314c">${x.p}</span><div style="flex:1"></div>
@@ -2287,7 +2293,7 @@ class Component extends DCLogic {
 
     return `<div data-act="profHistClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:120">
       <div data-act="noop" style="width:980px;max-width:96vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid #cedbe7"><span style="font-size:20px;color:#13314c">Rental Fee Profile History</span><span style="display:inline-flex;align-items:center;gap:10px"><span data-act="toast" data-arg="Help" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">help</span><span data-act="profHistClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span></span></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid #cedbe7"><span style="font-size:20px;color:#13314c">Charges History</span><span style="display:inline-flex;align-items:center;gap:10px"><span data-act="toast" data-arg="Help" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">help</span><span data-act="profHistClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span></span></div>
         <div style="flex:1;min-height:0;overflow-y:auto;background:#f5f8fa;padding:16px 20px;display:flex;flex-direction:column;gap:16px">
           <span style="font-size:13px;color:#4a5b6b">Every change made to the charges on <strong style="font-weight:600">${prop}</strong>.</span>
           ${tile('Amount history by charge', amt.length ? 'Click a charge for its full timeline' : '', amt.length ? `<div style="overflow-x:auto"><div style="min-width:800px">${ahead}${abody}</div></div>` : empty,
@@ -2304,7 +2310,7 @@ class Component extends DCLogic {
   recChargesTile(scope){
     // Nothing to open until the property actually has a profile.
     const link = this.profStatus() === 'active'
-      ? `<a data-act="openFeeProfile" style="font-size:14px;color:var(--ac,#008dd5)">Open Rental Fee Profile</a>` : '';
+      ? `<a data-act="openFeeProfile" style="font-size:14px;color:var(--ac,#008dd5)">Open Charges tab</a>` : '';
     return `<div class="tile">
       <div class="thead2"><span class="ttl">Recurring Charges</span><div style="flex:1"></div>${link}<span data-act="recViewOpen" data-arg="${scope}" class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);cursor:pointer" title="View recurring charges">open_in_new</span></div>
       ${this.recChargesTableHTML({scope, edge:true})}
@@ -2362,8 +2368,8 @@ class Component extends DCLogic {
     if (this.profStatus(p) === 'active') {
       return `<div style="margin:12px 20px 0;display:flex;align-items:center;gap:12px;background:#eef6fb;border:1px solid #cedbe7;border-radius:4px;padding:12px 16px">
         <span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5);flex:none">info</span>
-        <span style="flex:1;min-width:0;font-size:13px;color:#4a5b6b;line-height:1.5">Charges are managed in this property's Rental Fee Profile. Add, edit or remove them there and the change applies everywhere it's charged.</span>
-        <a data-act="openFeeProfile" data-arg="${p}" style="display:inline-flex;align-items:center;gap:5px;flex:none;font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap">Open Rental Fee Profile<span class="material-symbols-outlined" style="font-size:17px">open_in_new</span></a>
+        <span style="flex:1;min-width:0;font-size:13px;color:#4a5b6b;line-height:1.5">Charges are managed on this property's Charges tab. Add, edit or remove them there and the change applies everywhere it's charged.</span>
+        <a data-act="openFeeProfile" data-arg="${p}" style="display:inline-flex;align-items:center;gap:5px;flex:none;font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap">Open Charges tab<span class="material-symbols-outlined" style="font-size:17px">open_in_new</span></a>
       </div>`;
     }
     if (!this.state.recViewNote) return '';
@@ -2373,10 +2379,10 @@ class Component extends DCLogic {
     return `<div style="margin:12px 20px 0;display:flex;align-items:flex-start;gap:16px;background:#eef6fb;border:1px solid #cedbe7;border-radius:4px;padding:16px 18px">
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
         <span style="font-size:14px;font-weight:600;color:#13314c">This property has ${n} fees. Manage them in one place.</span>
-        <span style="font-size:13px;color:#4a5b6b;line-height:1.5">A Rental Fee Profile centralizes your charges, deposits, and pricing on the property, simplifying setup, move-ins, and quotes. If you publish listings, fee transparency comes ready-made. Current tenant charges are unaffected.</span>
+        <span style="font-size:13px;color:#4a5b6b;line-height:1.5">Fee Transparency centralizes your charges, deposits, and pricing on the property's Charges tab, simplifying setup, move-ins, and quotes. If you publish listings, complete pricing comes ready-made. Current tenant charges are unaffected.</span>
       </div>
       <div style="display:flex;align-items:center;gap:16px;flex:none;padding-top:2px">
-        <button data-act="setupOpen" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Setup Fee Profile</button>
+        <button data-act="setupOpen" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Turn on Fee Transparency</button>
         <a data-act="toast" data-arg="Opens contextual help" style="font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap">Learn More</a>
       </div>
       <span data-act="recViewNoteDismiss" class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5);cursor:pointer;flex:none">close</span>
@@ -2414,7 +2420,7 @@ class Component extends DCLogic {
     const lvl = { 'Property':'#1570ef', 'Unit Type':'#d92d20', 'Unit type':'#d92d20', 'Unit':'#099250', 'ORI':'#6a4aa8' };
     const cb = (label) => `<label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer"><span style="width:18px;height:18px;border-radius:3px;box-sizing:border-box;border:1px solid var(--ac,#008dd5);background:#fff;flex:none"></span>${label}</label>`;
     const orange = `<span style="width:18px;height:18px;border-radius:3px;box-sizing:border-box;background:#f58220;border:1px solid #f58220;display:flex;align-items:center;justify-content:center;flex:none"><span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span></span>`;
-    // Once the property runs on a Rental Fee Profile, charges are added and selected there — this
+    // Once Fee Transparency is on, charges are added and selected on the Charges tab — this
     // overlay is read-only, so the Add button and the row selection column come off.
     const managed = this.profStatus(prop) === 'active';
     const cols = managed
@@ -2580,7 +2586,7 @@ class Component extends DCLogic {
     const radio = (on, label, act, arg) => `<label data-act="${act}" data-arg="${arg}" style="display:inline-flex;align-items:center;gap:8px;font-size:13px;color:#13314c;cursor:pointer"><span style="width:16px;height:16px;border-radius:50%;box-sizing:border-box;border:2px solid ${on?'var(--ac,#008dd5)':'#b3b3b3'};display:flex;align-items:center;justify-content:center;flex:none">${on?'<span style="width:8px;height:8px;border-radius:50%;background:var(--ac,#008dd5)"></span>':''}</span>${label}</label>`;
     const hint = (t) => `<span style="font-size:12px;color:#8a9aa8;padding-left:24px">${t}</span>`;
 
-    // ---- Rental Fee Profile: Blank, or copy charges from a property that already has one ----
+    // ---- Fee Transparency: Blank, or copy charges from a property that already has it on ----
     const copyable = this.copyableProfiles();
     const isCopy = a.fee === 'copy';
     // Unit-level marketing keeps fees on each unit, so there's no property-wide profile to configure.
@@ -2606,7 +2612,7 @@ class Component extends DCLogic {
     };
     const copyBlock = !isCopy ? '' : `<div style="display:flex;flex-direction:column;gap:6px;padding-left:24px">
         <div style="max-width:340px">${this.singleSelect('ap-copy', copyable.length?copyable:['No properties with a profile'], a.copyFrom, { act:'addPropCopyFrom' })}</div>
-        <span style="font-size:12px;color:#8a9aa8">Copy recurring and one-time charges from properties that have a rental fee profile set up.</span>
+        <span style="font-size:12px;color:#8a9aa8">Copy recurring and one-time charges from properties that already have Fee Transparency turned on.</span>
         ${srcRows.length?`<div style="margin-top:6px;display:flex;flex-direction:column;gap:2px">
           <div style="display:flex;align-items:baseline;gap:10px"><span style="font-size:13px;font-weight:600;color:#13314c">Select Recurring and One-Time Charges to Include</span><div style="flex:1"></div><span style="font-size:12px;color:#4a5b6b">${srcRows.filter(r=>a.sel[r.id]).length} of ${srcRows.length} selected</span></div>
           <div style="border:1px solid #e3e9ee;border-radius:4px;background:#f7f9fb;padding:10px 12px;max-height:260px;overflow-y:auto">
@@ -2643,8 +2649,8 @@ class Component extends DCLogic {
         fld('Type of Unit to create', `<div style="height:32px;box-sizing:border-box;border:1px solid #cedbe7;border-radius:4px;background:#f5f8fa;display:flex;align-items:center;gap:6px;padding:0 8px"><span class="material-symbols-outlined" style="font-size:16px;color:#8a9aa8">search</span></div>`)
       ))}
       ${sect('Marketing Configuration', `<div style="display:flex;align-items:center;gap:24px">${radio(unitMkt===false,'Property-level Marketing','addPropMkt','property')}${radio(unitMkt,'Unit-level Marketing','addPropMkt','unit')}</div>`)}
-      ${sect('Rental Fee Profile', unitMkt
-        ? `<div style="display:flex;align-items:flex-start;gap:10px;opacity:0.55"><span class="material-symbols-outlined" style="font-size:18px;color:#8a9aa8;flex:none">block</span><span style="font-size:13px;color:#8a9aa8;line-height:1.5">Not available with unit-level marketing. A Rental Fee Profile centralizes charges for the whole property, so fees stay on each unit instead. Switch to property-level marketing to set one up.</span></div>`
+      ${sect('Fee Transparency', unitMkt
+        ? `<div style="display:flex;align-items:flex-start;gap:10px;opacity:0.55"><span class="material-symbols-outlined" style="font-size:18px;color:#8a9aa8;flex:none">block</span><span style="font-size:13px;color:#8a9aa8;line-height:1.5">Not available with unit-level marketing. Fee Transparency centralizes charges for the whole property, so fees stay on each unit instead. Switch to property-level marketing to turn it on.</span></div>`
         : `
         ${radio(!isCopy,'Blank','addPropFee','blank')}
         ${hint('Start with no fees, and add charges after the property is created.')}
@@ -3060,12 +3066,12 @@ class Component extends DCLogic {
           <span data-act="copyClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span>
         </div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:14px">
-          <span style="font-size:14px;color:#4a5b6b;line-height:1.5">Recurring and one-time charges can be copied from any property that already has a rental fee profile set up.</span>
+          <span style="font-size:14px;color:#4a5b6b;line-height:1.5">Recurring and one-time charges can be copied from any property that already has Fee Transparency turned on.</span>
           <div style="display:flex;flex-direction:column;gap:6px">
             <span style="font-size:15px;font-weight:600;color:#13314c">Copy From</span>
             ${sources.length
               ? this.singleSelect('cp-from', sources, c.from, { act:'copyFrom', placeholder:'Select a property' })
-              : `<span style="font-size:13px;font-style:italic;color:#b3b3b3">No other property has a rental fee profile yet.</span>`}
+              : `<span style="font-size:13px;font-style:italic;color:#b3b3b3">No other property has Fee Transparency turned on yet.</span>`}
           </div>
           <div style="display:flex;flex-direction:column;gap:10px">
             <span style="display:flex;align-items:center;gap:8px;font-size:14px;color:#13314c">How would you like to handle duplicate charges?${dupTip}</span>
@@ -3357,8 +3363,8 @@ class Component extends DCLogic {
     if (s.view === 'property') {
       out += this.ctx('Property', [{ label: s.property }], '125 of 255', 'navRegister');
       out += this.propScoreboard();
-      out += this.tabRow(['General','Leasing','Documents','Rental Fee Profile'], s.propTab, 'proptab', { badge: { 'Rental Fee Profile':'New' } });
-      if (s.propTab === 'Rental Fee Profile') {
+      out += this.tabRow(['General','Leasing','Documents','Charges'], s.propTab, 'proptab', { badge: { 'Charges':'New' } });
+      if (s.propTab === 'Charges') {
         out += `<div style="flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden">${this.feeProfileTab()}</div>`;
       } else {
         out += `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden"><div style="flex:1;min-width:0;overflow-y:auto;display:flex;flex-direction:column"><div style="flex:1;min-width:0;padding:16px;display:flex;flex-direction:column;gap:16px;width:100%;box-sizing:border-box">${this.propGeneralBody()}</div></div>${this.rail()}</div>`;
