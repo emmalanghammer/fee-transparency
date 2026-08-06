@@ -130,6 +130,8 @@ class Component extends DCLogic {
     rowMenu: null,
     // The register's "Using Rental Fee Profile" column is opt-in, so the default view matches today's.
     showProfileCol: false,
+    // Properties whose complete pricing has been published from the Fee Transparency page.
+    publishedProps: {},
     // "Exclude Charge" overlay: { id, scope:'Unit Type'|'Unit', sel:{name:true} }. A charge's own
     // exclusions live on the row as exclFrom:{ types:[], units:[] }.
     chargeExcl: null,
@@ -598,6 +600,13 @@ class Component extends DCLogic {
     switch (act) {
       case 'accToggle': { const ao = Object.assign({}, this.state.accOpen); ao[arg] = !ao[arg]; this.setState({ accOpen: ao }); break; }
       case 'navRegister': this.go('register'); break;
+      case 'navFeeTrans': this.go('feetrans'); break;
+      case 'ftSetupProps': this.go('register', { bulkSetup: { sel: {} } }); this.flash('Select the properties to set up'); break;
+      // Publishing a property's complete pricing moves it to Published on the tracker.
+      case 'ftPublish': { const pr = arg;
+        this.setState(s => ({ publishedProps: Object.assign({}, s.publishedProps, { [pr]: true }) }));
+        this.logChange(pr, 'Rental Fee Profile', 'Complete pricing published to listings', pr);
+        this.flash('Complete pricing published for ' + pr); break; }
       case 'toggleProfileCol': this.setState(s => ({ showProfileCol: !s.showProfileCol })); break;
       case 'navProperty': this.go('property', arg ? { property: arg, propTab: 'General' } : { propTab: 'General' }); break;
       case 'navUnit': this.go('unit', { unit: arg }); break;
@@ -1196,6 +1205,8 @@ class Component extends DCLogic {
             <div data-act="navProperty" data-arg="Riverview Apartments" style="padding:10px 16px;font-size:14px;color:#13314c;cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''">Riverview Apartments</div>
             <div style="height:1px;background:#ebf1f5;margin:4px 0"></div>
             <div data-act="kickoffOpen" style="padding:10px 16px;font-size:14px;color:#13314c;cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''">Coming Soon Announcement</div>
+            <div data-act="navFeeTrans" style="padding:10px 16px;font-size:14px;color:#13314c;cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''">Fee Transparency</div>
+            <div style="height:1px;background:#ebf1f5;margin:4px 0"></div>
             <div data-act="announceOpen" style="padding:10px 16px;font-size:14px;color:#13314c;cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''">New Feature Announcement</div>
           </div>
           <span style="display:inline-flex;align-items:center;justify-content:center;width:45px;height:32px;background:#425a70"><img src="assets/icon-reports.svg" alt="Reports" style="width:20px;height:20px"></span>
@@ -1262,6 +1273,116 @@ class Component extends DCLogic {
   // ================= PROPERTIES REGISTER =================
   // Properties the bulk setup can act on — the ones without a profile yet.
   bulkSetupCandidates(){ return this.propertiesData().filter(p => this.profStatus(p.name) !== 'active'); }
+  // ---------- Fee Transparency tracker (mock 2651-48385) ----------
+  // Where each property stands: not set up, charges missing details, ready, or published.
+  ftStatus(p){
+    const rows = this.profileRows(p);
+    const active = this.profStatus(p) === 'active';
+    const published = !!this.state.publishedProps[p];
+    const ils = this.ilsOn(p);
+    const short = rows.filter(r => !this.mitsComplete(r)).length;
+    if (!active) return { key:'none', label:'Not Set Up', icon:'settings', color:'#b3b3b3',
+      next:'Set Up', act:'setupOpen', ready:'' };
+    if (short) return published
+      ? { key:'pubshort', label:'Published - Needs Details', icon:'warning', color:'#eb343c',
+          next:'Add Charge Details', act:'openFeeProfile', issues:short }
+      : { key:'short', label:'Needs Details', icon:'warning', color:'#faa61c',
+          next:'Add Charge Details', act:'openFeeProfile' };
+    if (published) return { key:'pub', label:'Published', icon:'verified', color:'#6eb744',
+      next:'View Charges', act:'openFeeProfile' };
+    if (!ils) return { key:'done', label:'Done - Not Enabled for Listings', icon:'verified', color:'#6eb744',
+      next:'View Charges', act:'openFeeProfile' };
+    return { key:'ready', label:'Ready to Publish', icon:'check_circle', color:'#008dd5',
+      next:'Publish Complete Pricing', act:'ftPublish' };
+  }
+  ftCounts(){
+    const c = { none:0, needs:0, ready:0, done:0, pubshort:0, pub:0, notEnabled:0 };
+    this.propertiesData().forEach(p => { const st = this.ftStatus(p.name);
+      if (st.key === 'none') c.none++;
+      else if (st.key === 'short') { c.needs++; }
+      else if (st.key === 'pubshort') { c.needs++; c.pubshort++; }
+      else if (st.key === 'ready') c.ready++;
+      else { c.done++; if (st.key === 'pub') c.pub++; else c.notEnabled++; }
+    });
+    return c;
+  }
+  feeTransBody(){
+    const rows = this.propertiesData();
+    const c = this.ftCounts();
+    // ---- status tiles: 8px colour strip, label, count, and any qualifier beside it ----
+    const tile = (icon, iconColor, label, count, strip, sub) => `<div style="flex:1;min-width:0;display:flex;align-items:stretch;background:#fff;border-radius:2px;overflow:hidden">
+      <div style="width:8px;flex:none;background:${strip}"></div>
+      <div style="flex:1;min-width:0;padding:11px 16px 12px;display:flex;flex-direction:column;gap:9px">
+        <span style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#13314c;white-space:nowrap"><span class="material-symbols-outlined" style="font-size:17px;color:${iconColor};font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">${icon}</span>${label}</span>
+        <span style="display:inline-flex;align-items:baseline;gap:14px;min-width:0">
+          <span style="font-size:20px;font-weight:600;color:#13314c;line-height:1">${count}</span>
+          ${sub||''}
+        </span>
+      </div></div>`;
+    const subRed = (t) => `<span style="font-size:13px;color:#eb343c;white-space:nowrap">${t}</span>`;
+    const subGrey = (a, b) => `<span style="display:inline-flex;align-items:baseline;gap:18px;font-size:13px;color:#666;white-space:nowrap"><span>${a}</span><span>${b}</span></span>`;
+    const tiles = `<div style="display:flex;gap:16px">
+      ${tile('settings','#b3b3b3','Not Set Up',c.none,'#b3b3b3')}
+      ${tile('warning','#faa61c','Needs Details',c.needs,'#faa61c', c.pubshort ? subRed(c.pubshort + (c.pubshort===1?' property is':' properties are') + ' published and needs details') : '')}
+      ${tile('check_circle','#008dd5','Ready to Publish',c.ready,'#008dd5')}
+      ${tile('verified','#6eb744','Done',c.done,'#6eb744', c.done ? subGrey(c.pub + ' Published', c.notEnabled + ' Not Enabled for Listings') : '')}
+    </div>`;
+
+    // ---- toolbar: search, saved filters, and the two actions on the right ----
+    const toolbar = `<div style="display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap">
+      <div style="display:flex;flex-direction:column;gap:4px;width:248px">
+        <span style="font-size:13px;color:var(--ac,#008dd5)">Search</span>
+        <div style="display:flex;align-items:center;gap:8px;height:34px;box-sizing:border-box;background:#fff;border:1px solid #cedbe7;border-radius:4px;padding:0 8px">
+          <span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5)">search</span>
+          <span style="flex:1;min-width:0;font-size:14px;font-style:italic;color:#b3b3b3">Find a property</span>
+          <span class="material-symbols-outlined" style="font-size:18px;color:#666">keyboard_arrow_down</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;width:200px">
+        <span style="font-size:13px;color:var(--ac,#008dd5)">Saved Filters</span>
+        <div style="display:flex;align-items:center;height:34px;box-sizing:border-box;background:#fff;border:1px solid #cedbe7;border-radius:4px;padding:0 8px"><span style="flex:1;min-width:0;font-size:14px;color:#13314c">&lt; No Filter &gt;</span><span class="material-symbols-outlined" style="font-size:18px;color:#666">keyboard_arrow_down</span></div>
+      </div>
+      <span data-act="toast" data-arg="Filters" style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;box-sizing:border-box;background:var(--ac,#008dd5);border-radius:2px;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:#fff">tune</span></span>
+      <div style="flex:1"></div>
+      <a data-act="announceOpen" style="font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap;padding-bottom:8px">What is fee transparency?</a>
+      <button data-act="ftSetupProps" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:2px;font-size:14px;white-space:nowrap">Set Up Properties</button>
+    </div>`;
+
+    // ---- table: proportions taken from the mock at 1920 wide ----
+    const cols = '332fr 224fr 450fr 603fr 216fr 38px';
+    const hc = (t, first, sortUp) => `<span style="display:flex;align-items:center;gap:8px;height:26px;box-sizing:border-box;padding:0 ${first?'0 0 17px':'0 0 12px'};font-size:13px;font-weight:600;color:#fff;white-space:nowrap;${first?'':'border-left:1px solid rgba(255,255,255,0.35)'}">${sortUp?'<span class="material-symbols-outlined" style="font-size:18px">arrow_upward</span>':''}${t}</span>`;
+    const header = `<div style="display:grid;grid-template-columns:${cols};background:#737373">
+      ${hc('Property', true)}${hc('Listings Enabled')}${hc('Charges Ready')}${hc('Status', false, true)}${hc('Next Step')}
+      <span style="display:flex;align-items:center;justify-content:center;height:26px;border-left:1px solid rgba(255,255,255,0.35)"><span class="material-symbols-outlined" style="font-size:18px;color:#fff">view_column</span></span>
+    </div>`;
+    const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px;font-size:14px;color:#13314c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
+    const body = rows.map(r => {
+      const st = this.ftStatus(r.name);
+      const all = this.profileRows(r.name);
+      const ready = all.filter(x => this.mitsComplete(x)).length;
+      const count = st.key === 'none' ? '-' : ready + '/' + all.length;
+      const issues = st.issues
+        ? `<span style="display:inline-flex;align-items:center;gap:6px;border:1px solid #eb343c;border-radius:2px;padding:1px 8px;margin-left:14px"><span class="material-symbols-outlined" style="font-size:15px;color:#eb343c">warning</span><span style="font-size:13px;color:#13314c">${st.issues} charge${st.issues===1?'':'s'} ${st.issues===1?'has':'have'} issues</span></span>`
+        : '';
+      return `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #f5f8fa;background:#fff">
+        ${cell(r.name, 'padding-left:17px')}
+        <span style="display:flex;align-items:center;justify-content:center;min-height:35px"><span class="material-symbols-outlined" style="font-size:18px;color:#666">${this.ilsOn(r.name)?'check':'close'}</span></span>
+        <span style="display:flex;align-items:center;min-height:35px;padding:0 12px;font-size:14px;color:#13314c;white-space:nowrap">${count}${issues}</span>
+        <span style="display:flex;align-items:center;gap:8px;min-height:35px;padding:0 12px;font-size:14px;color:#13314c;white-space:nowrap"><span class="material-symbols-outlined" style="font-size:18px;color:${st.color};font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">${st.icon}</span>${st.label}</span>
+        <a data-act="${st.act}" data-arg="${r.name}" style="display:flex;align-items:center;min-height:35px;padding:0 12px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap">${st.next}</a>
+        <span data-act="toast" data-arg="Row actions" style="display:flex;align-items:center;justify-content:center;min-height:35px;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">more_vert</span></span>
+      </div>`;
+    }).join('');
+
+    return `<div style="padding:16px 24px 24px;display:flex;flex-direction:column;gap:16px">
+      ${tiles}
+      ${toolbar}
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div style="overflow-x:auto"><div style="min-width:1100px">${header}${body}</div></div>
+        <div style="display:flex;justify-content:flex-end"><span style="font-size:12px;color:#b3b3b3">${rows.length} of 42 Properties</span></div>
+      </div>
+    </div>`;
+  }
   registerBody(){
     const rows = this.propertiesData();
     // In selection mode a checkbox column leads the grid and rows select instead of navigating.
@@ -3243,6 +3364,15 @@ class Component extends DCLogic {
         out += `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden"><div style="flex:1;min-width:0;overflow-y:auto;display:flex;flex-direction:column"><div style="flex:1;min-width:0;padding:16px;display:flex;flex-direction:column;gap:16px;width:100%;box-sizing:border-box">${this.propGeneralBody()}</div></div>${this.rail()}</div>`;
         out += this.footer('Save property');
       }
+    } else if (s.view === 'feetrans') {
+      out += `<div style="height:40px;background:var(--ac,#008dd5);display:flex;align-items:center;padding:0 16px;gap:12px;color:#fff;flex:none">
+        <span style="font-size:18px;line-height:24px">Fee Transparency</span>
+        <div style="flex:1"></div>
+        <span data-act="toast" data-arg="Print" class="material-symbols-outlined" style="font-size:18px;opacity:0.85;cursor:pointer">print</span>
+        <span data-act="toast" data-arg="Refresh" class="material-symbols-outlined" style="font-size:18px;opacity:0.85;cursor:pointer">autorenew</span>
+        <span class="material-symbols-outlined" style="font-size:18px;opacity:0.85;cursor:pointer">help</span>
+      </div>`;
+      out += `<div style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column">${this.feeTransBody()}</div>`;
     } else if (s.view === 'register') {
       out += `<div style="height:40px;background:var(--ac,#008dd5);display:flex;align-items:center;padding:0 16px;gap:12px;color:#fff;flex:none">
         <span style="font-size:18px;line-height:24px">Properties</span>
