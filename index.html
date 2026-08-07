@@ -833,7 +833,8 @@ class Component extends DCLogic {
         break; }
       case 'profHistOpen': this.setState({ profMenu: null, profHist: { prop: this.state.property, exp: {} } }); break;
       case 'profHistClose': this.setState({ profHist: null }); break;
-      case 'profHistExp': this.setState(s => ({ profHist: Object.assign({}, s.profHist, { exp: Object.assign({}, s.profHist.exp, { [arg]: !s.profHist.exp[arg] }) }) })); break;
+      // One charge open at a time — expanding a charge collapses whichever was open before.
+      case 'profHistExp': this.setState(s => ({ profHist: Object.assign({}, s.profHist, { exp: s.profHist.exp[arg] ? {} : { [arg]: true } }) })); break;
       case 'setupAck': this.setState(s => ({ setup: Object.assign({}, s.setup, { ack: !s.setup.ack }) })); break;
       case 'setupSave': { const c = this.state.setup;
         const props = this.setupProps();
