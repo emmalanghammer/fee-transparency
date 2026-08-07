@@ -1384,7 +1384,9 @@ class Component extends DCLogic {
     const esc = s => (''+s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
     const clampJs = id => `var p=document.getElementById('${id}');if(p.style.display==='block'){p.style.display='none';}else{p.style.display='block';p.style.right='0';p.style.left='auto';var r=p.getBoundingClientRect();if(r.left<8){p.style.right='auto';p.style.left='0';}}`;
 
-    const readyProps = this.propertiesData().map(p => p.name).filter(n => this.ftStatus(n).key === 'ready');
+    // Publishable = listings-enabled, set up, not yet published. Incomplete charges don't block
+    // publishing — the confirmation warns about them instead.
+    const pubProps = this.propertiesData().map(p => p.name).filter(n => ['ready','short'].indexOf(this.ftStatus(n).key) >= 0);
 
     // ---- status tiles: bordered cards, count, and a qualifying line underneath ----
     const tile = (border, icon, iconColor, label, count, action, sub) => `<div style="flex:1;min-width:295px;background:#fff;border:2px solid ${border};border-radius:4px;padding:10px 14px 11px;display:flex;flex-direction:column;gap:7px;box-sizing:border-box">
@@ -1435,7 +1437,7 @@ class Component extends DCLogic {
       </div>
       <div style="flex:1"></div>
       <a data-act="announceOpen" style="font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap;padding-bottom:8px">What is fee transparency?</a>
-      ${readyProps.length ? `<button data-act="ftSelOpen" data-arg="pub" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,#008dd5);color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap">Publish Complete Pricing</button>` : ''}
+      ${pubProps.length ? `<button data-act="ftSelOpen" data-arg="pub" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,#008dd5);color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap">Publish Complete Pricing</button>` : ''}
       ${this.bulkSetupCandidates().length ? `<button data-act="ftSelOpen" data-arg="setup" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:2px;font-size:14px;white-space:nowrap">Set Up Fee Transparency</button>` : ''}
     </div>`;
 
@@ -1490,7 +1492,7 @@ class Component extends DCLogic {
     const f = this.state.ftSel;
     if (!f) return '';
     const opts = f.mode === 'pub'
-      ? this.propertiesData().map(p => p.name).filter(n => this.ftStatus(n).key === 'ready')
+      ? this.propertiesData().map(p => p.name).filter(n => ['ready','short'].indexOf(this.ftStatus(n).key) >= 0)
       : this.bulkSetupCandidates().map(p => p.name);
     return `<div data-act="ftSelCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:140">
       <div data-act="noop" style="width:360px;max-width:94vw;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column">
