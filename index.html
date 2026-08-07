@@ -1881,8 +1881,9 @@ class Component extends DCLogic {
                             : `120px ${cmt} 100px 90px 110px 120px 40px`));
     const allIds = rows.map(r => r.id).join(',');
     const allOn = rows.length && rows.every(r => bs && bs.sel[r.id]);
-    const selHead = !bs ? '' : `<span style="display:flex;align-items:center;justify-content:center;padding:8px 0 8px 8px"><input type="checkbox" data-act="bulkSelAll" data-arg="${allIds}" ${allOn?'checked':''} ${rows.length?'':'disabled'} style="accent-color:#f58220;width:16px;height:16px;margin:0;cursor:pointer"></span>`;
-    const selCell = r => !bs ? '' : `<span style="display:flex;align-items:center;justify-content:center;min-height:44px;padding-left:8px"><input type="checkbox" data-act="bulkSelToggle" data-arg="${r.id}" ${bs.sel[r.id]?'checked':''} style="accent-color:#f58220;width:16px;height:16px;margin:0;cursor:pointer"></span>`;
+    const selBox = (on) => `<span style="width:18px;height:18px;border-radius:3px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${on?'background:#f58220;border:1px solid #f58220':'background:#fff;border:1px solid #b3b3b3'}">${on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span>`;
+    const selHead = !bs ? '' : `<span data-act="bulkSelAll" data-arg="${allIds}" style="display:flex;align-items:center;justify-content:center;padding:8px 0 8px 8px;cursor:pointer">${selBox(allOn)}</span>`;
+    const selCell = r => !bs ? '' : `<span data-act="bulkSelToggle" data-arg="${r.id}" style="display:flex;align-items:center;justify-content:center;min-height:44px;padding-left:8px;cursor:pointer">${selBox(!!bs.sel[r.id])}</span>`;
     const heads = rec ? ['Charge Type','Comment','Frequency','From','To','Amount','Charge Level'].concat(ils?['Listing Ready']:[]).concat([''])
                       : ['Charge Type','Comment','From','To','Amount','Charge Level'].concat(ils?['Listing Ready']:[]).concat(['']);
     const hc = (t,i) => `<span style="display:flex;align-items:center;padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:600;color:#13314c;white-space:nowrap;${/Amount/.test(t)?'justify-content:flex-end;':''}">${t}</span>`;
