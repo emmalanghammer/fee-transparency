@@ -98,7 +98,8 @@ class Component extends DCLogic {
     // The Berkshires is listed but not yet converted, so the setup review can warn about the
     // listing impact. The opt-in itself only surfaces once a profile exists.
     // The Hamptons is the finished example — marketed, with every charge listing-ready.
-    ilsProps: { 'Riverview Apartments': true, 'The Berkshires': true, 'The Hamptons': true },
+    ilsProps: { 'Riverview Apartments': true, 'The Hamptons': true, 'The Berkshires': true,
+      'Cedar Ridge': true, 'The Estates': true, 'Willow Creek': true, 'Stonegate Village': true },
     profileStatus: {},
     profileFees: {},
     profHist: null,
@@ -176,8 +177,9 @@ class Component extends DCLogic {
   // Properties that already have Fee Transparency on — the register's "Fee Transparency"
   // column. Opening one of these lands on the populated profile; the rest land on pre-setup.
   seededProfiles(){
-    return ['Riverview Apartments','The Windermere','The Estates','Willow Creek','Greenbriar Village',
-            'Oakwood Manor','Pinewood Place','Stonegate Village','The Hamptons'];
+    // Nobody starts set up — the tracker opens with every property at Not Set Up so the demo walks
+    // the real first-run journey. Setting up a property writes profileStatus/profileFees.
+    return [];
   }
   usingProfile(p){ return this.profStatus(p) === 'active'; }
   profStatus(p){
@@ -2224,6 +2226,9 @@ class Component extends DCLogic {
   setupProps(){ const c = this.state.setup; return (c && c.props) || []; }
   // The rows exactly as save will write them, so the review step counts what actually lands.
   setupRows(prop){
+    // The Hamptons' pulled-in charges already carry complete marketing details — it stays the
+    // worked example of a clean setup.
+    if (this.listingReadyProps().indexOf(prop) >= 0) return this.listingReadyRows();
     // The new setup moves every discovered charge — nothing is excluded during setup; charges are
     // managed (or removed) on the Charges tab afterwards. Charges that arrive with pulled-in
     // marketing details (NSF, late fees) keep the requirement they came with.
