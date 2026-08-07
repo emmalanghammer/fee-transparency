@@ -138,6 +138,7 @@ class Component extends DCLogic {
     publishedProps: {},
     pubModal: null, // { prop, ack } — Publish Complete Pricing confirmation
     mktSetup: false, // Marketing Setup overlay (opened from the action rail's copy flyout)
+    ftSel: null, // { mode:'pub'|'setup' } — Select Properties dialog on the tracker
     ltProp: 'all', // Listings page property filter
     ltErrOnly: false, // Listings page: hide listings without errors
     ftFilter: 'all', // tracker Status filter: all | ready | needs | none | done
@@ -616,17 +617,24 @@ class Component extends DCLogic {
       case 'mktSave': this.setState({ mktSetup: false }); this.flash('Marketing setup saved'); break;
       case 'ltPropSet': this.setState({ ltProp: arg }); break;
       case 'ltErrToggle': this.setState(s => ({ ltErrOnly: !s.ltErrOnly })); break;
-      case 'ftBulkGo': { const sel = Array.from(document.querySelectorAll('#ft-setup-pnl input:checked')).map(i => i.getAttribute('data-prop'));
-        if (!sel.length) { this.flash('Select at least one property'); break; }
-        this.setState({ setup: { props: sel, step: 1 } }); break; }
+      // Select Properties dialog: pick who the toolbar action applies to, then hand off.
+      case 'ftSelOpen': this.setState({ ftSel: { mode: arg } }); break;
+      case 'ftSelCancel': this.setState({ ftSel: null }); break;
+      case 'ftSelNext': { const sel = Array.from(document.querySelectorAll('#ftsel-props-list input:checked')).map(i => i.value);
+        // Handled on the DOM so an empty pick doesn't re-render the dialog and wipe the selection.
+        if (!sel.length) { const e = document.getElementById('ftsel-err'); if (e) e.style.display = 'block'; break; }
+        if (this.state.ftSel.mode === 'setup') this.setState({ ftSel: null, setup: { props: sel, step: 1 } });
+        else this.setState({ ftSel: null, pubModal: { props: sel, ack: false } });
+        break; }
       // Publishing complete pricing runs through a confirmation with an explicit acknowledgement.
       case 'pubOpen': this.setState({ pubModal: { prop: arg, ack: false } }); break;
       case 'pubAck': this.setState(s => ({ pubModal: Object.assign({}, s.pubModal, { ack: !s.pubModal.ack }) })); break;
       case 'pubCancel': this.setState({ pubModal: null }); break;
-      case 'pubConfirm': { const pr = this.state.pubModal.prop;
-        this.setState(s => ({ pubModal: null, publishedProps: Object.assign({}, s.publishedProps, { [pr]: true }) }));
-        this.logChange(pr, 'Fee Transparency', 'Complete pricing published to listings', pr);
-        this.flash('Complete pricing published for ' + pr); break; }
+      case 'pubConfirm': { const m = this.state.pubModal; const props = m.props || [m.prop];
+        this.setState(s => { const pp = Object.assign({}, s.publishedProps);
+          props.forEach(p => { pp[p] = true; }); return { pubModal: null, publishedProps: pp }; });
+        props.forEach(p => this.logChange(p, 'Fee Transparency', 'Complete pricing published to listings', p));
+        this.flash('Complete pricing published for ' + (props.length === 1 ? props[0] : props.length + ' properties')); break; }
       case 'ftFilterSet': this.setState({ ftFilter: arg }); break;
       case 'toggleProfileCol': this.setState(s => ({ showProfileCol: !s.showProfileCol })); break;
       case 'navProperty': this.go('property', arg ? { property: arg, propTab: 'General' } : { propTab: 'General' }); break;
@@ -1376,27 +1384,7 @@ class Component extends DCLogic {
     const esc = s => (''+s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
     const clampJs = id => `var p=document.getElementById('${id}');if(p.style.display==='block'){p.style.display='none';}else{p.style.display='block';p.style.right='0';p.style.left='auto';var r=p.getBoundingClientRect();if(r.left<8){p.style.right='auto';p.style.left='0';}}`;
 
-    // ---- headline actions that live inside the first and third tiles ----
     const readyProps = this.propertiesData().map(p => p.name).filter(n => this.ftStatus(n).key === 'ready');
-    const pubLink = `<span style="position:relative;display:inline-flex">
-      <a onclick="event.stopPropagation();${clampJs('ft-pub-pnl')}" style="font-size:13px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap">Publish Complete Pricing</a>
-      <div id="ft-pub-pnl" style="display:none;position:absolute;right:0;top:26px;z-index:1000;min-width:250px;background:#fff;border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,0.18);padding:6px 0">
-        <div style="padding:6px 16px 4px;font-size:13px;font-weight:600;color:#13314c">Ready to publish</div>
-        ${readyProps.length ? readyProps.map(n => `<div data-act="pubOpen" data-arg="${esc(n)}" style="padding:7px 16px;font-size:14px;color:#13314c;cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''">${esc(n)}</div>`).join('') : `<div style="padding:7px 16px;font-size:13px;font-style:italic;color:#8a9aa8">No properties are ready yet</div>`}
-      </div>
-    </span>`;
-    const setupLink = `<span style="position:relative;display:inline-flex">
-      <a onclick="event.stopPropagation();${clampJs('ft-setup-pnl')}" style="font-size:13px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap">Set Up Fee Transparency</a>
-      <div id="ft-setup-pnl" style="display:none;position:absolute;right:0;top:26px;z-index:1000;width:300px;background:#fff;border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,0.18);padding:6px 0 10px;text-align:left">
-        <div style="padding:8px 16px 6px;font-size:13px;font-weight:600;color:#13314c">Properties not set up</div>
-        <div style="max-height:260px;overflow-y:auto">
-          ${this.bulkSetupCandidates().map(p => `<label style="display:flex;align-items:center;gap:10px;padding:7px 16px;font-size:14px;color:#13314c;cursor:pointer" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''"><input type="checkbox" data-prop="${esc(p.name)}" onchange="var n=document.querySelectorAll('#ft-setup-pnl input:checked').length;var g=document.getElementById('ft-setup-go');g.textContent=n?('Set Up Fee Transparency ('+n+')'):'Set Up Fee Transparency';if(n){g.setAttribute('data-act','ftBulkGo');g.style.opacity='1';g.style.cursor='pointer';}else{g.removeAttribute('data-act');g.style.opacity='0.55';g.style.cursor='default';}" style="accent-color:var(--ac,#008dd5);width:15px;height:15px;margin:0">${esc(p.name)}</label>`).join('')}
-        </div>
-        <div style="padding:10px 16px 2px;border-top:1px solid #ebf1f5;margin-top:4px">
-          <button id="ft-setup-go" class="btn-pri" style="width:100%;height:34px;min-height:34px;border-radius:4px;font-size:14px;opacity:0.55;cursor:default">Set Up Fee Transparency</button>
-        </div>
-      </div>
-    </span>`;
 
     // ---- status tiles: bordered cards, count, and a qualifying line underneath ----
     const tile = (border, icon, iconColor, label, count, action, sub) => `<div style="flex:1;min-width:295px;background:#fff;border:2px solid ${border};border-radius:4px;padding:10px 14px 11px;display:flex;flex-direction:column;gap:7px;box-sizing:border-box">
@@ -1410,11 +1398,11 @@ class Component extends DCLogic {
       ${sub ? `<span style="font-size:12px;font-style:italic;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${sub.c}">${sub.t}</span>` : '<span style="font-size:12px;line-height:1.3">&nbsp;</span>'}
     </div>`;
     const tiles = `<div style="display:flex;gap:16px;flex-wrap:wrap">
-      ${tile('#008dd5','check_circle','#008dd5','Ready to publish',c.ready, pubLink,
+      ${tile('#008dd5','check_circle','#008dd5','Ready to publish',c.ready, '',
         { t:'Listed properties with complete charge details', c:'color:#666' })}
       ${tile('#faa61c','warning','#faa61c','Charges need details',c.needs, '',
         c.pubshort ? { t:`${c.pubshort} ${c.pubshort===1?'property is':'properties are'} published, fees are missing from listings`, c:'color:#eb343c' } : null)}
-      ${tile('#b3b3b3','settings','#b3b3b3','Not set up',c.none, setupLink, null)}
+      ${tile('#b3b3b3','settings','#b3b3b3','Not set up',c.none, '', null)}
       ${tile('#6eb744','task_alt','#6eb744','Done',c.done, '',
         c.done ? { t:`${c.pub} published&nbsp;&nbsp;&nbsp;${c.notEnabled} not enabled for listings`, c:'color:#4d8a2a' } : null)}
     </div>`;
@@ -1447,6 +1435,8 @@ class Component extends DCLogic {
       </div>
       <div style="flex:1"></div>
       <a data-act="announceOpen" style="font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap;padding-bottom:8px">What is fee transparency?</a>
+      ${readyProps.length ? `<button data-act="ftSelOpen" data-arg="pub" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,#008dd5);color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap">Publish Complete Pricing</button>` : ''}
+      ${this.bulkSetupCandidates().length ? `<button data-act="ftSelOpen" data-arg="setup" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:2px;font-size:14px;white-space:nowrap">Set Up Fee Transparency</button>` : ''}
     </div>`;
 
     // ---- table: Property | Total Charges | Charge Status | Listing Pricing | Next Step ----
@@ -1495,12 +1485,39 @@ class Component extends DCLogic {
       </div>
     </div>`;
   }
+  // ---------- Select Properties dialog (mock 2699-105683) ----------
+  ftSelHTML(){
+    const f = this.state.ftSel;
+    if (!f) return '';
+    const opts = f.mode === 'pub'
+      ? this.propertiesData().map(p => p.name).filter(n => this.ftStatus(n).key === 'ready')
+      : this.bulkSetupCandidates().map(p => p.name);
+    return `<div data-act="ftSelCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:140">
+      <div data-act="noop" style="width:360px;max-width:94vw;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 18px;border-bottom:1px solid #e3e9ee">
+          <span style="font-size:16px;font-weight:600;color:#13314c">Select Properties</span>
+          <span data-act="ftSelCancel" class="material-symbols-outlined" style="font-size:21px;color:var(--ac,#008dd5);cursor:pointer">close</span>
+        </div>
+        <div style="padding:14px 18px 18px;display:flex;flex-direction:column;gap:5px">
+          <span style="font-size:13px;color:#4a5b6b">Properties</span>
+          ${this.multiSelect('ftsel-props', opts, [])}
+          <span id="ftsel-err" style="display:none;font-size:13px;color:#eb343c;padding-top:4px">Select at least one property.</span>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;background:#f5f8fa;border-top:1px solid #e3e9ee;padding:11px 18px;border-radius:0 0 6px 6px">
+          <button data-act="ftSelNext" class="btn-pri" style="height:32px;min-height:32px;padding:0 20px;border-radius:4px;font-size:14px">Next</button>
+          <button data-act="ftSelCancel" style="height:32px;min-height:32px;padding:0 16px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,#008dd5);color:var(--ac,#008dd5);cursor:pointer">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+  }
   // ---------- Publish Complete Pricing confirmation (mock 2699-105683) ----------
   pubModalHTML(){
     const m = this.state.pubModal;
     if (!m) return '';
-    const prop = m.prop;
-    const short = this.profileRows(prop).filter(r => !this.mitsComplete(r));
+    const props = m.props || [m.prop];
+    const single = props.length === 1;
+    const prop = single ? props[0] : props.length + ' selected properties';
+    const short = props.reduce((acc, p) => acc.concat(this.profileRows(p).filter(r => !this.mitsComplete(r))), []);
     const names = short.map(r => r.mits);
     const list = names.length === 1 ? names[0] : names.length === 2 ? names.join(' and ') : names.slice(0, -1).join(', ') + ', and ' + names[names.length - 1];
     // Red warning appears only when publishing would leave required charges out of the total.
@@ -1522,12 +1539,12 @@ class Component extends DCLogic {
           ${redBox}
           <div style="display:flex;align-items:flex-start;gap:12px;background:#fdf3e3;border:1px solid #f0ad4e;border-radius:4px;padding:12px 14px">
             <span class="material-symbols-outlined" style="font-size:20px;color:#faa61c;flex:none;margin-top:1px">warning</span>
-            <span style="font-size:13px;color:#666;line-height:1.5">Publishing switches this property&#39;s listing feed permanently and can&#39;t be undone. You can add the missing details anytime, and your listings will reflect that on the next feed update.</span>
+            <span style="font-size:13px;color:#666;line-height:1.5">Publishing switches ${single ? 'this property&#39;s listing feed' : 'these properties&#39; listing feeds'} permanently and can&#39;t be undone. You can add the missing details anytime, and your listings will reflect that on the next feed update.</span>
           </div>
           <div style="height:1px;background:#e3e9ee"></div>
           <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer">
             <input type="checkbox" data-act="pubAck" ${m.ack?'checked':''} style="accent-color:var(--ac,#008dd5);width:16px;height:16px;margin:2px 0 0;flex:none">
-            <span style="font-size:14px;color:#13314c;line-height:1.5">I understand this permanently changes how pricing displays on ${prop} listings.</span>
+            <span style="font-size:14px;color:#13314c;line-height:1.5">I understand this permanently changes how pricing displays on ${single ? prop + ' listings' : "the selected properties' listings"}.</span>
           </label>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:10px;background:#f5f8fa;border-top:1px solid #e3e9ee;padding:12px 20px;flex:none">
@@ -3890,6 +3907,7 @@ class Component extends DCLogic {
     out += this.addPropHTML();
     out += this.pfFilterHTML();
     out += this.pubModalHTML();
+    out += this.ftSelHTML();
     out += this.mktSetupHTML();
     out += this.pricePreviewHTML();
     out += this.profMenuHTML();
