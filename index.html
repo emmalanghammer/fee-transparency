@@ -138,6 +138,7 @@ class Component extends DCLogic {
     publishedProps: {},
     pubModal: null, // { prop, ack } — Publish Complete Pricing confirmation
     mktSetup: false, // Marketing Setup overlay (opened from the action rail's copy flyout)
+    mktAdv: false, // Advanced Settings overlay on top of Marketing Setup
     ftSel: null, // { mode:'pub'|'setup' } — Select Properties dialog on the tracker
     ltProp: 'all', // Listings page property filter
     ltErrOnly: false, // Listings page: hide listings without errors
@@ -615,6 +616,9 @@ class Component extends DCLogic {
       case 'mktOpen': this.setState({ mktSetup: true }); break;
       case 'mktClose': this.setState({ mktSetup: false }); break;
       case 'mktSave': this.setState({ mktSetup: false }); this.flash('Marketing setup saved'); break;
+      case 'mktAdvOpen': this.setState({ mktAdv: true }); break;
+      case 'mktAdvClose': this.setState({ mktAdv: false }); break;
+      case 'mktAdvSave': this.setState({ mktAdv: false }); this.flash('Advanced settings saved'); break;
       case 'ltPropSet': this.setState({ ltProp: arg }); break;
       case 'ltErrToggle': this.setState(s => ({ ltErrOnly: !s.ltErrOnly })); break;
       // Select Properties dialog: pick who the toolbar action applies to, then hand off.
@@ -3832,8 +3836,64 @@ class Component extends DCLogic {
           </div>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:10px;background:#fff;border-top:1px solid #e3e9ee;padding:12px 20px;flex:none">
+          <button data-act="mktAdvOpen" style="height:34px;min-height:34px;padding:0 20px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,#008dd5);color:var(--ac,#008dd5);cursor:pointer">Advanced</button>
           <button data-act="mktSave" class="btn-pri" style="height:34px;min-height:34px;padding:0 24px;border-radius:4px;font-size:14px">Save</button>
           <button data-act="mktClose" style="height:34px;min-height:34px;padding:0 18px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,#008dd5);color:var(--ac,#008dd5);cursor:pointer">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+  }
+  // ---------- Advanced Settings overlay (on top of Marketing Setup) ----------
+  mktAdvHTML(){
+    if (!this.state.mktAdv) return '';
+    const lab = (t) => `<span style="font-size:14px;color:#4a5b6b">${t}</span>`;
+    const dd = (v) => `<div style="display:flex;align-items:center;justify-content:space-between;gap:4px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:38px;box-sizing:border-box;padding:0 8px 0 12px;cursor:default"><span style="font-size:14px;${v?'color:#13314c':''};overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${v||''}</span><span class="material-symbols-outlined" style="font-size:20px;color:#666">keyboard_arrow_down</span></div>`;
+    const ddPh = () => `<div style="display:flex;align-items:center;justify-content:space-between;gap:4px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:38px;box-sizing:border-box;padding:0 8px 0 12px;cursor:default"><span style="font-size:14px;font-style:italic;color:#b3b3b3;overflow:hidden;white-space:nowrap">Type or select an entry</span><span class="material-symbols-outlined" style="font-size:20px;color:#666">keyboard_arrow_down</span></div>`;
+    const field = (l, ctrl, span) => `<div style="${span?'grid-column:span 2;':''}display:flex;flex-direction:column;gap:6px">${lab(l)}${ctrl}</div>`;
+    const heading = (t) => `<div style="grid-column:span 2;font-size:15px;font-weight:600;color:#13314c;padding:6px 0 8px;border-bottom:1px solid #e3e9ee">${t}</div>`;
+    const cardHead = (t) => `<div style="padding:11px 16px;border-bottom:1px solid #e3e9ee;font-size:14px;font-weight:600;color:#13314c">${t}</div>`;
+    const prefs = `<div style="border:1px solid #e3e9ee;border-radius:4px;background:#fff">
+      ${cardHead('Preferences')}
+      <div style="padding:14px 20px 20px;display:grid;grid-template-columns:1fr 1fr;gap:16px 28px">
+        ${heading('Feed Information')}
+        ${field('Feed Type', dd('Single Family'))}
+        ${field('Property Type', dd('Field: Property Type (Commercial)'))}
+        ${field('Rental Type', dd(''))}
+        ${field('Marketing Name', ddPh())}
+        ${field('Listing URL', ddPh())}
+        ${field('Virtual Tour URL', ddPh())}
+        ${field('Latitude', ddPh())}
+        ${field('Longitude', ddPh())}
+        ${field('Rental Classification', dd('House for Rent'), true)}
+        ${heading('Agent Information')}
+        ${field('First Name', ddPh())}
+        ${field('Last Name', ddPh())}
+        ${field('Email Address', ddPh())}
+        ${field('Phone Number', ddPh())}
+      </div>
+    </div>`;
+    const provider = `<div style="border:1px solid #e3e9ee;border-radius:4px;background:#fff">
+      ${cardHead('Provider Settings')}
+      <div style="padding:18px 20px 20px;display:flex;flex-direction:column;gap:12px">
+        <label style="display:inline-flex;align-items:center;gap:10px;cursor:pointer"><input type="checkbox" style="accent-color:var(--ac,#008dd5);width:16px;height:16px;margin:0"><span style="font-size:14px;color:#4a5b6b">Override System Preferences</span></label>
+        <label style="display:inline-flex;align-items:center;gap:10px;padding-left:28px;cursor:default"><input type="checkbox" disabled style="width:16px;height:16px;margin:0"><span style="font-size:14px;color:#a6b2bd">Enable Online Listings</span></label>
+        <span style="font-size:14px;color:#eb343c;padding-left:28px">ILS Providers may require a paid account before your listings can be posted.</span>
+        <div style="height:38px;background:#fff;border:1px solid #cedbe7;border-radius:4px;margin-left:28px"></div>
+      </div>
+    </div>`;
+    return `<div style="position:fixed;inset:0;background:rgba(19,49,76,0.45);display:flex;align-items:center;justify-content:center;z-index:148">
+      <div data-act="noop" style="width:min(1300px, 90vw);max-height:88vh;background:#f5f8fa;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.35);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;background:#fff;padding:13px 20px;border-bottom:1px solid #e3e9ee;flex:none">
+          <span style="font-size:20px;font-weight:600;color:#13314c">Advanced Settings</span>
+          <span style="display:inline-flex;align-items:center;gap:12px"><span data-act="toast" data-arg="Help" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">help</span><span data-act="mktAdvClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span></span>
+        </div>
+        <div style="flex:1;min-height:0;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:14px">
+          ${prefs}
+          ${provider}
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;background:#fff;border-top:1px solid #e3e9ee;padding:12px 20px;flex:none">
+          <button data-act="mktAdvSave" class="btn-pri" style="height:34px;min-height:34px;padding:0 24px;border-radius:4px;font-size:14px">Save</button>
+          <button data-act="mktAdvClose" style="height:34px;min-height:34px;padding:0 18px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,#008dd5);color:var(--ac,#008dd5);cursor:pointer">Cancel</button>
         </div>
       </div>
     </div>`;
@@ -3902,6 +3962,7 @@ class Component extends DCLogic {
     out += this.pubModalHTML();
     out += this.ftSelHTML();
     out += this.mktSetupHTML();
+    out += this.mktAdvHTML();
     out += this.pricePreviewHTML();
     out += this.profMenuHTML();
     out += this.profHistHTML();
