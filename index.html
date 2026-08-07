@@ -550,6 +550,13 @@ class Component extends DCLogic {
   }
   // Anywhere without its own inventory offers the full set of rentable-item types.
   oriTypesFor(prop){ return this.oriChargeTypes()[prop] || ['COVPARK','GARAGE','PARK','SF','STORAGE','EVCHG']; }
+  // Rentable-item types offered in the ORI Type dropdown, per property.
+  oriItemTypes(prop){
+    const names = { COVPARK:'Covered Parking', GARAGE:'Garage', PARK:'Parking Space', SF:'Storage', STORAGE:'Storage', EVCHG:'EV Charging' };
+    const seen = [];
+    this.oriTypesFor(prop).forEach(c => { const n = names[c] || c; if (seen.indexOf(n) < 0) seen.push(n); });
+    return seen;
+  }
 
 
   // ---------- theming ----------
@@ -1013,7 +1020,9 @@ class Component extends DCLogic {
     // a dropdown — mark whichever this field actually is.
     if (targetId) { const disp = this.q('#' + targetId + '-disp'); const inp = this.q('#' + targetId);
       mark(disp ? disp.parentElement : (inp && inp.parentElement), !target);
-      if (!target) errs.push(app); }
+      if (!target) errs.push(app === 'ORI' ? 'Property' : app); }
+    const oriType = app === 'ORI' ? v('m-orit') : '';
+    if (app === 'ORI') { mark(this.q('#m-orit-btn'), !oriType); if (!oriType) errs.push('ORI Type'); }
     const ils = v('m-ils') === '1';
     // Include on listings requires the marketing details to actually be there.
     if (ils && !name) { mark(this.q('#m-name'), true); errs.push('Name'); }
@@ -1044,7 +1053,7 @@ class Component extends DCLogic {
     const row = {
       group: grp, mits: code.toUpperCase(), name: intName || code, desc: v('m-comment'),
       freq: isOne ? '' : ('Every ' + (v('m-freq') || '1') + ' Month'), from: v('m-from'), to: v('m-to'),
-      amount, amtMethod: src, level: app, target, ils,
+      amount, amtMethod: src, level: app, target, oriType, ils,
       // Commercial charges keep their distribution basis so reopening shows the CRE sections.
       cre: !!(m.cre || (m.edit && m.edit.cre)) || undefined,
       creDist: v('m-cre-dist') || undefined, creDivide: v('m-cre-divide') || undefined, creUdf: v('m-cre-udf') || undefined,
@@ -3089,12 +3098,38 @@ class Component extends DCLogic {
     // An ORI charge only names the property here; the specific rentable item is chosen when the charge
     // is applied to a prospect. Legacy rows stored an item name, so anything that isn't a property
     // falls back to this one.
-    const oriProp = (ed && ed.level === 'ORI' && this.propNames().indexOf(ed.target) >= 0) ? ed.target : this.state.property;
-    const chargeApp = `<div style="display:flex;gap:12px;align-items:flex-start">
-      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Level *')}${dd('m-app',['Property','Unit Type','Unit'].concat(cre ? [] : ['ORI']),app,{noSearch:true,js:appToggle})}</div>
-      ${tgt('ut','Unit Type','Unit Type','m-appt-ut', app==='Unit Type'?(ed&&ed.target||''):'', '2BR/2BA')}
-      ${tgt('unit','Unit','Unit','m-appt-unit', app==='Unit'?(ed&&ed.target||''):'', '2C', this.units().map(u=>u.u))}
-      ${cre ? '' : tgt('ori','Property','ORI','m-appt-ori', oriProp, '', this.propNames())}
+    // Editing an existing ORI charge keeps its property; a new ORI charge starts unselected so the
+    // ORI Type stays disabled until a property is picked.
+    const oriProp = (ed && ed.level === 'ORI') ? (this.propNames().indexOf(ed.target) >= 0 ? ed.target : this.state.property) : '';
+    const oriTSel = (ed && ed.oriType) || '';
+    const oriItemRow = (t) => `<div onclick="var h=document.getElementById('m-orit');h.value=this.textContent;var d=document.getElementById('m-orit-disp');d.textContent=this.textContent;d.style.fontStyle='normal';d.style.color='#13314c';document.getElementById('m-orit-pnl').style.display='none'" onmouseover="this.style.background='#eaf4fb'" onmouseout="this.style.background='#fff'" style="padding:9px 14px;cursor:pointer;font-size:14px;color:#13314c;background:#fff">${t}</div>`;
+    window.__oriPropPick = (prop2) => {
+      const btn = this.q('#m-orit-btn'), disp = this.q('#m-orit-disp'), lst = this.q('#m-orit-lst'), hid = this.q('#m-orit');
+      if (!btn) return;
+      btn.setAttribute('data-dis', '0'); btn.style.background = '#f5f8fa'; btn.style.borderColor = '#cedbe7'; btn.style.cursor = 'pointer';
+      btn.lastElementChild.style.color = '#666';
+      if (hid) hid.value = '';
+      if (disp) { disp.textContent = 'Select an ORI type'; disp.style.fontStyle = 'italic'; disp.style.color = '#b3b3b3'; }
+      if (lst) lst.innerHTML = this.oriItemTypes(prop2).map(oriItemRow).join('');
+    };
+    const oriTypeCtl = `<div style="position:relative">
+      <input type="hidden" id="m-orit" value="${esc(oriTSel)}">
+      <div id="m-orit-btn" data-dis="${oriProp?'0':'1'}" onclick="if(this.getAttribute('data-dis')==='1')return;var p=document.getElementById('m-orit-pnl');if(p.style.display==='block'){p.style.display='none';return}var r=this.getBoundingClientRect();p.style.left=r.left+'px';p.style.width=r.width+'px';p.style.display='block';var ph=p.offsetHeight;var below=window.innerHeight-r.bottom;p.style.top=((below<ph+8&&r.top>below)?(r.top-ph-4):(r.bottom+4))+'px'" style="display:flex;align-items:center;justify-content:space-between;gap:4px;background:${oriProp?'#f5f8fa':'#eef1f4'};border:1px solid ${oriProp?'#cedbe7':'#e3e9ee'};border-radius:4px;height:36px;box-sizing:border-box;padding:0 4px 0 12px;cursor:${oriProp?'pointer':'default'}">
+        <span id="m-orit-disp" style="flex:1;min-width:0;font-size:14px;${oriTSel?'color:#13314c':'font-style:italic;color:#b3b3b3'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${oriTSel || (oriProp ? 'Select an ORI type' : 'Select a property first')}</span>
+        <span class="material-symbols-outlined" style="font-size:20px;color:${oriProp?'#666':'#c9d4dd'}">arrow_drop_down</span>
+      </div>
+      <div id="m-orit-pnl" style="display:none;position:fixed;z-index:1000;border-radius:8px;background:#fff;box-shadow:0 6px 20px rgba(0,0,0,0.18);overflow:hidden"><div id="m-orit-lst" style="max-height:220px;overflow-y:auto">${oriProp ? this.oriItemTypes(oriProp).map(oriItemRow).join('') : ''}</div></div>
+    </div>`;
+    const chargeApp = `<div style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Level *')}${dd('m-app',['Property','Unit Type','Unit'].concat(cre ? [] : ['ORI']),app,{noSearch:true,js:appToggle})}</div>
+        ${tgt('ut','Unit Type','Unit Type','m-appt-ut', app==='Unit Type'?(ed&&ed.target||''):'', '2BR/2BA')}
+        ${tgt('unit','Unit','Unit','m-appt-unit', app==='Unit'?(ed&&ed.target||''):'', '2C', this.units().map(u=>u.u))}
+      </div>
+      ${cre ? '' : `<div id="m-ori-row" style="display:${app==='ORI'?'flex':'none'};gap:12px;align-items:flex-start">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Property *')}${dd('m-appt-ori', this.propNames(), oriProp, { placeholder:'Select a property', js:"if(window.__oriPropPick)window.__oriPropPick(_v);if(window.__ctFilter)window.__ctFilter()" })}</div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('ORI Type *')}${oriTypeCtl}</div>
+      </div>`}
     </div>`;
 
     // ---- Charge Type typeahead; selecting one derives the Charge Category below ----
@@ -3117,9 +3152,11 @@ class Component extends DCLogic {
     // Charge Level changes swap the target field, and ORI additionally narrows the charge types and
     // prices off market rent, since a rentable item's rate follows the property's market rate.
     window.__lvlChange = (v) => {
-      ['ut','unit','ori'].forEach(k => { const e = this.q('#m-appt-' + k + '-wrap'); if (e) e.style.display = 'none'; });
-      const t = { 'Unit Type':'ut', 'Unit':'unit', 'ORI':'ori' }[v];
+      ['ut','unit'].forEach(k => { const e = this.q('#m-appt-' + k + '-wrap'); if (e) e.style.display = 'none'; });
+      const t = { 'Unit Type':'ut', 'Unit':'unit' }[v];
       if (t) { const w = this.q('#m-appt-' + t + '-wrap'); if (w) w.style.display = 'flex'; }
+      const oriRow = this.q('#m-ori-row');
+      if (oriRow) oriRow.style.display = (v === 'ORI') ? 'flex' : 'none';
       if (v === 'ORI') {
         const m = this.q('#m-method'), md = this.q('#m-method-disp'), s = this.q('#m-source');
         if (m) m.value = 'Reference';
