@@ -991,16 +991,16 @@ class Component extends DCLogic {
     // Include on listings requires the marketing details to actually be there.
     if (ils && !name) { mark(this.q('#m-name'), true); errs.push('Name'); }
     if (errs.length) { const b = this.q('#m-err'); if (b) { const t = b.querySelector('#m-err-txt'); if (t) t.textContent = 'Complete required fields: ' + errs.join(', '); b.style.display = 'inline-flex'; } return false; }
-    // Two charges of the same charge type can't share a name (including both having none) — the
-    // listing feed couldn't tell them apart. Block the save until the name is unique.
+    // Two charges of the same charge type can't share a name at the same charge level (including
+    // both having none) — the listing feed couldn't tell them apart. A different level is fine.
     const dup = this.profileRows().find(r => (!m.edit || String(r.id) !== String(m.edit.id))
       && String(r.mits || '').toUpperCase() === code.toUpperCase()
+      && String(r.level || 'Property') === app
       && String((r.listing && r.listing.name) || '').trim().toLowerCase() === name.toLowerCase());
     if (dup) { mark(this.q('#m-name'), true);
       const b = this.q('#m-err'); if (b) { const t = b.querySelector('#m-err-txt');
-        if (t) t.textContent = name
-          ? 'This property already has a ' + code + ' charge named "' + name + '" — give this charge a unique name.'
-          : 'This property already has a ' + code + ' charge with no name — give this charge a unique name.';
+        if (t) t.textContent = 'This property already has a ' + code + ' charge ' + (name ? 'named "' + name + '"' : 'with no name')
+          + ' at the ' + app + ' level — change the name or charge level.';
         b.style.display = 'inline-flex'; }
       return false; }
     const eb = this.q('#m-err'); if (eb) eb.style.display = 'none';
