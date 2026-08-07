@@ -794,7 +794,7 @@ class Component extends DCLogic {
         const picked = this.bulkSelRows().map(r => r.id);
         const gen = { level: v('bu-level'), mits: v('bu-ctype').toUpperCase(), desc: v('bu-comment'),
           freq: v('bu-freq'), from: v('bu-from'), to: v('bu-to'), amtMethod: v('bu-amtm'), amount: v('bu-amt') };
-        const mkt = { name: v('bu-name'), marketing: v('bu-marketing'), requirement: v('bu-req'), feeDue: v('bu-due') };
+        const mkt = { name: v('bu-name'), marketing: v('bu-marketing'), requirement: v('bu-req'), feeDue: v('bu-due'), schedule: v('bu-sched') };
         const nGen = Object.keys(gen).filter(k => gen[k]).length, nMkt = Object.keys(mkt).filter(k => mkt[k]).length;
         if (!nGen && !nMkt) { this.flash('No changes to apply — every field kept its current value'); break; }
         this.setProfileRows(rows => rows.map(r => {
@@ -2004,8 +2004,9 @@ class Component extends DCLogic {
       field('Name', txt('bu-name')),
       field('Marketing Description', txt('bu-marketing')),
       field('Charge Requirement', dd('bu-req', ['Required','Optional','Situational'])),
-      field('Fee Due', dd('bu-due', [{value:'At Application',label:'At Application'},{value:'Move-In',label:'At Move-In'},{value:'During Term',label:'During Term'}]))
-    ].join('');
+      field('Fee Due', dd('bu-due', [{value:'At Application',label:'At Application'},{value:'Move-In',label:'At Move-In'},{value:'During Term',label:'During Term'}])),
+      allRec ? field('Charge Schedule', dd('bu-sched', ['Monthly','Weekly','Daily'])) : ''
+    ].filter(Boolean).join('');
     // Sections expand/collapse on the DOM so typed values survive — a re-render would wipe them.
     const sect = (key, title, open, inner) => `<div style="display:flex;flex-direction:column">
       <div onclick="var b=document.getElementById('bu-sect-${key}');var c=this.querySelector('.material-symbols-outlined');var on=b.style.display!=='none';b.style.display=on?'none':'flex';c.textContent=on?'keyboard_arrow_down':'keyboard_arrow_up'" style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;cursor:pointer;border-top:1px solid #ebf1f5">
