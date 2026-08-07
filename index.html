@@ -600,7 +600,9 @@ class Component extends DCLogic {
       case 'accToggle': { const ao = Object.assign({}, this.state.accOpen); ao[arg] = !ao[arg]; this.setState({ accOpen: ao }); break; }
       case 'navRegister': this.go('register'); break;
       case 'navFeeTrans': this.go('feetrans'); break;
-      case 'ftSetupProps': this.go('register', { bulkSetup: { sel: {} } }); this.flash('Select the properties to set up'); break;
+      case 'ftBulkGo': { const sel = Array.from(document.querySelectorAll('#ft-setup-pnl input:checked')).map(i => i.getAttribute('data-prop'));
+        if (!sel.length) { this.flash('Select at least one property'); break; }
+        this.setState({ setup: { props: sel, step: 1 } }); break; }
       // Publishing a property's complete pricing moves it to Published on the tracker.
       case 'ftPublish': { const pr = arg;
         this.setState(s => ({ publishedProps: Object.assign({}, s.publishedProps, { [pr]: true }) }));
@@ -663,7 +665,7 @@ class Component extends DCLogic {
         this.flash(n ? 'Charge excluded from ' + this.exclSummary(next) : 'Exclusions removed');
         break; }
 
-      // ---- Turn on Fee Transparency wizard ----
+      // ---- Set Up Fee Transparency wizard ----
       case 'setupOpen': this.setState({ recView: null, setup: { props: [arg || this.state.property], step: 1 } }); break;
       // Leaving mid-flow throws away the charge selections and requirements picked so far, so it asks
       // first. Nothing to lose on step 1 before anything is touched, and the saving/success steps
@@ -710,7 +712,6 @@ class Component extends DCLogic {
         this.flash(n + ' charge type' + (n === 1 ? '' : 's') + ' configured');
         break; }
       // ---- Bulk profile setup: pick properties in the register, then run the normal setup flow ----
-      case 'bulkSetupStart': this.setState({ bulkSetup: { sel: {} } }); break;
       case 'bulkSetupCancel': this.setState({ bulkSetup: null }); break;
       case 'bulkSetupToggle': this.setState(s => { const sel = Object.assign({}, s.bulkSetup.sel);
         if (sel[arg]) delete sel[arg]; else sel[arg] = true;
@@ -1275,7 +1276,7 @@ class Component extends DCLogic {
     const short = rows.filter(r => !this.mitsComplete(r)).length;
     // Fee Transparency off entirely.
     if (!active) return { key:'none', order:4, label:'Not Set Up', icon:'settings', color:'#b3b3b3',
-      next:'Turn on Fee Transparency', act:'setupOpen' };
+      next:'Set Up Fee Transparency', act:'setupOpen' };
     // On, but the property doesn't advertise — nothing to publish, so it's done as it stands.
     if (!ils) return { key:'notEnabled', order:5, label:'Done - Not Enabled for Listings', icon:'verified', color:'#6eb744',
       next:'View Charges', act:'openFeeProfile' };
@@ -1307,6 +1308,7 @@ class Component extends DCLogic {
     const rows = this.propertiesData().slice()
       .sort((x, y) => (this.ftStatus(x.name).order - this.ftStatus(y.name).order) || x.name.localeCompare(y.name));
     const c = this.ftCounts();
+    const esc = s => (''+s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
     // ---- status tiles: 8px colour strip, label, count, and any qualifier beside it ----
     const tile = (icon, iconColor, label, count, strip, sub) => `<div style="flex:1;min-width:0;display:flex;align-items:stretch;background:#fff;border-radius:2px;overflow:hidden">
       <div style="width:8px;flex:none;background:${strip}"></div>
@@ -1343,7 +1345,18 @@ class Component extends DCLogic {
       <span data-act="toast" data-arg="Filters" style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;box-sizing:border-box;background:var(--ac,#008dd5);border-radius:2px;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:#fff">tune</span></span>
       <div style="flex:1"></div>
       <a data-act="announceOpen" style="font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap;padding-bottom:8px">What is fee transparency?</a>
-      <button data-act="ftSetupProps" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:2px;font-size:14px;white-space:nowrap">Set Up Properties</button>
+      <span style="position:relative;display:inline-flex">
+        <button onclick="var p=document.getElementById('ft-setup-pnl');if(p.style.display==='block'){p.style.display='none';}else{p.style.display='block';p.style.right='0';p.style.left='auto';var r=p.getBoundingClientRect();if(r.left<8){p.style.right='auto';p.style.left='0';}}" class="btn-pri" style="height:34px;min-height:34px;padding:0 10px 0 16px;border-radius:2px;font-size:14px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px">Set Up Properties<span class="material-symbols-outlined" style="font-size:20px">arrow_drop_down</span></button>
+        <div id="ft-setup-pnl" style="display:none;position:absolute;right:0;top:40px;z-index:1000;width:300px;background:#fff;border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,0.18);padding:6px 0 10px">
+          <div style="padding:8px 16px 6px;font-size:13px;font-weight:600;color:#13314c">Properties not set up</div>
+          <div style="max-height:260px;overflow-y:auto">
+            ${this.bulkSetupCandidates().map(p => `<label style="display:flex;align-items:center;gap:10px;padding:7px 16px;font-size:14px;color:#13314c;cursor:pointer" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''"><input type="checkbox" data-prop="${esc(p.name)}" onchange="var n=document.querySelectorAll('#ft-setup-pnl input:checked').length;var g=document.getElementById('ft-setup-go');g.textContent=n?('Set Up Fee Transparency ('+n+')'):'Set Up Fee Transparency';if(n){g.setAttribute('data-act','ftBulkGo');g.style.opacity='1';g.style.cursor='pointer';}else{g.removeAttribute('data-act');g.style.opacity='0.55';g.style.cursor='default';}" style="accent-color:var(--ac,#008dd5);width:15px;height:15px;margin:0">${esc(p.name)}</label>`).join('')}
+          </div>
+          <div style="padding:10px 16px 2px;border-top:1px solid #ebf1f5;margin-top:4px">
+            <button id="ft-setup-go" class="btn-pri" style="width:100%;height:34px;min-height:34px;border-radius:4px;font-size:14px;opacity:0.55;cursor:default">Set Up Fee Transparency</button>
+          </div>
+        </div>
+      </span>
     </div>`;
 
     // ---- table: proportions taken from the mock at 1920 wide ----
@@ -1414,7 +1427,7 @@ class Component extends DCLogic {
     const selBar = !bs ? '' : `<div style="position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:130;display:flex;align-items:center;gap:18px;background:var(--ac,#008dd5);border-radius:4px;box-shadow:0 8px 24px rgba(0,0,0,0.28);padding:12px 14px 12px 20px;white-space:nowrap">
         <span style="font-size:15px;font-weight:600;color:#fff">Select properties</span>
         <span style="font-size:13px;color:rgba(255,255,255,0.85)">${nSel} of ${avail.length} selected</span>
-        <button ${nSel?'data-act="bulkSetupGo"':''} style="height:34px;min-height:34px;padding:0 18px;border-radius:4px;font:400 14px Roboto,sans-serif;color:#fff;background:rgba(255,255,255,${nSel?'0.2':'0.08'});border:1px solid rgba(255,255,255,${nSel?'0.65':'0.3'});cursor:${nSel?'pointer':'default'}">Turn on Fee Transparency</button>
+        <button ${nSel?'data-act="bulkSetupGo"':''} style="height:34px;min-height:34px;padding:0 18px;border-radius:4px;font:400 14px Roboto,sans-serif;color:#fff;background:rgba(255,255,255,${nSel?'0.2':'0.08'});border:1px solid rgba(255,255,255,${nSel?'0.65':'0.3'});cursor:${nSel?'pointer':'default'}">Set Up Fee Transparency</button>
         <span data-act="bulkSetupCancel" class="material-symbols-outlined" style="font-size:24px;color:#fff;cursor:pointer">close</span>
       </div>`;
     const dim = bs ? 'opacity:0.45;pointer-events:none;' : '';
@@ -1430,7 +1443,6 @@ class Component extends DCLogic {
                 const head = (t) => `<div style="padding:10px 16px 4px;font-size:14px;font-weight:600;color:#13314c">${t}</div>`;
                 const rule = `<div style="height:1px;background:#ebf1f5;margin:5px 0"></div>`;
                 return `<div data-act="toast" data-arg="Mass Edit Mode" style="display:flex;align-items:center;gap:10px;padding:9px 16px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''"><span class="material-symbols-outlined" style="font-size:18px">edit_square</span>Mass Edit Mode<div style="flex:1"></div><span style="font-size:13px;color:#8a9aa8">F2</span></div>${rule}`
-                  + head('Fee Transparency') + item('Turn on Fee Transparency', 'bulkSetupStart')
                   + head('Service Manager') + item('Add Issue')
                   + head('Reports') + item('Report Writer')
                   + head('Communication') + item('Write Letters') + item('Send Email') + item('Send Text') + item('Add to Phone Broadcasts')
@@ -1631,7 +1643,7 @@ class Component extends DCLogic {
       <img src="assets/logo-rentmanager-mark.svg" alt="" style="width:76px;height:76px">
       <div style="font-size:16px;font-weight:600;color:#666">Manage this property&rsquo;s charges in one place</div>
       <div style="font-size:14px;color:#666;line-height:1.5">Fee Transparency brings your charges, deposits, and pricing together for setup, move-ins, quotes, and listings.&nbsp; <a data-act="toast" data-arg="Opens contextual help" style="color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap">Learn More</a></div>
-      <button data-act="setupOpen" class="btn-pri" style="margin-top:4px;height:36px;padding:0 18px;border-radius:4px;font-size:14px">Turn on Fee Transparency</button>
+      <button data-act="setupOpen" class="btn-pri" style="margin-top:4px;height:36px;padding:0 18px;border-radius:4px;font-size:14px">Set Up Fee Transparency</button>
     </div>`;
   }
   feeProfileLoading(){
@@ -1843,7 +1855,7 @@ class Component extends DCLogic {
         <span style="font-size:14px;font-weight:600;color:#13314c">This property has ${n} fees. Manage them in one place.</span>
         <span style="font-size:13px;color:#4a5b6b;line-height:1.5">Fee Transparency centralizes your charges, deposits, and pricing on the property's Charges tab, simplifying setup, move-ins, and quotes. If you publish listings, complete pricing comes ready-made. Current tenants are unaffected.</span>
         <div style="display:flex;align-items:center;gap:16px;margin-top:6px">
-          <button data-act="setupOpen" class="btn-pri" style="height:34px;padding:0 16px;border-radius:4px;font-size:14px">Turn on Fee Transparency</button>
+          <button data-act="setupOpen" class="btn-pri" style="height:34px;padding:0 16px;border-radius:4px;font-size:14px">Set Up Fee Transparency</button>
           <a data-act="toast" data-arg="Opens contextual help" style="font-size:14px;color:var(--ac,#008dd5);cursor:pointer">Learn More</a>
         </div>
       </div>
@@ -2349,7 +2361,7 @@ class Component extends DCLogic {
         <span style="font-size:13px;color:#4a5b6b;line-height:1.5">Fee Transparency centralizes your charges, deposits, and pricing on the property's Charges tab, simplifying setup, move-ins, and quotes. If you publish listings, complete pricing comes ready-made. Current tenant charges are unaffected.</span>
       </div>
       <div style="display:flex;align-items:center;gap:16px;flex:none;padding-top:2px">
-        <button data-act="setupOpen" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Turn on Fee Transparency</button>
+        <button data-act="setupOpen" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Set Up Fee Transparency</button>
         <a data-act="toast" data-arg="Opens contextual help" style="font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap">Learn More</a>
       </div>
       <span data-act="recViewNoteDismiss" class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5);cursor:pointer;flex:none">close</span>
