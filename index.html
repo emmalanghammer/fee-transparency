@@ -1973,6 +1973,14 @@ class Component extends DCLogic {
     const u = this.state.bulkUpd;
     if (!u) return '';
     const sel = this.bulkSelRows();
+    // When every selected charge is missing the same required listing fields, say so up front —
+    // it's the usual reason for reaching for a bulk update in the first place.
+    const missLists = this.ilsOn() ? sel.map(r => this.mitsMissing(r)) : [];
+    const shared = missLists.length ? missLists.reduce((acc, m) => acc.filter(f => m.indexOf(f) >= 0)) : [];
+    const sharedNote = !shared.length ? '' : `<div style="display:flex;align-items:flex-start;gap:10px;background:#fef4e8;border:1px solid #f6d9ac;border-radius:4px;padding:11px 14px;margin-bottom:14px">
+      <span class="material-symbols-outlined" style="font-size:19px;color:#b35a00;flex:none;margin-top:1px">error</span>
+      <span style="font-size:13px;color:#13314c;line-height:1.5">All selected charges still need: <strong>${shared.join(', ')}</strong>.</span>
+    </div>`;
     const allRec = sel.length > 0 && sel.every(r => !/-one$/.test(r.group));
     const anyCre = sel.some(r => r.cre);
     const KEEP = 'Keep current value';
@@ -2013,6 +2021,7 @@ class Component extends DCLogic {
         </div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:14px 18px 4px">
           <div style="font-size:13px;color:#666;line-height:1.5;margin-bottom:14px">Select the fields you want to update. Only fields that all selected charges share will display.</div>
+          ${sharedNote}
           <div style="font-size:12px;color:#8a9aa8;margin-bottom:3px">Charges</div>
           <div style="font-size:14px;font-weight:600;color:#13314c;margin-bottom:14px">${sel.length} charge${sel.length===1?'':'s'} selected</div>
           ${sect('gen','General Details', u.gen, genFields)}
