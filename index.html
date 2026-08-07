@@ -603,7 +603,7 @@ class Component extends DCLogic {
     switch (act) {
       case 'accToggle': { const ao = Object.assign({}, this.state.accOpen); ao[arg] = !ao[arg]; this.setState({ accOpen: ao }); break; }
       case 'navRegister': this.go('register'); break;
-      case 'navFeeTrans': this.go('feetrans'); break;
+      case 'navFeeTrans': this.go('feetrans', { profMenu: null }); break;
       case 'ftBulkGo': { const sel = Array.from(document.querySelectorAll('#ft-setup-pnl input:checked')).map(i => i.getAttribute('data-prop'));
         if (!sel.length) { this.flash('Select at least one property'); break; }
         this.setState({ setup: { props: sel, step: 1 } }); break; }
@@ -1860,7 +1860,7 @@ class Component extends DCLogic {
       <div style="position:fixed;left:${left}px;top:${p.y}px;background:#fff;border:1px solid #cedbe7;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);z-index:151;overflow:hidden;padding:4px 0">
         ${ilsItem}<div style="height:1px;background:#ebf1f5;margin:4px 0"></div>
         ${item('Bulk Update Charges','bulkOpen')}${item('Copy Charges from Property','copyOpen')}<div style="height:1px;background:#ebf1f5;margin:4px 0"></div>
-        ${item('Charge History', 'profHistOpen')}${item('About Fee Transparency')}
+        ${item('Charge History', 'profHistOpen')}${item('Fee Transparency','navFeeTrans')}
       </div>`;
   }
   // Recurring / One-Time subtable inside a profile section.
