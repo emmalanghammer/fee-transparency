@@ -991,6 +991,18 @@ class Component extends DCLogic {
     // Include on listings requires the marketing details to actually be there.
     if (ils && !name) { mark(this.q('#m-name'), true); errs.push('Name'); }
     if (errs.length) { const b = this.q('#m-err'); if (b) { const t = b.querySelector('#m-err-txt'); if (t) t.textContent = 'Complete required fields: ' + errs.join(', '); b.style.display = 'inline-flex'; } return false; }
+    // Two charges of the same charge type can't share a name (including both having none) — the
+    // listing feed couldn't tell them apart. Block the save until the name is unique.
+    const dup = this.profileRows().find(r => (!m.edit || String(r.id) !== String(m.edit.id))
+      && String(r.mits || '').toUpperCase() === code.toUpperCase()
+      && String((r.listing && r.listing.name) || '').trim().toLowerCase() === name.toLowerCase());
+    if (dup) { mark(this.q('#m-name'), true);
+      const b = this.q('#m-err'); if (b) { const t = b.querySelector('#m-err-txt');
+        if (t) t.textContent = name
+          ? 'This property already has a ' + code + ' charge named "' + name + '" — give this charge a unique name.'
+          : 'This property already has a ' + code + ' charge with no name — give this charge a unique name.';
+        b.style.display = 'inline-flex'; }
+      return false; }
     const eb = this.q('#m-err'); if (eb) eb.style.display = 'none';
 
     const src = v('m-source') || 'Flat';
