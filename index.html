@@ -1533,7 +1533,7 @@ class Component extends DCLogic {
       <span style="font-size:14px;color:#13314c;line-height:1.5">The ${list} charge${short.length===1?' is':'s are'} missing details, so ${short.length===1?'it':'they'} may not appear on listings and ${short.length===1?"isn&#39;t":"aren&#39;t"} counted in the total price.</span>
       <span style="font-size:14px;color:#13314c;line-height:1.5">Where fee transparency laws apply, advertised prices must include all required fees. Publishing now may show renters an incomplete price.</span>
     </div>`;
-    return `<div data-act="pubCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:140">
+    return `<div data-act="pubCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:152">
       <div data-act="noop" style="width:640px;max-width:94vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid #e3e9ee;flex:none">
           <span style="font-size:20px;font-weight:600;color:#13314c">Publish Complete Pricing</span>
@@ -3852,6 +3852,14 @@ class Component extends DCLogic {
     const field = (l, ctrl, span) => `<div style="${span?'grid-column:span 2;':''}display:flex;flex-direction:column;gap:6px">${lab(l)}${ctrl}</div>`;
     const heading = (t) => `<div style="grid-column:span 2;font-size:15px;font-weight:600;color:#13314c;padding:6px 0 8px;border-bottom:1px solid #e3e9ee">${t}</div>`;
     const cardHead = (t) => `<div style="padding:11px 16px;border-bottom:1px solid #e3e9ee;font-size:14px;font-weight:600;color:#13314c">${t}</div>`;
+    // Fee Transparency's publish state surfaces here too: publish from Advanced Settings when the
+    // property is set up, or confirm complete pricing is already live.
+    const prop2 = this.state.property;
+    const ftOn = this.profStatus(prop2) === 'active';
+    const ftPublished = !!this.state.publishedProps[prop2];
+    const ftNote = !ftOn ? '' : ftPublished
+      ? `<span style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#13314c;padding-top:2px"><span class="material-symbols-outlined" style="font-size:19px;color:#6eb744;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">verified</span>This property is using Fee Transparency and is displaying complete pricing on its listings.</span>`
+      : (this.ilsOn(prop2) ? `<a data-act="pubOpen" data-arg="${prop2}" style="align-self:flex-start;font-size:14px;color:var(--ac,#008dd5);cursor:pointer;padding-top:2px" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Publish Complete Pricing</a>` : '');
     const prefs = `<div style="border:1px solid #e3e9ee;border-radius:4px;background:#fff">
       ${cardHead('Preferences')}
       <div style="padding:14px 20px 20px;display:grid;grid-template-columns:1fr 1fr;gap:16px 28px">
@@ -3879,6 +3887,7 @@ class Component extends DCLogic {
         <label style="display:inline-flex;align-items:center;gap:10px;padding-left:28px;cursor:default"><input type="checkbox" disabled style="width:16px;height:16px;margin:0"><span style="font-size:14px;color:#a6b2bd">Enable Online Listings</span></label>
         <span style="font-size:14px;color:#eb343c;padding-left:28px">ILS Providers may require a paid account before your listings can be posted.</span>
         <div style="height:38px;background:#fff;border:1px solid #cedbe7;border-radius:4px;margin-left:28px"></div>
+        ${ftNote}
       </div>
     </div>`;
     return `<div style="position:fixed;inset:0;background:rgba(19,49,76,0.45);display:flex;align-items:center;justify-content:center;z-index:148">
