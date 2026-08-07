@@ -132,6 +132,8 @@ class Component extends DCLogic {
     showProfileCol: false,
     // Properties whose complete pricing has been published from the Fee Transparency page.
     publishedProps: {},
+    pubModal: null, // { prop, ack } — Publish Complete Pricing confirmation
+    ftFilter: 'all', // tracker Status filter: all | ready | needs | none | done
     // "Exclude Charge" overlay: { id, scope:'Unit Type'|'Unit', sel:{name:true} }. A charge's own
     // exclusions live on the row as exclFrom:{ types:[], units:[] }.
     chargeExcl: null,
@@ -603,11 +605,15 @@ class Component extends DCLogic {
       case 'ftBulkGo': { const sel = Array.from(document.querySelectorAll('#ft-setup-pnl input:checked')).map(i => i.getAttribute('data-prop'));
         if (!sel.length) { this.flash('Select at least one property'); break; }
         this.setState({ setup: { props: sel, step: 1 } }); break; }
-      // Publishing a property's complete pricing moves it to Published on the tracker.
-      case 'ftPublish': { const pr = arg;
-        this.setState(s => ({ publishedProps: Object.assign({}, s.publishedProps, { [pr]: true }) }));
+      // Publishing complete pricing runs through a confirmation with an explicit acknowledgement.
+      case 'pubOpen': this.setState({ pubModal: { prop: arg, ack: false } }); break;
+      case 'pubAck': this.setState(s => ({ pubModal: Object.assign({}, s.pubModal, { ack: !s.pubModal.ack }) })); break;
+      case 'pubCancel': this.setState({ pubModal: null }); break;
+      case 'pubConfirm': { const pr = this.state.pubModal.prop;
+        this.setState(s => ({ pubModal: null, publishedProps: Object.assign({}, s.publishedProps, { [pr]: true }) }));
         this.logChange(pr, 'Fee Transparency', 'Complete pricing published to listings', pr);
         this.flash('Complete pricing published for ' + pr); break; }
+      case 'ftFilterSet': this.setState({ ftFilter: arg }); break;
       case 'toggleProfileCol': this.setState(s => ({ showProfileCol: !s.showProfileCol })); break;
       case 'navProperty': this.go('property', arg ? { property: arg, propTab: 'General' } : { propTab: 'General' }); break;
       case 'navUnit': this.go('unit', { unit: arg }); break;
@@ -1275,21 +1281,21 @@ class Component extends DCLogic {
     const ils = this.ilsOn(p);
     const short = rows.filter(r => !this.mitsComplete(r)).length;
     // Fee Transparency off entirely.
-    if (!active) return { key:'none', order:4, label:'Not Set Up', icon:'settings', color:'#b3b3b3',
-      next:'Set Up Fee Transparency', act:'setupOpen' };
+    if (!active) return { key:'none', order:4, icon:'settings', color:'#b3b3b3',
+      pricing:'Not set up', next:'Set Up Fee Transparency', act:'setupOpen' };
     // On, but the property doesn't advertise — nothing to publish, so it's done as it stands.
-    if (!ils) return { key:'notEnabled', order:5, label:'Done - Not Enabled for Listings', icon:'verified', color:'#6eb744',
-      next:'View Charges', act:'openFeeProfile' };
+    if (!ils) return { key:'notEnabled', order:6, icon:'verified', color:'#6eb744',
+      pricing:'Done - Not listed', next:'View Charges', act:'openFeeProfile' };
     if (short) return published
-      ? { key:'pubshort', order:2, label:'Published - Needs Details', icon:'warning', color:'#eb343c',
-          next:'Add Charge Details', act:'openFeeProfile', issues:short }
-      : { key:'short', order:1, label:'Needs Details', icon:'warning', color:'#faa61c',
-          next:'Add Charge Details', act:'openFeeProfile' };
+      ? { key:'pubshort', order:1, icon:'warning', color:'#faa61c',
+          pricing:'Published - Fee missing', pricingColor:'#eb343c', next:'Add Charge Details', act:'openFeeProfile', issues:short }
+      : { key:'short', order:2, icon:'warning', color:'#faa61c',
+          pricing:'Not published, legacy pricing', next:'Add Charge Details', act:'openFeeProfile', issues:short };
     return published
-      ? { key:'pub', order:6, label:'Published', icon:'verified', color:'#6eb744',
-          next:'View Charges', act:'openFeeProfile' }
-      : { key:'ready', order:3, label:'Ready to Publish', icon:'check_circle', color:'#008dd5',
-          next:'Publish Complete Pricing', act:'ftPublish' };
+      ? { key:'pub', order:5, icon:'verified', color:'#6eb744',
+          pricing:'Done - Published', next:'View Charges', act:'openFeeProfile' }
+      : { key:'ready', order:3, icon:'check_circle', color:'#008dd5',
+          pricing:'Not published - Ready', next:'Publish Complete Pricing', act:'pubOpen' };
   }
   ftCounts(){
     const c = { none:0, needs:0, ready:0, done:0, pubshort:0, pub:0, notEnabled:0 };
@@ -1303,32 +1309,63 @@ class Component extends DCLogic {
     return c;
   }
   feeTransBody(){
-    // Grouped by status in the order the work happens: what needs attention first, then what's ready,
-    // then what hasn't started, then everything already finished.
-    const rows = this.propertiesData().slice()
+    // Grouped by status in the order the work happens: published-but-incomplete first, then charges
+    // needing details, ready to publish, not set up, and everything already finished.
+    const filt = this.state.ftFilter || 'all';
+    const group = k => (k==='short'||k==='pubshort') ? 'needs' : (k==='pub'||k==='notEnabled') ? 'done' : k==='ready' ? 'ready' : 'none';
+    const all = this.propertiesData().slice()
       .sort((x, y) => (this.ftStatus(x.name).order - this.ftStatus(y.name).order) || x.name.localeCompare(y.name));
+    const rows = filt === 'all' ? all : all.filter(p => group(this.ftStatus(p.name).key) === filt);
     const c = this.ftCounts();
     const esc = s => (''+s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
-    // ---- status tiles: 8px colour strip, label, count, and any qualifier beside it ----
-    const tile = (icon, iconColor, label, count, strip, sub) => `<div style="flex:1;min-width:0;display:flex;align-items:stretch;background:#fff;border-radius:2px;overflow:hidden">
-      <div style="width:8px;flex:none;background:${strip}"></div>
-      <div style="flex:1;min-width:0;padding:11px 16px 12px;display:flex;flex-direction:column;gap:9px">
-        <span style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#13314c;white-space:nowrap"><span class="material-symbols-outlined" style="font-size:17px;color:${iconColor};font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">${icon}</span>${label}</span>
-        <span style="display:inline-flex;align-items:baseline;gap:14px;min-width:0">
-          <span style="font-size:20px;font-weight:600;color:#13314c;line-height:1">${count}</span>
-          ${sub||''}
-        </span>
-      </div></div>`;
-    const subRed = (t) => `<span style="font-size:13px;color:#eb343c;white-space:nowrap">${t}</span>`;
-    const subGrey = (a, b) => `<span style="display:inline-flex;align-items:baseline;gap:18px;font-size:13px;color:#666;white-space:nowrap"><span>${a}</span><span>${b}</span></span>`;
-    const tiles = `<div style="display:flex;gap:16px">
-      ${tile('settings','#b3b3b3','Not Set Up',c.none,'#b3b3b3')}
-      ${tile('warning','#faa61c','Needs Details',c.needs,'#faa61c', c.pubshort ? subRed(c.pubshort + (c.pubshort===1?' property is':' properties are') + ' published and needs details') : '')}
-      ${tile('check_circle','#008dd5','Ready to Publish',c.ready,'#008dd5')}
-      ${tile('verified','#6eb744','Done',c.done,'#6eb744', c.done ? subGrey(c.pub + ' Published', c.notEnabled + ' Not Enabled for Listings') : '')}
+    const clampJs = id => `var p=document.getElementById('${id}');if(p.style.display==='block'){p.style.display='none';}else{p.style.display='block';p.style.right='0';p.style.left='auto';var r=p.getBoundingClientRect();if(r.left<8){p.style.right='auto';p.style.left='0';}}`;
+
+    // ---- headline actions that live inside the first and third tiles ----
+    const readyProps = this.propertiesData().map(p => p.name).filter(n => this.ftStatus(n).key === 'ready');
+    const pubLink = `<span style="position:relative;display:inline-flex">
+      <a onclick="event.stopPropagation();${clampJs('ft-pub-pnl')}" style="font-size:13px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap">Publish Complete Pricing</a>
+      <div id="ft-pub-pnl" style="display:none;position:absolute;right:0;top:26px;z-index:1000;min-width:250px;background:#fff;border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,0.18);padding:6px 0">
+        <div style="padding:6px 16px 4px;font-size:13px;font-weight:600;color:#13314c">Ready to publish</div>
+        ${readyProps.length ? readyProps.map(n => `<div data-act="pubOpen" data-arg="${esc(n)}" style="padding:7px 16px;font-size:14px;color:#13314c;cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''">${esc(n)}</div>`).join('') : `<div style="padding:7px 16px;font-size:13px;font-style:italic;color:#8a9aa8">No properties are ready yet</div>`}
+      </div>
+    </span>`;
+    const setupLink = `<span style="position:relative;display:inline-flex">
+      <a onclick="event.stopPropagation();${clampJs('ft-setup-pnl')}" style="font-size:13px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap">Set Up Fee Transparency</a>
+      <div id="ft-setup-pnl" style="display:none;position:absolute;right:0;top:26px;z-index:1000;width:300px;background:#fff;border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,0.18);padding:6px 0 10px;text-align:left">
+        <div style="padding:8px 16px 6px;font-size:13px;font-weight:600;color:#13314c">Properties not set up</div>
+        <div style="max-height:260px;overflow-y:auto">
+          ${this.bulkSetupCandidates().map(p => `<label style="display:flex;align-items:center;gap:10px;padding:7px 16px;font-size:14px;color:#13314c;cursor:pointer" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''"><input type="checkbox" data-prop="${esc(p.name)}" onchange="var n=document.querySelectorAll('#ft-setup-pnl input:checked').length;var g=document.getElementById('ft-setup-go');g.textContent=n?('Set Up Fee Transparency ('+n+')'):'Set Up Fee Transparency';if(n){g.setAttribute('data-act','ftBulkGo');g.style.opacity='1';g.style.cursor='pointer';}else{g.removeAttribute('data-act');g.style.opacity='0.55';g.style.cursor='default';}" style="accent-color:var(--ac,#008dd5);width:15px;height:15px;margin:0">${esc(p.name)}</label>`).join('')}
+        </div>
+        <div style="padding:10px 16px 2px;border-top:1px solid #ebf1f5;margin-top:4px">
+          <button id="ft-setup-go" class="btn-pri" style="width:100%;height:34px;min-height:34px;border-radius:4px;font-size:14px;opacity:0.55;cursor:default">Set Up Fee Transparency</button>
+        </div>
+      </div>
+    </span>`;
+
+    // ---- status tiles: bordered cards, count, and a qualifying line underneath ----
+    const tile = (border, icon, iconColor, label, count, action, sub) => `<div style="flex:1;min-width:295px;background:#fff;border:2px solid ${border};border-radius:4px;padding:10px 14px 11px;display:flex;flex-direction:column;gap:7px;box-sizing:border-box">
+      <span style="display:flex;align-items:center;gap:8px;min-width:0">
+        <span class="material-symbols-outlined" style="font-size:17px;color:${iconColor};font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">${icon}</span>
+        <span style="font-size:14px;color:#13314c;white-space:nowrap">${label}</span>
+        <div style="flex:1"></div>
+        ${action || ''}
+      </span>
+      <span style="font-size:20px;font-weight:600;color:#13314c;line-height:1">${count}</span>
+      ${sub ? `<span style="font-size:12px;font-style:italic;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${sub.c}">${sub.t}</span>` : '<span style="font-size:12px;line-height:1.3">&nbsp;</span>'}
+    </div>`;
+    const tiles = `<div style="display:flex;gap:16px;flex-wrap:wrap">
+      ${tile('#008dd5','check_circle','#008dd5','Ready to publish',c.ready, pubLink,
+        { t:'Listings enabled properties that have all charge details and are ready to publish', c:'color:#666' })}
+      ${tile('#faa61c','warning','#faa61c','Charges need details',c.needs, '',
+        c.pubshort ? { t:`${c.pubshort} ${c.pubshort===1?'property is':'properties are'} published, fees are missing from listings`, c:'color:#eb343c' } : null)}
+      ${tile('#b3b3b3','settings','#b3b3b3','Not set up',c.none, setupLink, null)}
+      ${tile('#6eb744','task_alt','#6eb744','Done',c.done, '',
+        c.done ? { t:`${c.pub} published&nbsp;&nbsp;&nbsp;${c.notEnabled} not listed`, c:'color:#4d8a2a' } : null)}
     </div>`;
 
-    // ---- toolbar: search, saved filters, and the two actions on the right ----
+    // ---- toolbar: search, saved filters, and a working Status filter ----
+    const filtLabels = { all:'', ready:'Ready to publish', needs:'Charges need details', none:'Not set up', done:'Done' };
+    const fopt = (v, t) => `<div data-act="ftFilterSet" data-arg="${v}" style="padding:7px 14px;font-size:14px;color:#13314c;cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''">${t}</div>`;
     const toolbar = `<div style="display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap">
       <div style="display:flex;flex-direction:column;gap:4px;width:248px">
         <span style="font-size:13px;color:var(--ac,#008dd5)">Search</span>
@@ -1343,45 +1380,54 @@ class Component extends DCLogic {
         <div style="display:flex;align-items:center;height:34px;box-sizing:border-box;background:#fff;border:1px solid #cedbe7;border-radius:4px;padding:0 8px"><span style="flex:1;min-width:0;font-size:14px;color:#13314c">&lt; No Filter &gt;</span><span class="material-symbols-outlined" style="font-size:18px;color:#666">keyboard_arrow_down</span></div>
       </div>
       <span data-act="toast" data-arg="Filters" style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;box-sizing:border-box;background:var(--ac,#008dd5);border-radius:2px;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:#fff">tune</span></span>
+      <div style="display:flex;flex-direction:column;gap:4px;width:200px">
+        <span style="font-size:13px;color:var(--ac,#008dd5)">Status</span>
+        <span style="position:relative;display:flex">
+          <div onclick="var p=document.getElementById('ft-status-pnl');p.style.display=(p.style.display==='block'?'none':'block')" style="flex:1;display:flex;align-items:center;height:34px;box-sizing:border-box;background:#fff;border:1px solid #cedbe7;border-radius:4px;padding:0 8px;cursor:pointer"><span style="flex:1;min-width:0;font-size:14px;color:#13314c;white-space:nowrap;overflow:hidden">${filtLabels[filt] || ''}</span><span class="material-symbols-outlined" style="font-size:18px;color:#666">keyboard_arrow_down</span></div>
+          <div id="ft-status-pnl" style="display:none;position:absolute;left:0;top:38px;z-index:1000;min-width:200px;background:#fff;border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,0.18);padding:4px 0">
+            ${fopt('all','All Statuses')}${fopt('ready','Ready to publish')}${fopt('needs','Charges need details')}${fopt('none','Not set up')}${fopt('done','Done')}
+          </div>
+        </span>
+      </div>
       <div style="flex:1"></div>
       <a data-act="announceOpen" style="font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap;padding-bottom:8px">What is fee transparency?</a>
-      <span style="position:relative;display:inline-flex">
-        <button onclick="var p=document.getElementById('ft-setup-pnl');if(p.style.display==='block'){p.style.display='none';}else{p.style.display='block';p.style.right='0';p.style.left='auto';var r=p.getBoundingClientRect();if(r.left<8){p.style.right='auto';p.style.left='0';}}" class="btn-pri" style="height:34px;min-height:34px;padding:0 10px 0 16px;border-radius:2px;font-size:14px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px">Set Up Properties<span class="material-symbols-outlined" style="font-size:20px">arrow_drop_down</span></button>
-        <div id="ft-setup-pnl" style="display:none;position:absolute;right:0;top:40px;z-index:1000;width:300px;background:#fff;border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,0.18);padding:6px 0 10px">
-          <div style="padding:8px 16px 6px;font-size:13px;font-weight:600;color:#13314c">Properties not set up</div>
-          <div style="max-height:260px;overflow-y:auto">
-            ${this.bulkSetupCandidates().map(p => `<label style="display:flex;align-items:center;gap:10px;padding:7px 16px;font-size:14px;color:#13314c;cursor:pointer" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''"><input type="checkbox" data-prop="${esc(p.name)}" onchange="var n=document.querySelectorAll('#ft-setup-pnl input:checked').length;var g=document.getElementById('ft-setup-go');g.textContent=n?('Set Up Fee Transparency ('+n+')'):'Set Up Fee Transparency';if(n){g.setAttribute('data-act','ftBulkGo');g.style.opacity='1';g.style.cursor='pointer';}else{g.removeAttribute('data-act');g.style.opacity='0.55';g.style.cursor='default';}" style="accent-color:var(--ac,#008dd5);width:15px;height:15px;margin:0">${esc(p.name)}</label>`).join('')}
-          </div>
-          <div style="padding:10px 16px 2px;border-top:1px solid #ebf1f5;margin-top:4px">
-            <button id="ft-setup-go" class="btn-pri" style="width:100%;height:34px;min-height:34px;border-radius:4px;font-size:14px;opacity:0.55;cursor:default">Set Up Fee Transparency</button>
-          </div>
-        </div>
-      </span>
     </div>`;
 
-    // ---- table: proportions taken from the mock at 1920 wide ----
-    const cols = '332fr 224fr 450fr 603fr 216fr 38px';
+    // ---- table: Property | Total Charges | Charge Status | Listing Pricing | Next Step ----
+    const cols = '260fr 140fr 380fr 390fr 200fr 38px';
     const hc = (t, first, sortUp) => `<span style="display:flex;align-items:center;gap:8px;height:26px;box-sizing:border-box;padding:0 ${first?'0 0 17px':'0 0 12px'};font-size:13px;font-weight:600;color:#fff;white-space:nowrap;${first?'':'border-left:1px solid rgba(255,255,255,0.35)'}">${sortUp?'<span class="material-symbols-outlined" style="font-size:18px">arrow_upward</span>':''}${t}</span>`;
     const header = `<div style="display:grid;grid-template-columns:${cols};background:#737373">
-      ${hc('Property', true)}${hc('Listings Enabled')}${hc('Charges Ready')}${hc('Status', false, true)}${hc('Next Step')}
+      ${hc('Property', true)}${hc('Total Charges')}${hc('Charge Status')}${hc('Listing Pricing')}${hc('Next Step', false, true)}
       <span style="display:flex;align-items:center;justify-content:center;height:26px;border-left:1px solid rgba(255,255,255,0.35)"><span class="material-symbols-outlined" style="font-size:18px;color:#fff">view_column</span></span>
     </div>`;
     const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px;font-size:14px;color:#13314c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
-    const body = rows.map(r => {
+    const mitem = (t, act, arg) => `<div data-act="${act}" data-arg="${esc(arg)}" style="padding:8px 16px;font-size:14px;color:#13314c;cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''">${t}</div>`;
+    const body = rows.map((r, i) => {
       const st = this.ftStatus(r.name);
-      const all = this.profileRows(r.name);
-      const ready = all.filter(x => this.mitsComplete(x)).length;
-      const count = st.key === 'none' ? '-' : ready + '/' + all.length;
-      const issues = st.issues
-        ? `<span style="display:inline-flex;align-items:center;gap:6px;border:1px solid #eb343c;border-radius:2px;padding:1px 8px;margin-left:14px"><span class="material-symbols-outlined" style="font-size:15px;color:#eb343c">warning</span><span style="font-size:13px;color:#13314c">${st.issues} charge${st.issues===1?'':'s'} ${st.issues===1?'has':'have'} issues</span></span>`
-        : '';
+      const total = this.profileRows(r.name).length;
+      const short = st.issues || 0;
+      // The mock shows a plain total while charges still need details and ready/total once complete.
+      const count = st.key === 'none' ? '-' : (short ? String(total) : total + '/' + total);
+      const chargeStatus = st.key === 'none' ? '-'
+        : short
+          ? `<span class="material-symbols-outlined" style="font-size:17px;color:#faa61c">warning</span><span>${short} charge${short===1?' needs':'s need'} details</span>`
+          : `<span class="material-symbols-outlined" style="font-size:17px;color:#6eb744;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">check_circle</span><span>All ${total} ready</span>`;
+      // Publish is only offered on listings-enabled properties that haven't published yet;
+      // publishing while charges still need details is allowed but warns in the confirmation.
+      const menuId = `ftrow${i}-pnl`;
+      const items = (st.key === 'none' ? mitem('Set Up Fee Transparency','setupOpen',r.name) : mitem('View Charges','openFeeProfile',r.name)
+        + (st.key === 'ready' || st.key === 'short' ? mitem('Publish Complete Pricing','pubOpen',r.name) : ''));
+      const menuPos = `event.stopPropagation();var t=document.getElementById('${menuId}');if(t.style.display==='block'){t.style.display='none';}else{t.style.display='block';var r=this.getBoundingClientRect();var w=t.offsetWidth,h=t.offsetHeight;var l=r.right-w;if(l<8)l=8;var y=r.bottom+4;if(y+h>window.innerHeight-8)y=r.top-h-4;t.style.left=l+'px';t.style.top=y+'px';}`;
       return `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #f5f8fa;background:#fff">
         ${cell(r.name, 'padding-left:17px')}
-        <span style="display:flex;align-items:center;justify-content:center;min-height:35px"><span class="material-symbols-outlined" style="font-size:18px;color:#666">${this.ilsOn(r.name)?'check':'close'}</span></span>
-        <span style="display:flex;align-items:center;min-height:35px;padding:0 12px;font-size:14px;color:#13314c;white-space:nowrap">${count}${issues}</span>
-        <span style="display:flex;align-items:center;gap:8px;min-height:35px;padding:0 12px;font-size:14px;color:#13314c;white-space:nowrap"><span class="material-symbols-outlined" style="font-size:18px;color:${st.color};font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">${st.icon}</span>${st.label}</span>
-        <a data-act="${st.act}" data-arg="${r.name}" style="display:flex;align-items:center;min-height:35px;padding:0 12px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap">${st.next}</a>
-        <span data-act="toast" data-arg="Row actions" style="display:flex;align-items:center;justify-content:center;min-height:35px;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">more_vert</span></span>
+        ${cell(count)}
+        <span style="display:flex;align-items:center;gap:7px;min-height:35px;box-sizing:border-box;padding:0 12px;font-size:14px;color:#13314c;white-space:nowrap">${chargeStatus}</span>
+        ${cell(`<span style="color:${st.pricingColor||'#13314c'}">${st.pricing}</span>`)}
+        <a data-act="${st.act}" data-arg="${esc(r.name)}" style="display:flex;align-items:center;min-height:35px;padding:0 12px;font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap">${st.next}</a>
+        <span style="position:relative;display:flex;align-items:center;justify-content:center;min-height:35px">
+          <span onclick="${menuPos}" style="display:flex;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">more_vert</span></span>
+          <div id="${menuId}" style="display:none;position:fixed;z-index:1200;min-width:230px;background:#fff;border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,0.18);padding:4px 0">${items}</div>
+        </span>
       </div>`;
     }).join('');
 
@@ -1390,7 +1436,49 @@ class Component extends DCLogic {
       ${toolbar}
       <div style="display:flex;flex-direction:column;gap:6px">
         <div style="overflow-x:auto"><div style="min-width:1100px">${header}${body}</div></div>
-        <div style="display:flex;justify-content:flex-end"><span style="font-size:12px;color:#b3b3b3">${rows.length} of 42 Properties</span></div>
+        <div style="display:flex;justify-content:flex-end"><span style="font-size:12px;color:#b3b3b3">${rows.length} of ${all.length} Properties</span></div>
+      </div>
+    </div>`;
+  }
+  // ---------- Publish Complete Pricing confirmation (mock 2699-105683) ----------
+  pubModalHTML(){
+    const m = this.state.pubModal;
+    if (!m) return '';
+    const prop = m.prop;
+    const short = this.profileRows(prop).filter(r => !this.mitsComplete(r));
+    const names = short.map(r => r.mits);
+    const list = names.length === 1 ? names[0] : names.length === 2 ? names.join(' and ') : names.slice(0, -1).join(', ') + ', and ' + names[names.length - 1];
+    // Red warning appears only when publishing would leave required charges out of the total.
+    const redBox = !short.length ? '' : `<div style="background:#fbe9e9;border:1px solid #eb343c;border-radius:4px;padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+      <span style="font-size:15px;font-weight:600;color:#eb343c">${short.length} required charge${short.length===1?'':'s'} may not be included</span>
+      <span style="font-size:14px;color:#13314c;line-height:1.5">The ${list} charge${short.length===1?' is':'s are'} missing details, so ${short.length===1?'it':'they'} may not appear on listings and ${short.length===1?"isn&#39;t":"aren&#39;t"} counted in the total price.</span>
+      <span style="font-size:14px;color:#13314c;line-height:1.5">Where fee transparency laws apply, advertised prices must include all required fees. Publishing now may show renters an incomplete price.</span>
+    </div>`;
+    return `<div data-act="pubCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:140">
+      <div data-act="noop" style="width:640px;max-width:94vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid #e3e9ee;flex:none">
+          <span style="font-size:20px;font-weight:600;color:#13314c">Publish Complete Pricing</span>
+          <div style="flex:1"></div>
+          <span class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">help</span>
+          <span data-act="pubCancel" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span>
+        </div>
+        <div style="padding:18px 20px;display:flex;flex-direction:column;gap:14px;overflow-y:auto">
+          <span style="font-size:14px;color:#13314c">Are you sure you would like to publish complete pricing for ${prop}?</span>
+          ${redBox}
+          <div style="display:flex;align-items:flex-start;gap:12px;background:#fdf3e3;border:1px solid #f0ad4e;border-radius:4px;padding:12px 14px">
+            <span class="material-symbols-outlined" style="font-size:20px;color:#faa61c;flex:none;margin-top:1px">warning</span>
+            <span style="font-size:13px;color:#666;line-height:1.5">Publishing switches this property&#39;s listing feed permanently and can&#39;t be undone. You can add the missing details anytime, and your listings will reflect that on the next feed update.</span>
+          </div>
+          <div style="height:1px;background:#e3e9ee"></div>
+          <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer">
+            <input type="checkbox" data-act="pubAck" ${m.ack?'checked':''} style="accent-color:var(--ac,#008dd5);width:16px;height:16px;margin:2px 0 0;flex:none">
+            <span style="font-size:14px;color:#13314c;line-height:1.5">I understand this permanently changes how pricing displays on ${prop} listings.</span>
+          </label>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;background:#f5f8fa;border-top:1px solid #e3e9ee;padding:12px 20px;flex:none">
+          <button ${m.ack?'data-act="pubConfirm"':''} class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px;${m.ack?'':'opacity:0.55;cursor:default'}">Publish Pricing</button>
+          <button data-act="pubCancel" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,#008dd5);color:var(--ac,#008dd5);cursor:pointer">Cancel</button>
+        </div>
       </div>
     </div>`;
   }
@@ -3366,6 +3454,7 @@ class Component extends DCLogic {
       out += `<div style="height:40px;background:var(--ac,#008dd5);display:flex;align-items:center;padding:0 16px;gap:12px;color:#fff;flex:none">
         <span style="font-size:18px;line-height:24px">Fee Transparency</span>
         <div style="flex:1"></div>
+        <span data-act="toast" data-arg="Listings" style="display:inline-flex;align-items:center;gap:6px;font-size:14px;cursor:pointer;opacity:0.95;margin-right:4px">Listings<span class="material-symbols-outlined" style="font-size:18px">arrow_right_alt</span></span>
         <span data-act="toast" data-arg="Print" class="material-symbols-outlined" style="font-size:18px;opacity:0.85;cursor:pointer">print</span>
         <span data-act="toast" data-arg="Refresh" class="material-symbols-outlined" style="font-size:18px;opacity:0.85;cursor:pointer">autorenew</span>
         <span class="material-symbols-outlined" style="font-size:18px;opacity:0.85;cursor:pointer">help</span>
@@ -3393,6 +3482,7 @@ class Component extends DCLogic {
     out += this.setupExitHTML();
     out += this.addPropHTML();
     out += this.pfFilterHTML();
+    out += this.pubModalHTML();
     out += this.pricePreviewHTML();
     out += this.profMenuHTML();
     out += this.profHistHTML();
