@@ -136,6 +136,7 @@ class Component extends DCLogic {
     // Properties whose complete pricing has been published from the Fee Transparency page.
     publishedProps: {},
     pubModal: null, // { prop, ack } — Publish Complete Pricing confirmation
+    mktSetup: false, // Marketing Setup overlay (opened from the action rail's copy flyout)
     ltProp: 'all', // Listings page property filter
     ltErrOnly: false, // Listings page: hide listings without errors
     ftFilter: 'all', // tracker Status filter: all | ready | needs | none | done
@@ -608,6 +609,9 @@ class Component extends DCLogic {
       case 'navRegister': this.go('register'); break;
       case 'navFeeTrans': this.go('feetrans', { profMenu: null }); break;
       case 'navListings': this.go('listings'); break;
+      case 'mktOpen': this.setState({ mktSetup: true }); break;
+      case 'mktClose': this.setState({ mktSetup: false }); break;
+      case 'mktSave': this.setState({ mktSetup: false }); this.flash('Marketing setup saved'); break;
       case 'ltPropSet': this.setState({ ltProp: arg }); break;
       case 'ltErrToggle': this.setState(s => ({ ltErrOnly: !s.ltErrOnly })); break;
       case 'ftBulkGo': { const sel = Array.from(document.querySelectorAll('#ft-setup-pnl input:checked')).map(i => i.getAttribute('data-prop'));
@@ -1291,9 +1295,15 @@ class Component extends DCLogic {
   // Right-hand quick-action rail on property details (mock 2475-38346).
   rail(){
     const btn = (icon, label) => `<span data-act="toast" data-arg="${label}" title="${label}" style="display:flex;align-items:center;justify-content:center;width:40px;height:34px;cursor:pointer" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background=''"><span class="material-symbols-outlined" style="font-size:20px;color:#fff">${icon}</span></span>`;
+    const copyBtn = `<span style="position:relative;display:flex">
+      <span onclick="var p=document.getElementById('rail-copy-pnl');p.style.display=(p.style.display==='block'?'none':'block')" title="Copy" style="display:flex;align-items:center;justify-content:center;width:40px;height:34px;cursor:pointer" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background=''"><span class="material-symbols-outlined" style="font-size:20px;color:#fff">content_copy</span></span>
+      <div id="rail-copy-pnl" style="display:none;position:absolute;right:44px;top:0;z-index:1000;min-width:190px;background:#fff;border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,0.18);padding:4px 0">
+        <div data-act="mktOpen" style="padding:9px 16px;font-size:14px;color:#13314c;cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''">Marketing Setup</div>
+      </div>
+    </span>`;
     return `<div style="width:40px;flex:none;background:#13314c;display:flex;flex-direction:column;align-items:center;padding-top:14px;gap:8px">
       ${btn('library_add','Add')}
-      ${btn('content_copy','Copy Property')}
+      ${copyBtn}
       ${btn('mail','Send Email')}
       ${btn('article','Reports')}
       ${btn('delete','Delete Property')}
@@ -3727,6 +3737,86 @@ class Component extends DCLogic {
         </div>
       </div></div>`;
   }
+  // ---------- Marketing Setup overlay (mock 2791-148966) ----------
+  mktSetupHTML(){
+    if (!this.state.mktSetup) return '';
+    const P = this.propInfo();
+    const card = (title, inner, right, wide) => `<div style="${wide?'grid-column:span 2;':''}background:#fff;border:1px solid #e3e9ee;border-radius:4px;display:flex;flex-direction:column;min-width:0">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;border-bottom:2px solid var(--ac,#008dd5)"><span style="font-size:15px;font-weight:600;color:#13314c">${title}</span>${right||''}</div>
+      <div style="flex:1;padding:14px 16px;display:flex;flex-direction:column;gap:12px;min-height:0">${inner}</div></div>`;
+    const lab = (t) => `<span style="font-size:13px;color:#4a5b6b">${t}</span>`;
+    const ddPh = (ph) => `<div style="display:flex;align-items:center;justify-content:space-between;gap:4px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:34px;box-sizing:border-box;padding:0 6px 0 10px;cursor:default"><span style="font-size:14px;${ph.italic?'font-style:italic;color:#b3b3b3':'color:#13314c'};overflow:hidden;white-space:nowrap">${ph.t||''}</span><span class="material-symbols-outlined" style="font-size:18px;color:#666">keyboard_arrow_down</span></div>`;
+    const field = (l, ph) => `<div style="display:flex;flex-direction:column;gap:4px">${lab(l)}${ddPh(ph)}</div>`;
+    const entry = { t:'Type or select an entry', italic:true };
+    const contact1 = card('Contact Information', `
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px"><div style="display:flex;flex-direction:column;gap:3px">${lab('Company Info')}<span style="font-size:14px;color:#13314c">&lt;No Company Info&gt;</span></div><span data-act="toast" data-arg="Edit Company Info" class="material-symbols-outlined" style="font-size:19px;color:var(--ac,#008dd5);cursor:pointer">edit</span></div>
+      ${field('Contact Email', entry)}
+      ${field('Contact Phone', entry)}
+      ${field('Company Website', entry)}`);
+    const contact2 = card('Contact Information', `
+      <div style="flex:1;min-height:220px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px"></div>
+      <span data-act="toast" data-arg="Refresh contact block" style="align-self:flex-start;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border:1px solid var(--ac,#008dd5);border-radius:50%;cursor:pointer"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5)">sync</span></span>`,
+      `<a data-act="toast" data-arg="Add from UDF" style="display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap"><span class="material-symbols-outlined" style="font-size:17px">add</span>Add from UDF</a>`);
+    const preview = `<button data-act="toast" data-arg="Preview" class="btn-pri" style="height:34px;min-height:34px;padding:0 18px;border-radius:4px;font-size:14px;flex:none">Preview</button>`;
+    const listing = card('Listing Details', `
+      <label style="display:inline-flex;align-items:center;gap:9px;cursor:pointer"><input type="checkbox" style="accent-color:var(--ac,#008dd5);width:15px;height:15px;margin:0"><span style="font-size:14px;color:#13314c">Exclude Unit-specific information</span></label>
+      ${field('Lease Terms', { t:'' })}
+      <div style="display:flex;flex-direction:column;gap:4px">${lab('Property Images')}<div style="display:flex;gap:10px;align-items:center"><div style="flex:1;min-width:0">${ddPh({ t:'Property Image' })}</div>${preview}</div></div>
+      <div style="display:flex;flex-direction:column;gap:4px">${lab('Unit Images')}<div style="display:flex;gap:10px;align-items:center"><div style="flex:1;min-width:0">${ddPh({ t:'' })}</div>${preview}</div></div>
+      ${field('Availability Date', { t:'' })}`);
+    const pricing = card('Pricing Details', `<div style="flex:1"></div>`);
+    const amen = ['Theater','Outdoor Grill','Hot Tub','Game Room','Utility Laundry Room','Dog Park','Community Garden','Pool','Fitness Center'];
+    const features = card('Features', `
+      <div style="display:flex;gap:20px;align-items:flex-start;min-width:0;flex-wrap:wrap">
+        <div style="flex:1;min-width:240px;border:1px solid #cedbe7;border-radius:4px;overflow:hidden">
+          <div style="padding:10px 14px;font-size:13px;font-weight:600;color:#13314c;letter-spacing:0.02em;border-bottom:1px solid #ebf1f5">Property Amenities</div>
+          <div style="max-height:230px;overflow-y:auto">${amen.map((a2,i) => `<div style="padding:9px 14px;font-size:14px;color:#13314c;${i%2?'background:#f7fafc;':''}border-bottom:1px solid #ebf1f5">${a2}</div>`).join('')}</div>
+        </div>
+        <div style="flex:1;min-width:240px;display:flex;flex-direction:column;gap:12px">
+          ${field('Laundry', { t:'' })}
+          ${field('Pets', { t:'' })}
+          ${field('Included Utilities', { t:'' })}
+        </div>
+      </div>`, '', true);
+    const uts = this.utData();
+    const fpRow = (name, count, beds, baths) => `<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;padding:9px 4px;border-bottom:1px solid #ebf1f5;font-size:14px;color:#13314c"><span>${name}</span><span>${name}</span><span>${count}</span><span>${beds}</span><span>${baths}</span></div>`;
+    const floor = card('Floor Plans', `
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;padding:4px;font-size:13px;font-weight:600;color:#13314c;border-bottom:1px solid #cedbe7"><span>Name</span><span>Unit Type</span><span>Unit Count</span><span>Beds</span><span>Baths</span></div>
+      ${uts.length ? uts.map(t => fpRow(t.name, t.units, (t.name.match(/^(\d)/)||[,'2'])[1], ((t.name.match(/(\d)B$/)||t.name.match(/\/ ?(\d)/)||[,'2'])[1]) + '.0')).join('') : fpRow('2B / 2B', 14, 2, '2.0') + fpRow('1B / 1B', 18, 1, '1.0')}`,
+      `<a data-act="toast" data-arg="Add Item" style="display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap"><span class="material-symbols-outlined" style="font-size:17px">add</span>Add Item</a>`, true);
+    return `<div style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:145">
+      <div data-act="noop" style="width:calc(100vw - 24px);height:calc(100vh - 24px);background:#f5f8fa;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;background:#fff;padding:13px 20px;border-bottom:1px solid #e3e9ee;flex:none">
+          <span style="font-size:18px;font-weight:600;color:#13314c">Marketing Setup</span>
+          <span data-act="mktClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;background:#e8f4fb;padding:10px 20px;flex:none">
+          <span style="font-size:14px;color:#13314c">Include/Exclude</span>
+          <div style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #cedbe7;border-radius:4px;height:32px;padding:0 8px 0 12px;font-size:14px;color:#13314c;cursor:default">Use System Preferences<span class="material-symbols-outlined" style="font-size:18px;color:#666">keyboard_arrow_down</span></div>
+          <div style="flex:1"></div>
+          <span style="font-size:14px;color:#13314c">Feed Type: Single Family</span>
+        </div>
+        <div style="flex:1;min-height:0;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:16px">
+          <div style="display:flex;align-items:center;gap:22px;background:#fff;border:1px solid #e3e9ee;border-radius:4px;padding:14px 20px;flex-wrap:wrap">
+            <span style="font-size:16px;font-weight:600;color:#13314c">${P.name}</span>
+            <span style="font-size:14px;color:#13314c">Owner: ${P.manager}</span>
+            <span style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#13314c"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5)">mail</span>${P.email}</span>
+            <span style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#13314c"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5)">call</span><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5)">sms</span>513-838-7264</span>
+            <div style="flex:1"></div>
+            <span style="font-size:14px;color:#13314c">Occupied Units: <strong>${P.occupied != null ? P.occupied : 30}</strong></span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:16px;align-items:stretch">
+            ${contact1}${contact2}${listing}${pricing}
+            ${features}${floor}
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;background:#fff;border-top:1px solid #e3e9ee;padding:12px 20px;flex:none">
+          <button data-act="mktSave" class="btn-pri" style="height:34px;min-height:34px;padding:0 24px;border-radius:4px;font-size:14px">Save</button>
+          <button data-act="mktClose" style="height:34px;min-height:34px;padding:0 18px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,#008dd5);color:var(--ac,#008dd5);cursor:pointer">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+  }
   toastHTML(){ return this.state.toast ? `<div class="toast"><span class="material-symbols-outlined" style="font-size:18px">check_circle</span>${this.state.toast}</div>` : ''; }
 
   // ================= SCREENS =================
@@ -3789,6 +3879,7 @@ class Component extends DCLogic {
     out += this.addPropHTML();
     out += this.pfFilterHTML();
     out += this.pubModalHTML();
+    out += this.mktSetupHTML();
     out += this.pricePreviewHTML();
     out += this.profMenuHTML();
     out += this.profHistHTML();
