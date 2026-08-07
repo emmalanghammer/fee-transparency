@@ -1119,7 +1119,8 @@ class Component extends DCLogic {
   // A charge applies to everything at its level; an exclusion carves out specific unit types or units.
   exclOf(r){ const e = (r && r.exclFrom) || {}; return { types: e.types || [], units: e.units || [] }; }
   // Only a property or unit-type charge covers more than one thing, so only those can be carved up.
-  exclEligible(r){ return !!r && (r.level === 'Property' || r.level === 'Unit Type'); }
+  // NSF and late fees apply everywhere by rule — they can't be excluded (or deleted).
+  exclEligible(r){ return !!r && !r.propSpecific && (r.level === 'Property' || r.level === 'Unit Type'); }
   // The unit types / units an exclusion can name. A unit-type charge only reaches its own units.
   exclOptions(r, scope){
     if (scope === 'Unit Type') return this.utData().map(t => t.name);
@@ -1152,7 +1153,7 @@ class Component extends DCLogic {
       <div style="position:fixed;left:${left}px;top:${p.y}px;width:180px;background:#fff;border-radius:4px;box-shadow:0 3px 6px rgba(0,0,0,0.15);z-index:151;overflow:hidden">
         ${item('Details','rowDetails')}
         ${this.exclEligible(row) ? item(this.exclCount(row) ? 'Edit Exclusions' : 'Exclude Charge','exclOpen') : ''}
-        ${item('Delete','rowDelete')}
+        ${row && row.propSpecific ? '' : item('Delete','rowDelete')}
       </div>`;
   }
   // "Exclude Charge" overlay: the charge, the scope to carve out of, then a multi-select of targets.
