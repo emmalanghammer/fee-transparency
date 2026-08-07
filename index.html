@@ -1922,8 +1922,15 @@ class Component extends DCLogic {
     const total = this.profileRows().length;
     const ils = this.ilsOn();
     // Marketing/MITS completeness only matters when the property publishes to online listings.
-    if (!ils || !total || !need) return '';
+    if (!ils || !total) return '';
     const published = !!this.state.publishedProps[this.state.property];
+    // Published and complete: these charges are the live pricing feed — say so.
+    if (!need) return !published ? '' : `<div style="display:flex;align-items:flex-start;gap:10px;background:#eef7e9;border:1px solid #6eb744;border-radius:4px;padding:12px 16px">
+      <span class="material-symbols-outlined" style="font-size:20px;color:#4d8a2a;flex:none;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">verified</span>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
+        <span style="font-size:13px;font-weight:600;color:#13314c;line-height:1.5">This property has published complete pricing.</span>
+        <span style="font-size:13px;color:#13314c;line-height:1.5">These charges are the live feed for this property's listing pricing — changes you make here appear on listings with the next feed update.</span>
+      </div></div>`;
     // Published with incomplete charges is live non-compliance — the loudest callout on the tab.
     if (published) return `<div style="display:flex;align-items:flex-start;gap:10px;background:#fbe9e9;border:1px solid #eb343c;border-radius:4px;padding:12px 16px">
       <span class="material-symbols-outlined" style="font-size:20px;color:#eb343c;flex:none;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">warning</span>
