@@ -105,6 +105,8 @@ class Component extends DCLogic {
     // Bulk Update Charges: { idx, open:{rec,one} }. state.modal carries the charge being edited, so the
     // shared form and saveFee work unchanged.
     bulk: null,
+    bulkSel: null, // { sel } — Bulk Update Charges selection mode on the Charges tab
+    bulkUpd: null, // { gen, mkt } — Update Charges dialog (section open/closed)
     // Copy Charges from Property: { from, dup:'skip'|'replace', excl }
     copyFees: null,
     // Register selection mode for the bulk profile setup: { sel: {propName:true} }
@@ -774,25 +776,38 @@ class Component extends DCLogic {
         break; }
 
       // ---- Bulk Update Charges ----
-      case 'bulkOpen': { const rows = this.bulkRows(); if (!rows.length) { this.flash('No charges to update'); break; }
-        this._bulkTouched = {};
-        this.setState({ profMenu: null, bulk: { idx: 0, open: { rec: true, one: true } },
-          modal: { group: rows[0].group, edit: rows[0], cre: !!rows[0].cre } }); break; }
-      case 'bulkClose': this._bulkTouched = {}; this.setState({ bulk: null, modal: null }); break;
-      // Saves whatever is on screen before moving, so clicking through the list keeps every edit.
-      case 'bulkGo': { const rows = this.bulkRows();
-        if (this.saveFee({ keep: true }) === false) break;
-        const i = Math.max(0, Math.min(rows.length - 1, parseInt(arg, 10)));
-        const fresh = this.bulkRows();
-        const r = fresh[i]; if (!r) break;
-        this.setState(s => ({ bulk: Object.assign({}, s.bulk, { idx: i }), modal: { group: r.group, edit: r, cre: !!r.cre } }));
-        break; }
-      case 'bulkAcc': this.setState(s => ({ bulk: Object.assign({}, s.bulk, { open: Object.assign({}, s.bulk.open, { [arg]: !s.bulk.open[arg] }) }) })); break;
-      case 'bulkSave': { if (this.saveFee({ keep: true }) === false) break;
-        const n = this.bulkRows().length;
-        this._bulkTouched = {};
-        this.setState({ bulk: null, modal: null });
-        this.flash('Changes saved across ' + n + ' charges');
+      // Bulk Update Charges: pick charges with checkboxes on the tab, then update shared fields at once.
+      case 'bulkOpen': this.setState({ profMenu: null, bulkSel: { sel: {} } }); break;
+      case 'bulkSelToggle': this.setState(s => { const sel = Object.assign({}, s.bulkSel.sel);
+        if (sel[arg]) delete sel[arg]; else sel[arg] = true;
+        return { bulkSel: { sel } }; }); break;
+      case 'bulkSelAll': { const ids = String(arg).split(',').filter(Boolean);
+        this.setState(s => { const sel = Object.assign({}, s.bulkSel.sel);
+          const every = ids.every(id => sel[id]);
+          ids.forEach(id => { if (every) delete sel[id]; else sel[id] = true; });
+          return { bulkSel: { sel } }; }); break; }
+      case 'bulkSelCancel': this.setState({ bulkSel: null, bulkUpd: null }); break;
+      case 'bulkUpdOpen': { if (!this.bulkSelRows().length) { this.flash('Select at least one charge'); break; }
+        this.setState({ bulkUpd: { gen: true, mkt: false } }); break; }
+      case 'bulkUpdClose': this.setState({ bulkUpd: null }); break;
+      case 'bulkUpdSave': { const v = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+        const picked = this.bulkSelRows().map(r => r.id);
+        const gen = { level: v('bu-level'), mits: v('bu-ctype').toUpperCase(), desc: v('bu-comment'),
+          freq: v('bu-freq'), from: v('bu-from'), to: v('bu-to'), amtMethod: v('bu-amtm'), amount: v('bu-amt') };
+        const mkt = { name: v('bu-name'), marketing: v('bu-marketing'), requirement: v('bu-req'), feeDue: v('bu-due') };
+        const nGen = Object.keys(gen).filter(k => gen[k]).length, nMkt = Object.keys(mkt).filter(k => mkt[k]).length;
+        if (!nGen && !nMkt) { this.flash('No changes to apply — every field kept its current value'); break; }
+        this.setProfileRows(rows => rows.map(r => {
+          if (picked.indexOf(r.id) < 0) return r;
+          const nr = Object.assign({}, r);
+          Object.keys(gen).forEach(k => { if (gen[k]) nr[k] = gen[k]; });
+          if (gen.level && gen.level === 'Property') nr.target = '';
+          if (nMkt) { nr.listing = Object.assign({}, nr.listing);
+            Object.keys(mkt).forEach(k => { if (mkt[k]) nr.listing[k] = mkt[k]; }); }
+          return nr;
+        }));
+        this.setState({ bulkUpd: null, bulkSel: null });
+        this.flash(picked.length + ' charge' + (picked.length===1?'':'s') + ' updated');
         break; }
       case 'profHistOpen': this.setState({ profMenu: null, profHist: { prop: this.state.property, exp: {} } }); break;
       case 'profHistClose': this.setState({ profHist: null }); break;
@@ -1854,14 +1869,20 @@ class Component extends DCLogic {
     const noLabel = !!(opts && opts.noLabel);
     // The listing status column only appears on properties that market on online listings.
     const ils = this.ilsOn();
+    // Bulk Update Charges selection mode leads every table with a checkbox column.
+    const bs = this.state.bulkSel;
     // An exclusion tag rides in the Comment cell, so that column gets more room when any row has one
     // rather than squeezing the comment down to an ellipsis.
     const tagged = rows.some(r => this.exclCount(r));
     const cmt = tagged ? 'minmax(260px,1.5fr)' : 'minmax(160px,1fr)';
-    const cols = rec ? (ils ? `120px ${cmt} 110px 100px 90px 110px 120px 130px 40px`
+    const cols = (bs ? '44px ' : '') + (rec ? (ils ? `120px ${cmt} 110px 100px 90px 110px 120px 130px 40px`
                             : `120px ${cmt} 110px 100px 90px 110px 120px 40px`)
                      : (ils ? `120px ${cmt} 100px 90px 110px 120px 130px 40px`
-                            : `120px ${cmt} 100px 90px 110px 120px 40px`);
+                            : `120px ${cmt} 100px 90px 110px 120px 40px`));
+    const allIds = rows.map(r => r.id).join(',');
+    const allOn = rows.length && rows.every(r => bs && bs.sel[r.id]);
+    const selHead = !bs ? '' : `<span style="display:flex;align-items:center;justify-content:center;padding:8px 0 8px 8px"><input type="checkbox" data-act="bulkSelAll" data-arg="${allIds}" ${allOn?'checked':''} ${rows.length?'':'disabled'} style="accent-color:var(--ac,#008dd5);width:16px;height:16px;margin:0;cursor:pointer"></span>`;
+    const selCell = r => !bs ? '' : `<span style="display:flex;align-items:center;justify-content:center;min-height:44px;padding-left:8px"><input type="checkbox" data-act="bulkSelToggle" data-arg="${r.id}" ${bs.sel[r.id]?'checked':''} style="accent-color:var(--ac,#008dd5);width:16px;height:16px;margin:0;cursor:pointer"></span>`;
     const heads = rec ? ['Charge Type','Comment','Frequency','From','To','Amount','Charge Level'].concat(ils?['Listing Ready']:[]).concat([''])
                       : ['Charge Type','Comment','From','To','Amount','Charge Level'].concat(ils?['Listing Ready']:[]).concat(['']);
     const hc = (t,i) => `<span style="display:flex;align-items:center;padding:8px 12px${i===0?' 8px 16px':''};font-size:12px;font-weight:600;color:#13314c;white-space:nowrap;${/Amount/.test(t)?'justify-content:flex-end;':''}">${t}</span>`;
@@ -1871,15 +1892,15 @@ class Component extends DCLogic {
       const mid = rec
         ? cell(this.freqNum(r)||'—') + cell(r.from||'—') + cell(r.to||'-')
         : cell(r.from||'—') + cell(r.to||'-');
-      return `<div data-act="rowDetails" data-arg="${r.id}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5;cursor:pointer" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background=''">
-        ${cell(r.mits,'padding-left:16px')}<span style="display:flex;align-items:center;gap:8px;min-height:44px;box-sizing:border-box;padding:8px 12px;font-size:14px;color:#13314c;min-width:0"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.desc||r.name}</span>${this.exclTag(r)}</span>${mid}${cell(String(r.amount||'').replace(/^\$/,''),'justify-content:flex-end;text-align:right')}
+      return `<div data-act="${bs?'bulkSelToggle':'rowDetails'}" data-arg="${r.id}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5;cursor:pointer" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background=''">
+        ${selCell(r)}${cell(r.mits,'padding-left:16px')}<span style="display:flex;align-items:center;gap:8px;min-height:44px;box-sizing:border-box;padding:8px 12px;font-size:14px;color:#13314c;min-width:0"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.desc||r.name}</span>${this.exclTag(r)}</span>${mid}${cell(String(r.amount||'').replace(/^\$/,''),'justify-content:flex-end;text-align:right')}
         <span style="display:flex;align-items:center;min-height:44px;padding:8px 12px">${this.chargeLevelPill(r)}</span>
         ${ils?`<span style="display:flex;align-items:center;min-height:44px;padding:8px 12px">${this.mitsStatusCell(r)}</span>`:''}${kebab}</div>`;
     }).join('') : `<div style="padding:14px 16px;font-size:13px;font-style:italic;color:#b3b3b3;border-bottom:1px solid #ebf1f5">No ${rec?'recurring':'one-time'} charges in this section.</div>`;
     const add = `<div data-act="addopen" data-arg="${group}" style="background:#f5f9fc;padding:9px 16px;cursor:pointer"><span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,#008dd5)"><span class="material-symbols-outlined" style="font-size:18px">add</span>Add ${rec?'Recurring':'One-Time'} Charge</span></div>`;
     return `${noLabel?'':`<div style="font-size:13px;color:#666;padding:12px 20px 8px">${rec?'Recurring':'One-Time'}</div>`}
-      <div style="padding:${noLabel?'4px':'0'} 20px 0;overflow-x:auto"><div style="min-width:${(rec?(ils?1020:900):(ils?950:830)) + (tagged?100:0)}px;border:1px solid #cedbe7;border-radius:4px;overflow:hidden">
-        <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #cedbe7">${heads.map(hc).join('')}</div>
+      <div style="padding:${noLabel?'4px':'0'} 20px 0;overflow-x:auto"><div style="min-width:${(rec?(ils?1020:900):(ils?950:830)) + (tagged?100:0) + (bs?44:0)}px;border:1px solid #cedbe7;border-radius:4px;overflow:hidden">
+        <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid #cedbe7">${selHead}${heads.map(hc).join('')}</div>
         ${body}${add}</div></div>`;
   }
   // A charge's requirement comes from its marketing details; charges that haven't had one selected
@@ -1908,6 +1929,8 @@ class Component extends DCLogic {
       </div>
       <a data-act="bulkOpen" style="flex:none;font-size:13px;color:var(--ac,#008dd5);white-space:nowrap;cursor:pointer">Bulk Update Charges</a></div>`;
   }
+  bulkSelRows(){ const bs = this.state.bulkSel; if (!bs) return [];
+    return this.profileRows().filter(r => bs.sel[r.id]); }
   feeProfileBody(){
     const rows = this.visibleRows();
     let sections;
@@ -1928,11 +1951,79 @@ class Component extends DCLogic {
       sections = this.acc(`Recurring Charges (${rec.length})`, '', this.profileTable('rec', rec, 'req-rec', { noLabel:true }), null, 'pf-rec')
                + this.acc(`One-Time Charges (${one.length})`, '', this.profileTable('one', one, 'req-one', { noLabel:true }), null, 'pf-one');
     }
+    const bs = this.state.bulkSel;
+    const nSel = bs ? this.bulkSelRows().length : 0;
+    const selBar = !bs ? '' : `<div style="position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:130;display:flex;align-items:center;gap:18px;background:var(--ac,#008dd5);border-radius:4px;box-shadow:0 8px 24px rgba(0,0,0,0.28);padding:12px 14px 12px 20px;white-space:nowrap">
+        <span style="font-size:15px;font-weight:600;color:#fff">Select charges to update</span>
+        <span style="font-size:13px;color:rgba(255,255,255,0.85)">${nSel} selected</span>
+        <button ${nSel?'data-act="bulkUpdOpen"':''} style="height:34px;min-height:34px;padding:0 18px;border-radius:4px;font:400 14px Roboto,sans-serif;color:#fff;background:rgba(255,255,255,${nSel?'0.2':'0.08'});border:1px solid rgba(255,255,255,${nSel?'0.65':'0.3'});cursor:${nSel?'pointer':'default'}">Update Charges</button>
+        <span data-act="bulkSelCancel" class="material-symbols-outlined" style="font-size:24px;color:#fff;cursor:pointer">close</span>
+      </div>`;
     return `<div style="flex:1;min-height:0;overflow-y:auto"><div style="padding:16px;display:flex;flex-direction:column;gap:16px;width:100%;box-sizing:border-box">
+      ${selBar}
       ${this.feeProfileToolbar()}
       ${this.mitsBanner()}
       ${sections}
     </div></div>`;
+  }
+  // ---------- Update Charges dialog (mock 2790-141830) ----------
+  // Bulk-edits the selected charges. Every field starts at "Keep current value" and only the ones
+  // the user actually fills get applied; fields not shared by every selected charge don't show.
+  bulkUpdHTML(){
+    const u = this.state.bulkUpd;
+    if (!u) return '';
+    const sel = this.bulkSelRows();
+    const allRec = sel.length > 0 && sel.every(r => !/-one$/.test(r.group));
+    const anyCre = sel.some(r => r.cre);
+    const KEEP = 'Keep current value';
+    const lab = (t, req) => `<span style="font-size:13px;color:#4a5b6b">${t}${req?' *':''}</span>`;
+    const txt = (id, icon) => `<div style="display:flex;align-items:center;gap:4px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><input id="${id}" placeholder="${KEEP}" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:italic 400 14px Roboto,sans-serif;color:#13314c" oninput="this.style.fontStyle=this.value?'normal':'italic'">${icon?`<span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5)">${icon}</span>`:''}</div>`;
+    const search = (id) => `<div style="display:flex;align-items:center;gap:6px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5)">search</span><input id="${id}" placeholder="${KEEP}" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:italic 400 14px Roboto,sans-serif;color:#13314c" oninput="this.style.fontStyle=this.value?'normal':'italic'"></div>`;
+    const dd = (id, opts) => this.singleSelect(id, opts, '', { noSearch: true, placeholder: KEEP });
+    const field = (l, ctrl, req) => `<div style="display:flex;flex-direction:column;gap:5px">${lab(l, req)}${ctrl}</div>`;
+    const levels = anyCre ? ['Property','Unit Type','Unit'] : ['Property','Unit Type','Unit','ORI'];
+    const genFields = [
+      field('Charge Level', dd('bu-level', levels), true),
+      field('Charge Type', search('bu-ctype'), true),
+      field('Comment', txt('bu-comment')),
+      allRec ? field('Frequency', dd('bu-freq', ['Every Month','Every 2 Months','Every 3 Months','Every 6 Months','Every 12 Months']), true) : '',
+      `<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px">${field('From', txt('bu-from','calendar_today'))}${field('To', txt('bu-to','calendar_today'))}</div>`,
+      field('Amount Method', dd('bu-amtm', ['Flat','Reference','Calculation'])),
+      field('Amount', txt('bu-amt','calculate'))
+    ].filter(Boolean).join('');
+    const mktFields = [
+      field('Name', txt('bu-name')),
+      field('Marketing Description', txt('bu-marketing')),
+      field('Charge Requirement', dd('bu-req', ['Required','Optional','Situational'])),
+      field('Fee Due', dd('bu-due', [{value:'At Application',label:'At Application'},{value:'Move-In',label:'At Move-In'},{value:'During Term',label:'During Term'}]))
+    ].join('');
+    // Sections expand/collapse on the DOM so typed values survive — a re-render would wipe them.
+    const sect = (key, title, open, inner) => `<div style="display:flex;flex-direction:column">
+      <div onclick="var b=document.getElementById('bu-sect-${key}');var c=this.querySelector('.material-symbols-outlined');var on=b.style.display!=='none';b.style.display=on?'none':'flex';c.textContent=on?'keyboard_arrow_down':'keyboard_arrow_up'" style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;cursor:pointer;border-top:1px solid #ebf1f5">
+        <span style="font-size:14px;font-weight:600;color:#13314c">${title}</span>
+        <span class="material-symbols-outlined" style="font-size:20px;color:#666">${open?'keyboard_arrow_up':'keyboard_arrow_down'}</span>
+      </div>
+      <div id="bu-sect-${key}" style="display:${open?'flex':'none'};border:1px solid #e3e9ee;border-radius:4px;padding:14px;flex-direction:column;gap:12px;margin-bottom:12px">${inner}</div>
+    </div>`;
+    return `<div style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:135">
+      <div data-act="noop" style="width:380px;max-width:94vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e3e9ee;flex:none">
+          <span style="font-size:18px;font-weight:600;color:#13314c">Update Charges</span>
+          <span data-act="bulkUpdClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span>
+        </div>
+        <div style="flex:1;min-height:0;overflow-y:auto;padding:14px 18px 4px">
+          <div style="font-size:13px;color:#666;line-height:1.5;margin-bottom:14px">Select the fields you want to update. Only fields that all selected charges share will display.</div>
+          <div style="font-size:12px;color:#8a9aa8;margin-bottom:3px">Charges</div>
+          <div style="font-size:14px;font-weight:600;color:#13314c;margin-bottom:14px">${sel.length} charge${sel.length===1?'':'s'} selected</div>
+          ${sect('gen','General Details', u.gen, genFields)}
+          ${sect('mkt','Marketing Details', u.mkt, mktFields)}
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;background:#f5f8fa;border-top:1px solid #e3e9ee;padding:12px 18px;flex:none">
+          <button data-act="bulkUpdSave" class="btn-pri" style="height:34px;min-height:34px;padding:0 22px;border-radius:4px;font-size:14px">Save</button>
+          <button data-act="bulkUpdClose" style="height:34px;min-height:34px;padding:0 18px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,#008dd5);color:var(--ac,#008dd5);cursor:pointer">Cancel</button>
+        </div>
+      </div>
+    </div>`;
   }
   // Dismissible banner on the General tab pointing at the new profile.
   profileSetupBanner(p){
@@ -3487,7 +3578,7 @@ class Component extends DCLogic {
     out += this.profHistHTML();
     out += this.kickoffHTML();
     out += this.announceHTML();
-    out += this.bulkHTML();
+    out += this.bulkUpdHTML();
     out += this.copyFeesHTML();
     out += this.toastHTML();
     return out;
