@@ -2675,8 +2675,25 @@ class Component extends DCLogic {
     // Nothing to open until the property actually has a profile.
     const link = this.profStatus() === 'active'
       ? `<a data-act="openFeeProfile" style="font-size:14px;color:var(--ac,#008dd5)">Open Charges tab</a>` : '';
+    // Same setup pitch as the View Recurring Charges overlay, inside the tile, until the property
+    // runs on Fee Transparency.
+    const callout = (this.profStatus() === 'active' || !this.state.recViewNote) ? '' : (() => {
+      const n = this.setupCandidates().length;
+      return `<div style="margin:12px 16px 4px;display:flex;align-items:flex-start;gap:16px;background:#eef6fb;border:1px solid #cedbe7;border-radius:4px;padding:14px 16px;flex-wrap:wrap">
+        <div style="flex:1;min-width:260px;display:flex;flex-direction:column;gap:4px">
+          <span style="font-size:14px;font-weight:600;color:#13314c">This property has ${n} fees. Manage them in one place.</span>
+          <span style="font-size:13px;color:#4a5b6b;line-height:1.5">Fee Transparency centralizes your charges, deposits, and pricing on the property's Charges tab, simplifying setup, move-ins, and quotes. If you publish listings, complete pricing comes ready-made. Current tenant charges are unaffected.</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:16px;flex:none;padding-top:2px">
+          <button data-act="setupOpen" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Set Up Fee Transparency</button>
+          <a data-act="toast" data-arg="Opens contextual help" style="font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap">Learn More</a>
+        </div>
+        <span data-act="recViewNoteDismiss" class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5);cursor:pointer;flex:none">close</span>
+      </div>`;
+    })();
     return `<div class="tile">
       <div class="thead2"><span class="ttl">Recurring Charges</span><div style="flex:1"></div>${link}<span data-act="recViewOpen" data-arg="${scope}" class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);cursor:pointer" title="View recurring charges">open_in_new</span></div>
+      ${callout}
       ${this.recChargesTableHTML({scope, edge:true})}
     </div>`;
   }
