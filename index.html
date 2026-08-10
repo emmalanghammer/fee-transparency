@@ -1586,11 +1586,11 @@ class Component extends DCLogic {
     // The first five rows are the mock's worked examples (fixed pricing/errors, properties outside
     // the demo portfolio); the rest belong to demo properties and track Fee Transparency state live.
     return [
-      { prop:'Clearcreek Condominiums', plan:'CC1141', type:'2B / 2B', avail:'12/31/2026', base:1254.75, fixed:{ pill:'Total Price', total:true } },
+      { prop:'Clearcreek Condominiums', plan:'CC1141', type:'2B / 2B', avail:'12/31/2026', base:1150.00, total:1254.75, fixed:{ pill:'Total Price', total:true } },
       { prop:'1127 Blackwell',          plan:'2',      type:'SFH',     avail:'12/31/2026', base:null, rmErrors:6 },
       { prop:'Kirby',                   plan:'3',      type:'2B / 2B', avail:'12/31/2026', base:1300.00, fixed:{ pill:'Base Rent Only', warn:'Fee Transparency Issue - 12 charges need details' } },
-      { prop:'Timber Trail',            plan:'Timber', type:'SFH',     avail:'12/31/2026', base:2500.00, fixed:{ pill:'Total Price', total:true } },
-      { prop:'Sheehan',                 plan:'2',      type:'2B / 2B', avail:'12/31/2026', base:750.00, fixed:{ legacy:true } },
+      { prop:'Timber Trail',            plan:'Timber', type:'SFH',     avail:'12/31/2026', base:2350.00, total:2500.00, fixed:{ pill:'Total Price', total:true } },
+      { prop:'Sheehan',                 plan:'2',      type:'2B / 2B', avail:'12/31/2026', base:750.00, fixed:{ pill:'Base Rent Only', legacy:true } },
       { prop:'Riverview Apartments', plan:'RV-114', type:'2B / 2B', avail:'12/31/2026', base:1254.75 },
       { prop:'Riverview Apartments', plan:'RV-3C',  type:'1B / 1B', avail:'12/31/2026', base:1050.00 },
       { prop:'The Hamptons',         plan:'HAM-12', type:'2B / 2B', avail:'12/31/2026', base:1300.00 },
@@ -1598,20 +1598,21 @@ class Component extends DCLogic {
       { prop:'The Berkshires',       plan:'BK-2',   type:'2B / 2B', avail:'12/31/2026', base:750.00 }
     ];
   }
-  // Monthly fees that ride on top of base rent once complete pricing is live.
+  // Required recurring charges that ride on top of base rent in the total monthly price.
   ltMonthlyFees(p){
     return this.profileRows(p)
-      .filter(r => !/-one$/.test(r.group) && r.ils && r.mits !== 'RC')
+      .filter(r => !/-one$/.test(r.group) && r.mits !== 'RC' && (this.resolvedListing(r).requirement || '') === 'Required')
       .reduce((t, r) => { const m = String(r.amount||'').match(/\$?([\d,]+\.?\d*)/);
         return t + (m ? parseFloat(m[1].replace(/,/g,'')) : (r.est || 0)); }, 0);
   }
   ltStatus(p){
     const st = this.ftStatus(p);
     const published = !!this.state.publishedProps[p];
-    if (st.key === 'none' || st.key === 'notEnabled') return { legacy: true };
+    // Anything not publishing complete pricing — including unconverted properties — is Base Rent Only.
+    if (st.key === 'none' || st.key === 'notEnabled') return { pill: 'Base Rent Only', legacy: true };
     const short = st.issues || 0;
-    if (short) return { pill: 'Base Rent Only', warn: `Fee Transparency Issue - ${short} charge${short===1?'':'s'} need${short===1?'s':''} details` };
-    return published ? { pill: 'Total Price', total: true } : { pill: 'Base Rent Only' };
+    if (short) return { pill: 'Base Rent Only', converted: true, warn: `Fee Transparency Issue - ${short} charge${short===1?'':'s'} need${short===1?'s':''} details` };
+    return published ? { pill: 'Total Price', total: true, converted: true } : { pill: 'Base Rent Only', converted: true };
   }
   listingsBody(){
     const money = (n) => n == null ? '-' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1651,20 +1652,23 @@ class Component extends DCLogic {
       <div style="flex:1"></div>
       <button data-act="toast" data-arg="Update Listings Feed" class="btn-pri" style="display:inline-flex;align-items:center;gap:8px;height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px"><span class="material-symbols-outlined" style="font-size:18px">update</span>Update Listings Feed</button>
     </div>`;
-    const cols = '200fr 190fr 180fr 190fr 190fr 340fr 370fr 38px';
+    const cols = '200fr 170fr 150fr 170fr 160fr 200fr 250fr 340fr 38px';
     const hc = (t, first, right) => `<span style="display:flex;align-items:center;${right?'justify-content:flex-end;':''}gap:8px;height:26px;box-sizing:border-box;padding:0 ${first?'0 0 17px':'12px 0 12px'};font-size:13px;font-weight:600;color:#fff;white-space:nowrap;${first?'':'border-left:1px solid rgba(255,255,255,0.35)'}">${t}</span>`;
     const header = `<div style="display:grid;grid-template-columns:${cols};background:#737373">
-      ${hc('Property', true)}${hc('Unit Floor Plan')}${hc('Unit Type')}${hc('Date Available')}${hc('Price', false, true)}${hc('Pricing')}${hc('Errors')}
+      ${hc('Property', true)}${hc('Unit Floor Plan')}${hc('Unit Type')}${hc('Date Available')}${hc('Base Rent', false, true)}${hc('Total Monthly Price', false, true)}${hc('Pricing')}${hc('Errors')}
       <span style="display:flex;align-items:center;justify-content:center;height:26px;border-left:1px solid rgba(255,255,255,0.35)"><span class="material-symbols-outlined" style="font-size:18px;color:#fff">view_column</span></span>
     </div>`;
     const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px;font-size:14px;color:#13314c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
     const pill = (t, total) => `<span style="display:inline-flex;align-items:center;border-radius:3px;padding:3px 10px;font-size:13px;white-space:nowrap;${total?'background:#e4f1da;color:#2f5d43':'background:#e8eaec;color:#13314c'}">${t}</span>`;
     const body = rows.map(l => {
-      const st = l.fixed || this.ltStatus(l.prop);
-      const price = l.base == null ? '-' : money(st.total && !l.fixed ? l.base + this.ltMonthlyFees(l.prop) : l.base);
-      const pricing = l.base == null ? '<span style="color:#13314c">-</span>'
-        : st.legacy ? `<span style="font-size:13px;font-style:italic;color:#8a9aa8;white-space:nowrap">Not Set Up, Using Legacy Pricing</span>`
-        : pill(st.pill, st.total);
+      const live = this.ltStatus(l.prop);
+      const st = l.fixed || live;
+      const basePrice = l.base == null ? '-' : money(l.base);
+      // Total monthly price is only known once the property's charges are centralized.
+      const total = l.fixed
+        ? (l.total != null ? money(l.total) : '-')
+        : (live.converted && l.base != null ? money(l.base + this.ltMonthlyFees(l.prop)) : '-');
+      const pricing = l.base == null ? '<span style="color:#13314c">-</span>' : pill(st.pill, st.total);
       const err = l.rmErrors
         ? `<span class="material-symbols-outlined" style="font-size:18px;color:#eb343c;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">error</span><span>${l.rmErrors} Rent Manager errors</span>`
         : st.warn
@@ -1673,7 +1677,8 @@ class Component extends DCLogic {
       return `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #f5f8fa;background:#fff">
         ${cell(l.prop, 'padding-left:17px')}
         ${cell(l.plan)}${cell(l.type)}${cell(l.avail)}
-        ${cell(price, 'justify-content:flex-end;text-align:right')}
+        ${cell(basePrice, 'justify-content:flex-end;text-align:right')}
+        ${cell(total, 'justify-content:flex-end;text-align:right')}
         <span style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px">${pricing}</span>
         <span style="display:flex;align-items:center;gap:8px;min-height:35px;box-sizing:border-box;padding:0 12px;font-size:14px;color:#13314c;white-space:nowrap;overflow:hidden">${err}</span>
         <span data-act="toast" data-arg="Listing actions" style="display:flex;align-items:center;justify-content:center;min-height:35px;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">more_vert</span></span>
@@ -2282,7 +2287,10 @@ class Component extends DCLogic {
     return this.setupCandidates().map(r => {
       const req = (r.listing && r.listing.requirement) || '';
       const suffix = /-one$/.test(r.group) ? '-one' : '-rec';
-      const prefix = req === 'Optional' ? 'opt' : req === 'Situational' ? 'sit' : req === 'Required' ? 'req' : 'ind';
+      // No chosen requirement keeps the group the charge was discovered with, so required charges
+      // stay countable in the total monthly price until someone reclassifies them.
+      const orig = String(r.group || '').split('-')[0];
+      const prefix = req === 'Optional' ? 'opt' : req === 'Situational' ? 'sit' : req === 'Required' ? 'req' : (orig || 'ind');
       return Object.assign({}, r, { group: prefix + suffix });
     });
   }
