@@ -1583,13 +1583,19 @@ class Component extends DCLogic {
   // One row per advertised unit. Pricing and errors derive live from the property's Fee
   // Transparency state, so publishing or fixing charges moves these rows in real time.
   listingsData(){
+    // The first five rows are the mock's worked examples (fixed pricing/errors, properties outside
+    // the demo portfolio); the rest belong to demo properties and track Fee Transparency state live.
     return [
+      { prop:'Clearcreek Condominiums', plan:'CC1141', type:'2B / 2B', avail:'12/31/2026', base:1254.75, fixed:{ pill:'Total Price', total:true } },
+      { prop:'1127 Blackwell',          plan:'2',      type:'SFH',     avail:'12/31/2026', base:null, rmErrors:6 },
+      { prop:'Kirby',                   plan:'3',      type:'2B / 2B', avail:'12/31/2026', base:1300.00, fixed:{ pill:'Base Rent Only', warn:'Fee Transparency Issue - 12 charges need details' } },
+      { prop:'Timber Trail',            plan:'Timber', type:'SFH',     avail:'12/31/2026', base:2500.00, fixed:{ pill:'Total Price', total:true } },
+      { prop:'Sheehan',                 plan:'2',      type:'2B / 2B', avail:'12/31/2026', base:750.00, fixed:{ legacy:true } },
       { prop:'Riverview Apartments', plan:'RV-114', type:'2B / 2B', avail:'12/31/2026', base:1254.75 },
       { prop:'Riverview Apartments', plan:'RV-3C',  type:'1B / 1B', avail:'12/31/2026', base:1050.00 },
       { prop:'The Hamptons',         plan:'HAM-12', type:'2B / 2B', avail:'12/31/2026', base:1300.00 },
       { prop:'The Hamptons',         plan:'HAM-8',  type:'SFH',     avail:'12/31/2026', base:2500.00 },
-      { prop:'The Berkshires',       plan:'BK-2',   type:'2B / 2B', avail:'12/31/2026', base:750.00 },
-      { prop:'The Berkshires',       plan:'BK-7',   type:'2B / 2B', avail:'12/31/2026', base:null, rmErrors:6 }
+      { prop:'The Berkshires',       plan:'BK-2',   type:'2B / 2B', avail:'12/31/2026', base:750.00 }
     ];
   }
   // Monthly fees that ride on top of base rent once complete pricing is live.
@@ -1614,7 +1620,7 @@ class Component extends DCLogic {
     const filt = this.state.ltProp || 'all';
     const rows = all
       .filter(l => filt === 'all' || l.prop === filt)
-      .filter(l => !this.state.ltErrOnly || l.rmErrors || this.ltStatus(l.prop).warn);
+      .filter(l => !this.state.ltErrOnly || l.rmErrors || (l.fixed || this.ltStatus(l.prop)).warn);
     const banner = `<div style="display:flex;align-items:center;gap:12px;background:#fef4e8;border:1px solid #f6b26b;border-radius:4px;padding:12px 16px">
       <span class="material-symbols-outlined" style="font-size:20px;color:#f58220;flex:none">warning</span>
       <span style="flex:1;min-width:0;font-size:14px;color:#13314c;line-height:1.5">To comply with federal fee transparency requirements, ensure all required monthly fees are included in the price or clearly disclosed in the description. You can do this by centralizing your charges on each property with our new Fee Transparency feature.</span>
@@ -1654,8 +1660,8 @@ class Component extends DCLogic {
     const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px;font-size:14px;color:#13314c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
     const pill = (t, total) => `<span style="display:inline-flex;align-items:center;border-radius:3px;padding:3px 10px;font-size:13px;white-space:nowrap;${total?'background:#e4f1da;color:#2f5d43':'background:#e8eaec;color:#13314c'}">${t}</span>`;
     const body = rows.map(l => {
-      const st = this.ltStatus(l.prop);
-      const price = l.base == null ? '-' : money(st.total ? l.base + this.ltMonthlyFees(l.prop) : l.base);
+      const st = l.fixed || this.ltStatus(l.prop);
+      const price = l.base == null ? '-' : money(st.total && !l.fixed ? l.base + this.ltMonthlyFees(l.prop) : l.base);
       const pricing = l.base == null ? '<span style="color:#13314c">-</span>'
         : st.legacy ? `<span style="font-size:13px;font-style:italic;color:#8a9aa8;white-space:nowrap">Not Set Up, Using Legacy Pricing</span>`
         : pill(st.pill, st.total);
