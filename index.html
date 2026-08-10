@@ -712,12 +712,13 @@ class Component extends DCLogic {
       case 'setupClose': {
         const c = this.state.setup;
         if (c && this.setupDirty(c)) { this.setState({ setupExit: true }); break; }
-        // Finishing setup from the tracker lands on the converted property's Charges tab
-        // (the first one, when several were set up together).
-        if (c && c.step === 'done' && this.state.view === 'feetrans') {
-          const first = (c.props || [])[0];
+        // Finishing a single-property setup lands on that property's Charges tab; a bulk setup
+        // lands on the Fee Transparency page to see every converted property's status.
+        if (c && c.step === 'done') {
+          const props = c.props || [];
           this.setState({ setup: null, setupExit: false });
-          if (first) this.go('property', { property: first, propTab: 'Charges' });
+          if (props.length > 1) this.go('feetrans');
+          else if (props[0]) this.go('property', { property: props[0], propTab: 'Charges' });
           break;
         }
         this.setState({ setup: null, setupExit: false });
