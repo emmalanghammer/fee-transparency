@@ -2255,7 +2255,8 @@ class Component extends DCLogic {
   // Dismissible banner on the General tab pointing at the new profile.
   profileSetupBanner(p){
     if (this.profStatus(p) === 'active' || this.state.bannerDismissed[p]) return '';
-    const n = this.setupCandidates().length;
+    const n = this.discoveredCharges(p).length;
+    if (!n) return '';
     return `<div style="display:flex;align-items:flex-start;gap:12px;background:#eef6fb;border:1px solid #cedbe7;border-radius:4px;padding:16px 18px">
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
         <span style="font-size:14px;font-weight:600;color:#13314c">This property has ${n} fees. Manage them in one place.</span>
@@ -2277,10 +2278,17 @@ class Component extends DCLogic {
   // The properties this setup run applies to — one for a single property, many for a bulk run.
   setupProps(){ const c = this.state.setup; return (c && c.props) || []; }
   // The rows exactly as save will write them, so the review step counts what actually lands.
+  // What setup would discover on a property. Properties added this session start blank — there are
+  // no legacy charges to pull in.
+  discoveredCharges(prop){
+    if ((this.state.newProps || []).some(x => x.name === prop)) return [];
+    return this.setupCandidates();
+  }
   setupRows(prop){
     // The Hamptons' pulled-in charges already carry complete marketing details — it stays the
     // worked example of a clean setup.
     if (this.listingReadyProps().indexOf(prop) >= 0) return this.listingReadyRows();
+    if (!this.discoveredCharges(prop).length) return [];
     // The new setup moves every discovered charge — nothing is excluded during setup; charges are
     // managed (or removed) on the Charges tab afterwards. Charges that arrive with pulled-in
     // marketing details (NSF, late fees) keep the requirement they came with.
@@ -2359,10 +2367,10 @@ class Component extends DCLogic {
     const src = this.setupSources();
     const props = this.setupProps();
     const one = props.length === 1;
-    const all = this.setupCandidates();
-    const rec = all.filter(r => !/-one$/.test(r.group)).length;
-    const perTotal = all.length;
-    const total = perTotal * props.length;
+    // Counts come from what each property would actually discover — a blank new property adds zero.
+    const perProp = props.map(pn => this.setupRows(pn));
+    const total = perProp.reduce((t, rows) => t + rows.length, 0);
+    const recTotal = perProp.reduce((t, rows) => t + rows.filter(r => !/-one$/.test(r.group)).length, 0);
     // "Where are these charges from?" opens the source breakdown — the same list the old overview
     // showed. Click-only: the whole label toggles it, and the global panel closer dismisses it on an
     // outside click (the id ends in -pnl for that reason).
@@ -2383,7 +2391,7 @@ class Component extends DCLogic {
       </div>
       <div style="border:1px solid #e3e9ee;border-radius:4px;padding:16px 18px;display:flex;flex-direction:column;gap:14px">
         <div style="display:flex;align-items:baseline;gap:12px;padding-bottom:10px;border-bottom:1px solid #eef2f5">
-          <span style="font-size:14px;font-weight:600;color:#13314c">${total} total charges found, ${rec * props.length} recurring, ${(perTotal - rec) * props.length} one-time</span>
+          <span style="font-size:14px;font-weight:600;color:#13314c">${total} total charges found, ${recTotal} recurring, ${total - recTotal} one-time</span>
           <div style="flex:1"></div>
           ${srcLink}
         </div>
@@ -2426,7 +2434,7 @@ class Component extends DCLogic {
     const c = this.state.setup;
     const props = this.setupProps();
     const cur = this.setupCurProp();
-    const all = this.setupCandidates();
+    const all = this.setupRows(cur);
     const table = (label, rows) => {
       const cols = '130px minmax(220px,1fr) 130px 130px';
       const heads = ['Charge Type','Comment','Amount','Charge Level'];
@@ -2691,7 +2699,8 @@ class Component extends DCLogic {
     // Same setup pitch as the View Recurring Charges overlay, inside the tile, until the property
     // runs on Fee Transparency.
     const callout = (scope !== 'unit' || this.profStatus() === 'active' || !this.state.recViewNote) ? '' : (() => {
-      const n = this.setupCandidates().length;
+      const n = this.discoveredCharges(this.state.property).length;
+      if (!n) return '';
       return `<div style="margin:12px 16px 4px;display:flex;align-items:flex-start;gap:16px;background:#eef6fb;border:1px solid #cedbe7;border-radius:4px;padding:14px 16px;flex-wrap:wrap">
         <div style="flex:1;min-width:260px;display:flex;flex-direction:column;gap:4px">
           <span style="font-size:14px;font-weight:600;color:#13314c">This property has ${n} fees. Manage them in one place.</span>
@@ -2767,7 +2776,8 @@ class Component extends DCLogic {
       </div>`;
     }
     if (!this.state.recViewNote) return '';
-    const n = this.setupCandidates().length;
+    const n = this.discoveredCharges(p).length;
+    if (!n) return '';
     // Inset from the overlay edges and bordered like the banner on the property page, rather than
     // running edge to edge across the top of the modal.
     return `<div style="margin:12px 20px 0;display:flex;align-items:flex-start;gap:16px;background:#eef6fb;border:1px solid #cedbe7;border-radius:4px;padding:16px 18px">
