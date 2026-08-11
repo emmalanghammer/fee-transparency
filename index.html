@@ -2585,7 +2585,7 @@ class Component extends DCLogic {
     const grp = (t, rws, suffix, subLabel) => rws.length ? `<div style="padding:12px 0;border-top:1px solid #eef2f5"><div style="font-size:13px;font-style:italic;color:#8a9aa8;margin-bottom:4px">${t}</div>${rws.map(r=>line(r.name, money(amtOf(r))+(suffix||''))).join('')}${subLabel?line(subLabel, money(sum(rws)), true):''}</div>` : '';
     const optCb = r => `<label data-act="ppOpt" data-arg="${r.id}" style="display:flex;align-items:center;gap:10px;padding:5px 0;cursor:pointer;font-size:14px;color:#13314c"><span style="width:18px;height:18px;border-radius:3px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${p.opt[r.id]?'background:#f58220;border:1px solid #f58220':'background:#fff;border:1px solid #b3b3b3'}">${p.opt[r.id]?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name}</span><span style="font-size:13px;color:#4a5b6b;white-space:nowrap">${money(amtOf(r))}${/-one$/.test(r.group)?'/one-time':'/mo'}</span></label>`;
     const info = this.propInfo(p.prop);
-    return `<div data-act="pricePreviewClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:120">
+    return `<div data-act="pricePreviewClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:152">
       <div data-act="noop" style="width:940px;max-width:96vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid #cedbe7"><span style="font-size:20px;color:#13314c">Pricing Preview</span><span style="display:inline-flex;align-items:center;gap:10px"><span data-act="toast" data-arg="Help" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">help</span><span data-act="pricePreviewClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span></span></div>
         <div style="flex:none;background:#f5f8fa;border-bottom:1px solid #e3e9ee;padding:11px 20px;font-size:14px;color:#4a5b6b;line-height:1.45">${ilsProp
@@ -3872,18 +3872,15 @@ class Component extends DCLogic {
     const mkProp = this.state.property;
     const mkOn = this.profStatus(mkProp) === 'active';
     const mkPub = !!this.state.publishedProps[mkProp];
-    const ftCallout = mkPub
-      ? `<div style="display:flex;align-items:flex-start;gap:10px;background:#eef7e9;border:1px solid #6eb744;border-radius:4px;padding:11px 13px">
-          <span class="material-symbols-outlined" style="font-size:18px;color:#4d8a2a;flex:none;margin-top:1px;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">verified</span>
-          <span style="font-size:13px;color:#13314c;line-height:1.5">This property is using Fee Transparency and is displaying complete pricing on its listings.</span>
+    // Mock 2791-152711: once Fee Transparency is set up, the callout offers the unit pricing preview.
+    const ftCallout = mkOn
+      ? `<div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--ac,#008dd5);border-radius:4px;padding:11px 13px">
+          <span class="material-symbols-outlined" style="font-size:19px;color:var(--ac,#008dd5);flex:none">info</span>
+          <span style="flex:1;min-width:0;font-size:13px;color:#13314c;line-height:1.5">With Fee Transparency set up, you can preview the pricing for an individual unit.</span>
+          <a data-act="pricePreviewOpen" style="flex:none;font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap">Preview Pricing</a>
         </div>`
-      : mkOn
-      ? `<div style="display:flex;align-items:flex-start;gap:10px;background:#eef6fb;border:1px solid #cedbe7;border-radius:4px;padding:11px 13px">
-          <span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);flex:none;margin-top:1px">info</span>
-          <span style="font-size:13px;color:#13314c;line-height:1.5">Listing pricing comes from this property's centralized charges. <a data-act="pubOpen" data-arg="${mkProp}" style="color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap">Publish Complete Pricing</a> to show renters the total monthly price.</span>
-        </div>`
-      : `<div style="display:flex;align-items:flex-start;gap:10px;background:#eef6fb;border:1px solid #cedbe7;border-radius:4px;padding:11px 13px">
-          <span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);flex:none;margin-top:1px">info</span>
+      : `<div style="display:flex;align-items:flex-start;gap:10px;background:#fff;border:1px solid var(--ac,#008dd5);border-radius:4px;padding:11px 13px">
+          <span class="material-symbols-outlined" style="font-size:19px;color:var(--ac,#008dd5);flex:none;margin-top:1px">info</span>
           <span style="font-size:13px;color:#13314c;line-height:1.5">This property uses base-rent pricing on listings. <a data-act="openFeeProfile" data-arg="${mkProp}" style="color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap">Set Up Fee Transparency</a> to publish complete pricing.</span>
         </div>`;
     const listing = card('Listing Details', `
