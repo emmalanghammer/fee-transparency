@@ -141,6 +141,13 @@ class Component extends DCLogic {
     mktAdv: false, // Advanced Settings overlay on top of Marketing Setup
     ftSel: null, // { mode:'pub'|'setup' } — Select Properties dialog on the tracker
     ltProp: 'all', // Listings page property filter
+    petTypes: [
+      { name:'Dog', desc:'', rec:25, recMax:50, recPer:true, one:0, oneMax:0, onePer:false, dep:200, depMax:400, depPer:true },
+      { name:'Cat', desc:'', rec:0, recMax:0, recPer:false, one:0, oneMax:0, onePer:false, dep:0, depMax:0, depPer:false },
+      { name:'Big Dog', desc:'', rec:0, recMax:0, recPer:false, one:0, oneMax:0, onePer:false, dep:0, depMax:0, depPer:false },
+      { name:'Fish', desc:'Fish', rec:0, recMax:0, recPer:false, one:0, oneMax:0, onePer:false, dep:0, depMax:0, depPer:false }
+    ],
+    petType: null, // index being edited in Pet Type Details, or 'new'
     ltErrOnly: false, // Listings page: hide listings without errors
     ftFilter: 'all', // tracker Status filter: all | ready | needs | none | done
     // "Exclude Charge" overlay: { id, scope:'Unit Type'|'Unit', sel:{name:true} }. A charge's own
@@ -620,6 +627,21 @@ class Component extends DCLogic {
       case 'navRegister': this.go('register'); break;
       case 'navFeeTrans': this.go('feetrans', { profMenu: null }); break;
       case 'navListings': this.go('listings'); break;
+      case 'navPetTypes': this.go('pettypes'); break;
+      case 'petTypeOpen': this.setState({ petType: arg === 'new' ? 'new' : parseInt(arg, 10) }); break;
+      case 'petTypeClose': this.setState({ petType: null }); break;
+      case 'petTypeSave': { const v = id => ((this.q('#' + id) || {}).value || '').trim();
+        const num = id => { const n = parseFloat(v(id).replace(/[$,]/g, '')); return isNaN(n) ? 0 : n; };
+        const chk2 = id => { const e = this.q('#' + id); return !!(e && e.checked); };
+        const name = v('pt-name');
+        if (!name) { this.flash('Name is required'); break; }
+        const row = { name, desc: v('pt-desc'), rec: num('pt-rec'), recMax: num('pt-rec-max'), recPer: chk2('pt-rec-per'),
+          one: num('pt-one'), oneMax: num('pt-one-max'), onePer: chk2('pt-one-per'),
+          dep: num('pt-dep'), depMax: num('pt-dep-max'), depPer: chk2('pt-dep-per') };
+        this.setState(s => { const list = s.petTypes.slice();
+          if (s.petType === 'new') list.push(row); else list[s.petType] = row;
+          return { petTypes: list, petType: null }; });
+        this.flash(name + ' saved'); break; }
       case 'mktOpen': this.setState({ mktSetup: true }); break;
       case 'mktClose': this.setState({ mktSetup: false }); break;
       case 'mktSave': this.setState({ mktSetup: false }); this.flash('Marketing setup saved'); break;
@@ -1284,6 +1306,8 @@ class Component extends DCLogic {
             <div style="height:1px;background:#ebf1f5;margin:4px 0"></div>
             <div data-act="navFeeTrans" style="padding:10px 16px;font-size:14px;color:#13314c;cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''">Fee Transparency</div>
             <div data-act="navListings" style="padding:10px 16px;font-size:14px;color:#13314c;cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''">Listings</div>
+            <div style="height:1px;background:#ebf1f5;margin:4px 0"></div>
+            <div data-act="navPetTypes" style="padding:10px 16px;font-size:14px;color:#13314c;cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background=''">Pet Types</div>
           </div>
           <span style="display:inline-flex;align-items:center;justify-content:center;width:45px;height:32px;background:#425a70"><img src="assets/icon-reports.svg" alt="Reports" style="width:20px;height:20px"></span>
           <span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:32px;background:#425a70;border-radius:0 4px 4px 0"><img src="assets/icon-grade.svg" alt="Favorites" style="width:20px;height:20px"></span>
@@ -1697,6 +1721,79 @@ class Component extends DCLogic {
         <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
           <span style="font-size:12px;color:#eb343c">ILS providers may require a paid account before your listings can be posted</span>
           <span style="font-size:12px;color:#b3b3b3">${rows.length} Listings</span>
+        </div>
+      </div>
+    </div>`;
+  }
+  // ---------- Pet Types register + details ----------
+  petTypesBody(){
+    const money = n => (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const cols = 'minmax(160px,1.2fr) minmax(200px,1.6fr) 150fr 170fr 130fr 160fr 130fr 160fr 44px';
+    const hc = (t, first, right) => `<span style="display:flex;align-items:center;${right?'justify-content:flex-end;':''}height:28px;box-sizing:border-box;padding:4px ${first?'8px 4px 16px':'8px'};font-size:12px;font-weight:500;letter-spacing:0.5px;color:#fff;border-right:1px solid rgba(255,255,255,0.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>`;
+    const header = `<div style="display:grid;grid-template-columns:${cols};background:#737373">
+      ${hc('Name', true)}${hc('Description')}${hc('Recurring Amount', false, true)}${hc('Max Recurring Amount', false, true)}${hc('One Time Fee', false, true)}${hc('Max One Time Fee', false, true)}${hc('Pet Deposit', false, true)}${hc('Max Pet Deposit', false, true)}<span></span>
+    </div>`;
+    const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:0 8px;font-size:15px;color:#13314c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
+    const rows = this.state.petTypes.map((t, i) => `<div data-act="petTypeOpen" data-arg="${i}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid #ebf1f5;cursor:pointer;background:#fff" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background=''">
+      ${cell(t.name, 'padding-left:16px')}${cell(t.desc || '')}
+      ${cell(money(t.rec), 'justify-content:flex-end')}${cell(money(t.recMax), 'justify-content:flex-end')}
+      ${cell(money(t.one), 'justify-content:flex-end')}${cell(money(t.oneMax), 'justify-content:flex-end')}
+      ${cell(money(t.dep), 'justify-content:flex-end')}${cell(money(t.depMax), 'justify-content:flex-end')}
+      <span style="display:flex;align-items:center;justify-content:center;min-height:44px"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">more_vert</span></span>
+    </div>`).join('');
+    return `<div style="padding:12px 24px 24px;display:flex;flex-direction:column;gap:12px;flex:1;min-height:0">
+      <div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
+        <div style="display:flex;flex-direction:column;gap:4px;width:256px">
+          <span style="font-size:13px;color:var(--ac,#008dd5)">Search</span>
+          <div style="display:flex;align-items:center;gap:8px;height:36px;box-sizing:border-box;background:#fff;border:1px solid var(--ac,#008dd5);border-radius:4px;padding:0 8px">
+            <span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5)">search</span>
+            <span style="flex:1;min-width:0;font-size:14px;font-style:italic;color:#b3b3b3">Find a Pet Type</span>
+          </div>
+        </div>
+        <div style="flex:1"></div>
+        <button data-act="petTypeOpen" data-arg="new" class="btn-pri" style="height:38px;min-height:38px;padding:0 18px 0 12px;border-radius:19px;font-size:14px;display:inline-flex;align-items:center;gap:8px"><span class="material-symbols-outlined" style="font-size:20px">add_circle</span>Add Pet Type</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;flex:1;min-height:0">
+        <div style="overflow-x:auto"><div style="min-width:1100px">${header}${rows}</div></div>
+        <div style="flex:1"></div>
+        <div style="display:flex;justify-content:flex-end"><span style="font-size:12px;color:#b3b3b3">${this.state.petTypes.length} Pet Types</span></div>
+      </div>
+    </div>`;
+  }
+  petTypeHTML(){
+    const sel = this.state.petType;
+    if (sel == null) return '';
+    const t = sel === 'new' ? { name:'', desc:'', rec:0, recMax:0, recPer:false, one:0, oneMax:0, onePer:false, dep:0, depMax:0, depPer:false } : this.state.petTypes[sel];
+    const money = n => (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const esc = v => ('' + (v || '')).replace(/"/g, '&quot;');
+    const lab = (x) => `<span style="font-size:14px;color:#666">${x}</span>`;
+    const txt = (id, val, right) => `<input id="${id}" value="${esc(val)}" style="width:100%;box-sizing:border-box;height:38px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;padding:0 12px;font:400 15px Roboto,sans-serif;color:#13314c;outline:none;${right?'text-align:right;':''}">`;
+    // Amount + "Charge per pet" + Max Amount triple, straight from the mock.
+    const amt = (label, id, val, per, perOn, maxId, maxVal) => `<div style="display:flex;flex-direction:column;gap:6px">
+      <div style="display:flex;flex-direction:column;gap:4px">${lab(label)}${txt(id, money(val), true)}</div>
+      <div style="display:flex;align-items:flex-end;gap:18px">
+        <label style="display:inline-flex;align-items:center;gap:9px;cursor:pointer;padding-bottom:9px"><input id="${per}" type="checkbox" ${perOn?'checked':''} style="accent-color:#f58220;width:17px;height:17px;margin:0">${lab('Charge per pet')}</label>
+        <div style="flex:1;display:flex;flex-direction:column;gap:4px;max-width:220px">${lab('Max Amount')}${txt(maxId, maxVal ? money(maxVal) : '', true)}</div>
+      </div>
+    </div>`;
+    return `<div data-act="petTypeClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:130">
+      <div data-act="noop" style="width:480px;max-width:94vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #e3e9ee;flex:none">
+          <span style="font-size:20px;font-weight:600;color:#13314c">Pet Type Details</span>
+          <span data-act="petTypeClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,#008dd5);cursor:pointer">close</span>
+        </div>
+        <div style="flex:1;min-height:0;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;flex-direction:column;gap:4px">${lab('Name')}${txt('pt-name', t.name)}</div>
+          <div style="display:flex;flex-direction:column;gap:4px">${lab('Description')}${txt('pt-desc', t.desc)}</div>
+          <div style="display:flex;flex-direction:column;gap:4px">${lab('Properties')}${this.multiSelect('pt-props', this.propNames(), this.propNames())}</div>
+          <div style="font-size:15px;font-weight:600;color:#13314c;padding:6px 0 8px;border-bottom:1px solid #e3e9ee">Charges</div>
+          ${amt('Recurring Amount', 'pt-rec', t.rec, 'pt-rec-per', t.recPer, 'pt-rec-max', t.recMax)}
+          ${amt('One Time Fee Amount', 'pt-one', t.one, 'pt-one-per', t.onePer, 'pt-one-max', t.oneMax)}
+          ${amt('Pet Deposit Amount', 'pt-dep', t.dep, 'pt-dep-per', t.depPer, 'pt-dep-max', t.depMax)}
+        </div>
+        <div style="display:flex;justify-content:center;gap:12px;background:#f5f8fa;border-top:1px solid #e3e9ee;padding:12px 20px;flex:none">
+          <button data-act="petTypeSave" class="btn-pri" style="height:38px;min-height:38px;padding:0 26px;border-radius:4px;font-size:15px">Save</button>
+          <button data-act="petTypeClose" style="height:38px;min-height:38px;padding:0 20px;border-radius:4px;font:400 15px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,#008dd5);color:var(--ac,#008dd5);cursor:pointer">Cancel</button>
         </div>
       </div>
     </div>`;
@@ -4080,6 +4177,14 @@ class Component extends DCLogic {
         inner += this.footer('Save property');
       }
       out += `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden"><div style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden">${inner}</div>${this.rail()}</div>`;
+    } else if (s.view === 'pettypes') {
+      out += `<div style="height:40px;background:var(--ac,#008dd5);display:flex;align-items:center;padding:0 16px;gap:12px;color:#fff;flex:none">
+        <span style="font-size:18px;line-height:24px">Pet Types</span>
+        <div style="flex:1"></div>
+        <span data-act="toast" data-arg="Refresh" class="material-symbols-outlined" style="font-size:18px;opacity:0.85;cursor:pointer">autorenew</span>
+        <span class="material-symbols-outlined" style="font-size:18px;opacity:0.85;cursor:pointer">help</span>
+      </div>`;
+      out += `<div style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column">${this.petTypesBody()}</div>`;
     } else if (s.view === 'listings') {
       out += `<div style="height:40px;background:var(--ac,#008dd5);display:flex;align-items:center;padding:0 16px;gap:12px;color:#fff;flex:none">
         <span style="font-size:18px;line-height:24px">Listings</span>
@@ -4126,6 +4231,7 @@ class Component extends DCLogic {
     out += this.ftSelHTML();
     out += this.mktSetupHTML();
     out += this.mktAdvHTML();
+    out += this.petTypeHTML();
     out += this.pricePreviewHTML();
     out += this.profMenuHTML();
     out += this.profHistHTML();
