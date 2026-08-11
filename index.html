@@ -705,7 +705,7 @@ class Component extends DCLogic {
         break; }
 
       // ---- Set Up Fee Transparency wizard ----
-      case 'setupOpen': this.setState({ recView: null, setup: { props: [arg || this.state.property], step: 1 } }); break;
+      case 'setupOpen': this.setState({ recView: null, mktSetup: false, mktAdv: false, setup: { props: [arg || this.state.property], step: 1 } }); break;
       // Leaving mid-flow throws away the charge selections and requirements picked so far, so it asks
       // first. Nothing to lose on step 1 before anything is touched, and the saving/success steps
       // have already written the profile — those close straight away.
@@ -3879,9 +3879,12 @@ class Component extends DCLogic {
           <span style="flex:1;min-width:0;font-size:13px;color:#13314c;line-height:1.5">With Fee Transparency set up, you can preview the pricing for an individual unit.</span>
           <a data-act="pricePreviewOpen" style="flex:none;font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap">Preview Pricing</a>
         </div>`
-      : `<div style="display:flex;align-items:flex-start;gap:10px;background:#fff;border:1px solid var(--ac,#008dd5);border-radius:4px;padding:11px 13px">
-          <span class="material-symbols-outlined" style="font-size:19px;color:var(--ac,#008dd5);flex:none;margin-top:1px">info</span>
-          <span style="font-size:13px;color:#13314c;line-height:1.5">This property uses base-rent pricing on listings. <a data-act="openFeeProfile" data-arg="${mkProp}" style="color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap">Set Up Fee Transparency</a> to publish complete pricing.</span>
+      : `<div style="display:flex;align-items:center;gap:14px;background:#eef6fb;border:1px solid #cedbe7;border-radius:4px;padding:12px 14px;flex-wrap:wrap">
+          <div style="flex:1;min-width:220px;display:flex;flex-direction:column;gap:3px">
+            <span style="font-size:13px;font-weight:600;color:#13314c">Show renters complete, transparent pricing.</span>
+            <span style="font-size:13px;color:#4a5b6b;line-height:1.5">Fee Transparency brings every charge onto the Charges tab and publishes a total monthly price to your listings — no fee surprises.</span>
+          </div>
+          <button data-act="setupOpen" data-arg="${mkProp}" class="btn-pri" style="height:32px;min-height:32px;padding:0 14px;border-radius:4px;font-size:13px;white-space:nowrap;flex:none">Set Up Fee Transparency</button>
         </div>`;
     const listing = card('Listing Details', `
       ${ftCallout}
