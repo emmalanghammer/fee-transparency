@@ -654,7 +654,7 @@ class Component extends DCLogic {
         if (arg === 'General' || arg === 'Charges') { this._resetScroll = true; this.setState({ propTab: arg }); }
         else this.flash(arg + ' tab is out of scope for this prototype');
         break;
-      case 'openFeeProfile': this.setState({ recView: null }); this.go('property', { property: arg || this.state.property, propTab: 'Charges' }); break;
+      case 'openFeeProfile': this.setState({ recView: null, mktSetup: false, mktAdv: false }); this.go('property', { property: arg || this.state.property, propTab: 'Charges' }); break;
 
       // ---- row menu ----
       case 'rowMenu': { const r = el.getBoundingClientRect(); this.setState({ rowMenu: { id: arg, x: r.right, y: r.bottom + 4 } }); break; }
@@ -3869,13 +3869,30 @@ class Component extends DCLogic {
       </span>`,
       `<a data-act="toast" data-arg="Add from UDF" style="display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap"><span class="material-symbols-outlined" style="font-size:17px">add</span>Add from UDF</a>`);
     const preview = `<button data-act="toast" data-arg="Preview" class="btn-pri" style="height:34px;min-height:34px;padding:0 18px;border-radius:4px;font-size:14px;flex:none">Preview</button>`;
+    const mkProp = this.state.property;
+    const mkOn = this.profStatus(mkProp) === 'active';
+    const mkPub = !!this.state.publishedProps[mkProp];
+    const ftCallout = mkPub
+      ? `<div style="display:flex;align-items:flex-start;gap:10px;background:#eef7e9;border:1px solid #6eb744;border-radius:4px;padding:11px 13px">
+          <span class="material-symbols-outlined" style="font-size:18px;color:#4d8a2a;flex:none;margin-top:1px;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">verified</span>
+          <span style="font-size:13px;color:#13314c;line-height:1.5">This property is using Fee Transparency and is displaying complete pricing on its listings.</span>
+        </div>`
+      : mkOn
+      ? `<div style="display:flex;align-items:flex-start;gap:10px;background:#eef6fb;border:1px solid #cedbe7;border-radius:4px;padding:11px 13px">
+          <span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);flex:none;margin-top:1px">info</span>
+          <span style="font-size:13px;color:#13314c;line-height:1.5">Listing pricing comes from this property's centralized charges. <a data-act="pubOpen" data-arg="${mkProp}" style="color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap">Publish Complete Pricing</a> to show renters the total monthly price.</span>
+        </div>`
+      : `<div style="display:flex;align-items:flex-start;gap:10px;background:#eef6fb;border:1px solid #cedbe7;border-radius:4px;padding:11px 13px">
+          <span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,#008dd5);flex:none;margin-top:1px">info</span>
+          <span style="font-size:13px;color:#13314c;line-height:1.5">This property uses base-rent pricing on listings. <a data-act="openFeeProfile" data-arg="${mkProp}" style="color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap">Set Up Fee Transparency</a> to publish complete pricing.</span>
+        </div>`;
     const listing = card('Listing Details', `
+      ${ftCallout}
       <label style="display:inline-flex;align-items:center;gap:9px;cursor:pointer"><input type="checkbox" style="accent-color:var(--ac,#008dd5);width:15px;height:15px;margin:0"><span style="font-size:14px;color:#13314c">Exclude Unit-specific information</span></label>
       ${field('Lease Terms', { t:'' })}
       <div style="display:flex;flex-direction:column;gap:4px">${lab('Property Images')}<div style="display:flex;gap:10px;align-items:center"><div style="flex:1;min-width:0">${ddPh({ t:'Property Image' })}</div>${preview}</div></div>
       <div style="display:flex;flex-direction:column;gap:4px">${lab('Unit Images')}<div style="display:flex;gap:10px;align-items:center"><div style="flex:1;min-width:0">${ddPh({ t:'' })}</div>${preview}</div></div>
       ${field('Availability Date', { t:'' })}`);
-    const pricing = card('Pricing Details', `<div style="flex:1"></div>`);
     const amen = ['Theater','Outdoor Grill','Hot Tub','Game Room','Utility Laundry Room','Dog Park','Community Garden','Pool','Fitness Center'];
     const features = card('Features', `
       <div style="display:flex;gap:20px;align-items:flex-start;min-width:0;flex-wrap:wrap">
@@ -3917,7 +3934,7 @@ class Component extends DCLogic {
             <span style="font-size:14px;color:#13314c">Occupied Units: <strong>${P.occupied != null ? P.occupied : 30}</strong></span>
           </div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:16px;align-items:stretch">
-            ${contact1}${contact2}${listing}${pricing}
+            ${contact1}${contact2}${listing}
             ${features}${floor}
           </div>
         </div>
