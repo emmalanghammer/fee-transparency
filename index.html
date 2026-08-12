@@ -1630,11 +1630,11 @@ class Component extends DCLogic {
     // The first five rows are the mock's worked examples (fixed pricing/errors, properties outside
     // the demo portfolio); the rest belong to demo properties and track Fee Transparency state live.
     return [
-      { prop:'Clearcreek Condominiums', plan:'CC1141', type:'2B / 2B', avail:'12/31/2026', base:1150.00, total:1254.75, fixed:{ pill:'Total Price', total:true } },
+      { prop:'Clearcreek Condominiums', plan:'CC1141', type:'2B / 2B', avail:'12/31/2026', base:1150.00, total:1254.75, fixed:{ pill:'Price + Fees', total:true } },
       { prop:'1127 Blackwell',          plan:'2',      type:'SFH',     avail:'12/31/2026', base:null, rmErrors:6 },
-      { prop:'Kirby',                   plan:'3',      type:'2B / 2B', avail:'12/31/2026', base:1300.00, fixed:{ pill:'Base Rent Only', warn:'Fee Transparency Issue - 12 charges need details' } },
-      { prop:'Timber Trail',            plan:'Timber', type:'SFH',     avail:'12/31/2026', base:2350.00, total:2500.00, fixed:{ pill:'Total Price', total:true } },
-      { prop:'Sheehan',                 plan:'2',      type:'2B / 2B', avail:'12/31/2026', base:750.00, fixed:{ pill:'Base Rent Only', legacy:true } },
+      { prop:'Kirby',                   plan:'3',      type:'2B / 2B', avail:'12/31/2026', base:1300.00, fixed:{ pill:'Price', warn:'Fee Transparency Issue - 12 charges need details' } },
+      { prop:'Timber Trail',            plan:'Timber', type:'SFH',     avail:'12/31/2026', base:2350.00, total:2500.00, fixed:{ pill:'Price + Fees', total:true } },
+      { prop:'Sheehan',                 plan:'2',      type:'2B / 2B', avail:'12/31/2026', base:750.00, fixed:{ pill:'Price', legacy:true } },
       { prop:'Riverview Apartments', plan:'RV-114', type:'2B / 2B', avail:'12/31/2026', base:1254.75 },
       { prop:'Riverview Apartments', plan:'RV-3C',  type:'1B / 1B', avail:'12/31/2026', base:1050.00 },
       { prop:'The Hamptons',         plan:'HAM-12', type:'2B / 2B', avail:'12/31/2026', base:1300.00 },
@@ -1652,11 +1652,11 @@ class Component extends DCLogic {
   ltStatus(p){
     const st = this.ftStatus(p);
     const published = !!this.state.publishedProps[p];
-    // Anything not publishing complete pricing — including unconverted properties — is Base Rent Only.
-    if (st.key === 'none' || st.key === 'notEnabled') return { pill: 'Base Rent Only', legacy: true };
+    // Anything not publishing complete pricing — including unconverted properties — advertises Price only.
+    if (st.key === 'none' || st.key === 'notEnabled') return { pill: 'Price', legacy: true };
     const short = st.issues || 0;
-    if (short) return { pill: 'Base Rent Only', converted: true, warn: `Fee Transparency Issue - ${short} charge${short===1?'':'s'} need${short===1?'s':''} details` };
-    return published ? { pill: 'Total Price', total: true, converted: true } : { pill: 'Base Rent Only', converted: true };
+    if (short) return { pill: 'Price', converted: true, warn: `Fee Transparency Issue - ${short} charge${short===1?'':'s'} need${short===1?'s':''} details` };
+    return published ? { pill: 'Price + Fees', total: true, converted: true } : { pill: 'Price', converted: true };
   }
   listingsBody(){
     const money = (n) => n == null ? '-' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
