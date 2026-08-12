@@ -1163,6 +1163,8 @@ class Component extends DCLogic {
     const act = opt.act || '', extraJs = opt.js || '', noSearch = !!opt.noSearch;
     const esc = s => (''+s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
     const O = options.map(o => (o && typeof o === 'object') ? { v:''+o.value, l:''+(o.label!=null?o.label:o.value) } : { v:''+o, l:''+o });
+    // opt.blank prepends an empty row so an optional field can be left — or put back — unclassified.
+    if (opt.blank) O.unshift({ v:'', l:'\u00a0' });
     // opt.placeholder lets a field stay genuinely unset instead of silently adopting the first
     // option — needed for Charge Requirement, which has no safe default.
     const ph = opt.placeholder || '';
@@ -1175,7 +1177,7 @@ class Component extends DCLogic {
     const rowJs = `var _v=this.getAttribute('data-v');var pnl=document.getElementById('${panelId}');if(pnl)pnl.style.display='none';var dsp=document.getElementById('${dispId}');if(dsp){dsp.textContent=this.getAttribute('data-l');dsp.style.color='#13314c';dsp.style.fontStyle='normal';}var lst=document.getElementById('${listId}');if(lst)lst.querySelectorAll('[data-v]').forEach(function(r){r.setAttribute('data-sel','0');r.style.background='#fff';r.style.color='#13314c'});this.setAttribute('data-sel','1');this.style.background='#008DD5';this.style.color='#fff';${onPick}${extraJs}`;
     const filter = `var q=this.value.toLowerCase();document.getElementById('${listId}').querySelectorAll('[data-v]').forEach(function(r){r.style.display=(r.getAttribute('data-l').toLowerCase().indexOf(q)>=0?'flex':'none')})`;
     const hover = `onmouseenter="if(this.getAttribute('data-sel')!=='1')this.style.background='#eaf4fb'" onmouseleave="if(this.getAttribute('data-sel')!=='1')this.style.background='#fff'"`;
-    const rows = O.map(o=>`<div data-v="${esc(o.v)}" data-l="${esc(o.l)}" data-sel="${o.v===selV?'1':'0'}" ${hover} onclick="${rowJs}" style="display:flex;align-items:center;padding:9px 14px;cursor:pointer;font-size:14px;color:${o.v===selV?'#fff':'#13314c'};background:${o.v===selV?'#008DD5':'#fff'}">${o.l}</div>`).join('');
+    const rows = O.map(o=>`<div data-v="${esc(o.v)}" data-l="${esc(o.l)}" data-sel="${o.v===selV?'1':'0'}" ${hover} onclick="${rowJs}" style="display:flex;align-items:center;min-height:20px;padding:9px 14px;cursor:pointer;font-size:14px;color:${o.v===selV?'#fff':'#13314c'};background:${o.v===selV?'#008DD5':'#fff'}">${o.l}</div>`).join('');
     return `<div style="position:relative">
       ${act?'':`<input type="hidden" id="${esc(id)}" value="${esc(selV)}">`}
       <div onclick="var p=document.getElementById('${panelId}');if(p.style.display==='block'){p.style.display='none';return}var r=this.getBoundingClientRect();p.style.left=r.left+'px';p.style.width=r.width+'px';p.style.display='block';var ph=p.offsetHeight;var below=window.innerHeight-r.bottom;p.style.top=((below<ph+8&&r.top>below)?(r.top-ph-4):(r.bottom+4))+'px'" style="display:flex;align-items:center;justify-content:space-between;gap:4px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;height:36px;box-sizing:border-box;padding:0 4px 0 12px;cursor:pointer"><span id="${dispId}" style="flex:1;min-width:0;font-size:14px;color:${selV?'#13314c':(ph?'#b3b3b3':'#13314c')};${selV||!ph?'':'font-style:italic;'}overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${selL}</span><span class="material-symbols-outlined" style="font-size:20px;color:#666">arrow_drop_down</span></div>
@@ -3546,15 +3548,15 @@ class Component extends DCLogic {
     // and shown/hidden live as the charge type (and so the category) changes.
     const cat0 = catFor(ed ? ed.mits : '');
     const at = (ed && ed.attrs) || {};
-    const attrInput = (id, val) => `<input id="${id}" value="${esc(val||'')}" style="width:100%;box-sizing:border-box;height:36px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;padding:0 10px;font:400 14px Roboto,sans-serif;color:#13314c;outline:none">`;
+    const attrInput = (id, val, ph) => `<input id="${id}" value="${esc(val||'')}" ${ph?`placeholder="${esc(ph)}" oninput="this.style.fontStyle=this.value?'normal':'italic'"`:''} style="width:100%;box-sizing:border-box;height:36px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;padding:0 10px;font:${ph&&!val?'italic ':''}400 14px Roboto,sans-serif;color:#13314c;outline:none">`;
     const attrHead = (key, label) => `<div onclick="var b=document.getElementById('${key}-body');var c=this.querySelector('.material-symbols-outlined');var on=b.style.display!=='none';b.style.display=on?'none':'flex';c.textContent=on?'keyboard_arrow_up':'keyboard_arrow_down'" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:10px 0 0;border-top:1px solid #eef2f5;margin-top:4px"><span style="font-size:14px;font-weight:600;color:#13314c">${label}</span><span class="material-symbols-outlined" style="font-size:20px;color:#666">keyboard_arrow_down</span></div>`;
     const attrField = (l, ctrl) => `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab(l)}${ctrl}</div>`;
     const storSection = `<div id="m-stor-wrap" style="display:${cat0==='Storage'?'flex':'none'};flex-direction:column;gap:12px">
       ${attrHead('m-stor', 'Storage Details (Optional)')}
       <div id="m-stor-body" style="display:flex;flex-direction:column;gap:12px">
         <div style="display:flex;gap:12px;align-items:flex-start">
-          ${attrField('Storage Type', dd('m-at-stype', ['Bike','Closet','Locker','Other'], at.storageType||'', { noSearch:true, placeholder:' ' }))}
-          ${attrField('Storage Measurement Unit', dd('m-at-uom', ['Inch','Foot','Yard','Meter'], at.uom||'', { noSearch:true, placeholder:' ' }))}
+          ${attrField('Storage Type', dd('m-at-stype', ['Bike','Closet','Locker','Other'], at.storageType||'', { noSearch:true, blank:true, placeholder:' ' }))}
+          ${attrField('Storage Measurement Unit', dd('m-at-uom', ['Inch','Foot','Yard','Meter'], at.uom||'', { noSearch:true, blank:true, placeholder:' ' }))}
         </div>
         <div style="display:flex;gap:12px;align-items:flex-start">
           ${attrField('Height', attrInput('m-at-h', at.height))}
@@ -3568,15 +3570,15 @@ class Component extends DCLogic {
       ${attrHead('m-park', 'Parking Details (Optional)')}
       <div id="m-park-body" style="display:flex;flex-direction:column;gap:12px">
         <div style="display:flex;gap:12px;align-items:flex-start">
-          ${attrField('Parking Type', dd('m-at-struct', ['Surface Lot','Garage Lot','Covered Lot','Street','Other','Garage (Attached)','Garage (Detached)','None'], at.structure||'', { noSearch:true, placeholder:' ' }))}
-          ${attrField('Vehicle Size', dd('m-at-size', ['Motorcycle','Compact','Car','Extended (RV/Boat)'], at.size||'', { noSearch:true, placeholder:' ' }))}
+          ${attrField('Parking Type', dd('m-at-struct', ['Surface Lot','Garage Lot','Covered Lot','Street','Other','Garage (Attached)','Garage (Detached)','None'], at.structure||'', { noSearch:true, blank:true, placeholder:' ' }))}
+          ${attrField('Vehicle Size', dd('m-at-size', ['Motorcycle','Compact','Car','Extended (RV/Boat)'], at.size||'', { noSearch:true, blank:true, placeholder:' ' }))}
         </div>
         <div style="display:flex;gap:12px;align-items:flex-start">
-          ${attrField('Standard Parking', dd('m-at-reg', spaceOpts, at.regular||'', { noSearch:true, placeholder:' ' }))}
-          ${attrField('Handicapped Parking', dd('m-at-hc', spaceOpts, at.handicapped||'', { noSearch:true, placeholder:' ' }))}
-          ${attrField('Electric Parking', dd('m-at-elec', spaceOpts, at.electric||'', { noSearch:true, placeholder:' ' }))}
+          ${attrField('Standard Parking', dd('m-at-reg', spaceOpts, at.regular||'', { noSearch:true, blank:true, placeholder:' ' }))}
+          ${attrField('Handicapped Parking', dd('m-at-hc', spaceOpts, at.handicapped||'', { noSearch:true, blank:true, placeholder:' ' }))}
+          ${attrField('Electric Parking', dd('m-at-elec', spaceOpts, at.electric||'', { noSearch:true, blank:true, placeholder:' ' }))}
         </div>
-        <div style="display:flex;flex-direction:column;gap:4px">${lab('Parking Description')}${attrInput('m-at-desc', at.desc)}</div>
+        <div style="display:flex;flex-direction:column;gap:4px">${lab('Parking Description')}${attrInput('m-at-desc', at.desc, 'E.g. 50 spaces in the surface lot, including 5 designated handicapped spaces, and 10 EV charging spaces')}</div>
       </div>
     </div>`;
     const attrSections = storSection + parkSection;
@@ -3586,9 +3588,9 @@ class Component extends DCLogic {
       </div>
       <div style="display:flex;flex-direction:column;gap:4px">${lab('Marketing Description')}<textarea id="m-marketing" class="fld" style="height:56px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${ed&&ed.listing?(ed.listing.marketing||''):''}</textarea></div>
       <div style="display:flex;gap:12px;align-items:flex-start">
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px"><span style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:#666">Charge Requirement${this.reqHelp()}</span>${dd('m-req',['Required','Optional','Situational'],req,{noSearch:true,placeholder:' ',js:"document.getElementById('m-sitdesc-wrap').style.display=(_v==='Situational'?'flex':'none');if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Fee Due')}${dd('m-due',['At Application','Move-In','During Term','Move-Out'],(ed&&ed.listing&&ed.listing.feeDue)||'',{noSearch:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>
-        ${isOne?'':`<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Schedule',true)}${dd('m-sched',['Monthly','Weekly','Daily'],(ed&&ed.listing&&ed.listing.schedule)||'',{noSearch:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`}
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px"><span style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:#666">Charge Requirement${this.reqHelp()}</span>${dd('m-req',['Required','Optional','Situational'],req,{noSearch:true,blank:true,placeholder:' ',js:"document.getElementById('m-sitdesc-wrap').style.display=(_v==='Situational'?'flex':'none');if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Fee Due')}${dd('m-due',['At Application','Move-In','During Term','Move-Out'],(ed&&ed.listing&&ed.listing.feeDue)||'',{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>
+        ${isOne?'':`<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Schedule',true)}${dd('m-sched',['Monthly','Weekly','Daily'],(ed&&ed.listing&&ed.listing.schedule)||'',{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`}
       </div>
       <label style="display:inline-flex;align-items:center;gap:8px;align-self:flex-start;font-size:14px;color:#13314c;cursor:pointer"><input type="checkbox" id="m-refund" ${refundable?'checked':''} style="width:16px;height:16px;margin:0;accent-color:#f58220">Refundable</label>
       <div id="m-sitdesc-wrap" style="display:${req==='Situational'?'flex':'none'};flex-direction:column;gap:4px">${lab('Situational Charge Description')}<textarea id="m-sitdesc" class="fld" style="height:48px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${esc(ed?ed.cond:'')}</textarea></div>
