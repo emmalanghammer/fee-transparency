@@ -1027,7 +1027,6 @@ class Component extends DCLogic {
     const specEd = m.edit && m.edit.propSpecific ? m.edit : null;
     if (specEd) {
       const nm = v('m-name'); const ilsOn = v('m-ils') === '1';
-      if (ilsOn && !nm) { mark(this.q('#m-name'), true); const b = this.q('#m-err'); if (b) { const t = b.querySelector('#m-err-txt'); if (t) t.textContent = 'Complete required fields: Name'; b.style.display = 'inline-flex'; } return false; }
       const req = v('m-req') || 'Situational';
       const patch = { ils: ilsOn, cond: v('m-sitdesc') || specEd.cond,
         listing: Object.assign({}, specEd.listing, { name: nm, category: this.chargeCategoryFor(specEd.mits), marketing: v('m-marketing'), requirement: req, feeDue: v('m-due') || 'During Term', refundable: chkd('m-refund') }) };
@@ -1056,10 +1055,10 @@ class Component extends DCLogic {
       mark(disp ? disp.parentElement : (inp && inp.parentElement), !target);
       if (!target) errs.push(app === 'ORI' ? 'Property' : app); }
     const oriType = app === 'ORI' ? v('m-orit') : '';
-    if (app === 'ORI') { mark(this.q('#m-orit-btn'), !oriType); if (!oriType) errs.push('ORI Type'); }
+    // Recurring charges bill on a frequency, so that one is required too. Everything else —
+    // marketing details included — can be filled in later; the charge just isn't listing ready.
+    if (!/-one$/.test(m.group || '')) { const f = v('m-freq'); mark(this.q('#m-freq'), !f); if (!f) errs.push('Frequency'); }
     const ils = v('m-ils') === '1';
-    // Include on listings requires the marketing details to actually be there.
-    if (ils && !name) { mark(this.q('#m-name'), true); errs.push('Name'); }
     if (errs.length) { const b = this.q('#m-err'); if (b) { const t = b.querySelector('#m-err-txt'); if (t) t.textContent = 'Complete required fields: ' + errs.join(', '); b.style.display = 'inline-flex'; } return false; }
     // Two charges of the same charge type can't share a name at the same charge level (including
     // both having none) — the listing feed couldn't tell them apart. A different level is fine.
