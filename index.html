@@ -1470,13 +1470,14 @@ class Component extends DCLogic {
       <span style="font-size:20px;font-weight:600;color:#13314c;line-height:1">${count}</span>
       ${sub ? `<span style="font-size:12px;font-style:italic;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${sub.c}">${sub.t}</span>` : '<span style="font-size:12px;line-height:1.3">&nbsp;</span>'}
     </div>`;
+    // Ordered the way the work happens: nothing started, then details owed, then ready, then finished.
     const tiles = `<div style="display:flex;gap:16px;flex-wrap:wrap">
-      ${tile('#008dd5','check_circle','#008dd5','Ready to publish',c.ready, '',
-        { t:'Listed properties with complete charge details', c:'color:#666' })}
-      ${tile('#faa61c','warning','#faa61c','Charges need details',c.needs, '',
-        c.pubshort ? { t:`${c.pubshort} ${c.pubshort===1?'property is':'properties are'} published, fees are missing from listings`, c:'color:#eb343c' } : null)}
       ${tile('#b3b3b3','settings','#b3b3b3','Not set up',c.none,
         c.none ? `<button data-act="ftSelOpen" data-arg="setup" class="btn-pri" style="height:28px;min-height:28px;padding:0 12px;border-radius:4px;font-size:13px;white-space:nowrap">Set Up Fee Transparency</button>` : '', null)}
+      ${tile('#faa61c','warning','#faa61c','Charges need details',c.needs, '',
+        c.pubshort ? { t:`${c.pubshort} ${c.pubshort===1?'property is':'properties are'} published, fees are missing from listings`, c:'color:#eb343c' } : null)}
+      ${tile('#008dd5','check_circle','#008dd5','Ready to publish',c.ready, '',
+        { t:'Listed properties with complete charge details', c:'color:#666' })}
       ${tile('#6eb744','task_alt','#6eb744','Done',c.done, '',
         c.done ? { t:`${c.pub} published&nbsp;&nbsp;&nbsp;${c.notEnabled} not enabled for listings`, c:'color:#4d8a2a' } : null)}
     </div>`;
