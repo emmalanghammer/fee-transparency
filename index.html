@@ -980,6 +980,12 @@ class Component extends DCLogic {
       case 'pricePreviewClose': this.setState({ pricePreview: null }); break;
       case 'ppUnit': if (arg) this.setState(s => ({ pricePreview: Object.assign({}, s.pricePreview, { unit: arg }) })); break;
       case 'ppOpt': this.setState(s => { const o = Object.assign({}, s.pricePreview.opt); if (o[arg]) delete o[arg]; else o[arg] = true; return { pricePreview: Object.assign({}, s.pricePreview, { opt: o }) }; }); break;
+      case 'ppQty': { const [id, d] = String(arg).split(':');
+        this.setState(s => { const o = Object.assign({}, s.pricePreview.opt);
+          const cur = o[id] === true ? 1 : (o[id] || 0);
+          const next = cur + parseInt(d, 10);
+          if (next <= 0) delete o[id]; else o[id] = next;
+          return { pricePreview: Object.assign({}, s.pricePreview, { opt: o }) }; }); break; }
       case 'ppSitToggle': this.setState(s => ({ pricePreview: Object.assign({}, s.pricePreview, { sitOpen: !s.pricePreview.sitOpen }) })); break;
 
       // ---- recurring charges overlay ----
@@ -2814,13 +2820,19 @@ class Component extends DCLogic {
     const otherOne = oneTime.filter(r => ['At Application','Move-In'].indexOf(dueOf(r)) < 0);
     const chosenOpt = optRows.filter(r => p.opt[r.id] && !/-one$/.test(r.group));
     const chosenOptOne = optRows.filter(r => p.opt[r.id] && /-one$/.test(r.group));
-    const mTotal = monthly.reduce((n,r)=>n+amtOf(r),0) + chosenOpt.reduce((n,r)=>n+amtOf(r),0);
+    // Pet add-ons can be taken more than once — one line per pet — so they carry a quantity.
+    const isPet = r => this.chargeCategoryFor(r.mits) === 'Pet';
+    const qtyOf = r => { const v = p.opt[r.id]; return v === true ? 1 : (v || 0); };
+    const lineAmt = r => amtOf(r) * (isPet(r) ? Math.max(1, qtyOf(r)) : 1);
+    const mTotal = monthly.reduce((n,r)=>n+amtOf(r),0) + chosenOpt.reduce((n,r)=>n+lineAmt(r),0);
     const sum = rws => rws.reduce((n,r)=>n+amtOf(r),0);
     // A one-time add-on the prospect ticks is money due like any other one-time charge.
-    const oTotal = sum(oneTime) + sum(chosenOptOne);
+    const oTotal = sum(oneTime) + chosenOptOne.reduce((n,r)=>n+lineAmt(r),0);
     const line = (l,v,bold) => `<div style="display:flex;align-items:baseline;justify-content:space-between;padding:5px 0"><span style="font-size:13px;color:${bold?'#13314c':'#4a5b6b'};${bold?'font-weight:600':''}">${l}</span><span style="font-size:13px;color:#13314c;${bold?'font-weight:600':''}">${v}</span></div>`;
-    const grp = (t, rws, suffix, subLabel) => rws.length ? `<div style="padding:12px 0;border-top:1px solid #eef2f5"><div style="font-size:13px;font-style:italic;color:#8a9aa8;margin-bottom:4px">${t}</div>${rws.map(r=>line(r.name, money(amtOf(r))+(suffix||''))).join('')}${subLabel?line(subLabel, money(sum(rws)), true):''}</div>` : '';
-    const optCb = r => `<label data-act="ppOpt" data-arg="${r.id}" style="display:flex;align-items:center;gap:10px;padding:5px 0;cursor:pointer;font-size:14px;color:#13314c"><span style="width:18px;height:18px;border-radius:3px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${p.opt[r.id]?'background:#f58220;border:1px solid #f58220':'background:#fff;border:1px solid #b3b3b3'}">${p.opt[r.id]?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name}</span><span style="font-size:13px;color:#4a5b6b;white-space:nowrap">${money(amtOf(r))}${/-one$/.test(r.group)?'/one-time':'/mo'}</span></label>`;
+    const grp = (t, rws, suffix, subLabel) => rws.length ? `<div style="padding:12px 0;border-top:1px solid #eef2f5"><div style="font-size:13px;font-style:italic;color:#8a9aa8;margin-bottom:4px">${t}</div>${rws.map(r=>line(r.name + (isPet(r) && qtyOf(r) > 1 ? ` &times; ${qtyOf(r)}` : ''), money(lineAmt(r))+(suffix||''))).join('')}${subLabel?line(subLabel, money(rws.reduce((n,r)=>n+lineAmt(r),0)), true):''}</div>` : '';
+    const step = (r, d, icon) => `<span data-act="ppQty" data-arg="${r.id}:${d}" style="display:flex;align-items:center;justify-content:center;width:22px;height:22px;border:1px solid #cedbe7;border-radius:3px;background:#fff;cursor:pointer" onmouseover="this.style.background='#f0f6fb'" onmouseout="this.style.background='#fff'"><span class="material-symbols-outlined" style="font-size:15px;color:var(--ac,#008dd5)">${icon}</span></span>`;
+    const stepper = r => (!isPet(r) || !p.opt[r.id]) ? '' : `<span style="display:inline-flex;align-items:center;gap:7px;flex:none">${step(r,-1,'remove')}<span style="min-width:14px;text-align:center;font-size:13px;color:#13314c">${qtyOf(r)}</span>${step(r,1,'add')}</span>`;
+    const optCb = r => `<label data-act="ppOpt" data-arg="${r.id}" style="display:flex;align-items:center;gap:10px;padding:5px 0;cursor:pointer;font-size:14px;color:#13314c"><span style="width:18px;height:18px;border-radius:3px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${p.opt[r.id]?'background:#f58220;border:1px solid #f58220':'background:#fff;border:1px solid #b3b3b3'}">${p.opt[r.id]?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name}</span>${stepper(r)}<span style="font-size:13px;color:#4a5b6b;white-space:nowrap">${money(lineAmt(r))}${/-one$/.test(r.group)?'/one-time':'/mo'}</span></label>`;
     const info = this.propInfo(p.prop);
     return `<div data-act="pricePreviewClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:152">
       <div data-act="noop" style="width:940px;max-width:96vw;max-height:92vh;background:#fff;border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
