@@ -148,6 +148,7 @@ class Component extends DCLogic {
       { name:'Fish', desc:'Fish', rec:0, recMax:0, recPer:false, one:0, oneMax:0, onePer:false, dep:0, depMax:0, depPer:false }
     ],
     petType: null, // index being edited in Pet Type Details, or 'new'
+    spNav: 'Tenant Charge Setup', // System Preferences left-nav selection
     ltErrOnly: false, // Listings page: hide listings without errors
     ftFilter: 'all', // tracker Status filter: all | ready | needs | none | done
     // "Exclude Charge" overlay: { id, scope:'Unit Type'|'Unit', sel:{name:true} }. A charge's own
@@ -628,6 +629,8 @@ class Component extends DCLogic {
       case 'navFeeTrans': this.go('feetrans', { profMenu: null }); break;
       case 'navListings': this.go('listings'); break;
       case 'navPetTypes': this.go('pettypes'); break;
+      case 'navSysPrefs': this.go('sysprefs'); break;
+      case 'spNav': this.setState({ spNav: arg }); break;
       case 'petTypeOpen': this.setState({ petType: arg === 'new' ? 'new' : parseInt(arg, 10) }); break;
       case 'petTypeClose': this.setState({ petType: null }); break;
       case 'petTypeSave': { const v = id => ((this.q('#' + id) || {}).value || '').trim();
@@ -1321,7 +1324,7 @@ class Component extends DCLogic {
         <div style="line-height:normal;color:#fff"><div style="font-size:12px">Company Code</div><div style="font-size:14px">lcs-rmexpress</div></div>
         <div style="display:flex;align-items:center;gap:20px">
           <img src="assets/icon-notifications.svg" alt="Notifications" style="width:20px;height:20px">
-          <span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:200px;background:#008dd5;color:#fff;font-size:14px">DS</span>
+          <span data-act="navSysPrefs" title="System Preferences" style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:200px;background:#008dd5;color:#fff;font-size:14px;cursor:pointer">DS</span>
         </div>
       </div>
     </div>`;
@@ -1723,6 +1726,86 @@ class Component extends DCLogic {
           <span style="font-size:12px;color:#b3b3b3">${rows.length} Listings</span>
         </div>
       </div>
+    </div>`;
+  }
+  // ---------- System Preferences: General Options - Tenant Charge Setup ----------
+  sysPrefsBody(){
+    const sel = this.state.spNav;
+    // Left tree: groups expand, leaves select. Mirrors the screenshot's order and indents.
+    const items = [
+      { t:'General Options', group:true },
+      { t:'General', pad:64 },
+      { t:'Lease Renewals', pad:64 },
+      { t:'Tenant Transfers', pad:64 },
+      { t:'STR Reservations', pad:64 },
+      { t:'Payment Options', pad:64 },
+      { t:'Security Deposit', group:true, pad:38 },
+      { t:'General', pad:88, key:'Security Deposit General' },
+      { t:'Interest Options', pad:88 },
+      { t:'Tenant Charge Setup', pad:64 },
+      { t:'Posting Late Fees', pad:64 },
+      { t:'Vendors', pad:64 },
+      { t:'Account Name', pad:64 }
+    ];
+    const nav = items.map(it => {
+      const key = it.key || it.t;
+      const on = !it.group && key === sel;
+      if (it.group) return `<div style="display:flex;align-items:center;gap:14px;padding:11px 16px 11px ${it.pad||14}px;color:#fff;font-size:16px;cursor:default"><span class="material-symbols-outlined" style="font-size:22px;color:#fff">keyboard_arrow_down</span>${it.t}</div>`;
+      return `<div data-act="spNav" data-arg="${key}" style="padding:11px 16px 11px ${it.pad}px;font-size:16px;color:#fff;cursor:pointer;${on?'background:#1b3d5c;border-left:3px solid var(--ac,#008dd5);padding-left:'+((it.pad||64)-3)+'px':''}" onmouseover="if(this.style.background!=='rgb(27, 61, 92)')this.style.background='#22456580'" onmouseout="if('${on}'!=='true')this.style.background=''">${it.t}</div>`;
+    }).join('');
+
+    const sect = (title, inner) => `<div style="display:flex;flex-direction:column;gap:10px">
+      <span style="font-size:15px;font-weight:600;color:#13314c">${title}</span>
+      <div style="background:#fff;border:1px solid #e3e9ee;border-radius:4px;padding:18px 20px;display:flex;flex-direction:column;gap:16px">${inner}</div>
+    </div>`;
+    // Charge table: two columns, a kebab and the reorder handle on each row.
+    const chargeTable = (rows) => `<div style="border:1px solid #e3e9ee;border-radius:4px;overflow:hidden;max-width:790px">
+      <div style="display:grid;grid-template-columns:minmax(200px,1fr) minmax(200px,1fr) 88px;background:#fff;border-bottom:1px solid #e3e9ee">
+        <span style="padding:14px 16px;font-size:15px;font-weight:600;color:#13314c">Charge Type</span>
+        <span style="padding:14px 16px;font-size:15px;font-weight:600;color:#13314c">Charge Source</span><span></span>
+      </div>
+      ${rows.map(r => `<div style="display:grid;grid-template-columns:minmax(200px,1fr) minmax(200px,1fr) 88px;align-items:center;background:#fff">
+        <span style="padding:14px 16px;font-size:15px;color:#13314c">${r[0]}</span>
+        <span style="padding:14px 16px;font-size:15px;color:#13314c">${r[1]}</span>
+        <span style="display:flex;align-items:center;justify-content:flex-end;gap:14px;padding:0 16px">
+          <span data-act="toast" data-arg="Row actions" class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5);cursor:pointer">more_vert</span>
+          <span data-act="toast" data-arg="Reorder" class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5);cursor:pointer">swap_vert</span>
+        </span>
+      </div>`).join('')}
+    </div>`;
+    const addLink = (t) => `<a data-act="toast" data-arg="${t}" style="display:inline-flex;align-items:center;gap:8px;font-size:15px;color:var(--ac,#008dd5);cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px">add</span>${t}</a>`;
+    const body = sel !== 'Tenant Charge Setup'
+      ? `<div style="padding:40px 4px;font-size:15px;font-style:italic;color:#8a9aa8">${sel} preferences</div>`
+      : `<span style="font-size:16px;color:#4a5b6b;line-height:1.6;max-width:880px">Set up recurring and one-time charges to be automatically added to rent quotes, tenants in the move in wizard, or in the tenant add wizard.</span>
+      ${sect('Default Recurring Charges', `
+        ${chargeTable([['RC','Flat Amount']])}
+        ${addLink('Add Recurring Charge')}
+        <label style="display:flex;align-items:flex-start;gap:14px;cursor:pointer;max-width:790px">
+          <input type="checkbox" id="sp-auto-one" onchange="var d=document.getElementById('sp-postday-wrap');var u=document.getElementById('sp-userent');d.style.opacity=this.checked?'1':'0.55';u.style.color=this.checked?'#4a5b6b':'#a6b2bd';u.firstElementChild.disabled=!this.checked" style="accent-color:var(--ac,#008dd5);width:19px;height:19px;margin:2px 0 0;flex:none">
+          <span style="font-size:16px;color:#4a5b6b;line-height:1.5">If the recurring charges for next month have already been posted, automatically create one-time charges.</span>
+        </label>
+        <div id="sp-postday-wrap" style="display:flex;flex-direction:column;gap:16px;padding-left:33px;max-width:757px;opacity:0.55">
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <span style="font-size:16px;color:#4a5b6b">Post day</span>
+            <input style="width:100%;box-sizing:border-box;height:40px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;padding:0 12px;font:400 15px Roboto,sans-serif;color:#13314c;outline:none">
+          </div>
+          <label id="sp-userent" style="display:inline-flex;align-items:center;gap:14px;font-size:16px;color:#a6b2bd;cursor:default"><input type="checkbox" disabled style="width:19px;height:19px;margin:0">Use rent due day for posting</label>
+        </div>`)}
+      ${sect('Default One-Time, Deposit, and Prorated Charges', `
+        ${chargeTable([['DP','Flat Amount']])}
+        ${addLink('Add One-Time Charge')}`)}`;
+
+    return `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden">
+      <div style="width:374px;max-width:30%;flex:none;background:#13314c;display:flex;flex-direction:column;overflow-y:auto;padding-bottom:20px">
+        <div style="padding:14px 16px 10px">
+          <div style="display:flex;align-items:center;gap:8px;background:#fff;border-radius:2px;height:38px;padding:0 10px">
+            <input placeholder="" style="flex:1;min-width:0;border:none;outline:none;background:transparent;font:400 15px Roboto,sans-serif;color:#13314c">
+            <span class="material-symbols-outlined" style="font-size:20px;color:#4a5b6b">search</span>
+          </div>
+        </div>
+        ${nav}
+      </div>
+      <div style="flex:1;min-width:0;overflow-y:auto;background:#f5f8fa"><div style="padding:22px 28px 40px;display:flex;flex-direction:column;gap:26px">${body}</div></div>
     </div>`;
   }
   // ---------- Pet Types register + details ----------
@@ -4177,6 +4260,14 @@ class Component extends DCLogic {
         inner += this.footer('Save property');
       }
       out += `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden"><div style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden">${inner}</div>${this.rail()}</div>`;
+    } else if (s.view === 'sysprefs') {
+      out += `<div style="height:44px;background:var(--ac,#008dd5);display:flex;align-items:center;padding:0 16px;gap:14px;color:#fff;flex:none">
+        <span data-act="navRegister" class="material-symbols-outlined" style="font-size:22px;cursor:pointer">keyboard_double_arrow_left</span>
+        <span style="font-size:19px;line-height:24px">System Preferences:&nbsp; <span>General Options - ${s.spNav}</span></span>
+        <div style="flex:1"></div>
+        <span class="material-symbols-outlined" style="font-size:20px;opacity:0.9;cursor:pointer">help</span>
+      </div>`;
+      out += this.sysPrefsBody();
     } else if (s.view === 'pettypes') {
       out += `<div style="height:40px;background:var(--ac,#008dd5);display:flex;align-items:center;padding:0 16px;gap:12px;color:#fff;flex:none">
         <span style="font-size:18px;line-height:24px">Pet Types</span>
