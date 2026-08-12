@@ -642,9 +642,10 @@ class Component extends DCLogic {
         const chk2 = id => { const e = this.q('#' + id); return !!(e && e.checked); };
         const name = v('pt-name');
         if (!name) { this.flash('Name is required'); break; }
-        const row = { name, desc: v('pt-desc'), rec: num('pt-rec'), recMax: num('pt-rec-max'), recPer: chk2('pt-rec-per'),
-          one: num('pt-one'), oneMax: num('pt-one-max'), onePer: chk2('pt-one-per'),
-          dep: num('pt-dep'), depMax: num('pt-dep-max'), depPer: chk2('pt-dep-per') };
+        const recPer = chk2('pt-rec-per'), onePer = chk2('pt-one-per'), depPer = chk2('pt-dep-per');
+        const row = { name, desc: v('pt-desc'), rec: num('pt-rec'), recMax: recPer ? num('pt-rec-max') : 0, recPer,
+          one: num('pt-one'), oneMax: onePer ? num('pt-one-max') : 0, onePer,
+          dep: num('pt-dep'), depMax: depPer ? num('pt-dep-max') : 0, depPer };
         this.setState(s => { const list = s.petTypes.slice();
           if (s.petType === 'new') list.push(row); else list[s.petType] = row;
           return { petTypes: list, petType: null }; });
@@ -1888,11 +1889,16 @@ class Component extends DCLogic {
     const lab = (x) => `<span style="font-size:14px;color:#666">${x}</span>`;
     const txt = (id, val, right) => `<input id="${id}" value="${esc(val)}" style="width:100%;box-sizing:border-box;height:38px;background:#f5f8fa;border:1px solid #cedbe7;border-radius:4px;padding:0 12px;font:400 15px Roboto,sans-serif;color:#13314c;outline:none;${right?'text-align:right;':''}">`;
     // Amount + "Charge per pet" + Max Amount triple, straight from the mock.
+    // Max Amount only means anything on a per-pet charge, so it follows the checkbox.
+    const perJs = (maxId) => `var m=document.getElementById('${maxId}');var l=document.getElementById('${maxId}-lab');m.disabled=!this.checked;m.style.background=this.checked?'#f5f8fa':'#eef1f4';m.style.borderColor=this.checked?'#cedbe7':'#e3e9ee';m.style.color=this.checked?'#13314c':'#a6b2bd';l.style.color=this.checked?'#666':'#a6b2bd';if(!this.checked)m.value='';`;
     const amt = (label, id, val, per, perOn, maxId, maxVal) => `<div style="display:flex;flex-direction:column;gap:6px">
       <div style="display:flex;flex-direction:column;gap:4px">${lab(label)}${txt(id, money(val), true)}</div>
       <div style="display:flex;align-items:flex-end;gap:18px">
-        <label style="display:inline-flex;align-items:center;gap:9px;cursor:pointer;padding-bottom:9px"><input id="${per}" type="checkbox" ${perOn?'checked':''} style="accent-color:#f58220;width:17px;height:17px;margin:0">${lab('Charge per pet')}</label>
-        <div style="flex:1;display:flex;flex-direction:column;gap:4px;max-width:220px">${lab('Max Amount')}${txt(maxId, maxVal ? money(maxVal) : '', true)}</div>
+        <label style="display:inline-flex;align-items:center;gap:9px;cursor:pointer;padding-bottom:9px"><input id="${per}" type="checkbox" ${perOn?'checked':''} onchange="${perJs(maxId)}" style="accent-color:#f58220;width:17px;height:17px;margin:0">${lab('Charge per pet')}</label>
+        <div style="flex:1;display:flex;flex-direction:column;gap:4px;max-width:220px">
+          <span id="${maxId}-lab" style="font-size:14px;color:${perOn?'#666':'#a6b2bd'}">Max Amount</span>
+          <input id="${maxId}" value="${perOn && maxVal ? money(maxVal) : ''}" ${perOn?'':'disabled'} style="width:100%;box-sizing:border-box;height:38px;background:${perOn?'#f5f8fa':'#eef1f4'};border:1px solid ${perOn?'#cedbe7':'#e3e9ee'};border-radius:4px;padding:0 12px;font:400 15px Roboto,sans-serif;color:${perOn?'#13314c':'#a6b2bd'};outline:none;text-align:right">
+        </div>
       </div>
     </div>`;
     return `<div data-act="petTypeClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:130">
