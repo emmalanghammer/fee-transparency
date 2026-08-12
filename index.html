@@ -3905,10 +3905,13 @@ class Component extends DCLogic {
       one:t.one, oneMax:t.oneMax, onePer:t.onePer, dep:t.dep, depMax:t.depMax, depPer:t.depPer }; });
     const data = JSON.stringify(map).replace(/"/g, '&quot;');
     const radio = (v, t, on) => `<label style="display:flex;align-items:center;gap:11px;cursor:pointer"><input type="radio" name="pc-kind" value="${v}" ${on?'checked':''} style="accent-color:var(--ac,#008dd5);width:17px;height:17px;margin:0"><span style="font-size:15px;color:#13314c">${t}</span></label>`;
-    // A recurring charge can only take the recurring amount; a one-time charge is a fee or a deposit.
-    const kinds = isOne
-      ? radio('one','One-time charge',true) + radio('dep','Pet deposit')
-      : radio('rec','Recurring charge',true) + radio('one','One-time charge') + radio('dep','Pet deposit');
+    // A recurring charge can only take the recurring amount, so there's nothing to ask; a one-time
+    // charge is either a fee or a deposit.
+    const kinds = !isOne ? `<input type="radio" name="pc-kind" value="rec" checked style="display:none">`
+      : `<div style="display:flex;flex-direction:column;gap:10px">
+          <span style="font-size:15px;color:#13314c">What kind of charge is this?</span>
+          ${radio('one','One-time charge',true)}${radio('dep','Pet deposit')}
+        </div>`;
     const copyJs = `var ov=document.getElementById('m-petcopy');`
       + `var name=document.getElementById('m-petcopy-sel').value;`
       + `var err=document.getElementById('m-petcopy-err');`
@@ -3945,10 +3948,7 @@ class Component extends DCLogic {
             ${picker}
             <span id="m-petcopy-err" style="display:none;font-size:13px;color:#eb343c;padding-top:2px">Select a pet type.</span>
           </div>
-          <div style="display:flex;flex-direction:column;gap:10px">
-            <span style="font-size:15px;color:#13314c">What kind of charge is this?</span>
-            ${kinds}
-          </div>
+          ${kinds}
         </div>
         <div style="display:flex;justify-content:flex-end;gap:10px;background:#f5f8fa;border-top:1px solid #e3e9ee;padding:12px 20px">
           <button onclick="${copyJs}" class="btn-pri" style="height:34px;min-height:34px;padding:0 22px;border-radius:4px;font-size:14px">Copy</button>
