@@ -149,6 +149,7 @@ class Component extends DCLogic {
     ],
     petType: null, // index being edited in Pet Type Details, or 'new'
     spNav: 'Tenant Charge Setup', // System Preferences left-nav selection
+    spBanner: true, // System Preferences Fee Transparency banner not yet dismissed
     ltErrOnly: false, // Listings page: hide listings without errors
     ftFilter: 'all', // tracker Status filter: all | ready | needs | none | done
     // "Exclude Charge" overlay: { id, scope:'Unit Type'|'Unit', sel:{name:true} }. A charge's own
@@ -631,6 +632,7 @@ class Component extends DCLogic {
       case 'navPetTypes': this.go('pettypes'); break;
       case 'navSysPrefs': this.go('sysprefs'); break;
       case 'spNav': this.setState({ spNav: arg }); break;
+      case 'spBannerDismiss': this.setState({ spBanner: false }); break;
       case 'petTypeOpen': this.setState({ petType: arg === 'new' ? 'new' : parseInt(arg, 10) }); break;
       case 'petTypeClose': this.setState({ petType: null }); break;
       case 'petTypeSave': { const v = id => ((this.q('#' + id) || {}).value || '').trim();
@@ -1774,9 +1776,39 @@ class Component extends DCLogic {
       </div>`).join('')}
     </div>`;
     const addLink = (t) => `<a data-act="toast" data-arg="${t}" style="display:inline-flex;align-items:center;gap:8px;font-size:15px;color:var(--ac,#008dd5);cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px">add</span>${t}</a>`;
+    // Tenant Charge Setup only applies to properties that haven't centralized their charges, so the
+    // callouts (and whether the settings show at all) follow how much of the portfolio is converted.
+    const allProps = this.propertiesData().map(p => p.name);
+    const onFT = allProps.filter(n => this.profStatus(n) === 'active').length;
+    const ftState = onFT === 0 ? 'none' : (onFT === allProps.length ? 'all' : 'some');
+    const blueBanner = (title) => !this.state.spBanner ? '' : `<div style="position:relative;background:#e8f4fb;border-radius:4px;padding:16px 20px;display:flex;flex-direction:column;gap:12px">
+      <span data-act="spBannerDismiss" class="material-symbols-outlined" style="position:absolute;top:12px;right:14px;font-size:20px;color:var(--ac,#008dd5);cursor:pointer">close</span>
+      <span style="font-size:15px;font-weight:600;color:#13314c">${title}</span>
+      <span style="font-size:15px;color:#13314c;line-height:1.5;padding-right:30px">Fee Transparency moves your charges, deposits, and pricing on the property's Charges tab, simplifying setup, move-ins, and quotes. If you publish listings, complete pricing comes ready-made.</span>
+      <span style="display:flex;align-items:center;gap:20px">
+        <button data-act="navFeeTrans" class="btn-pri" style="height:36px;min-height:36px;padding:0 18px;border-radius:4px;font-size:14px">Set Up Fee Transparency</button>
+        <a data-act="toast" data-arg="Opens contextual help" style="font-size:15px;color:var(--ac,#008dd5);cursor:pointer">Learn More</a>
+      </span>
+    </div>`;
+    const warnStrip = `<div style="align-self:flex-start;display:inline-flex;align-items:center;gap:10px;background:#fff;border:1px solid #f0ad4e;border-radius:4px;padding:9px 14px">
+      <span class="material-symbols-outlined" style="font-size:19px;color:#f58220;flex:none">warning</span>
+      <span style="font-size:15px;color:#13314c">Only properties that do not have Fee Transparency set up can use Tenant Charge Setup.</span>
+    </div>`;
+    const allStrip = `<div style="display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--ac,#008dd5);border-radius:4px;padding:11px 16px">
+      <span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,#008dd5);flex:none">info</span>
+      <span style="flex:1;min-width:0;font-size:15px;color:#13314c;line-height:1.5">Fee Transparency has been set up for all properties, so all charges are managed on the property level. Go to the property details or Fee Transparency page to view the charges setup.</span>
+      <a data-act="navFeeTrans" style="flex:none;font-size:15px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap">Fee Transparency</a>
+    </div>`;
+    const callouts = ftState === 'all' ? allStrip
+      : ftState === 'none' ? blueBanner('Centralize your charges with Fee Transparency.')
+      : blueBanner('Finish setting up Fee Transparency on your properties.') + warnStrip;
     const body = sel !== 'Tenant Charge Setup'
       ? `<div style="padding:40px 4px;font-size:15px;font-style:italic;color:#8a9aa8">${sel} preferences</div>`
-      : `<span style="font-size:16px;color:#4a5b6b;line-height:1.6;max-width:880px">Set up recurring and one-time charges to be automatically added to rent quotes, tenants in the move in wizard, or in the tenant add wizard.</span>
+      : ftState === 'all'
+      // Every property is on Fee Transparency: the callout is all there is to say.
+      ? callouts
+      : `${callouts}
+      <span style="font-size:16px;color:#4a5b6b;line-height:1.6;max-width:880px">Set up recurring and one-time charges to be automatically added to rent quotes, tenants in the move in wizard, or in the tenant add wizard.</span>
       ${sect('Default Recurring Charges', `
         ${chargeTable([['RC','Flat Amount']])}
         ${addLink('Add Recurring Charge')}
