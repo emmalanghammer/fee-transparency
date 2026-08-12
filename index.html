@@ -464,7 +464,7 @@ class Component extends DCLogic {
       Object.assign({ id:9,  group:'req-one', mits:'KEY',        name:'Key & fob deposit', desc:'Key & fob deposit',            from:'01/01/2026', to:'', amount:'$50.00',    amtMethod:'Flat', ils:true  }, L('Property')),
       Object.assign({ id:10, group:'opt-rec', mits:'SF',         name:'Storage closet',    desc:'Corner storage closet',        freq:'Every Month', from:'01/01/2026', to:'', amount:'$40.00',      amtMethod:'Flat', ils:true }, L('Unit','4C')),
       Object.assign({ id:11, group:'opt-rec', mits:'AMENFEE',    name:'Pool & fitness',    desc:'Pool & fitness access',        freq:'Every Month', from:'01/01/2026', to:'', amount:'$28.00',      amtMethod:'Flat', ils:true  }, L('Property')),
-      Object.assign({ id:12, group:'opt-rec', mits:'COVPARK',    name:'Covered parking',   desc:'Covered parking, 12 spots total',freq:'Every Month',from:'01/01/2026', to:'', amount:'Market Rent', amtMethod:'Reference', est:75, ils:true }, L('ORI','Garage Spot 1')),
+      Object.assign({ id:12, group:'opt-rec', mits:'COVPARK',    name:'Covered parking',   desc:'Covered parking, 12 spots total',freq:'Every Month',from:'01/01/2026', to:'', amount:'Market Rent', amtMethod:'Reference', est:75, ils:true }, L('Unit Type','2BR/2BA')),
       Object.assign({ id:13, group:'opt-one', mits:'HOLD',       name:'Hold fee',          desc:'Unit reservation fee',         from:'01/01/2026', to:'', amount:'$200.00',   amtMethod:'Flat', ils:true  }, L('Property')),
       // Pet rent and pet deposit are add-ons a resident chooses by bringing a pet, so they're optional.
       // Damage-type charges stay situational — nobody opts into those.
@@ -490,7 +490,6 @@ class Component extends DCLogic {
       ['Tenant Charge Setup', 3, 'Property'],
       ['Unit Type Recurring Charges', 5, 'Unit Type'],
       ['Unit Recurring Charges', 2, 'Unit'],
-      ['Rentable Items', 2, 'ORI'],
       // Listed on their own rather than lumped into a "Property Specific Charges" row, since each is
       // a single charge configured in its own place on the property.
       ['Late Fee', 1, 'Property'],
@@ -2520,14 +2519,17 @@ class Component extends DCLogic {
     return this.setupCandidates();
   }
   setupRows(prop){
+    // Setup only pulls property, unit type and unit charges — rentable items stay where they are, so
+    // ORI charges are made by hand (or by switching a charge's level) after setup.
+    const noOri = rows => rows.map(r => r.level === 'ORI' ? Object.assign({}, r, { level:'Property', target:'' }) : r);
     // The Hamptons' pulled-in charges already carry complete marketing details — it stays the
     // worked example of a clean setup.
-    if (this.listingReadyProps().indexOf(prop) >= 0) return this.listingReadyRows();
+    if (this.listingReadyProps().indexOf(prop) >= 0) return noOri(this.listingReadyRows());
     if (!this.discoveredCharges(prop).length) return [];
     // The new setup moves every discovered charge — nothing is excluded during setup; charges are
     // managed (or removed) on the Charges tab afterwards. Charges that arrive with pulled-in
     // marketing details (NSF, late fees) keep the requirement they came with.
-    return this.setupCandidates().map(r => {
+    return noOri(this.setupCandidates()).map(r => {
       const req = (r.listing && r.listing.requirement) || '';
       const suffix = /-one$/.test(r.group) ? '-one' : '-rec';
       // No chosen requirement keeps the group the charge was discovered with, so required charges
