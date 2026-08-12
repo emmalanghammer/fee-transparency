@@ -4332,7 +4332,10 @@ class Component extends DCLogic {
     const ftPublished = !!this.state.publishedProps[prop2];
     const ftNote = !ftOn ? '' : ftPublished
       ? `<span style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#13314c;padding-top:2px"><span class="material-symbols-outlined" style="font-size:19px;color:#6eb744;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">verified</span>This property is using Fee Transparency and is displaying complete pricing on its listings.</span>`
-      : (this.ilsOn(prop2) ? `<a data-act="pubOpen" data-arg="${prop2}" style="align-self:flex-start;font-size:14px;color:var(--ac,#008dd5);cursor:pointer;padding-top:2px" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Publish Complete Pricing</a>` : '');
+      : (this.ilsOn(prop2) ? `<div style="display:flex;align-items:center;gap:18px">
+          <button data-act="pubOpen" data-arg="${prop2}" class="btn-pri" style="height:36px;min-height:36px;padding:0 18px;border-radius:4px;font-size:14px;white-space:nowrap">Publish Complete Pricing</button>
+          <a data-act="announceOpen" style="font-size:14px;color:var(--ac,#008dd5);cursor:pointer;white-space:nowrap">Learn More</a>
+        </div>` : '');
     const prefs = `<div style="border:1px solid #e3e9ee;border-radius:4px;background:#fff">
       ${cardHead('Preferences')}
       <div style="padding:14px 20px 20px;display:grid;grid-template-columns:1fr 1fr;gap:16px 28px">
@@ -4356,11 +4359,11 @@ class Component extends DCLogic {
     const provider = `<div style="border:1px solid #e3e9ee;border-radius:4px;background:#fff">
       ${cardHead('Provider Settings')}
       <div style="padding:18px 20px 20px;display:flex;flex-direction:column;gap:12px">
+        ${ftNote}
         <label style="display:inline-flex;align-items:center;gap:10px;cursor:pointer"><input type="checkbox" style="accent-color:var(--ac,#008dd5);width:16px;height:16px;margin:0"><span style="font-size:14px;color:#4a5b6b">Override System Preferences</span></label>
         <label style="display:inline-flex;align-items:center;gap:10px;padding-left:28px;cursor:default"><input type="checkbox" disabled style="width:16px;height:16px;margin:0"><span style="font-size:14px;color:#a6b2bd">Enable Online Listings</span></label>
         <span style="font-size:14px;color:#eb343c;padding-left:28px">ILS Providers may require a paid account before your listings can be posted.</span>
         <div style="height:38px;background:#fff;border:1px solid #cedbe7;border-radius:4px;margin-left:28px"></div>
-        ${ftNote}
       </div>
     </div>`;
     return `<div style="position:fixed;inset:0;background:rgba(19,49,76,0.45);display:flex;align-items:center;justify-content:center;z-index:148">
