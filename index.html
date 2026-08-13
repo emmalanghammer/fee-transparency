@@ -4125,7 +4125,7 @@ class Component extends DCLogic {
       <span style="display:flex;flex-direction:column;gap:14px;min-width:0;flex:1">
         <span style="align-self:flex-start;background:var(--rmx-attention, #f58220);color:#fff;font-size:12px;font-weight:600;letter-spacing:0.06em;border-radius:12px;padding:4px 11px">NEW FEATURE</span>
         <span style="font-size:24px;font-weight:600;color:#fff;line-height:1.2">Introducing Fee Transparency</span>
-        <span style="font-size:14px;color:#e8eef4;line-height:1.6">Manage every charge your property collects in one place.<br>Show renters complete, transparent pricing on your online listings.</span>
+        <span style="font-size:14px;color:#e8eef4;line-height:1.6">Every charge a property collects, in one place.<br>Complete pricing on your listings.</span>
       </span>
       <span style="flex:none;width:74px;height:74px;border-radius:50%;border:2px solid var(--ac,var(--rmx-brand, #008dd5));display:flex;align-items:center;justify-content:center">
         <img src="assets/logo-rentmanager-mark-white.svg" alt="" style="width:42px;height:42px">
@@ -4143,9 +4143,9 @@ class Component extends DCLogic {
       </span></div>`;
     const body1 = `<div style="display:flex;flex-direction:column;gap:12px">
       <span style="text-align:center;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Why now?</span>
-      <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.6">A growing number of states now require advertised rent to include all mandatory fees, and renters increasingly expect it. Rent Manager brings your charges together so complete pricing happens automatically.</span>
-      ${benefit('layers','Every charge in one place.','Recurring charges, deposits, rentable items, and more all come together per property.')}
-      ${benefit('person_add','Accurate quotes and move-ins.','The same pricing flows into rent quotes, applications, and new leases seamlessly.')}
+      <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.6">A growing number of states require advertised rent to include all required fees, and renters expect it.</span>
+      ${benefit('layers','Every charge in one place.','Recurring charges, deposits, rentable items, and more all per property.')}
+      ${benefit('person_add','Accurate quotes and move-ins.','The same pricing flows into rent quotes, applications, and new leases.')}
       ${benefit('verified','Complete pricing on listings.','If you advertise online, your listings can show a total monthly price for compliance.')}
     </div>`;
 
@@ -4163,21 +4163,26 @@ class Component extends DCLogic {
       ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:${MINI.chip};color:#7a5a2a;background:#fdf3e3;border:1px solid #f6d9ac;border-radius:2px;padding:1px 5px;white-space:nowrap">${miniDot('#f58220')}${t}</span>`
       : `<span style="display:inline-flex;align-items:center;gap:3px;font-size:${MINI.chip};color:#2f5d43;background:#e4f3ea;border:1px solid #b7e4c6;border-radius:2px;padding:1px 5px;white-space:nowrap">${miniDot('#6eb744')}${t}</span>`;
     const miniCols = 'grid-template-columns:64px 1fr 58px 44px 44px 50px 52px 64px 14px';
-    const miniRow = (code, status, kind) => `<div style="display:grid;${miniCols};align-items:center;gap:6px;padding:5px 10px;border-top:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff">
+    const miniRow = (code, status, kind, level) => `<div style="display:grid;${miniCols};align-items:center;gap:6px;padding:5px 10px;border-top:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff">
       <span style="font-size:${MINI.cell};color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${code}</span>
       ${skel(120)}<span style="font-size:${MINI.cell};color:var(--rmx-text, #666666);white-space:nowrap">Every Month</span>${skel(38)}${skel(38)}${skel(34)}
-      <span>${miniPill('Property')}</span><span>${miniStatus(status, kind)}</span>
+      <span>${miniPill(level || 'Property')}</span><span>${miniStatus(status, kind)}</span>
       <span style="width:5px;height:5px;border-radius:50%;background:#dfe6ec"></span>
     </div>`;
+    const miniHead = () => `<div style="display:grid;${miniCols};gap:6px;padding:4px 10px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-bg-subtle, #f5f8fa)">${['Charge Type','Comment','Frequency','From','To','Amount','Charge Level','Listing Status',''].map(h=>`<span style="font-size:${MINI.col};color:var(--rmx-text-muted, #b3b3b3);white-space:nowrap;overflow:hidden">${h}</span>`).join('')}</div>`;
+    const miniAdd = () => `<div style="padding:7px 10px;border-top:1px solid var(--rmx-bg-subtle, #f5f8fa)"><span style="display:inline-flex;align-items:center;gap:3px;font-size:${MINI.cell};color:var(--ac,var(--rmx-brand, #008dd5))"><span style="font-size:9px">+</span>Add New Charge</span></div>`;
     // Section header: caret + title on the left, the italic descriptor on the right.
     const miniSect = (title, note, top) => `<div style="display:flex;align-items:center;gap:6px;padding:7px 10px;${top?'border-top:1px solid var(--rmx-line, #cedbe7)':''}">${caret}<span style="font-size:${MINI.head};font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title}</span><div style="flex:1"></div><span style="font-size:${MINI.note};font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">${note}</span></div>`;
     const preview = `<div style="background:#f2f6f9;border-radius:4px;padding:10px 12px">
       <div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
         ${miniSect('Recurring Charges (9)', 'System and landlord mandated fees')}
-        <div style="display:grid;${miniCols};gap:6px;padding:4px 10px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-bg-subtle, #f5f8fa)">${['Charge Type','Comment','Frequency','From','To','Amount','Charge Level','Listing Status',''].map(h=>`<span style="font-size:${MINI.col};color:var(--rmx-text-muted, #b3b3b3);white-space:nowrap;overflow:hidden">${h}</span>`).join('')}</div>
-        ${miniRow('RC','3 needed','warn')}${miniRow('GARBAG','Included','ok')}${miniRow('WATER','Ready','ok')}${miniRow('GARBAGEFEE','Ready','ok')}
-        <div style="padding:7px 10px;border-top:1px solid var(--rmx-bg-subtle, #f5f8fa)"><span style="display:inline-flex;align-items:center;gap:3px;font-size:${MINI.cell};color:var(--ac,var(--rmx-brand, #008dd5))"><span style="font-size:9px">+</span>Add New Charge</span></div>
+        ${miniHead()}
+        ${miniRow('RC','3 needed','warn')}${miniRow('GARBAG','Ready','ok')}${miniRow('WATER','Ready','ok','2B/2B')}${miniRow('GARBAGEFEE','Ready','ok','4C')}
+        ${miniAdd()}
         ${miniSect('Optional Charges (4)', 'Tenant selected add-ons (amenities, storage, etc.)', true)}
+        ${miniHead()}
+        ${miniRow('PETFEE','Ready','ok')}
+        ${miniAdd()}
       </div>
     </div>`;
     const stepRow = (n, title, note, body, last) => `<div style="display:flex;gap:14px">
@@ -4192,9 +4197,9 @@ class Component extends DCLogic {
     const body2 = `<div style="display:flex;flex-direction:column;gap:14px">
       ${preview}
       <div style="display:flex;flex-direction:column">
-        ${stepRow(1,'Consolidate charges.','','We find every charge already configured for a property and bring them onto a new Charges tab. Nothing re-entered.')}
-        ${stepRow(2,'Add fee details.','','Fill out additional marketing details to choose how each charge appears to renters. Your current listings stay unaffected until you have your charges set the way you want.')}
-        ${stepRow(3,'Publish complete pricing.','Only properties enabled for online listings.','Go to the Fee Transparency page to switch that property\'s listing feed to the updated transparent pricing structure, with a more accurate total monthly price on listings.', true)}
+        ${stepRow(1,'Consolidate charges.','','Every charge already set up for a property moves onto one Charges tab.')}
+        ${stepRow(2,'Add fee details.','','Choose how each charge appears to renters. Listings are unaffected until you publish.')}
+        ${stepRow(3,'Publish complete pricing.','Only properties enabled for online listings.','Listings show a Total Monthly Price instead of rent alone.', true)}
       </div>
     </div>`;
 
@@ -4205,17 +4210,17 @@ class Component extends DCLogic {
     const body3 = `<div style="display:flex;flex-direction:column;gap:16px">
       <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:16px 18px;display:flex;flex-direction:column;gap:14px">
         <span style="text-align:center;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">What to Expect</span>
-        ${expect('Tenant-level charges will be unaffected, and won\'t be pulled into the property\'s charges.')}
-        ${expect('Your listings keep publishing as they do now until you choose to publish complete pricing.')}
-        ${expect('Late and NSF fees will pull into the Charges tab for centralization, but the charges themselves will not change functionality.')}
+        ${expect('Tenant-level charges stay where they are.')}
+        ${expect('Listings keep publishing as they do now until you publish complete pricing.')}
+        ${expect('Late and NSF fees are displayed on the Charges tab for centralization. How they work doesn\'t change.')}
       </div>
       <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:14px 16px;display:flex;flex-direction:column;gap:12px">
         <span style="text-align:center;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Where to Start</span>
-        <div style="background:#f2f6f9;border-radius:4px;padding:14px 16px;font-size:14px;color:var(--rmx-text, #666666);line-height:1.55">Open the <strong style="color:var(--rmx-brand-dark, #13314c)">Fee Transparency</strong> page to see every property's status and begin, or set up a single property from its <strong style="color:var(--rmx-brand-dark, #13314c)">Charges</strong> tab anytime.</div>
+        <div style="background:#f2f6f9;border-radius:4px;padding:14px 16px;font-size:14px;color:var(--rmx-text, #666666);line-height:1.55">Open the <strong style="color:var(--rmx-brand-dark, #13314c)">Fee Transparency</strong> page to see every property's status, or set up a single property from its <strong style="color:var(--rmx-brand-dark, #13314c)">Charges</strong> tab.</div>
       </div>
       <div style="display:flex;align-items:flex-start;gap:10px;border:1px solid #f0b357;border-radius:4px;padding:12px 14px">
         <span class="material-symbols-outlined" style="font-size:20px;color:#e59f2e;flex:none">warning</span>
-        <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.5"><strong style="color:var(--rmx-brand-dark, #13314c)">Warning!</strong> Turning on Fee Transparency for a property is an irreversible process, and will permanently centralize charges for your property.</span>
+        <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.5"><strong style="color:var(--rmx-brand-dark, #13314c)">Warning!</strong> Turning on Fee Transparency permanently centralizes a property's charges. It can't be undone.</span>
       </div>
     </div>`;
 
