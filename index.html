@@ -100,8 +100,9 @@ class Component extends DCLogic {
     // The Berkshires is listed but not yet converted, so the setup review can warn about the
     // listing impact. The opt-in itself only surfaces once a profile exists.
     // The Hamptons is the finished example — marketed, with every charge listing-ready.
-    ilsProps: { 'Riverview Apartments': true, 'The Hamptons': true, 'The Berkshires': true,
-      'Cedar Ridge': true, 'The Estates': true, 'Willow Creek': true, 'Stonegate Village': true },
+    ilsProps: { 'Riverview Apartments': true, 'The Berkshires': true, 'The Windermere': true,
+      'The Estates': true, 'Willow Creek': true, 'Greenbriar Village': true, 'Pinewood Place': true,
+      'The Highlands': true, 'Stonegate Village': true, 'The Hamptons': true },
     profileStatus: {},
     profileFees: {},
     profHist: null,
@@ -118,9 +119,12 @@ class Component extends DCLogic {
     // menu when it needs showing, rather than interrupting every refresh.
     kickoff: false,
     kickoffStep: 1,
-    // The "Introducing Fee Transparency" launch announcement, opened from the same nav menu.
-    announce: false,
+    // The "Introducing Fee Transparency" launch announcement, also opened from the nav menu. It
+    // starts open because the default "On Rollout" scenario is the day the feature ships.
+    announce: true,
     announceStep: 1,     // the announcement walks three steps
+    // Which rollout state the whole prototype is showing (nav bar "Test Feature State").
+    scenario: 'on',
     // Changes made while using the prototype. The seeded history stops at today, so everything in
     // here is something the user did this session.
     histLog: [],
@@ -628,6 +632,7 @@ class Component extends DCLogic {
     if (el.tagName === 'A') e.preventDefault();
     switch (act) {
       case 'accToggle': { const ao = Object.assign({}, this.state.accOpen); ao[arg] = !ao[arg]; this.setState({ accOpen: ao }); break; }
+      case 'scenSet': this.scenarioApply(arg); break;
       case 'navRegister': this.go('register'); break;
       case 'navFeeTrans': this.go('feetrans', { profMenu: null }); break;
       case 'navListings': this.go('listings'); break;
@@ -1313,11 +1318,26 @@ class Component extends DCLogic {
   }
   // Shared "Add Exception" / "Exception details" modal shell (matches Figma).
   header(){
-    return `<div style="background:var(--rmx-brand-dark, #13314c);display:flex;align-items:center;padding:8px 16px;flex:none">
-      <div style="flex:1 0 0;min-width:1px;display:flex;align-items:center;gap:16px">
-        <img src="assets/logo-rentmanager-white.svg" alt="Rent Manager" style="height:32px;width:175px;object-fit:contain;object-position:left">
+    // Prototype-only control: swaps the whole portfolio between rollout states.
+    const sc = this.state.scenario || 'on';
+    const srow = (o, i) => `<div data-act="scenSet" data-arg="${o.key}" style="padding:9px 12px;font-size:14px;white-space:nowrap;cursor:pointer;${i?'border-top:1px solid var(--rmx-line, #cedbe7);':''}${sc===o.key?'background:var(--rmx-brand, #008dd5);color:#fff':'color:var(--rmx-brand-dark, #13314c)'}"${sc===o.key?'':` onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''"`}>${o.label}</div>`;
+    const scen = `<span style="position:relative;display:flex;align-items:center;gap:8px;flex:none">
+      <span style="font-size:14px;color:#fff;white-space:nowrap">Test Feature State</span>
+      <span onclick="var p=document.getElementById('scen-pnl');p.style.display=(p.style.display==='block'?'none':'block')" style="display:flex;align-items:center;gap:6px;width:150px;height:32px;box-sizing:border-box;background:#fff;border-radius:4px;padding:0 10px;cursor:pointer">
+        <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${this.scenarioLabel()}</span>
+        <span class="material-symbols-outlined" style="font-size:18px;color:var(--rmx-text, #666666);flex:none">keyboard_arrow_down</span>
+      </span>
+      <div id="scen-pnl" style="display:none;position:absolute;right:0;top:40px;z-index:1000;width:150px;background:#fff;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.2);overflow:hidden">
+        ${this.scenarioList().map(srow).join('')}
       </div>
-      <div style="flex:1 0 0;min-width:1px;display:flex;align-items:center;justify-content:center;gap:8px">
+    </span>`;
+    return `<div style="background:var(--rmx-brand-dark, #13314c);display:flex;align-items:center;padding:8px 16px;flex:none">
+      <div style="flex:0 1 auto;min-width:0;display:flex;align-items:center;gap:16px">
+        <img src="assets/logo-rentmanager-white.svg" alt="Rent Manager" style="height:32px;width:175px;object-fit:contain;object-position:left;flex:none">
+        ${scen}
+      </div>
+      <div style="flex:1"></div>
+      <div style="flex:0 1 auto;min-width:0;display:flex;align-items:center;justify-content:center;gap:8px">
         <div style="display:flex;align-items:center;gap:1px">
           <span onclick="var p=document.getElementById('nav-menu-pnl');if(p.style.display==='block'){p.style.display='none';return}var r=this.getBoundingClientRect();p.style.left=r.left+'px';p.style.top=(r.bottom+6)+'px';p.style.display='block'" style="display:inline-flex;align-items:center;justify-content:center;width:39px;height:32px;background:var(--rmx-overlay-search, #425a70);border-radius:4px 0 0 4px;cursor:pointer"><img src="assets/icon-menu.svg" alt="Menu" style="width:20px;height:20px"></span>
           <div id="nav-menu-pnl" style="display:none;position:fixed;z-index:1000;min-width:230px;background:#fff;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.2);overflow:hidden;padding:4px 0">
@@ -1339,7 +1359,8 @@ class Component extends DCLogic {
           <span style="font-style:italic;color:#fff;font-size:12px;white-space:nowrap">Command Launch</span>
         </div>
       </div>
-      <div style="flex:1 0 0;min-width:1px;display:flex;align-items:center;justify-content:flex-end;gap:32px">
+      <div style="flex:1"></div>
+      <div style="flex:0 0 auto;display:flex;align-items:center;justify-content:flex-end;gap:32px">
         <div style="line-height:normal;color:#fff"><div style="font-size:12px">Company Code</div><div style="font-size:14px">lcs-rmexpress</div></div>
         <div style="display:flex;align-items:center;gap:20px">
           <img src="assets/icon-notifications.svg" alt="Notifications" style="width:20px;height:20px">
@@ -1411,6 +1432,80 @@ class Component extends DCLogic {
   bulkSetupCandidates(){ return this.propertiesData().filter(p => this.profStatus(p.name) !== 'active'); }
   // ---------- Fee Transparency tracker (mock 2651-48385) ----------
   // Where each property stands: not set up, charges missing details, ready, or published.
+  // ---------- Demo scenarios: the nav bar's "Test Feature State" ----------
+  // Each scenario rewrites the whole portfolio at once, so every screen — the Properties register, the
+  // Fee Transparency tracker, a property's Charges tab, Listings and System Preferences — tells the
+  // same story, and drops the user on the page that state is about.
+  scenarioList(){
+    return [
+      { key:'on',    label:'On Rollout' },
+      { key:'mid',   label:'Mid Rollout' },
+      { key:'post',  label:'Post Rollout' },
+      { key:'noils', label:'On Rollout, No ILS' }
+    ];
+  }
+  scenarioLabel(){
+    const k = this.state.scenario || 'on';
+    const hit = this.scenarioList().filter(s => s.key === k)[0];
+    return hit ? hit.label : 'On Rollout';
+  }
+  // Properties that advertise on online listings. Every other property is marketing-off, so nothing
+  // about publishing complete pricing is surfaced for it.
+  scenarioMarketed(){
+    return ['Riverview Apartments','The Berkshires','The Windermere','The Estates','Willow Creek',
+      'Greenbriar Village','Pinewood Place','The Highlands','Stonegate Village','The Hamptons'];
+  }
+  // Charges for a converted property: either every marketing detail filled in, or the same charges
+  // as they arrive from setup, with details still missing. '' is not a real property, so setupRows
+  // gives back the generic discovered set rather than a worked example.
+  scenarioRows(complete){ return complete ? this.listingReadyRows() : this.setupRows(''); }
+  scenarioPlan(key){
+    const names = this.propertiesData().map(p => p.name);
+    const ils = {};
+    if (key !== 'noils') this.scenarioMarketed().forEach(n => { ils[n] = true; });
+    const plan = { ils, status:{}, fees:{}, published:{} };
+    const convert = (n, complete, published) => {
+      plan.status[n] = 'active';
+      plan.fees[n] = this.scenarioRows(complete);
+      if (published) plan.published[n] = true;
+    };
+    if (key === 'mid') {
+      // Mid-rollout is the mixed portfolio: published, published before every detail was filled in,
+      // converted but still short, ready to publish, done because they don't advertise, and untouched.
+      ['Riverview Apartments','Greenbriar Village'].forEach(n => convert(n, true, true));
+      convert('The Windermere', false, true);
+      ['The Estates','Willow Creek','Pinewood Place'].forEach(n => convert(n, false, false));
+      ['The Hamptons','Stonegate Village'].forEach(n => convert(n, true, false));
+      // Not enabled for listings, so centralizing the charges is all there is to do.
+      ['Oakwood Manor','Cedar Ridge'].forEach(n => convert(n, true, false));
+      // The Berkshires, The Highlands, Valley Forge and The Arbors are still on legacy charges.
+    } else if (key === 'post') {
+      // Steady state: every property is converted, and every marketed one publishes complete pricing.
+      names.forEach(n => convert(n, true, !!ils[n]));
+    }
+    // 'on' and 'noils' are launch day — nothing is converted yet.
+    plan.view = key === 'mid' ? 'feetrans' : key === 'post' ? 'listings' : 'register';
+    plan.announce = key === 'on' || key === 'noils';
+    return plan;
+  }
+  scenarioApply(key){
+    const p = this.scenarioPlan(key);
+    this._resetScroll = true;
+    this.setState({
+      scenario: key,
+      ilsProps: p.ils, profileStatus: p.status, profileFees: p.fees, publishedProps: p.published,
+      view: p.view, announce: p.announce, announceStep: 1, kickoff: false,
+      // Everything below belongs to the scenario the user just left, so none of it carries over.
+      property: 'Riverview Apartments', propTab: 'General', unit: '1B',
+      newProps: [], addProp: null, histLog: [], toggles: {}, bannerDismissed: {},
+      setup: null, setupExit: false, modal: null, bulk: null, bulkSel: null, bulkUpd: null,
+      copyFees: null, bulkSetup: null, pricePreview: null, profMenu: null, profHist: null,
+      recView: null, recViewNote: true, rowMenu: null, pubModal: null, ftSel: null,
+      mktSetup: false, mktAdv: false, petType: null, spBanner: true,
+      lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false, showProfileCol: false
+    });
+    window.scrollTo(0, 0);
+  }
   ftStatus(p){
     const rows = this.profileRows(p);
     const active = this.profStatus(p) === 'active';
@@ -1635,20 +1730,36 @@ class Component extends DCLogic {
   // One row per advertised unit. Pricing and errors derive live from the property's Fee
   // Transparency state, so publishing or fixing charges moves these rows in real time.
   listingsData(){
-    // The first five rows are the mock's worked examples (fixed pricing/errors, properties outside
-    // the demo portfolio); the rest belong to demo properties and track Fee Transparency state live.
+    // Only properties enabled for online listings have listings, and each row's pricing follows that
+    // property's live Fee Transparency status — so this register can never contradict the tracker.
+    const port = [
+      { prop:'Riverview Apartments', plan:'RV-114', type:'2B / 2B',   avail:'09/01/2026', base:1254.75 },
+      { prop:'Riverview Apartments', plan:'RV-3C',  type:'1B / 1B',   avail:'10/01/2026', base:1050.00 },
+      { prop:'The Berkshires',       plan:'BK-2',   type:'2B / 2B',   avail:'12/31/2026', base:750.00 },
+      { prop:'The Windermere',       plan:'WIN-4',  type:'1B / 1B',   avail:'09/15/2026', base:985.00 },
+      { prop:'The Estates',          plan:'EST-22', type:'3B / 2B',   avail:'10/15/2026', base:1875.00 },
+      { prop:'Willow Creek',         plan:'WC-7',   type:'2B / 1B',   avail:'09/01/2026', base:1125.00 },
+      { prop:'Greenbriar Village',   plan:'GB-31',  type:'2B / 2B',   avail:'11/01/2026', base:1340.00 },
+      { prop:'Oakwood Manor',        plan:'OAK-5',  type:'1B / 1B',   avail:'09/30/2026', base:890.00 },
+      { prop:'Pinewood Place',       plan:'PW-18',  type:'2B / 2B',   avail:'10/01/2026', base:1195.00 },
+      { prop:'Cedar Ridge',          plan:'CR-9',   type:'SFH',       avail:'11/15/2026', base:2100.00 },
+      { prop:'The Highlands',        plan:'HL-2',   type:'3B / 2.5B', avail:'12/01/2026', base:2250.00 },
+      { prop:'Valley Forge',         plan:'VF-6',   type:'1B / 1B',   avail:'09/15/2026', base:940.00 },
+      { prop:'The Arbors',           plan:'AR-14',  type:'2B / 2B',   avail:'10/31/2026', base:1080.00 },
+      { prop:'Stonegate Village',    plan:'SG-8',   type:'2B / 2B',   avail:'11/01/2026', base:1260.00 },
+      { prop:'The Hamptons',         plan:'HAM-12', type:'2B / 2B',   avail:'09/01/2026', base:1300.00 },
+      { prop:'The Hamptons',         plan:'HAM-8',  type:'SFH',       avail:'12/31/2026', base:2500.00 }
+    ].filter(l => this.ilsOn(l.prop));
+    // The mock's worked examples: properties outside the demo portfolio with hand-set pricing states.
+    // A half-published mix only makes sense mid-rollout, so they sit out the other scenarios.
+    if ((this.state.scenario || 'on') !== 'mid') return port;
     return [
       { prop:'Clearcreek Condominiums', plan:'CC1141', type:'2B / 2B', avail:'12/31/2026', base:1150.00, total:1254.75, fixed:{ pill:'Price + Fees', total:true } },
       { prop:'1127 Blackwell',          plan:'2',      type:'SFH',     avail:'12/31/2026', base:null, rmErrors:6 },
       { prop:'Kirby',                   plan:'3',      type:'2B / 2B', avail:'12/31/2026', base:1300.00, fixed:{ pill:'Price', warn:'Fee Transparency Issue - 12 charges need details' } },
       { prop:'Timber Trail',            plan:'Timber', type:'SFH',     avail:'12/31/2026', base:2350.00, total:2500.00, fixed:{ pill:'Price + Fees', total:true } },
-      { prop:'Sheehan',                 plan:'2',      type:'2B / 2B', avail:'12/31/2026', base:750.00, fixed:{ pill:'Price', legacy:true } },
-      { prop:'Riverview Apartments', plan:'RV-114', type:'2B / 2B', avail:'12/31/2026', base:1254.75 },
-      { prop:'Riverview Apartments', plan:'RV-3C',  type:'1B / 1B', avail:'12/31/2026', base:1050.00 },
-      { prop:'The Hamptons',         plan:'HAM-12', type:'2B / 2B', avail:'12/31/2026', base:1300.00 },
-      { prop:'The Hamptons',         plan:'HAM-8',  type:'SFH',     avail:'12/31/2026', base:2500.00 },
-      { prop:'The Berkshires',       plan:'BK-2',   type:'2B / 2B', avail:'12/31/2026', base:750.00 }
-    ];
+      { prop:'Sheehan',                 plan:'2',      type:'2B / 2B', avail:'12/31/2026', base:750.00, fixed:{ pill:'Price', legacy:true } }
+    ].concat(port);
   }
   // Required recurring charges that ride on top of base rent in the total monthly price.
   ltMonthlyFees(p){
@@ -1674,6 +1785,8 @@ class Component extends DCLogic {
     const rows = all
       .filter(l => filt === 'all' || l.prop === filt)
       .filter(l => !this.state.ltErrOnly || l.rmErrors || (l.fixed || this.ltStatus(l.prop)).warn);
+    // Nothing to warn about once every listing already advertises complete pricing.
+    const needsFT = all.some(l => { const st = l.fixed || this.ltStatus(l.prop); return !st.total || !!st.warn; });
     const banner = `<div style="display:flex;align-items:center;gap:12px;background:#fef4e8;border:1px solid #f6b26b;border-radius:4px;padding:12px 16px">
       <span class="material-symbols-outlined" style="font-size:20px;color:var(--rmx-attention, #f58220);flex:none">warning</span>
       <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">To comply with federal fee transparency requirements, ensure all required monthly fees are included in the price or clearly disclosed in the description. You can do this by centralizing your charges on each property with our new Fee Transparency feature.</span>
@@ -1736,11 +1849,12 @@ class Component extends DCLogic {
         <span data-act="toast" data-arg="Listing actions" style="display:flex;align-items:center;justify-content:center;min-height:35px;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5))">more_vert</span></span>
       </div>`;
     }).join('');
+    const empty = `<div style="background:#fff;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);padding:26px 17px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No listings — no properties are enabled for online listings.</div>`;
     return `<div style="padding:16px 24px 24px;display:flex;flex-direction:column;gap:16px;flex:1;min-height:0">
-      ${banner}
+      ${needsFT ? banner : ''}
       ${toolbar}
       <div style="display:flex;flex-direction:column;gap:6px;flex:1;min-height:0">
-        <div style="overflow-x:auto"><div style="min-width:1100px">${header}${body}</div></div>
+        <div style="overflow-x:auto"><div style="min-width:1100px">${header}${body || empty}</div></div>
         <div style="flex:1"></div>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
           <span style="font-size:12px;color:var(--rmx-error, #eb343c)">ILS providers may require a paid account before your listings can be posted</span>
