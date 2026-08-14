@@ -120,10 +120,10 @@ class Component extends DCLogic {
     kickoff: false,
     kickoffStep: 1,
     // The "Introducing Fee Transparency" launch announcement, also opened from the nav menu. It
-    // starts open because the default "On Rollout" scenario is the day the feature ships.
+    // starts open because the default "On Conversion" scenario is the day the feature ships.
     announce: true,
     announceStep: 1,     // the announcement walks three steps
-    // Which rollout state the whole prototype is showing (nav bar "Test Feature State").
+    // How far through conversion the whole prototype is showing (nav bar "Test Feature State").
     scenario: 'on',
     // Changes made while using the prototype. The seeded history stops at today, so everything in
     // here is something the user did this session.
@@ -1318,7 +1318,7 @@ class Component extends DCLogic {
   }
   // Shared "Add Exception" / "Exception details" modal shell (matches Figma).
   header(){
-    // Prototype-only control: swaps the whole portfolio between rollout states.
+    // Prototype-only control: swaps the whole portfolio between conversion states.
     const sc = this.state.scenario || 'on';
     const srow = (o, i) => `<div data-act="scenSet" data-arg="${o.key}" style="padding:9px 12px;font-size:14px;white-space:nowrap;cursor:pointer;${i?'border-top:1px solid var(--rmx-line, #cedbe7);':''}${sc===o.key?'background:var(--rmx-brand, #008dd5);color:#fff':'color:var(--rmx-brand-dark, #13314c)'}"${sc===o.key?'':` onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''"`}>${o.label}</div>`;
     const scen = `<span style="position:relative;display:flex;align-items:center;gap:8px;flex:none">
@@ -1435,19 +1435,19 @@ class Component extends DCLogic {
   // ---------- Demo scenarios: the nav bar's "Test Feature State" ----------
   // Each scenario rewrites the whole portfolio at once, so every screen — the Properties register, the
   // Fee Transparency tracker, a property's Charges tab, Listings and System Preferences — tells the
-  // same story, and drops the user on the page that state is about.
+  // same story about how far conversion has got, and drops the user on the page that state is about.
   scenarioList(){
     return [
-      { key:'on',    label:'On Rollout' },
-      { key:'mid',   label:'Mid Rollout' },
-      { key:'post',  label:'Post Rollout' },
-      { key:'noils', label:'On Rollout, No ILS' }
+      { key:'on',    label:'On Conversion' },
+      { key:'mid',   label:'Mid Conversion' },
+      { key:'post',  label:'Post Conversion' },
+      { key:'noils', label:'On Conversion, No ILS' }
     ];
   }
   scenarioLabel(){
     const k = this.state.scenario || 'on';
     const hit = this.scenarioList().filter(s => s.key === k)[0];
-    return hit ? hit.label : 'On Rollout';
+    return hit ? hit.label : 'On Conversion';
   }
   // Properties that advertise on online listings. Every other property is marketing-off, so nothing
   // about publishing complete pricing is surfaced for it.
@@ -1470,7 +1470,7 @@ class Component extends DCLogic {
       if (published) plan.published[n] = true;
     };
     if (key === 'mid') {
-      // Mid-rollout is the mixed portfolio: published, published before every detail was filled in,
+      // Mid-conversion is the mixed portfolio: published, published before every detail was filled in,
       // converted but still short, ready to publish, done because they don't advertise, and untouched.
       ['Riverview Apartments','Greenbriar Village'].forEach(n => convert(n, true, true));
       convert('The Windermere', false, true);
@@ -1751,7 +1751,7 @@ class Component extends DCLogic {
       { prop:'The Hamptons',         plan:'HAM-8',  type:'SFH',       avail:'12/31/2026', base:2500.00 }
     ].filter(l => this.ilsOn(l.prop));
     // The mock's worked examples: properties outside the demo portfolio with hand-set pricing states.
-    // A half-published mix only makes sense mid-rollout, so they sit out the other scenarios.
+    // A half-published mix only makes sense mid-conversion, so they sit out the other scenarios.
     if ((this.state.scenario || 'on') !== 'mid') return port;
     return [
       { prop:'Clearcreek Condominiums', plan:'CC1141', type:'2B / 2B', avail:'12/31/2026', base:1150.00, total:1254.75, fixed:{ pill:'Price + Fees', total:true } },
