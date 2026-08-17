@@ -917,6 +917,41 @@ class Component extends DCLogic {
         const mkt = { name: v('bu-name'), marketing: v('bu-marketing'), requirement: v('bu-req'), feeDue: v('bu-due'), schedule: v('bu-sched') };
         const nGen = Object.keys(gen).filter(k => gen[k]).length, nMkt = Object.keys(mkt).filter(k => mkt[k]).length;
         if (!nGen && !nMkt) { this.flash('No changes to apply — every field kept its current value'); break; }
+        // Same rule as the charge form: no two charges of one charge type may share a name at the same
+        // charge level. Applying one set of values to many charges is the easiest way to break it, so
+        // the collision is caught before anything is written — against the other selected charges and
+        // against the ones left alone.
+        const applied = r => {
+          const nr = Object.assign({}, r, { listing: Object.assign({}, r.listing) });
+          Object.keys(gen).forEach(k => { if (gen[k]) nr[k] = gen[k]; });
+          Object.keys(mkt).forEach(k => { if (mkt[k]) nr.listing[k] = mkt[k]; });
+          return nr;
+        };
+        const key = r => [String(r.mits || '').toUpperCase(), String(r.level || 'Property'),
+          String((r.listing && r.listing.name) || '').trim().toLowerCase()].join('|');
+        const clash = (() => {
+          const seen = {};
+          this.profileRows().forEach(r => { if (picked.indexOf(r.id) < 0) seen[key(r)] = r; });
+          let hit = null;
+          this.profileRows().filter(r => picked.indexOf(r.id) >= 0).map(applied).forEach(nr => {
+            const k = key(nr);
+            if (!hit && seen[k]) hit = nr;
+            seen[k] = nr;
+          });
+          return hit;
+        })();
+        if (clash) {
+          const nm = (clash.listing && clash.listing.name || '').trim();
+          const eb = this.q('#bu-err');
+          if (eb) { const t = eb.querySelector('#bu-err-txt');
+            if (t) t.textContent = 'That would leave more than one ' + clash.mits + ' charge '
+              + (nm ? 'named "' + nm + '"' : 'with no name') + ' at the ' + (clash.level || 'Property')
+              + ' level. Give them different names, or update fewer charges at once.';
+            eb.style.display = 'flex'; }
+          else this.flash('That would create duplicate charges');
+          break;
+        }
+        const eb0 = this.q('#bu-err'); if (eb0) eb0.style.display = 'none';
         this.setProfileRows(rows => rows.map(r => {
           if (picked.indexOf(r.id) < 0) return r;
           const nr = Object.assign({}, r);
@@ -2938,6 +2973,10 @@ class Component extends DCLogic {
         <div style="flex:1;min-height:0;overflow-y:auto;padding:14px 18px 4px">
           <div style="font-size:12px;color:var(--rmx-text, #666666);line-height:1.5;margin-bottom:14px">Select the fields you want to update. Only fields that all selected charges share will display.</div>
           ${sharedNote}
+          <div id="bu-err" style="display:none;align-items:flex-start;gap:10px;background:#fbe9e9;border:1px solid var(--rmx-error, #eb343c);border-radius:4px;padding:11px 14px;margin-bottom:14px">
+            <span class="material-symbols-outlined" style="font-size:18px;color:var(--rmx-error, #eb343c);flex:none;margin-top:1px">error</span>
+            <span id="bu-err-txt" style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5"></span>
+          </div>
           <div style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3);margin-bottom:3px">Charges</div>
           <div style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);margin-bottom:14px">${sel.length} charge${sel.length===1?'':'s'} selected</div>
           ${sect('gen','General Details', u.gen, genFields)}
