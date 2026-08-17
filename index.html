@@ -169,6 +169,9 @@ class Component extends DCLogic {
     spBanner: true, // System Preferences Fee Transparency banner not yet dismissed
     ltErrOnly: false, // Listings page: hide listings without errors
     ltErr: null, // { i, open } — Listing Errors popup for one listing
+    // Charges register columns: chgCols is the chosen keys in order (null = defaults), colNames holds
+    // any renamed headers, colSetup opens the Customize Column Setup dialog.
+    chgCols: null, colNames: {}, colSetup: false,
     ftFilter: 'all', // tracker Status filter: all | ready | needs | none | done
     // "Charge Exceptions" overlay: { id }. A charge's own exceptions live on the row as
     // exclFrom:{ types:[], units:[], prop:true }.
@@ -705,6 +708,13 @@ class Component extends DCLogic {
       case 'mktAdvSave': this.setState({ mktAdv: false }); this.flash('Advanced settings saved'); break;
       case 'ltPropSet': this.setState({ ltProp: arg }); break;
       case 'ltErrToggle': this.setState(s => ({ ltErrOnly: !s.ltErrOnly })); break;
+      case 'colSetupOpen': this.setState({ colSetup: true }); break;
+      case 'colSetupClose': this.setState({ colSetup: false }); break;
+      case 'colSetupApply': { const r = this.colSetupRead();
+        if (!r || !r.keys.length) { this.flash('Select at least one column'); break; }
+        this.setState({ chgCols: r.keys, colNames: r.names, colSetup: false });
+        this.flash('Columns updated');
+        break; }
       case 'ltErrOpen': this.setState({ ltErr: { i: parseInt(arg, 10) || 0, open: { rm: true } } }); break;
       case 'ltErrClose': this.setState({ ltErr: null }); break;
       case 'ltErrSect': this.setState(s => { const c = s.ltErr, o = Object.assign({}, c.open || {});
@@ -2552,6 +2562,185 @@ class Component extends DCLogic {
       </div>`;
   }
   // Recurring / One-Time subtable inside a profile section.
+  // Charges register columns: everything Customize Column Setup can offer. Selection and order live
+  // in state; each key's cell renderer is built in profileTable, where the row is in scope.
+  chargeColDefs(){
+    return [
+      { key:'ctype',    label:'Charge Type',           w:'120px', base:true },
+      { key:'comment',  label:'Comment',                          base:true },
+      // Wherever the property advertises, the resident-facing name rides next to the comment.
+      { key:'mktname',  label:'Marketing Name',        w:'150px', base:'ils' },
+      { key:'freq',     label:'Frequency',             w:'110px', base:true, recOnly:true },
+      { key:'from',     label:'From',                  w:'100px', base:true },
+      { key:'to',       label:'To',                    w:'90px',  base:true },
+      { key:'amount',   label:'Amount',                w:'110px', base:true },
+      { key:'level',    label:'Charge Level',          w:'120px', base:true },
+      { key:'ready',    label:'Listing Ready',         w:'130px', base:true, ilsOnly:true },
+      { key:'category', label:'Charge Category',       w:'140px' },
+      { key:'req',      label:'Charge Requirement',    w:'160px' },
+      { key:'due',      label:'Fee Due',               w:'120px' },
+      { key:'sched',    label:'Charge Schedule',       w:'140px', recOnly:true },
+      { key:'mktdesc',  label:'Marketing Description', w:'minmax(200px,1.2fr)' },
+      { key:'method',   label:'Amount Method',         w:'130px' },
+      { key:'refund',   label:'Refundable',            w:'110px' }
+    ];
+  }
+  chargeColDef(k){ return this.chargeColDefs().filter(c => c.key === k)[0]; }
+  chargeColsDefault(){
+    const ils = this.ilsOn();
+    return this.chargeColDefs()
+      .filter(c => c.base === true || (c.base === 'ils' && ils))
+      .filter(c => !(c.ilsOnly && !ils))
+      .map(c => c.key);
+  }
+  chargeCols(){ const s = this.state.chgCols; return (s && s.length) ? s : this.chargeColsDefault(); }
+  chargeColLabel(k){
+    const n = (this.state.colNames || {})[k];
+    if (n) return n;
+    const d = this.chargeColDef(k);
+    return d ? d.label : k;
+  }
+  // Customize Column Setup: both lists are DOM-only, so ticking, dragging and renaming never re-render
+  // (and never wipe) what's been set up. Apply reads the Selected list back out.
+  // The handlers behind the dialog. Defined on render so they always see the current DOM.
+  colSetupJs(){
+    const q = sel => this.rootEl ? this.rootEl.querySelector(sel) : null;
+    const box = (rowEl, on) => {
+      const b = rowEl.firstElementChild;
+      b.style.background = on ? 'var(--rmx-attention, #f58220)' : '#fff';
+      b.style.borderColor = on ? 'var(--rmx-attention, #f58220)' : 'var(--rmx-text-muted, #b3b3b3)';
+      b.innerHTML = on ? '<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>' : '';
+      const handle = rowEl.querySelector('.material-symbols-outlined[style*="grab"]');
+      if (on && !handle) {
+        const h = document.createElement('span');
+        h.className = 'material-symbols-outlined';
+        h.setAttribute('style', 'font-size:18px;color:var(--ac,var(--rmx-brand, #008dd5));flex:none;cursor:grab');
+        h.textContent = 'drag_indicator';
+        rowEl.appendChild(h);
+      } else if (!on && handle) { handle.remove(); }
+      if (on) {
+        rowEl.setAttribute('draggable', 'true');
+        rowEl.ondragstart = e => window.__csDragStart(rowEl, e);
+        rowEl.ondragover = e => e.preventDefault();
+        rowEl.ondrop = e => window.__csDrop(rowEl, e);
+      } else {
+        rowEl.removeAttribute('draggable');
+        rowEl.ondragstart = rowEl.ondragover = rowEl.ondrop = null;
+      }
+    };
+    const move = (rowEl, toSel) => {
+      const list = q(toSel ? '#cs-sel-list' : '#cs-avail-list');
+      if (!list) return;
+      list.appendChild(rowEl);
+      box(rowEl, toSel);
+    };
+    window.__csToggle = (rowEl) => move(rowEl, rowEl.parentElement.id === 'cs-avail-list');
+    window.__csPick = (rowEl) => {
+      [...(this.rootEl ? this.rootEl.querySelectorAll('#cs-sel-list [data-key],#cs-avail-list [data-key]') : [])]
+        .forEach(e => { e.style.background = ''; });
+      rowEl.style.background = '#dbeafb';
+      const name = q('#cs-name');
+      if (name) name.value = rowEl.getAttribute('data-label') || '';
+      this._csPick = rowEl.getAttribute('data-key');
+    };
+    window.__csName = (v) => {
+      const key = this._csPick; if (!key) return;
+      const rowEl = q('[data-key="' + key + '"]'); if (!rowEl) return;
+      rowEl.setAttribute('data-label', v);
+      const lab = rowEl.querySelector('.cs-label');
+      if (lab) lab.textContent = v;
+    };
+    window.__csAll = () => { const a = q('#cs-avail-list'); if (a) [...a.children].forEach(e => move(e, true)); };
+    window.__csClear = () => { const l = q('#cs-sel-list'); if (l) [...l.children].forEach(e => move(e, false)); };
+    window.__csReset = () => {
+      window.__csClear();
+      // Default means the default headers too, not just the default set of columns.
+      this.chargeColDefs().forEach(d => { const e = q('[data-key="' + d.key + '"]'); if (!e) return;
+        e.setAttribute('data-label', d.label);
+        const lab = e.querySelector('.cs-label'); if (lab) lab.textContent = d.label; });
+      this.chargeColsDefault().forEach(k => { const e = q('[data-key="' + k + '"]'); if (e) move(e, true); });
+      const name = q('#cs-name'); if (name) name.value = '';
+      this._csPick = null;
+    };
+    window.__csFind = (v) => {
+      const t = String(v || '').toLowerCase();
+      const a = q('#cs-avail-list'); if (!a) return;
+      [...a.children].forEach(e => { e.style.display = (e.getAttribute('data-label') || '').toLowerCase().indexOf(t) >= 0 ? 'flex' : 'none'; });
+    };
+    window.__csDragStart = (rowEl, e) => { this._csDrag = rowEl; if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'; };
+    window.__csDrop = (rowEl, e) => {
+      e.preventDefault();
+      const from = this._csDrag; if (!from || from === rowEl) return;
+      const r = rowEl.getBoundingClientRect();
+      rowEl.parentElement.insertBefore(from, e.clientY < r.top + r.height / 2 ? rowEl : rowEl.nextSibling);
+      box(from, true);
+    };
+  }
+  // Reads the Selected list back out of the DOM, in order, with any renamed headers.
+  colSetupRead(){
+    const list = this.q('#cs-sel-list');
+    if (!list) return null;
+    const keys = [], names = Object.assign({}, this.state.colNames || {});
+    [...list.children].forEach(e => {
+      const k = e.getAttribute('data-key'); if (!k) return;
+      keys.push(k);
+      const label = e.getAttribute('data-label') || '';
+      const d = this.chargeColDef(k);
+      if (label && d && label !== d.label) names[k] = label; else delete names[k];
+    });
+    return { keys, names };
+  }
+  colSetupHTML(){
+    if (!this.state.colSetup) return '';
+    this.colSetupJs();
+    const esc = v => ('' + (v || '')).replace(/"/g, '&quot;');
+    const sel = this.chargeCols();
+    const defs = this.chargeColDefs();
+    const avail = defs.filter(d => sel.indexOf(d.key) < 0);
+    const ordered = sel.map(k => this.chargeColDef(k)).filter(Boolean);
+    // Row markup is identical in both lists — only which list it sits in decides its state.
+    const row = (d, on) => `<div data-key="${d.key}" data-label="${esc(this.chargeColLabel(d.key))}" ${on?'draggable="true" ondragstart="window.__csDragStart(this,event)" ondragover="event.preventDefault()" ondrop="window.__csDrop(this,event)"':''} onclick="window.__csPick(this)" style="display:flex;align-items:center;gap:12px;padding:9px 12px;cursor:pointer;border-radius:2px">
+        <span onclick="event.stopPropagation();window.__csToggle(this.parentElement)" style="width:18px;height:18px;border-radius:2px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${on?'background:var(--rmx-attention, #f58220);border:1px solid var(--rmx-attention, #f58220)':'background:#fff;border:1px solid var(--rmx-text-muted, #b3b3b3)'}">${on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span>
+        <span class="cs-label" style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${this.chargeColLabel(d.key)}</span>
+        ${on?`<span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,var(--rmx-brand, #008dd5));flex:none;cursor:grab">drag_indicator</span>`:''}
+      </div>`;
+    const link = (t, js) => `<span onclick="${js}" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${t}</span>`;
+    const panel = (title, right, inner, extra) => `<div style="flex:1;min-width:280px;display:flex;flex-direction:column;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 14px">
+          <span style="flex:1;min-width:0;font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title}</span>${right}
+        </div>
+        ${inner}${extra||''}
+      </div>`;
+    const search = `<div style="padding:0 14px 10px"><div style="display:flex;align-items:center;gap:8px;height:36px;box-sizing:border-box;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:0 10px">
+        <span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,var(--rmx-brand, #008dd5))">search</span>
+        <input id="cs-find" placeholder="Find a Column" oninput="window.__csFind(this.value)" style="flex:1;min-width:0;border:none;outline:none;background:transparent;font:italic 400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">
+      </div></div>`;
+    return `<div data-act="colSetupClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:150">
+      <div data-act="noop" style="width:900px;max-width:96vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="flex:none;display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
+          <span style="flex:1;min-width:0;font-size:20px;color:var(--rmx-brand-dark, #13314c)">Customize Column Setup</span>
+          <span data-act="colSetupClose" class="material-symbols-outlined" style="font-size:24px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">close</span>
+        </div>
+        <div style="flex:1;min-height:0;overflow-y:auto;padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px">
+          <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Choose which columns to display on your charges register and drag to reorder. You can also choose to pin the first and/or last columns so they remain fixed while scrolling.</span>
+          <div style="display:flex;gap:16px;align-items:stretch;flex-wrap:wrap">
+            ${panel('Available', link('Select All', 'window.__csAll()'),
+              search + `<div id="cs-avail-list" style="flex:1;min-height:220px;max-height:340px;overflow-y:auto;padding:0 8px 10px">${avail.map(d => row(d, false)).join('')}</div>`)}
+            ${panel('Selected', `${link('Clear All','window.__csClear()')}${link('Reset to Default','window.__csReset()')}`,
+              `<div id="cs-sel-list" ondragover="event.preventDefault()" style="flex:1;min-height:220px;max-height:340px;overflow-y:auto;padding:0 8px 10px;background:var(--rmx-bg-subtle, #f5f8fa)">${ordered.map(d => row(d, true)).join('')}</div>`,
+              `<div style="border-top:1px solid var(--rmx-line, #cedbe7);padding:12px 14px;display:flex;flex-direction:column;gap:5px">
+                <span style="font-size:14px;color:var(--rmx-text, #666666)">Custom Name</span>
+                <input id="cs-name" oninput="window.__csName(this.value)" style="height:36px;box-sizing:border-box;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:0 10px;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);outline:none">
+              </div>`)}
+          </div>
+        </div>
+        <div style="flex:none;display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:14px 20px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7)">
+          <button data-act="toast" data-arg="Column widths reset" class="btn-pri" style="height:38px;min-height:38px;padding:0 20px;border-radius:4px;font-size:14px">Reset Column Widths</button>
+          <button data-act="colSetupApply" class="btn-pri" style="height:38px;min-height:38px;padding:0 26px;border-radius:4px;font-size:14px">Apply</button>
+          <button data-act="colSetupClose" class="btn-out" style="height:38px;min-height:38px;padding:0 22px;border-radius:4px;font-size:14px">Cancel</button>
+        </div>
+      </div></div>`;
+  }
   profileTable(kind, rows, group, opts){
     const rec = kind === 'rec';
     const noLabel = !!(opts && opts.noLabel);
@@ -2563,33 +2752,55 @@ class Component extends DCLogic {
     // rather than squeezing the comment down to an ellipsis.
     const tagged = rows.some(r => this.exclCount(r));
     const cmt = tagged ? 'minmax(260px,1.5fr)' : 'minmax(160px,1fr)';
-    const cols = (bs ? '44px ' : '') + (rec ? (ils ? `120px ${cmt} 110px 100px 90px 110px 120px 130px 40px`
-                            : `120px ${cmt} 110px 100px 90px 110px 120px 40px`)
-                     : (ils ? `120px ${cmt} 100px 90px 110px 120px 130px 40px`
-                            : `120px ${cmt} 100px 90px 110px 120px 40px`));
+    // Frequency and Charge Schedule only mean something on a recurring charge; Listing Ready only on a
+    // property that advertises.
+    const keys = this.chargeCols().filter(k => { const d = this.chargeColDef(k);
+      return d && !(d.recOnly && !rec) && !(d.ilsOnly && !ils); });
+    const widthOf = k => k === 'comment' ? cmt : (this.chargeColDef(k).w || '120px');
+    const cols = (bs ? '44px ' : '') + keys.map(widthOf).join(' ') + ' 40px';
+    const minW = keys.reduce((n, k) => n + (k === 'comment' ? (tagged ? 260 : 160)
+      : parseInt((String(this.chargeColDef(k).w || '120').match(/(\d+)/) || [0, 120])[1], 10)), 0) + 40 + (bs ? 44 : 0);
     const allIds = rows.map(r => r.id).join(',');
     const allOn = rows.length && rows.every(r => bs && bs.sel[r.id]);
     const selBox = (on) => `<span style="width:18px;height:18px;border-radius:2px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${on?'background:var(--rmx-attention, #f58220);border:1px solid var(--rmx-attention, #f58220)':'background:#fff;border:1px solid var(--rmx-text-muted, #b3b3b3)'}">${on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span>`;
     const selHead = !bs ? '' : `<span data-act="bulkSelAll" data-arg="${allIds}" style="display:flex;align-items:center;justify-content:center;padding:8px 0 8px 8px;cursor:pointer">${selBox(allOn)}</span>`;
     const selCell = r => !bs ? '' : `<span data-act="bulkSelToggle" data-arg="${r.id}" style="display:flex;align-items:center;justify-content:center;min-height:44px;padding-left:8px;cursor:pointer">${selBox(!!bs.sel[r.id])}</span>`;
-    const heads = rec ? ['Charge Type','Comment','Frequency','From','To','Amount','Charge Level'].concat(ils?['Listing Ready']:[]).concat([''])
-                      : ['Charge Type','Comment','From','To','Amount','Charge Level'].concat(ils?['Listing Ready']:[]).concat(['']);
-    const hc = (t,i) => `<span style="display:flex;align-items:center;padding:8px 12px${i===0?' 8px 16px':''};font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;${/Amount/.test(t)?'justify-content:flex-end;':''}">${t}</span>`;
+    const heads = keys.map(k => this.chargeColLabel(k));
+    // The last header cell opens Customize Column Setup.
+    const colBtn = `<span data-act="colSetupOpen" title="Customize Column Setup" style="display:flex;align-items:center;justify-content:center;padding:8px 0;cursor:pointer"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,var(--rmx-brand, #008dd5))">view_column</span></span>`;
+    const hc = (t,i) => `<span style="display:flex;align-items:center;padding:8px 12px${i===0?' 8px 16px':''};font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;${keys[i]==='amount'?'justify-content:flex-end;':''}">${t}</span>`;
     const cell = (t,extra) => `<span style="display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:8px 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
     const body = rows.length ? rows.map(r => {
       const kebab = `<span data-act="rowMenu" data-arg="${r.id}" style="display:flex;align-items:center;justify-content:center;min-height:44px;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5))">more_vert</span></span>`;
-      const mid = rec
-        ? cell(this.freqNum(r)||'—') + cell(r.from||'—') + cell(r.to||'-')
-        : cell(r.from||'—') + cell(r.to||'-');
+      const L = this.resolvedListing(r);
+      const pad = (i) => i === 0 ? 'padding-left:16px' : '';
+      const render = {
+        ctype: (i) => r.propSpecific
+          ? `<span style="display:flex;align-items:center;gap:6px;min-height:44px;box-sizing:border-box;padding:8px 12px${i===0?' 8px 16px':''};font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${r.mits}<span class="tipw" style="flex:none" onclick="event.stopPropagation()"><span class="material-symbols-outlined" style="font-size:16px;color:var(--rmx-text-muted, #b3b3b3);cursor:default">lock</span><span class="tip" style="width:250px">${r.propSpecific==='NSF'?'NSF fee details are pulled from the property details':'Late fees are property specific and have special circumstances'} — only the marketing details can be edited from the Charges tab.</span></span></span>`
+          : cell(r.mits, pad(i)),
+        comment: (i) => `<span style="display:flex;align-items:center;gap:8px;min-height:44px;box-sizing:border-box;padding:8px 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);min-width:0;${pad(i)}"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.desc||r.name}</span>${this.exclTag(r)}</span>`,
+        mktname: (i) => cell(L.name || '—', pad(i)),
+        freq: (i) => cell(this.freqNum(r)||'—', pad(i)),
+        from: (i) => cell(r.from||'—', pad(i)),
+        to: (i) => cell(r.to||'-', pad(i)),
+        amount: (i) => cell(String(r.amount||'').replace(/^\$/,''), 'justify-content:flex-end;text-align:right'),
+        level: (i) => `<span style="display:flex;align-items:center;min-height:44px;padding:8px 12px">${this.chargeLevelPill(r)}</span>`,
+        ready: (i) => `<span style="display:flex;align-items:center;min-height:44px;padding:8px 12px">${this.mitsStatusCell(r)}</span>`,
+        category: (i) => cell(L.category || '—', pad(i)),
+        req: (i) => cell(L.requirement || '—', pad(i)),
+        due: (i) => cell(L.feeDue || '—', pad(i)),
+        sched: (i) => cell(L.schedule || '—', pad(i)),
+        mktdesc: (i) => cell(L.marketing || '—', pad(i)),
+        method: (i) => cell(r.amtMethod || '—', pad(i)),
+        refund: (i) => cell(L.refundable ? 'Yes' : 'No', pad(i))
+      };
       return `<div data-act="${bs?'bulkSelToggle':'rowDetails'}" data-arg="${r.id}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);cursor:pointer" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background=''">
-        ${selCell(r)}${r.propSpecific ? `<span style="display:flex;align-items:center;gap:6px;min-height:44px;box-sizing:border-box;padding:8px 12px 8px 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${r.mits}<span class="tipw" style="flex:none" onclick="event.stopPropagation()"><span class="material-symbols-outlined" style="font-size:16px;color:var(--rmx-text-muted, #b3b3b3);cursor:default">lock</span><span class="tip" style="width:250px">${r.propSpecific==='NSF'?'NSF fee details are pulled from the property details':'Late fees are property specific and have special circumstances'} — only the marketing details can be edited from the Charges tab.</span></span></span>` : cell(r.mits,'padding-left:16px')}<span style="display:flex;align-items:center;gap:8px;min-height:44px;box-sizing:border-box;padding:8px 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);min-width:0"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.desc||r.name}</span>${this.exclTag(r)}</span>${mid}${cell(String(r.amount||'').replace(/^\$/,''),'justify-content:flex-end;text-align:right')}
-        <span style="display:flex;align-items:center;min-height:44px;padding:8px 12px">${this.chargeLevelPill(r)}</span>
-        ${ils?`<span style="display:flex;align-items:center;min-height:44px;padding:8px 12px">${this.mitsStatusCell(r)}</span>`:''}${kebab}</div>`;
+        ${selCell(r)}${keys.map((k, i) => render[k] ? render[k](i) : cell('—')).join('')}${kebab}</div>`;
     }).join('') : `<div style="padding:14px 16px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3);border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)">No ${rec?'recurring':'one-time'} charges in this section.</div>`;
     const add = `<div data-act="addopen" data-arg="${group}" style="background:#f5f9fc;padding:9px 16px;cursor:pointer"><span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))"><span class="material-symbols-outlined" style="font-size:18px">add</span>Add ${rec?'Recurring':'One-Time'} Charge</span></div>`;
     return `${noLabel?'':`<div style="font-size:14px;color:var(--rmx-text, #666666);padding:12px 20px 8px">${rec?'Recurring':'One-Time'}</div>`}
-      <div style="padding:${noLabel?'4px':'0'} 20px 0;overflow-x:auto"><div style="min-width:${(rec?(ils?1020:900):(ils?950:830)) + (tagged?100:0) + (bs?44:0)}px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
-        <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7)">${selHead}${heads.map(hc).join('')}</div>
+      <div style="padding:${noLabel?'4px':'0'} 20px 0;overflow-x:auto"><div style="min-width:${minW}px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
+        <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7)">${selHead}${heads.map(hc).join('')}${colBtn}</div>
         ${body}${add}</div></div>`;
   }
   // A charge's requirement comes from its marketing details; charges that haven't had one selected
@@ -4818,6 +5029,7 @@ class Component extends DCLogic {
     out += this.setupExitHTML();
     out += this.utDelHTML();
     out += this.ltErrHTML();
+    out += this.colSetupHTML();
     out += this.addPropHTML();
     out += this.pfFilterHTML();
     out += this.pubModalHTML();
