@@ -148,8 +148,6 @@ class Component extends DCLogic {
     recView: null,
     recViewNote: true,
     rowMenu: null,
-    // The register's "Fee Transparency" column is opt-in, so the default view matches today's.
-    showProfileCol: false,
     // Properties whose complete pricing has been published from the Fee Transparency page.
     publishedProps: {},
     pubModal: null, // { prop, ack } — Publish Complete Pricing confirmation
@@ -738,7 +736,6 @@ class Component extends DCLogic {
         props.forEach(p => this.logChange(p, 'Fee Transparency', 'Complete pricing published to listings', p));
         this.flash('Complete pricing published for ' + (props.length === 1 ? props[0] : props.length + ' properties')); break; }
       case 'ftFilterSet': this.setState({ ftFilter: arg }); break;
-      case 'toggleProfileCol': this.setState(s => ({ showProfileCol: !s.showProfileCol })); break;
       case 'navProperty': this.go('property', arg ? { property: arg, propTab: 'General' } : { propTab: 'General' }); break;
       case 'navUnit': this.go('unit', { unit: arg }); break;
       case 'proptab':
@@ -1553,7 +1550,7 @@ class Component extends DCLogic {
       copyFees: null, bulkSetup: null, pricePreview: null, profMenu: null, profHist: null,
       recView: null, recViewNote: true, rowMenu: null, pubModal: null, ftSel: null,
       mktSetup: false, mktAdv: false, petType: null, spBanner: true,
-      lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false, showProfileCol: false
+      lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false
     });
     window.scrollTo(0, 0);
   }
@@ -2185,14 +2182,13 @@ class Component extends DCLogic {
     // In selection mode a checkbox column leads the grid and rows select instead of navigating.
     const bs = this.state.bulkSetup;
     const pickable = (n) => this.profStatus(n) !== 'active';
-    const showProf = !!this.state.showProfileCol;
-    const cols = (bs ? '44px ' : '') + '10px minmax(180px,1.2fr) ' + (showProf ? '180px ' : '') + '120px minmax(200px,1.4fr) 150px minmax(230px,1.6fr) minmax(230px,1.6fr) 44px';
+    const cols = (bs ? '44px ' : '') + '10px minmax(180px,1.2fr) 120px minmax(200px,1.4fr) 150px minmax(230px,1.6fr) minmax(230px,1.6fr) 44px';
     const hcell = (t) => `<span style="display:flex;align-items:center;height:28px;box-sizing:border-box;padding:4px 8px;font-size:14px;font-weight:500;letter-spacing:0.5px;color:#fff;border-right:1px solid rgba(255,255,255,0.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>`;
     const box = (on) => `<span style="width:18px;height:18px;border-radius:2px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${on?'background:var(--rmx-attention, #f58220);border:1px solid var(--rmx-attention, #f58220)':'background:#fff;border:1px solid var(--rmx-text-muted, #b3b3b3)'}">${on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span>`;
     const avail = this.bulkSetupCandidates().map(p => p.name);
     const allOn = bs && avail.length && avail.every(n => bs.sel[n]);
     const headBox = !bs ? '' : `<span data-act="bulkSetupAll" style="display:flex;align-items:center;justify-content:center;height:28px;cursor:pointer">${box(!!allOn)}</span>`;
-    const heads = ['Name'].concat(showProf ? ['Fee Transparency'] : []).concat(['Short Name','Email','Manager Name','Primary Address','Billing Address']);
+    const heads = ['Name','Short Name','Email','Manager Name','Primary Address','Billing Address'];
     const header = `<div style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">${headBox}<span></span>${heads.map(hcell).join('')}<span style="display:flex;align-items:center;justify-content:center;height:28px"><span class="material-symbols-outlined" style="font-size:20px;color:#fff">view_column</span></span></div>`;
     const cell = (t, extra) => `<span style="padding:8px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
     // The whole row navigates, so the name is plain navy text rather than a link. The kebab keeps its
@@ -2201,7 +2197,6 @@ class Component extends DCLogic {
       ${!bs ? '' : `<span style="display:flex;align-items:center;justify-content:center">${pickable(r.name) ? box(!!bs.sel[r.name]) : ''}</span>`}
       <span style="align-self:stretch;background:${r.color||'transparent'}"></span>
       <span style="padding:8px;overflow:hidden"><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${r.name}</span></span>
-      ${!showProf ? '' : `<span style="display:flex;align-items:center;justify-content:center;padding:8px">${this.usingProfile(r.name)?`<span class="material-symbols-outlined" style="font-size:20px;color:var(--rmx-success, #6eb744)" title="Fee Transparency is on">check_circle</span>`:''}</span>`}
       ${cell(r.short)}
       <span style="padding:8px;display:flex;align-items:center;gap:8px;min-width:0"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,var(--rmx-brand, #008dd5));flex:none">mail</span><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.email}</span></span>
       ${cell(r.manager)}${cell(r.addr)}${cell(r.billing)}
@@ -2252,12 +2247,11 @@ class Component extends DCLogic {
           <label style="display:inline-flex;align-items:center;gap:8px;height:36px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><input type="checkbox" style="width:18px;height:18px;accent-color:var(--rmx-attention, #f58220);margin:0">Show Inactive</label>
           <!-- data-act sits on the input, not the label: a label click activates the input too, which
                would run the action twice and cancel itself out. -->
-          <label style="display:inline-flex;align-items:center;gap:8px;height:36px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap"><input type="checkbox" data-act="toggleProfileCol" ${showProf?'checked':''} style="width:18px;height:18px;accent-color:var(--rmx-attention, #f58220);margin:0">Fee Transparency</label>
         </div>
         <button data-act="addPropOpen" class="btn-pri" style="height:36px;padding:8px 16px 8px 8px;border-radius:4px;font:400 14px Roboto,sans-serif;display:inline-flex;align-items:center;gap:8px"><span class="material-symbols-outlined" style="font-size:20px">add_circle</span>Add Property</button>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px">
-        <div style="border:1px solid var(--rmx-text-muted, #b3b3b3);border-radius:4px;overflow:hidden;background:#fff"><div style="overflow-x:auto"><div style="min-width:${showProf?1240:1060}px">${header}${body}</div></div></div>
+        <div style="border:1px solid var(--rmx-text-muted, #b3b3b3);border-radius:4px;overflow:hidden;background:#fff"><div style="overflow-x:auto"><div style="min-width:1060px">${header}${body}</div></div></div>
         <div style="display:flex;justify-content:flex-end"><span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">${rows.length} of 42 Properties</span></div>
       </div></div>`;
   }
