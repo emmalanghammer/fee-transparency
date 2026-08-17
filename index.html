@@ -168,6 +168,7 @@ class Component extends DCLogic {
     spNav: 'Tenant Charge Setup', // System Preferences left-nav selection
     spBanner: true, // System Preferences Fee Transparency banner not yet dismissed
     ltErrOnly: false, // Listings page: hide listings without errors
+    ltErr: null, // { i, open } — Listing Errors popup for one listing
     ftFilter: 'all', // tracker Status filter: all | ready | needs | none | done
     // "Charge Exceptions" overlay: { id }. A charge's own exceptions live on the row as
     // exclFrom:{ types:[], units:[], prop:true }.
@@ -704,6 +705,10 @@ class Component extends DCLogic {
       case 'mktAdvSave': this.setState({ mktAdv: false }); this.flash('Advanced settings saved'); break;
       case 'ltPropSet': this.setState({ ltProp: arg }); break;
       case 'ltErrToggle': this.setState(s => ({ ltErrOnly: !s.ltErrOnly })); break;
+      case 'ltErrOpen': this.setState({ ltErr: { i: parseInt(arg, 10) || 0, open: { rm: true } } }); break;
+      case 'ltErrClose': this.setState({ ltErr: null }); break;
+      case 'ltErrSect': this.setState(s => { const c = s.ltErr, o = Object.assign({}, c.open || {});
+        o[arg] = !o[arg]; return { ltErr: Object.assign({}, c, { open: o }) }; }); break;
       // Select Properties dialog: pick who the toolbar action applies to, then hand off.
       case 'ftSelOpen': this.setState({ ftSel: { mode: arg } }); break;
       case 'ftSelCancel': this.setState({ ftSel: null }); break;
@@ -1792,7 +1797,7 @@ class Component extends DCLogic {
     return [
       { prop:'Clearcreek Condominiums', plan:'CC1141', type:'2B / 2B', avail:'12/31/2026', base:1150.00, total:1254.75, fixed:{ pill:'Price + Fees', total:true } },
       { prop:'1127 Blackwell',          plan:'2',      type:'SFH',     avail:'12/31/2026', base:null, rmErrors:6 },
-      { prop:'Kirby',                   plan:'3',      type:'2B / 2B', avail:'12/31/2026', base:1300.00, fixed:{ pill:'Price', warn:'Fee Transparency Issue - 12 charges need details' } },
+      { prop:'Kirby',                   plan:'3',      type:'2B / 2B', avail:'12/31/2026', base:1300.00, tzErrors:2, fixed:{ pill:'Price', warn:'Fee Transparency Issue - 12 charges need details' } },
       { prop:'Timber Trail',            plan:'Timber', type:'SFH',     avail:'12/31/2026', base:2350.00, total:2500.00, fixed:{ pill:'Price + Fees', total:true } },
       { prop:'Sheehan',                 plan:'2',      type:'2B / 2B', avail:'12/31/2026', base:750.00, fixed:{ pill:'Price', legacy:true } }
     ].concat(port);
@@ -1813,6 +1818,63 @@ class Component extends DCLogic {
     if (short) return { pill: 'Price', converted: true, warn: `Fee Transparency Issue - ${short} charge${short===1?'':'s'} need${short===1?'s':''} details` };
     return published ? { pill: 'Price + Fees', total: true, converted: true } : { pill: 'Price', converted: true };
   }
+  // Everything the Errors column counts, split the way the popup groups it. Rent Manager and
+  // Trulia/Zillow errors are feed-level problems carried on the row; Fee Transparency errors are the
+  // charges on that property still missing required listing fields.
+  ltErrorsFor(l){
+    const RM = ['Company City is missing or blank','Company Info is missing or blank',
+      'Company State is missing or blank','Company Street Address is missing or blank',
+      'Company ZIP is missing or blank','Price is missing or blank',
+      'Bedrooms is missing or blank','Property photo is missing or blank'];
+    const TZ = ['Listing description is longer than the provider allows',
+      'Contact phone number is not in a valid format','Photo resolution is below the provider minimum'];
+    const take = (pool, n) => Array.from({ length: Math.max(0, n) }, (_, i) => pool[i % pool.length]);
+    const charge = r => `${(r.listing && r.listing.name) || r.desc || r.mits} is missing ${this.mitsMissing(r).join(', ')}`;
+    let ft;
+    if (l.fixed) {
+      // Properties outside the demo portfolio have a fixed count; the seeded charges give it names.
+      const m = String(l.fixed.warn || '').match(/(\d+)\s+charge/);
+      const n = m ? +m[1] : 0;
+      const seeded = this.setupRows('').filter(r => !this.mitsComplete(r));
+      ft = Array.from({ length: n }, (_, i) => charge(seeded[i % Math.max(1, seeded.length)]));
+    } else {
+      ft = this.appliedRows(l.prop).filter(r => !this.mitsComplete(r)).map(charge);
+    }
+    return { rm: take(RM, l.rmErrors || 0), tz: take(TZ, l.tzErrors || 0), ft: ft };
+  }
+  ltErrCount(l){ const e = this.ltErrorsFor(l); return e.rm.length + e.tz.length + e.ft.length; }
+  // Listing Errors popup: one collapsible section per source, Rent Manager open first.
+  ltErrHTML(){
+    const st = this.state.ltErr; if (!st) return '';
+    const l = this.listingsData()[st.i]; if (!l) return '';
+    const e = this.ltErrorsFor(l);
+    const open = st.open || {};
+    const sect = (key, title, items) => `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
+        <div ${items.length?`data-act="ltErrSect" data-arg="${key}"`:''} style="display:flex;align-items:center;gap:12px;padding:13px 16px;${items.length?'cursor:pointer;':''}${items.length&&open[key]?'border-bottom:1px solid var(--rmx-line, #cedbe7)':''}">
+          <span style="flex:1;min-width:0;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title} (${items.length} error${items.length===1?'':'s'})</span>
+          ${items.length?`<span class="material-symbols-outlined" style="font-size:20px;color:var(--rmx-text, #666666)">${open[key]?'keyboard_arrow_up':'keyboard_arrow_down'}</span>`:''}
+        </div>
+        ${items.length && open[key] ? `<div style="display:flex;flex-direction:column;gap:12px;padding:14px 16px 16px">${items.map((t,i)=>`<div style="display:flex;gap:12px">
+          <span style="flex:none;min-width:18px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))">${i+1}.</span>
+          <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.45">${t}</span>
+        </div>`).join('')}</div>` : ''}
+      </div>`;
+    return `<div data-act="ltErrClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:150">
+      <div data-act="noop" style="width:640px;max-width:94vw;max-height:90vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="flex:none;display:flex;align-items:center;gap:12px;padding:13px 20px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
+          <span style="font-size:20px;color:var(--rmx-brand-dark, #13314c)">Listing Errors: ${l.prop} ${l.plan} (Property)</span><div style="flex:1"></div>
+          <span data-act="ltErrClose" class="material-symbols-outlined" style="font-size:22px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">close</span>
+        </div>
+        <div style="flex:1;min-height:0;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:14px">
+          ${sect('rm', 'Rent Manager Errors', e.rm)}
+          ${sect('tz', 'Trulia/Zillow Errors', e.tz)}
+          ${sect('ft', 'Fee Transparency Errors', e.ft)}
+        </div>
+        <div style="flex:none;display:flex;align-items:center;justify-content:flex-end;padding:14px 20px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7)">
+          <button data-act="ltErrClose" class="btn-pri" style="height:38px;min-height:38px;padding:0 26px;border-radius:4px;font-size:14px">OK</button>
+        </div>
+      </div></div>`;
+  }
   listingsBody(){
     const money = (n) => n == null ? '-' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const all = this.listingsData();
@@ -1820,7 +1882,7 @@ class Component extends DCLogic {
     const filt = this.state.ltProp || 'all';
     const rows = all
       .filter(l => filt === 'all' || l.prop === filt)
-      .filter(l => !this.state.ltErrOnly || l.rmErrors || (l.fixed || this.ltStatus(l.prop)).warn);
+      .filter(l => !this.state.ltErrOnly || this.ltErrCount(l) > 0);
     // Nothing to warn about once every listing already advertises complete pricing.
     const needsFT = all.some(l => { const st = l.fixed || this.ltStatus(l.prop); return !st.total || !!st.warn; });
     const banner = `<div style="display:flex;align-items:center;gap:12px;background:#fef4e8;border:1px solid #f6b26b;border-radius:4px;padding:12px 16px">
@@ -1870,18 +1932,18 @@ class Component extends DCLogic {
         ? (l.total != null ? money(l.total) : '-')
         : (live.converted && l.base != null ? money(l.base + this.ltMonthlyFees(l.prop)) : '-');
       const pricing = l.base == null ? '<span style="color:var(--rmx-brand-dark, #13314c)">-</span>' : pill(st.pill, st.total);
-      const err = l.rmErrors
-        ? `<span class="material-symbols-outlined" style="font-size:18px;color:var(--rmx-error, #eb343c);font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">error</span><span>${l.rmErrors} Rent Manager errors</span>`
-        : st.warn
-        ? `<span class="material-symbols-outlined" style="font-size:18px;color:var(--rmx-notice, #faa61c)">warning</span><span>${st.warn}</span>`
-        : `<span class="material-symbols-outlined" style="font-size:18px;color:var(--rmx-success, #6eb744);font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">check_circle</span><span>None</span>`;
+      // One icon and a count — the popup is where the errors themselves live.
+      const nErr = this.ltErrCount(l);
+      const err = nErr
+        ? `<span class="material-symbols-outlined" style="font-size:18px;color:var(--rmx-error, #eb343c);font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">error</span><span>${nErr} error${nErr===1?'':'s'}</span>`
+        : `<span class="material-symbols-outlined" style="font-size:18px;color:var(--rmx-success, #6eb744);font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">check_circle</span>`;
       return `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff">
         ${cell(l.prop, 'padding-left:17px')}
         ${cell(l.plan)}${cell(l.type)}${cell(l.avail)}
         ${cell(basePrice, 'justify-content:flex-end;text-align:right')}
         ${cell(total, 'justify-content:flex-end;text-align:right')}
         <span style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px">${pricing}</span>
-        <span style="display:flex;align-items:center;gap:8px;min-height:35px;box-sizing:border-box;padding:0 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden">${err}</span>
+        <span ${nErr?`data-act="ltErrOpen" data-arg="${all.indexOf(l)}"`:''} style="display:flex;align-items:center;gap:8px;min-height:35px;box-sizing:border-box;padding:0 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;${nErr?'cursor:pointer':''}">${err}</span>
         <span data-act="toast" data-arg="Listing actions" style="display:flex;align-items:center;justify-content:center;min-height:35px;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5))">more_vert</span></span>
       </div>`;
     }).join('');
@@ -4744,6 +4806,7 @@ class Component extends DCLogic {
     out += this.setupHTML();
     out += this.setupExitHTML();
     out += this.utDelHTML();
+    out += this.ltErrHTML();
     out += this.addPropHTML();
     out += this.pfFilterHTML();
     out += this.pubModalHTML();
