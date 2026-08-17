@@ -1022,8 +1022,9 @@ class Component extends DCLogic {
       case 'profMenuClose': this.setState({ profMenu: null }); break;
 
       // ---- pricing preview ----
-      case 'pricePreviewOpen': this.setState({ pricePreview: { prop: this.state.property, unit: (this.units()[1]||{}).u || '1B', opt: {}, sitOpen: true } }); break;
+      case 'pricePreviewOpen': this.setState({ pricePreview: { prop: this.state.property, unit: (this.units()[1]||{}).u || '1B', term: '12 Months', opt: {}, sitOpen: true } }); break;
       case 'pricePreviewClose': this.setState({ pricePreview: null }); break;
+      case 'ppTerm': this.setState(s => ({ pricePreview: Object.assign({}, s.pricePreview, { term: arg }) })); break;
       case 'ppUnit': if (arg) this.setState(s => ({ pricePreview: Object.assign({}, s.pricePreview, { unit: arg }) })); break;
       case 'ppOpt': this.setState(s => { const o = Object.assign({}, s.pricePreview.opt); if (o[arg]) delete o[arg]; else o[arg] = true; return { pricePreview: Object.assign({}, s.pricePreview, { opt: o }) }; }); break;
       case 'ppQty': { const [id, d] = String(arg).split(':');
@@ -3353,9 +3354,14 @@ class Component extends DCLogic {
           : `${p.prop} isn't marketed on online listings, so every charge is shown here to preview how a listing would look.`}</div>
         <div style="flex:1;min-height:0;overflow-y:auto;display:flex;gap:0;flex-wrap:wrap">
           <div style="flex:1;min-width:300px;padding:16px 20px;display:flex;flex-direction:column;gap:14px;box-sizing:border-box">
-            <div style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);padding-bottom:8px">Select Unit</div>
-            <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:14px;color:var(--rmx-text, #666666)">Property</span><div style="display:flex;align-items:center;height:36px;box-sizing:border-box;padding:0 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.prop}</div></div>
+            <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);padding-bottom:8px">
+              <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Select Unit</span>
+              <div style="flex:1"></div>
+              <span style="font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap">Property</span>
+              <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.prop}</span>
+            </div>
             <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:14px;color:var(--rmx-text, #666666)">Unit</span>${this.singleSelect('pp-unit', this.units().map(u=>u.u), p.unit, { act:'ppUnit', noSearch:true })}</div>
+            <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:14px;color:var(--rmx-text, #666666)">Lease Terms</span>${this.singleSelect('pp-term', ['12 Months','6 Months','18 Months','24 Months','Month-to-Month'], p.term || '12 Months', { act:'ppTerm', noSearch:true })}</div>
             <div style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);padding-bottom:8px;margin-top:4px">Select Optional Fees</div>
             ${optRows.length ? optRows.map(optCb).join('') : '<span style="font-size:12px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No optional fees ' + (ilsProp ? 'set to show on listings yet.' : 'on this profile yet.') + '</span>'}
             <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden;margin-top:4px">
