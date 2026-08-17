@@ -3164,11 +3164,7 @@ class Component extends DCLogic {
   // Shared wording for the unit-type warning: in the charge form while adding or editing, and in the
   // confirmation before a unit-type charge is deleted.
   utWarnText(name){
-    const n = name ? this.utUnitCount(name) : 0;
-    const where = name
-      ? `all <strong style="color:var(--rmx-brand-dark, #13314c)">${n} ${name}</strong> unit${n===1?'':'s'}`
-      : 'every unit with the selected unit type';
-    return `Unit type charge: adding, editing, or deleting this charge changes what ${where} ${(!name || n === 1) ? 'is' : 'are'} charged, including units that are already occupied.`;
+    return `Any changes made to this charge will affect <strong style="color:var(--rmx-brand-dark, #13314c)">all</strong> selected properties for the ${name || 'selected'} unit type.`;
   }
   utData(){ const seen=[]; this.units().forEach(u=>{ if(!seen.some(t=>t.name===u.type)) seen.push({name:u.type,units:0,occ:0}); }); this.units().forEach(u=>{ const t=seen.find(x=>x.name===u.type); t.units++; if(u.tenant&&!/vacant/i.test(u.tenant)) t.occ++; }); return seen; }
   // Selected-scope header row (mirrors the property scoreboard) used by the Unit Type Fees and Unit Fees tabs.
