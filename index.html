@@ -1147,6 +1147,18 @@ class Component extends DCLogic {
         b.style.display = 'inline-flex'; }
       return false; }
     const eb = this.q('#m-err'); if (eb) eb.style.display = 'none';
+    // A unit type charge lands on every unit of that type, at every property that has it, so adding or
+    // editing one is confirmed first. The overlay is DOM-only, so the form keeps what was typed.
+    if (app === 'Unit Type' && !this._utOk) {
+      const ov = this.q('#m-utconf');
+      if (ov) {
+        const t = this.q('#m-utconf-type');
+        if (t) t.textContent = target || 'selected unit type';
+        ov.style.display = 'flex';
+        return false;
+      }
+    }
+    this._utOk = false;
 
     const src = v('m-source') || 'Flat';
     let amount;
@@ -3482,6 +3494,12 @@ class Component extends DCLogic {
       </div></div>`;
   }
   // Unit types present at this property, derived from its units.
+  // The properties that share a unit type. The prototype keeps one unit list for the whole portfolio,
+  // so this stands in for the real per-property lookup — the property being edited, then a few others.
+  utTypeProps(){
+    const cur = this.state.property;
+    return [cur].concat(this.propertiesData().map(p => p.name).filter(n => n !== cur).slice(0, 3));
+  }
   // How many units carry a unit type — the blast radius of a unit-type charge.
   utUnitCount(name){ const t = this.utData().filter(x => x.name === name)[0]; return t ? t.units : 0; }
   // Shared wording for the unit-type warning: in the charge form while adding or editing, and in the
@@ -3904,7 +3922,7 @@ class Component extends DCLogic {
           <button data-act="addsave" class="btn-pri" style="height:36px;padding:8px 20px;font-size:14px;border-radius:4px">Save</button>
           <button data-act="addclose" class="btn-out" style="height:36px;padding:8px 20px;font-size:14px;border-radius:4px;box-sizing:border-box">Cancel</button>
         </div>
-      </div></div>${this.catAddHTML()}`;
+      </div></div>${this.catAddHTML()}${this.utConfHTML(!!(m && m.edit))}`;
   }
   // The charge form itself — General Details, the CRE sections and Marketing Details — shared by the
   // Charge Details overlay and by Bulk Update Charges, which frames it differently.
@@ -4008,6 +4026,11 @@ class Component extends DCLogic {
     // prices off market rent, since a rentable item's rate follows the property's market rate.
     // A unit-type charge lands on every unit of that type, so the warning follows the level (and names
     // the units once a type is picked).
+    window.__utConfSave = () => {
+      const ov = this.q('#m-utconf'); if (ov) ov.style.display = 'none';
+      this._utOk = true;
+      this.saveFee();
+    };
     window.__utWarn = () => {
       const txt = this.q('#m-ut-warn-txt');
       if (txt) txt.innerHTML = this.utWarnText(((this.q('#m-appt-ut') || {}).value) || '');
@@ -4534,6 +4557,31 @@ class Component extends DCLogic {
   // Add Charge Category (mock 2600-104865). Opened from the Charge Category error state and driven
   // entirely from the DOM, so assigning a category doesn't re-render the charge modal underneath and
   // discard anything typed there. The assignment is remembered for the whole charge type.
+  // Confirmation before a unit type charge is saved. Rendered inline and toggled on the DOM, so opening
+  // it never re-renders (and clears) the charge form.
+  utConfHTML(isEdit){
+    const props = this.utTypeProps();
+    return `<div id="m-utconf" style="display:none;position:fixed;inset:0;background:rgba(19,49,76,0.45);align-items:center;justify-content:center;z-index:200">
+      <div onclick="event.stopPropagation()" style="width:540px;max-width:92vw;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:12px;padding:13px 20px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
+          <span style="font-size:20px;color:var(--rmx-brand-dark, #13314c)">${isEdit ? 'Update' : 'Add'} Unit Type Charge</span><div style="flex:1"></div>
+          <span onclick="document.getElementById('m-utconf').style.display='none'" class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">close</span>
+        </div>
+        <div style="display:flex;align-items:flex-start;padding:22px 24px 24px">
+          <div style="display:flex;flex-direction:column;gap:12px;min-width:0;font-size:14px;color:var(--rmx-text, #666666);line-height:1.5">
+            <span>Any changes made to this charge will affect the following properties:</span>
+            <span style="display:flex;flex-direction:column;gap:7px">${props.map(n => `<span style="display:flex;align-items:center;gap:8px">
+              <span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,var(--rmx-brand, #008dd5));flex:none">home</span>
+              <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${n}</span></span>`).join('')}</span>
+            <span>Every <strong id="m-utconf-type" style="color:var(--rmx-brand-dark, #13314c)">selected unit type</strong> unit at those properties is charged, including units that are already occupied.</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:14px 20px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7)">
+          <button onclick="if(window.__utConfSave)window.__utConfSave()" class="btn-pri" style="height:38px;min-height:38px;padding:0 22px;border-radius:4px;font-size:14px">Save Charge</button>
+          <button onclick="document.getElementById('m-utconf').style.display='none'" style="height:38px;min-height:38px;padding:0 22px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Cancel</button>
+        </div>
+      </div></div>`;
+  }
   catAddHTML(){
     // Reads the charge type live, so it reflects whatever the typeahead currently holds.
     window.__catAddOpen = () => {
