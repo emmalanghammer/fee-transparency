@@ -4721,23 +4721,28 @@ class Component extends DCLogic {
         ${miniSect('One-Time Charges (4)', 'Tenant selected add-ons (amenities, storage, etc.)', true)}
       </div>
     </div>`;
-    // aside is the italic line that qualifies the step that follows, e.g. the listings condition on
-    // publishing; it sits in the text column, under the step it belongs after.
-    const stepRow = (n, title, body, aside, last) => `<div style="display:flex;gap:14px">
-      <span style="display:flex;flex-direction:column;align-items:center;flex:none">
-        <span style="width:22px;height:22px;border-radius:50%;background:var(--ac,var(--rmx-brand, #008dd5));color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">${n}</span>
-      </span>
-      <span style="display:flex;flex-direction:column;gap:5px;min-width:0;padding-bottom:${last?'0':'22px'}">
-        <span style="font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title}</span>
+    // Step 3 only applies to properties that list online, so it carries a pill and a lighter number,
+    // and the note under the divider closes the loop for everyone else.
+    const stepRow = (n, title, body, pill, last) => `<div style="display:flex;gap:14px;padding-bottom:${last?'0':'18px'}">
+      <span style="width:22px;height:22px;border-radius:50%;background:${pill?'#7ec3e9':'var(--ac,var(--rmx-brand, #008dd5))'};color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:none">${n}</span>
+      <span style="display:flex;flex-direction:column;gap:5px;min-width:0">
+        <span style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span style="font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title}</span>
+          ${pill?`<span style="display:inline-flex;align-items:center;border-radius:12px;padding:3px 12px;background:#d9ecf9;color:var(--rmx-brand-dark, #13314c);font-size:14px;white-space:nowrap">${pill}</span>`:''}
+        </span>
         <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.5">${body}</span>
-        ${aside?`<i style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5;padding-top:12px">${aside}</i>`:''}
       </span></div>`;
-    const body2 = `<div style="display:flex;flex-direction:column;gap:14px">
+    const body2 = `<div style="display:flex;flex-direction:column;gap:16px">
       ${preview}
       <div style="display:flex;flex-direction:column">
         ${stepRow(1,'Set Up Fee Transparency','Every charge consolidated onto a charges tab on the property.')}
-        ${stepRow(2,'Add Charge Details','Fill in more details that describe each charge.','If your property is enabled for online listings:')}
-        ${stepRow(3,'Publish complete pricing.','Listings show a Total Monthly Price instead of rent alone. Current listings stay unaffected until you publish complete pricing. <strong style="color:var(--rmx-brand-dark, #13314c)">If you don\'t, you\'re done after step 2.</strong>','',true)}
+        ${stepRow(2,'Add Charge Details','Fill in more details that describe each charge.')}
+        ${stepRow(3,'Publish Complete Pricing.','Listings show a total monthly price.','If you list online',true)}
+      </div>
+      <div style="height:1px;background:var(--rmx-line, #cedbe7)"></div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="material-symbols-outlined" style="font-size:20px;color:var(--rmx-success, #6eb744);flex:none">check</span>
+        <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Not listing online? You're done at step 2.</span>
       </div>
     </div>`;
 
