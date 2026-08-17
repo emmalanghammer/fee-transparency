@@ -1139,7 +1139,7 @@ class Component extends DCLogic {
         if (cc === 'Parking') return { structure: v('m-at-struct'), size: v('m-at-size'), regular: v('m-at-reg'), handicapped: v('m-at-hc'), electric: v('m-at-elec'), desc: v('m-at-desc') };
         if (cc === 'Pet') { const per = chkd('m-at-petper');
           return { petCategory: v('m-at-petcat'), maxSize: v('m-at-petsize'), maxWeight: v('m-at-petweight'),
-            petCare: v('m-at-petcare'), chargePer: per, chargeMax: per ? v('m-at-petmax') : '' }; }
+            petCare: chkd('m-at-petcare') ? 'Yes' : '', chargePer: per, chargeMax: per ? v('m-at-petmax') : '' }; }
         return undefined; })(),
       listing: { name, category: this.chargeCategoryFor(code), marketing: v('m-marketing'), requirement: req, feeDue: v('m-due'), schedule: isOne ? '' : v('m-sched'), refundable: chkd('m-refund') }
     };
@@ -1386,8 +1386,6 @@ class Component extends DCLogic {
             <div style="height:1px;background:var(--rmx-brand-tint-bg, #ebf1f5);margin:4px 0"></div>
             <div data-act="navFeeTrans" style="padding:10px 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">Fee Transparency</div>
             <div data-act="navListings" style="padding:10px 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">Listings</div>
-            <div style="height:1px;background:var(--rmx-brand-tint-bg, #ebf1f5);margin:4px 0"></div>
-            <div data-act="navPetTypes" style="padding:10px 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">Pet Types</div>
           </div>
           <span style="display:inline-flex;align-items:center;justify-content:center;width:45px;height:32px;background:var(--rmx-overlay-search, #425a70)"><img src="assets/icon-reports.svg" alt="Reports" style="width:20px;height:20px"></span>
           <span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:32px;background:var(--rmx-overlay-search, #425a70);border-radius:0 4px 4px 0"><img src="assets/icon-grade.svg" alt="Favorites" style="width:20px;height:20px"></span>
@@ -2012,6 +2010,13 @@ class Component extends DCLogic {
     </div>`;
   }
   // Pet types available on a property — a type with no property list applies everywhere.
+  // Pet categories this property's charges already use — the list behind "View Existing Categories".
+  petCategoriesFor(prop){
+    const seen = [];
+    this.profileRows(prop).forEach(r => { const n = String((r.attrs || {}).petCategory || '').trim();
+      if (n && seen.indexOf(n) < 0) seen.push(n); });
+    return seen;
+  }
   petTypesFor(prop){ const p = prop || this.state.property;
     return this.state.petTypes.filter(t => !t.props || t.props.indexOf(p) >= 0); }
   // ---------- Pet Types register + details ----------
@@ -3581,7 +3586,7 @@ class Component extends DCLogic {
           <button data-act="addsave" class="btn-pri" style="height:36px;padding:8px 20px;font-size:14px;border-radius:4px">Save</button>
           <button data-act="addclose" class="btn-out" style="height:36px;padding:8px 20px;font-size:14px;border-radius:4px;box-sizing:border-box">Cancel</button>
         </div>
-      </div></div>${this.catAddHTML()}${this.petCopyHTML()}`;
+      </div></div>${this.catAddHTML()}`;
   }
   // The charge form itself — General Details, the CRE sections and Marketing Details — shared by the
   // Charge Details overlay and by Bulk Update Charges, which frames it differently.
@@ -3876,24 +3881,52 @@ class Component extends DCLogic {
     // Pet Details (mock 2865-80885): pet-category charges carry their own optional attributes, and can
     // copy the amounts straight off a configured Pet Type.
     const petPer = !!at.chargePer;
+    // ---- Pet Details (mock 2865-80885) ----
+    // Pet categories are typed per charge and matched by name, so the link lists the ones this
+    // property already uses. Click-only, and the id ends in -pnl so the global closer dismisses it.
+    const petCats = this.petCategoriesFor();
+    const petPnlPos = (id) => `var t=document.getElementById('${id}');var r=this.getBoundingClientRect();t.style.display='block';var w=t.offsetWidth,h=t.offsetHeight;var l=r.right-w;if(l<8)l=8;var y=r.bottom+6;if(y+h>window.innerHeight-8)y=r.top-h-6;if(y<8)y=8;t.style.left=l+'px';t.style.top=y+'px';`;
+    const petCatPanel = `<span id="m-petcat-pnl" style="display:none;position:fixed;left:0;top:0;width:290px;padding:14px 16px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);z-index:400;cursor:default">
+      <span style="display:block;font-size:14px;color:var(--rmx-brand-dark, #13314c);padding-bottom:9px;border-bottom:1px solid var(--rmx-line, #cedbe7)">Existing Pet Categories on this Property</span>
+      <span style="display:flex;flex-direction:column;gap:9px;padding:10px 0 11px">${petCats.length
+        ? petCats.map(n => `<span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${n}</span>`).join('')
+        : `<span style="font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No pet categories yet.</span>`}</span>
+      <span style="display:block;font-size:12px;font-style:italic;color:var(--rmx-text, #666666);line-height:1.45;padding-top:10px;border-top:1px solid var(--rmx-line, #cedbe7)">Enter the same Pet Category name to associate charges with the same type of pet.</span>
+    </span>`;
+    const petHelpPanel = `<span id="m-pethelp-pnl" style="display:none;position:fixed;left:0;top:0;width:320px;padding:14px 16px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);z-index:400;cursor:default">
+      <span style="display:block;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);padding-bottom:9px;border-bottom:1px solid var(--rmx-line, #cedbe7)">Setting up pet charges</span>
+      <span style="display:flex;flex-direction:column;gap:10px;padding-top:11px">
+        <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Give every charge for the same kind of pet the same Pet Category name — the monthly fee, the one-time fee and the deposit — so a listing can show them together.</span>
+        <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Tick <strong style="font-weight:600">Charge per pet</strong> to charge the amount for each pet, and use Max Charge Amount to cap what a resident pays.</span>
+      </span>
+    </span>`;
+    const petCheck = (id, label, on, js) => `<label style="display:inline-flex;align-items:center;gap:9px;cursor:pointer;white-space:nowrap"><input id="${id}" type="checkbox" ${on?'checked':''}${js?` onchange="${js}"`:''} style="accent-color:var(--rmx-attention, #f58220);width:16px;height:16px;margin:0"><span style="font-size:14px;color:var(--rmx-text, #666666)">${label}</span></label>`;
+    const petMaxJs = "var m=document.getElementById('m-at-petmax');var l=document.getElementById('m-at-petmax-lab');m.disabled=!this.checked;m.style.background=this.checked?'var(--rmx-bg-subtle, #f5f8fa)':'var(--rmx-bg-muted, #f2f2f2)';m.style.borderColor=this.checked?'var(--rmx-line, #cedbe7)':'var(--rmx-line-soft, #ebf1f5)';m.style.color=this.checked?'var(--rmx-brand-dark, #13314c)':'var(--rmx-text-muted, #b3b3b3)';l.style.color=this.checked?'var(--rmx-text, #666666)':'var(--rmx-text-muted, #b3b3b3)';if(!this.checked)m.value='';";
     const petSection = `<div id="m-pet-wrap" style="display:${cat0==='Pet'?'flex':'none'};flex-direction:column;gap:12px">
-      <div style="display:flex;align-items:center;gap:16px;padding:10px 0 0;border-top:1px solid var(--rmx-bg-subtle, #f5f8fa);margin-top:4px">
-        <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Pet Details (Optional)</span>
-        <a onclick="var o=document.getElementById('m-petcopy');var e=document.getElementById('m-petcopy-err');if(e)e.style.display='none';o.style.display='flex'" style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><span class="material-symbols-outlined" style="font-size:16px">content_copy</span>Copy from Pet Type</a>
-        <div style="flex:1"></div>
-        <span onclick="var b=document.getElementById('m-pet-body');var c=this.querySelector('.material-symbols-outlined');var on=b.style.display!=='none';b.style.display=on?'none':'flex';c.textContent=on?'keyboard_arrow_up':'keyboard_arrow_down'" style="display:flex;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:var(--rmx-text, #666666)">keyboard_arrow_down</span></span>
-      </div>
+      ${attrHead('m-pet', 'Pet Details (Optional)')}
       <div id="m-pet-body" style="display:flex;flex-direction:column;gap:12px">
-        <div style="display:flex;flex-direction:column;gap:4px">${lab('Pet Category')}${attrInput('m-at-petcat', at.petCategory, 'The breed or type of pet that this charge applies to')}</div>
+        <div style="display:flex;align-items:center;gap:12px;background:var(--rmx-brand-dark, #13314c);border-radius:4px;padding:7px 8px 7px 12px">
+          <span class="material-symbols-outlined" style="font-size:18px;color:#fff;flex:none">help</span>
+          <span style="flex:1;min-width:0;font-size:14px;color:#fff">Want more information on how to set up pet charges?</span>
+          <span onclick="event.stopPropagation();var t=document.getElementById('m-pethelp-pnl');if(t.style.display==='block'){t.style.display='none';}else{${petPnlPos('m-pethelp-pnl')}}" style="display:inline-flex;align-items:center;height:26px;padding:0 12px;border-radius:4px;background:#fff;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;flex:none;white-space:nowrap">Pet Charge${petHelpPanel}</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <div style="display:flex;align-items:center;gap:12px">
+            ${lab('Pet Category')}
+            <div style="flex:1"></div>
+            <span onclick="event.stopPropagation();var t=document.getElementById('m-petcat-pnl');if(t.style.display==='block'){t.style.display='none';}else{${petPnlPos('m-petcat-pnl')}}" style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap"><span class="material-symbols-outlined" style="font-size:16px">info</span>View Existing Categories${petCatPanel}</span>
+          </div>
+          ${attrInput('m-at-petcat', at.petCategory, 'E.g. Large dog, small dog, cat, bird, reptile')}
+        </div>
         <div style="display:flex;gap:12px;align-items:flex-start">
           ${attrField('Maximum Size', attrInput('m-at-petsize', at.maxSize))}
           ${attrField('Maximum Weight', attrInput('m-at-petweight', at.maxWeight))}
-          ${attrField('Pet Care Available', dd('m-at-petcare', ['Yes','No'], at.petCare||'', { noSearch:true, blank:true, placeholder:' ' }))}
         </div>
-        <div style="display:flex;align-items:flex-end;gap:18px">
-          <label style="display:inline-flex;align-items:center;gap:9px;cursor:pointer;padding-bottom:9px"><input id="m-at-petper" type="checkbox" ${petPer?'checked':''} onchange="var m=document.getElementById('m-at-petmax');var l=document.getElementById('m-at-petmax-lab');m.disabled=!this.checked;m.style.background=this.checked?'var(--rmx-bg-subtle, #f5f8fa)':'var(--rmx-bg-muted, #f2f2f2)';m.style.borderColor=this.checked?'var(--rmx-line, #cedbe7)':'var(--rmx-line-soft, #ebf1f5)';m.style.color=this.checked?'var(--rmx-brand-dark, #13314c)':'var(--rmx-text-muted, #b3b3b3)';l.style.color=this.checked?'var(--rmx-text, #666666)':'var(--rmx-text-muted, #b3b3b3)';if(!this.checked)m.value='';" style="accent-color:var(--rmx-attention, #f58220);width:16px;height:16px;margin:0"><span style="font-size:14px;color:var(--rmx-text, #666666)">Charge per pet</span></label>
-          <div style="flex:1;max-width:240px;display:flex;flex-direction:column;gap:4px">
-            <span id="m-at-petmax-lab" style="font-size:14px;color:${petPer?'var(--rmx-text, #666666)':'var(--rmx-text-muted, #b3b3b3)'}">Max Amount</span>
+        <div style="display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap">
+          <div style="padding-bottom:9px">${petCheck('m-at-petcare', 'Pet Care Available', !!at.petCare)}</div>
+          <div style="padding-bottom:9px">${petCheck('m-at-petper', 'Charge per pet', petPer, petMaxJs)}</div>
+          <div style="flex:1;min-width:180px;max-width:250px;display:flex;flex-direction:column;gap:4px">
+            <span id="m-at-petmax-lab" style="font-size:14px;color:${petPer?'var(--rmx-text, #666666)':'var(--rmx-text-muted, #b3b3b3)'}">Max Charge Amount</span>
             <input id="m-at-petmax" value="${esc(petPer ? (at.chargeMax||'') : '')}" ${petPer?'':'disabled'} style="width:100%;box-sizing:border-box;height:36px;background:${petPer?'var(--rmx-bg-subtle, #f5f8fa)':'var(--rmx-bg-muted, #f2f2f2)'};border:1px solid ${petPer?'var(--rmx-line, #cedbe7)':'var(--rmx-line-soft, #ebf1f5)'};border-radius:4px;padding:0 10px;font:400 14px Roboto,sans-serif;color:${petPer?'var(--rmx-brand-dark, #13314c)':'var(--rmx-text-muted, #b3b3b3)'};outline:none">
           </div>
         </div>
@@ -4173,69 +4206,6 @@ class Component extends DCLogic {
           <button data-act="bulkClose" class="btn-out" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px;box-sizing:border-box">Cancel</button>
         </div>
       </div></div>${this.catAddHTML()}`;
-  }
-  // ---------- Copy From Pet Type (mock 2865-80885) ----------
-  // Rendered inline and toggled on the DOM, so opening it never re-renders (and clears) the charge form.
-  petCopyHTML(){
-    const m = this.state.modal;
-    const isOne = !!(m && /-one$/.test(m.group || ''));
-    // Only pet types configured for this property can be copied onto its charges.
-    const types = this.petTypesFor();
-    const map = {}; types.forEach(t => { map[t.name] = { rec:t.rec, recMax:t.recMax, recPer:t.recPer,
-      one:t.one, oneMax:t.oneMax, onePer:t.onePer, dep:t.dep, depMax:t.depMax, depPer:t.depPer }; });
-    const data = JSON.stringify(map).replace(/"/g, '&quot;');
-    const radio = (v, t, on) => `<label style="display:flex;align-items:center;gap:11px;cursor:pointer"><input type="radio" name="pc-kind" value="${v}" ${on?'checked':''} style="accent-color:var(--ac,var(--rmx-brand, #008dd5));width:17px;height:17px;margin:0"><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${t}</span></label>`;
-    // A recurring charge can only take the recurring amount, so there's nothing to ask; a one-time
-    // charge is either a fee or a deposit.
-    const kinds = !isOne ? `<input type="radio" name="pc-kind" value="rec" checked style="display:none">`
-      : `<div style="display:flex;flex-direction:column;gap:10px">
-          <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">What kind of charge is this?</span>
-          ${radio('one','One-time charge',true)}${radio('dep','Pet deposit')}
-        </div>`;
-    const copyJs = `var ov=document.getElementById('m-petcopy');`
-      + `var name=document.getElementById('m-petcopy-sel').value;`
-      + `var err=document.getElementById('m-petcopy-err');`
-      + `if(!name){err.style.display='block';return}err.style.display='none';`
-      + `var PT=JSON.parse(ov.getAttribute('data-pt'));var t=PT[name];if(!t)return;`
-      + `var kEl=ov.querySelector('input[name=pc-kind]:checked');var k=kEl?kEl.value:'rec';`
-      + `var amt=k==='one'?t.one:(k==='dep'?t.dep:t.rec);`
-      + `var max=k==='one'?t.oneMax:(k==='dep'?t.depMax:t.recMax);`
-      + `var per=k==='one'?t.onePer:(k==='dep'?t.depPer:t.recPer);`
-      + `var money=function(n){return (n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})};`
-      + `var pcat=document.getElementById('m-at-petcat');if(pcat){pcat.value=name;pcat.style.fontStyle='normal';}`
-      + `var am=document.getElementById('m-amount');if(am)am.value=money(amt);`
-      + `var sr=document.getElementById('m-source');if(sr)sr.value='Flat';`
-      + `var mh=document.getElementById('m-method');if(mh)mh.value='Flat';`
-      + `var md=document.getElementById('m-method-disp');if(md){md.textContent='Flat';md.style.color='var(--rmx-brand-dark, #13314c)';md.style.fontStyle='normal';}`
-      + `['flat','ref','calc'].forEach(function(x){var b=document.getElementById('m-blk-'+x);if(b)b.style.display=(x==='flat'?'flex':'none')});`
-      + `var rr=document.querySelector('input[name=&quot;m-amt-r&quot;][value=&quot;Flat&quot;]');if(rr)rr.checked=true;`
-      + `var pc=document.getElementById('m-at-petper');if(pc){pc.checked=!!per;pc.dispatchEvent(new Event('change'));}`
-      + `if(per){var mx=document.getElementById('m-at-petmax');if(mx)mx.value=max?money(max):'';}`
-      + `if(window.__calcNote)window.__calcNote();if(window.__mitsRecheck)window.__mitsRecheck();`
-      + `ov.style.display='none';`;
-    const picker = types.length
-      ? `<select id="m-petcopy-sel" class="fld" style="height:38px;width:100%"><option value=""></option>${types.map(t => `<option value="${t.name}">${t.name}</option>`).join('')}</select>`
-      : `<span style="font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No pet types are set up for this property.</span><input type="hidden" id="m-petcopy-sel" value="">`;
-    return `<div id="m-petcopy" data-act="noop" data-pt="${data}" style="display:none;position:fixed;inset:0;background:rgba(19,49,76,0.45);align-items:center;justify-content:center;z-index:200">
-      <div style="width:420px;max-width:94vw;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
-          <span style="font-size:18px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Copy From Pet Type</span>
-          <span onclick="document.getElementById('m-petcopy').style.display='none'" class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">close</span>
-        </div>
-        <div style="padding:16px 20px;display:flex;flex-direction:column;gap:16px">
-          <div style="display:flex;flex-direction:column;gap:5px">
-            <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b)">Pet Type</span>
-            ${picker}
-            <span id="m-petcopy-err" style="display:none;font-size:14px;color:var(--rmx-error, #eb343c);padding-top:2px">Select a pet type.</span>
-          </div>
-          ${kinds}
-        </div>
-        <div style="display:flex;justify-content:flex-end;gap:10px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:12px 20px">
-          <button onclick="${copyJs}" class="btn-pri" style="height:34px;min-height:34px;padding:0 22px;border-radius:4px;font-size:14px">Copy</button>
-          <button onclick="document.getElementById('m-petcopy').style.display='none'" style="height:34px;min-height:34px;padding:0 18px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Cancel</button>
-        </div>
-      </div>
-    </div>`;
   }
   // Add Charge Category (mock 2600-104865). Opened from the Charge Category error state and driven
   // entirely from the DOM, so assigning a category doesn't re-render the charge modal underneath and
