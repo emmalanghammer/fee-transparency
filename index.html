@@ -60,7 +60,7 @@
     .tipw .tip { display:none; position:absolute; left:26px; top:-6px; width:280px; background:#fff; border:1px solid var(--rmx-line, #cedbe7); border-radius:4px; box-shadow:0 6px 20px rgba(0,0,0,0.18); padding:12px 14px; font-size:14px; color:var(--rmx-brand-dark, #13314c); line-height:1.5; z-index:20; }
     .tipw:hover .tip { display:block; }
     @keyframes spin { to { transform:rotate(360deg); } }
-    .lvl { display:inline-flex; align-items:center; border-radius:4px; padding:2px 10px; font-size:14px; white-space:nowrap; }
+    .lvl { display:inline-block; max-width:100%; overflow:hidden; text-overflow:ellipsis; border-radius:4px; padding:2px 10px; font-size:14px; white-space:nowrap; }
     .lvl-prop { background:var(--rmx-brand-tint-bg, #ebf1f5); color:var(--rmx-brand-hover, #0071aa); }
     .lvl-ut { background:#fdeaf2; color:#b3306b; }
     .lvl-unit { background:var(--rmx-success-bg, #e2f1da); color:var(--rmx-success, #6eb744); }
@@ -2440,13 +2440,17 @@ class Component extends DCLogic {
       </span></div>`;
   }
   // Charge Level pill — Property / a unit-type name / Unit N / ORI.
-  chargeLevelPill(r){
+  // Every level names what it applies to: the unit, the unit type, the rentable-item type — and, at
+  // property level, the property itself. prop is the property the row belongs to, which is the one on
+  // screen everywhere except the setup wizard and the copy flows.
+  chargeLevelPill(r, prop){
     const cls = { 'Property':'lvl-prop', 'Unit Type':'lvl-ut', 'Unit':'lvl-unit', 'ORI':'lvl-ori' }[r.level] || 'lvl-prop';
     const label = r.level === 'Unit Type' ? (r.target || 'Unit Type')
       : r.level === 'Unit' ? (r.target || 'Unit')
       // An ORI charge names its rentable-item type, e.g. Covered Parking.
-      : r.level === 'ORI' ? (r.oriType || 'ORI') : 'Property';
-    return `<span class="lvl ${cls}">${label}</span>`;
+      : r.level === 'ORI' ? (r.oriType || 'ORI')
+      : (prop === undefined ? this.state.property : prop) || 'Property';
+    return `<span class="lvl ${cls}" title="${(''+label).replace(/"/g,'&quot;')}">${label}</span>`;
   }
   // Marketing/MITS status for one charge. Hovering lists the exact fields still required, so the
   // work required is visible from the list without opening every charge.
@@ -2574,7 +2578,7 @@ class Component extends DCLogic {
       { key:'from',     label:'From',                  w:'100px', base:true },
       { key:'to',       label:'To',                    w:'90px',  base:true },
       { key:'amount',   label:'Amount',                w:'110px', base:true },
-      { key:'level',    label:'Charge Level',          w:'120px', base:true },
+      { key:'level',    label:'Charge Level',          w:'170px', base:true },
       { key:'ready',    label:'Listing Ready',         w:'130px', base:true, ilsOnly:true },
       { key:'category', label:'Charge Category',       w:'140px' },
       { key:'req',      label:'Charge Requirement',    w:'160px' },
@@ -2784,7 +2788,7 @@ class Component extends DCLogic {
         from: (i) => cell(r.from||'—', pad(i)),
         to: (i) => cell(r.to||'-', pad(i)),
         amount: (i) => cell(String(r.amount||'').replace(/^\$/,''), 'justify-content:flex-end;text-align:right'),
-        level: (i) => `<span style="display:flex;align-items:center;min-height:44px;padding:8px 12px">${this.chargeLevelPill(r)}</span>`,
+        level: (i) => `<span style="display:flex;align-items:center;min-height:44px;padding:8px 12px;min-width:0;overflow:hidden">${this.chargeLevelPill(r)}</span>`,
         ready: (i) => `<span style="display:flex;align-items:center;min-height:44px;padding:8px 12px">${this.mitsStatusCell(r)}</span>`,
         category: (i) => cell(L.category || '—', pad(i)),
         req: (i) => cell(L.requirement || '—', pad(i)),
@@ -3175,7 +3179,7 @@ class Component extends DCLogic {
         ${rows.map((r,ri)=>`<div style="display:grid;grid-template-columns:${cols};align-items:center;${ri===rows.length-1?'':'border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa)'}">
           ${cell(r.mits)}${cell(r.desc||r.name)}
           ${cell(String(r.amount||'').replace(/^\$/,''),'justify-content:flex-end;text-align:right')}
-          <span style="display:flex;align-items:center;min-height:36px;padding:6px 12px">${this.chargeLevelPill(r)}</span>
+          <span style="display:flex;align-items:center;min-height:36px;padding:6px 12px;min-width:0;overflow:hidden">${this.chargeLevelPill(r, cur)}</span>
         </div>`).join('')}</div>`;
     };
     // Both lists start collapsed so the whole set is scannable at a glance; each opens on click.
@@ -3784,7 +3788,7 @@ class Component extends DCLogic {
           <span style="display:flex;align-items:center;justify-content:center;min-height:34px">${chk(!!a.sel[r.id],'')}</span>
           ${cell(r.mits)}${cell(r.desc||r.name)}${rec?(cell(this.freqNum(r)||'1')+cell(r.from||'—')+cell(r.to||'-')):''}
           ${cell(String(r.amount||'').replace(/^\$/,''),'justify-content:flex-end;text-align:right')}
-          <span style="display:flex;align-items:center;min-height:34px;padding:5px 8px">${this.chargeLevelPill(r)}</span></div>`).join('')}
+          <span style="display:flex;align-items:center;min-height:34px;padding:5px 8px;min-width:0;overflow:hidden">${this.chargeLevelPill(r, a.copyFrom)}</span></div>`).join('')}
         </div>`;
     };
     const copyBlock = !isCopy ? '' : `<div style="display:flex;flex-direction:column;gap:6px;padding-left:24px">
@@ -4415,7 +4419,7 @@ class Component extends DCLogic {
           ${cell(r.mits,'padding-left:14px')}${cell(r.desc||r.name)}
           ${isRec?cell(this.freqNum(r)||'—'):''}${cell(r.from||'—')}${cell(r.to||'-')}
           ${cell(String(r.amount||'').replace(/^\$/,''),'justify-content:flex-end;text-align:right')}
-          <span style="display:flex;align-items:center;min-height:38px;padding:6px 10px">${this.chargeLevelPill(r)}</span></div>`).join('')
+          <span style="display:flex;align-items:center;min-height:38px;padding:6px 10px;min-width:0;overflow:hidden">${this.chargeLevelPill(r, c.from)}</span></div>`).join('')
           : `<div style="padding:14px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">None on that property.</div>`}
         </div></div></div>`;
     };
