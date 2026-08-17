@@ -486,7 +486,7 @@ class Component extends DCLogic {
       Object.assign({ id:9,  group:'req-one', mits:'KEY',        name:'Key & fob deposit', desc:'Key & fob deposit',            from:'01/01/2026', to:'', amount:'$50.00',    amtMethod:'Flat', ils:true  }, L('Property')),
       Object.assign({ id:10, group:'opt-rec', mits:'SF',         name:'Storage closet',    desc:'Corner storage closet',        freq:'Every Month', from:'01/01/2026', to:'', amount:'$40.00',      amtMethod:'Flat', ils:true }, L('Unit','4C')),
       Object.assign({ id:11, group:'opt-rec', mits:'AMENFEE',    name:'Pool & fitness',    desc:'Pool & fitness access',        freq:'Every Month', from:'01/01/2026', to:'', amount:'$28.00',      amtMethod:'Flat', ils:true  }, L('Property')),
-      Object.assign({ id:12, group:'opt-rec', mits:'COVPARK',    name:'Covered parking',   desc:'Covered parking, 12 spots total',freq:'Every Month',from:'01/01/2026', to:'', amount:'Market Rent', amtMethod:'Reference', est:75, ils:true }, L('Unit Type','2BR/2BA')),
+      Object.assign({ id:12, group:'opt-rec', mits:'COVPARK',    name:'Covered parking',   desc:'Covered parking, 12 spots total',freq:'Every Month',from:'01/01/2026', to:'', amount:'Market Rent', amtMethod:'Reference', est:75, ils:true, oriType:'Covered Parking' }, L('ORI')),
       Object.assign({ id:13, group:'opt-one', mits:'HOLD',       name:'Hold fee',          desc:'Unit reservation fee',         from:'01/01/2026', to:'', amount:'$200.00',   amtMethod:'Flat', ils:true  }, L('Property')),
       // Pet rent and pet deposit are add-ons a resident chooses by bringing a pet, so they're optional.
       // Damage-type charges stay situational — nobody opts into those.
@@ -1494,7 +1494,7 @@ class Component extends DCLogic {
   // Charges for a converted property: either every marketing detail filled in, or the same charges
   // as they arrive from setup, with details still missing. '' is not a real property, so setupRows
   // gives back the generic discovered set rather than a worked example.
-  scenarioRows(complete){ return complete ? this.listingReadyRows() : this.setupRows(''); }
+  scenarioRows(complete){ return complete ? this.listingReadyRows() : this.setupRows('', true); }
   scenarioPlan(key){
     const names = this.propertiesData().map(p => p.name);
     const ils = {};
@@ -2699,10 +2699,11 @@ class Component extends DCLogic {
     if ((this.state.newProps || []).some(x => x.name === prop)) return [];
     return this.setupCandidates();
   }
-  setupRows(prop){
+  setupRows(prop, keepOri){
     // Setup only pulls property, unit type and unit charges — rentable items stay where they are, so
-    // ORI charges are made by hand (or by switching a charge's level) after setup.
-    const noOri = rows => rows.map(r => r.level === 'ORI' ? Object.assign({}, r, { level:'Property', target:'' }) : r);
+    // ORI charges are made by hand (or by switching a charge's level) after setup. keepOri is for the
+    // seeded scenarios, where a property has been managing its charges since it converted.
+    const noOri = rows => keepOri ? rows : rows.map(r => r.level === 'ORI' ? Object.assign({}, r, { level:'Property', target:'', oriType:undefined }) : r);
     // The Hamptons' pulled-in charges already carry complete marketing details — it stays the
     // worked example of a clean setup.
     if (this.listingReadyProps().indexOf(prop) >= 0) return noOri(this.listingReadyRows());
