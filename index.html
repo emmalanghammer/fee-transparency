@@ -2839,7 +2839,9 @@ class Component extends DCLogic {
     // Bulk setup: every selected property is clickable, so the charges can be checked property by
     // property before the review.
     const pill = (p, i) => { const now = i === (c.pi || 0);
-      return `<span data-act="setupPi" data-arg="${i}" style="display:inline-flex;align-items:center;gap:5px;border-radius:12px;padding:3px 11px;font-size:14px;white-space:nowrap;cursor:pointer;box-sizing:border-box;${now?'background:var(--ac,var(--rmx-brand, #008dd5));color:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5))':'background:#fff;color:var(--ac,var(--rmx-brand, #008dd5));border:1px solid var(--rmx-line, #cedbe7)'}">${p}</span>`; };
+      // The one being viewed is filled; the rest take a pale tint on hover so they read as clickable.
+      const hov = now ? '' : ` onmouseover="this.style.background='#e8f4fb'" onmouseout="this.style.background='#fff'"`;
+      return `<span data-act="setupPi" data-arg="${i}"${hov} style="display:inline-flex;align-items:center;gap:5px;border-radius:12px;padding:3px 11px;font-size:14px;white-space:nowrap;cursor:pointer;box-sizing:border-box;${now?'background:var(--ac,var(--rmx-brand, #008dd5));color:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5))':'background:#fff;color:var(--ac,var(--rmx-brand, #008dd5));border:1px solid var(--rmx-line, #cedbe7)'}">${p}</span>`; };
     return `<div style="display:flex;flex-direction:column;gap:6px">
       ${!many ? '' : `<div style="display:flex;flex-direction:column;gap:8px;background:var(--rmx-brand-tint-bg, #ebf1f5);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:12px 14px;margin-bottom:8px">
         <div style="display:flex;align-items:center;gap:10px">
