@@ -4718,27 +4718,27 @@ class Component extends DCLogic {
         ${miniHead()}
         ${miniRow('RC','3 needed','warn')}${miniRow('WATER','Ready','ok','2B/2B')}${miniRow('GARBAGEFEE','Ready','ok','4C')}
         ${miniAdd()}
-        ${miniSect('Optional Charges (4)', 'Tenant selected add-ons (amenities, storage, etc.)', true)}
-        ${miniHead()}
-        ${miniRow('PETFEE','Ready','ok')}
-        ${miniAdd()}
+        ${miniSect('One-Time Charges (4)', 'Tenant selected add-ons (amenities, storage, etc.)', true)}
       </div>
     </div>`;
-    const stepRow = (n, title, note, body, last) => `<div style="display:flex;gap:14px">
+    // aside is the italic line that qualifies the step that follows, e.g. the listings condition on
+    // publishing; it sits in the text column, under the step it belongs after.
+    const stepRow = (n, title, body, aside, last) => `<div style="display:flex;gap:14px">
       <span style="display:flex;flex-direction:column;align-items:center;flex:none">
         <span style="width:22px;height:22px;border-radius:50%;background:var(--ac,var(--rmx-brand, #008dd5));color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center">${n}</span>
         ${last?'':'<span style="flex:1;width:1px;background:#dfe6ec;margin:4px 0"></span>'}
       </span>
-      <span style="display:flex;flex-direction:column;gap:5px;min-width:0;padding-bottom:${last?'0':'26px'}">
-        <span style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title}</span>${note?`<i style="font-size:14px;color:var(--rmx-ink-2, #424e5b)">${note}</i>`:''}</span>
+      <span style="display:flex;flex-direction:column;gap:5px;min-width:0;padding-bottom:${last?'0':'22px'}">
+        <span style="font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title}</span>
         <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.5">${body}</span>
+        ${aside?`<i style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5;padding-top:12px">${aside}</i>`:''}
       </span></div>`;
     const body2 = `<div style="display:flex;flex-direction:column;gap:14px">
       ${preview}
       <div style="display:flex;flex-direction:column">
-        ${stepRow(1,'Consolidate charges.','','Every charge already set up for a property moves onto one Charges tab.')}
-        ${stepRow(2,'Add charge details.','','Choose how each charge appears to renters. Listings are unaffected until you publish.')}
-        ${stepRow(3,'Publish complete pricing.','Only properties enabled for online listings.','Listings show a Total Monthly Price instead of rent alone.', true)}
+        ${stepRow(1,'Set Up Fee Transparency','Every charge consolidated onto a charges tab on the property.')}
+        ${stepRow(2,'Add Charge Details','Fill in more details that describe each charge.','If your property is enabled for online listings:')}
+        ${stepRow(3,'Publish complete pricing.','Listings show a Total Monthly Price instead of rent alone. Current listings stay unaffected until you publish complete pricing. <strong style="color:var(--rmx-brand-dark, #13314c)">If you don\'t, you\'re done after step 2.</strong>','',true)}
       </div>
     </div>`;
 
