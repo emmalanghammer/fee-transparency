@@ -3696,6 +3696,25 @@ class Component extends DCLogic {
       const utw = this.q('#m-ut-warn');
       if (utw) utw.style.display = (v === 'Unit Type') ? 'flex' : 'none';
       if (v === 'Unit Type' && window.__utWarn) window.__utWarn();
+      // Exceptions only exist at the property and unit type levels, and each level offers its own fields.
+      const es = this.q('#m-excl-sect');
+      if (es) es.style.display = (v === 'Property' || v === 'Unit Type') ? 'block' : 'none';
+      const pr = this.q('#m-excl-prop-row');
+      if (pr) pr.style.display = (v === 'Unit Type') ? 'flex' : 'none';
+      const tw = this.q('#m-excl-types-wrap');
+      if (tw) tw.style.display = (v === 'Property') ? 'flex' : 'none';
+      const pe = this.q('#m-excl-prop');
+      // Leaving the unit type level clears the property tick — it has no meaning anywhere else.
+      if (pe && v !== 'Unit Type' && pe.value === '1') {
+        pe.value = '0';
+        const b = this.q('#m-excl-prop-box');
+        if (b) { b.style.background = '#fff'; b.style.borderColor = 'var(--rmx-text-muted, #b3b3b3)';
+          if (b.firstElementChild) b.firstElementChild.style.display = 'none'; }
+      }
+      const uw = this.q('#m-excl-units-wrap');
+      if (uw) uw.style.display = (v === 'Unit Type' && pe && pe.value === '1') ? 'none' : 'flex';
+      const nt = this.q('#m-excl-note');
+      if (nt && (v === 'Property' || v === 'Unit Type') && !/^Exception/.test(nt.textContent)) nt.textContent = 'Applies everywhere at the ' + v.toLowerCase() + ' level';
       const oriRow = this.q('#m-ori-row');
       if (oriRow) oriRow.style.display = (v === 'ORI') ? 'flex' : 'none';
       if (v === 'ORI') {
@@ -3982,24 +4001,27 @@ class Component extends DCLogic {
 
     // ---- Exceptions: collapsed by default, since most charges have none ----
     const exSaved = this.exclOf(ed);
-    const exOn = this.exclEligible(ed);
+    // Exceptions are offered while adding a charge too, so the section renders for anything that could
+    // end up at the property or unit type level; __lvlChange shows and hides it with the Charge Level.
+    const exOn = ed ? !ed.propSpecific : true;
+    const exLvl = (ed && ed.level) || app;
     const exField = (label, id, opts, saved, wrapId, hidden) => !opts.length ? '' : `<div${wrapId?` id="${wrapId}"`:''} style="flex:1;min-width:180px;display:${hidden?'none':'flex'};flex-direction:column;gap:4px">
         <span style="font-size:14px;color:var(--rmx-text, #666666)">${label}</span>${this.multiSelect(id, opts, saved)}
       </div>`;
     const exToggleJs = "var b=document.getElementById('m-excl-body');var c=document.getElementById('m-excl-caret');var open=b.style.display==='none';b.style.display=open?'flex':'none';c.textContent=open?'arrow_drop_down':'arrow_right'";
-    const exclSection = !exOn ? '' : `<div style="flex:none;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
+    const exclSection = !exOn ? '' : `<div id="m-excl-sect" style="display:${(exLvl==='Property'||exLvl==='Unit Type')?'block':'none'};flex:none;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
         <div onclick="${exToggleJs}" style="display:flex;align-items:center;gap:8px;padding:11px 14px;cursor:pointer;background:var(--rmx-bg-subtle, #f5f8fa)">
           <span id="m-excl-caret" class="material-symbols-outlined" style="font-size:20px;color:var(--rmx-text, #666666)">arrow_right</span>
           <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Exceptions</span>
           <div style="flex:1"></div>
-          <span style="font-size:14px;color:var(--rmx-text-muted, #b3b3b3)">${this.exclCount(ed) ? 'Exception: ' + this.exclSummary(exSaved) : 'Applies everywhere at the ' + String(ed.level||'').toLowerCase() + ' level'}</span>
+          <span id="m-excl-note" style="font-size:14px;color:var(--rmx-text-muted, #b3b3b3)">${this.exclCount(ed) ? 'Exception: ' + this.exclSummary(exSaved) : 'Applies everywhere at the ' + String(exLvl||'').toLowerCase() + ' level'}</span>
         </div>
         <div id="m-excl-body" style="display:none;flex-direction:column;gap:14px;padding:14px">
           <span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3);line-height:1.45">Anything selected here won't be charged, quoted or listed for that unit type or unit; existing tenant charges aren't affected.</span>
-          ${ed.level === 'Unit Type' ? this.exclPropRow('m-excl', this.state.property, exSaved.prop) : ''}
+          <div id="m-excl-prop-row" style="display:${exLvl==='Unit Type'?'flex':'none'};flex-direction:column">${this.exclPropRow('m-excl', this.state.property, exSaved.prop)}</div>
           <div style="display:flex;gap:12px;align-items:flex-start">
-            ${ed.level === 'Property' ? exField('Unit types', 'm-excl-types', this.exclOptions(ed,'Unit Type'), exSaved.types) : ''}
-            ${exField('Units', 'm-excl-units', this.exclOptions(ed,'Unit'), exSaved.units, 'm-excl-units-wrap', ed.level === 'Unit Type' && exSaved.prop)}
+            ${exField('Unit types', 'm-excl-types', this.exclOptions(ed,'Unit Type'), exSaved.types, 'm-excl-types-wrap', exLvl !== 'Property')}
+            ${exField('Units', 'm-excl-units', this.exclOptions(ed,'Unit'), exSaved.units, 'm-excl-units-wrap', exLvl === 'Unit Type' && exSaved.prop)}
           </div>
         </div>
       </div>`;
