@@ -3848,17 +3848,30 @@ class Component extends DCLogic {
     const attrInput = (id, val, ph) => `<input id="${id}" value="${esc(val||'')}" ${ph?`placeholder="${esc(ph)}" oninput="this.style.fontStyle=this.value?'normal':'italic'"`:''} style="width:100%;box-sizing:border-box;height:36px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:0 10px;font:${ph&&!val?'italic ':''}400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);outline:none">`;
     const attrHead = (key, label) => `<div onclick="var b=document.getElementById('${key}-body');var c=this.querySelector('.material-symbols-outlined');var on=b.style.display!=='none';b.style.display=on?'none':'flex';c.textContent=on?'keyboard_arrow_up':'keyboard_arrow_down'" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:10px 0 0;border-top:1px solid var(--rmx-bg-subtle, #f5f8fa);margin-top:4px"><span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${label}</span><span class="material-symbols-outlined" style="font-size:20px;color:var(--rmx-text, #666666)">keyboard_arrow_down</span></div>`;
     const attrField = (l, ctrl) => `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab(l)}${ctrl}</div>`;
+    // Height, width and length carry the chosen measurement unit's abbreviation inside the field, so a
+    // bare number is never ambiguous. Picking a different unit relabels all three.
+    const uomAbbr = { Inch:'in', Foot:'ft', Yard:'yd', Meter:'m' };
+    const uom0 = uomAbbr[String(at.uom || '').trim()] || '';
+    window.__uomSfx = (v) => {
+      const abbr = uomAbbr[String(v || '').trim()] || '';
+      if (!this.rootEl) return;
+      this.rootEl.querySelectorAll('.uom-sfx').forEach(e => { e.textContent = abbr; });
+    };
+    const dimInput = (id, val) => `<div style="display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;height:36px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:0 10px">
+        <input id="${id}" value="${esc(val||'')}" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">
+        <span class="uom-sfx" style="flex:none;font-size:14px;color:var(--rmx-text-muted, #b3b3b3)">${uom0}</span>
+      </div>`;
     const storSection = `<div id="m-stor-wrap" style="display:${cat0==='Storage'?'flex':'none'};flex-direction:column;gap:12px">
       ${attrHead('m-stor', 'Storage Details (Optional)')}
       <div id="m-stor-body" style="display:flex;flex-direction:column;gap:12px">
         <div style="display:flex;gap:12px;align-items:flex-start">
           ${attrField('Storage Type', dd('m-at-stype', ['Bike','Closet','Locker','Other'], at.storageType||'', { noSearch:true, blank:true, placeholder:' ' }))}
-          ${attrField('Storage Measurement Unit', dd('m-at-uom', ['Inch','Foot','Yard','Meter'], at.uom||'', { noSearch:true, blank:true, placeholder:' ' }))}
+          ${attrField('Storage Measurement Unit', dd('m-at-uom', ['Inch','Foot','Yard','Meter'], at.uom||'', { noSearch:true, blank:true, placeholder:' ', js:"if(window.__uomSfx)window.__uomSfx(_v)" }))}
         </div>
         <div style="display:flex;gap:12px;align-items:flex-start">
-          ${attrField('Height', attrInput('m-at-h', at.height))}
-          ${attrField('Width', attrInput('m-at-w', at.width))}
-          ${attrField('Length', attrInput('m-at-l', at.length))}
+          ${attrField('Height', dimInput('m-at-h', at.height))}
+          ${attrField('Width', dimInput('m-at-w', at.width))}
+          ${attrField('Length', dimInput('m-at-l', at.length))}
         </div>
       </div>
     </div>`;
