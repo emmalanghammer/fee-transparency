@@ -172,6 +172,7 @@ class Component extends DCLogic {
     // "Exclude Charge" overlay: { id, scope:'Unit Type'|'Unit', sel:{name:true} }. A charge's own
     // exclusions live on the row as exclFrom:{ types:[], units:[] }.
     chargeExcl: null,
+    utDel: null, // { id } — confirmation before deleting a unit-type charge
     modal: null,
     toast: null
   };
@@ -632,6 +633,16 @@ class Component extends DCLogic {
   go(view, extra){ this._resetScroll = true; this.setState(Object.assign({ view }, extra || {})); window.scrollTo(0,0); }
   flash(msg){ this.setState({ toast: msg }); clearTimeout(this._t); this._t = setTimeout(() => this.setState({ toast: null }), 2200); }
   mutFee(id, fn){ this.setProfileRows(rows => rows.map(f => f.id === id ? fn(Object.assign({}, f)) : f)); }
+  deleteRow(id){
+    const gone = this.profileRows().find(f => String(f.id) === String(id));
+    this.setProfileRows(rows => rows.filter(f => String(f.id) !== String(id)));
+    // No chargeId — the charge is gone, so the log entry has nothing to link to.
+    if (gone) this.logChange(this.state.property, this.histLabelFor(gone), 'Charge removed from the profile', gone.target || gone.level);
+    this.setState({ rowMenu: null });
+    this.flash(gone && gone.level === 'Unit Type' && gone.target
+      ? `Charge deleted from all ${gone.target} units`
+      : 'Charge deleted');
+  }
   q(sel){ return this.rootEl ? this.rootEl.querySelector(sel) : null; }
 
   onClick = (e) => {
@@ -709,12 +720,15 @@ class Component extends DCLogic {
       case 'rowMenu': { const r = el.getBoundingClientRect(); this.setState({ rowMenu: { id: arg, x: r.right, y: r.bottom + 4 } }); break; }
       case 'rowMenuClose': this.setState({ rowMenu: null }); break;
       case 'rowDetails': { const c = this.profileRows().find(x => String(x.id) === String(arg)); this.setState({ rowMenu: null, modal: c ? { group: c.group, edit: c } : null }); if (!c) this.flash('Charge details'); break; }
-      case 'rowDelete': { const id = arg;
-        const gone = this.profileRows().find(f => String(f.id) === String(id));
-        this.setProfileRows(rows => rows.filter(f => String(f.id) !== String(id)));
-        // No chargeId — the charge is gone, so the log entry has nothing to link to.
-        if (gone) this.logChange(this.state.property, this.histLabelFor(gone), 'Charge removed from the profile', gone.target || gone.level);
-        this.setState({ rowMenu: null }); this.flash('Charge deleted'); break; }
+      // A unit-type charge covers every unit of that type, so deleting one asks first.
+      case 'rowDelete': { const row = this.profileRows().find(f => String(f.id) === String(arg));
+        if (row && row.level === 'Unit Type') { this.setState({ rowMenu: null, utDel: { id: arg } }); break; }
+        this.deleteRow(arg); break; }
+      case 'utDelCancel': this.setState({ utDel: null }); break;
+      case 'utDelConfirm': { const id = (this.state.utDel || {}).id;
+        this.setState({ utDel: null });
+        if (id != null) this.deleteRow(id);
+        break; }
 
       // ---- Exclude a charge from specific unit types / units ----
       case 'exclOpen': { const r = this.profileRows().find(x => String(x.id) === String(arg));
@@ -2707,6 +2721,32 @@ class Component extends DCLogic {
         </div>
       </div></div>`;
   }
+  // Deleting a unit-type charge affects every unit of that type, so it confirms first.
+  utDelHTML(){
+    const d = this.state.utDel; if (!d) return '';
+    const row = this.profileRows().find(f => String(f.id) === String(d.id));
+    if (!row) return '';
+    const name = row.target || '';
+    const n = this.utUnitCount(name);
+    return `<div data-act="utDelCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.35);display:flex;align-items:center;justify-content:center;z-index:160">
+      <div data-act="noop" style="width:540px;max-width:92vw;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:12px;padding:13px 20px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
+          <span style="font-size:20px;color:var(--rmx-brand-dark, #13314c)">Delete Unit Type Charge</span><div style="flex:1"></div>
+          <span data-act="utDelCancel" class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">close</span>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:18px;padding:22px 24px 24px">
+          <span class="material-symbols-outlined" style="font-size:36px;color:var(--rmx-attention, #f58220);flex:none;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">warning</span>
+          <div style="display:flex;flex-direction:column;gap:12px;min-width:0;font-size:14px;color:var(--rmx-text, #666666);line-height:1.5">
+            <span><strong style="color:var(--rmx-brand-dark, #13314c)">${row.mits}${row.desc?' &middot; '+row.desc:''}</strong> is charged on ${name ? `all ${n} ${name} unit${n===1?'':'s'}` : 'every unit of this unit type'}.</span>
+            <span>Deleting it removes the charge from ${name && n === 1 ? 'that unit' : 'those units'}, including any that are already occupied. Are you sure?</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:14px 20px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7)">
+          <button data-act="utDelConfirm" class="btn-pri" style="height:38px;min-height:38px;padding:0 22px;border-radius:4px;font-size:14px">Delete Charge</button>
+          <button data-act="utDelCancel" class="btn-out" style="height:38px;min-height:38px;padding:0 22px;border-radius:4px;font-size:14px">Cancel</button>
+        </div>
+      </div></div>`;
+  }
   setupHTML(){
     const c = this.state.setup; if (!c) return '';
     const body = c.step === 'saving' ? this.setupSaving()
@@ -3096,6 +3136,17 @@ class Component extends DCLogic {
       </div></div>`;
   }
   // Unit types present at this property, derived from its units.
+  // How many units carry a unit type — the blast radius of a unit-type charge.
+  utUnitCount(name){ const t = this.utData().filter(x => x.name === name)[0]; return t ? t.units : 0; }
+  // Shared wording for the unit-type warning: in the charge form while adding or editing, and in the
+  // confirmation before a unit-type charge is deleted.
+  utWarnText(name){
+    const n = name ? this.utUnitCount(name) : 0;
+    const where = name
+      ? `all <strong style="color:var(--rmx-brand-dark, #13314c)">${n} ${name}</strong> unit${n===1?'':'s'}`
+      : 'every unit with the selected unit type';
+    return `Unit type charge: adding, editing, or deleting this charge changes what ${where} ${(!name || n === 1) ? 'is' : 'are'} charged, including units that are already occupied.`;
+  }
   utData(){ const seen=[]; this.units().forEach(u=>{ if(!seen.some(t=>t.name===u.type)) seen.push({name:u.type,units:0,occ:0}); }); this.units().forEach(u=>{ const t=seen.find(x=>x.name===u.type); t.units++; if(u.tenant&&!/vacant/i.test(u.tenant)) t.occ++; }); return seen; }
   // Selected-scope header row (mirrors the property scoreboard) used by the Unit Type Fees and Unit Fees tabs.
   ufUnits(){ const p=this.state.property; return this.units().map(u=>Object.assign({}, u, { prop:p })); }
@@ -3541,8 +3592,10 @@ class Component extends DCLogic {
     // lvl is the Charge Level this target belongs to — usually the same as its label, except ORI,
     // whose target is the property the rentable item comes from.
     const tgt = (key,label,lvl,id,val,ph,opts) => `<div id="m-appt-${key}-wrap" style="display:${app===lvl?'flex':'none'};flex-direction:column;gap:4px;flex:1;min-width:0">${lab(label+' *')}${opts ? dd(id, opts, val, { placeholder:'Select a '+label.toLowerCase(),
-      // The ORI charge's property decides which charge types are on offer, so re-filter on change.
-      js: lvl === 'ORI' ? "if(window.__ctFilter)window.__ctFilter()" : '' }) : searchField(id,val,ph)}</div>`;
+      // The ORI charge's property decides which charge types are on offer, so re-filter on change;
+      // picking a unit type re-counts the units its warning covers.
+      js: lvl === 'ORI' ? "if(window.__ctFilter)window.__ctFilter()"
+        : lvl === 'Unit Type' ? "if(window.__utWarn)window.__utWarn()" : '' }) : searchField(id,val,ph)}</div>`;
     // An ORI charge only names the property here; the specific rentable item is chosen when the charge
     // is applied to a prospect. Legacy rows stored an item name, so anything that isn't a property
     // falls back to this one.
@@ -3571,8 +3624,12 @@ class Component extends DCLogic {
     const chargeApp = `<div style="display:flex;flex-direction:column;gap:12px">
       <div style="display:flex;gap:12px;align-items:flex-start">
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Level *')}${dd('m-app',['Property','Unit Type','Unit'].concat(cre ? [] : ['ORI']),app,{noSearch:true,js:appToggle})}</div>
-        ${tgt('ut','Unit Type','Unit Type','m-appt-ut', app==='Unit Type'?(ed&&ed.target||''):'', '2BR/2BA')}
+        ${tgt('ut','Unit Type','Unit Type','m-appt-ut', app==='Unit Type'?(ed&&ed.target||''):'', '2BR/2BA', this.utData().map(t=>t.name))}
         ${tgt('unit','Unit','Unit','m-appt-unit', app==='Unit'?(ed&&ed.target||''):'', '2C', this.units().map(u=>u.u))}
+      </div>
+      <div id="m-ut-warn" style="display:${app==='Unit Type'?'flex':'none'};gap:10px;align-items:flex-start;background:#fdf3e3;border:1px solid #f6d9ac;border-radius:4px;padding:10px 14px">
+        <span class="material-symbols-outlined" style="font-size:18px;color:#e59f2e;flex:none">warning</span>
+        <span id="m-ut-warn-txt" style="font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">${this.utWarnText(app === 'Unit Type' ? (ed && ed.target) || '' : '')}</span>
       </div>
       ${cre ? '' : `<div id="m-ori-row" style="display:${app==='ORI'?'flex':'none'};gap:12px;align-items:flex-start">
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Property *')}${dd('m-appt-ori', this.propNames(), oriProp, { placeholder:'Select a property', js:"if(window.__oriPropPick)window.__oriPropPick(_v);if(window.__ctFilter)window.__ctFilter()" })}</div>
@@ -3607,10 +3664,19 @@ class Component extends DCLogic {
     };
     // Charge Level changes swap the target field, and ORI additionally narrows the charge types and
     // prices off market rent, since a rentable item's rate follows the property's market rate.
+    // A unit-type charge lands on every unit of that type, so the warning follows the level (and names
+    // the units once a type is picked).
+    window.__utWarn = () => {
+      const txt = this.q('#m-ut-warn-txt');
+      if (txt) txt.innerHTML = this.utWarnText(((this.q('#m-appt-ut') || {}).value) || '');
+    };
     window.__lvlChange = (v) => {
       ['ut','unit'].forEach(k => { const e = this.q('#m-appt-' + k + '-wrap'); if (e) e.style.display = 'none'; });
       const t = { 'Unit Type':'ut', 'Unit':'unit' }[v];
       if (t) { const w = this.q('#m-appt-' + t + '-wrap'); if (w) w.style.display = 'flex'; }
+      const utw = this.q('#m-ut-warn');
+      if (utw) utw.style.display = (v === 'Unit Type') ? 'flex' : 'none';
+      if (v === 'Unit Type' && window.__utWarn) window.__utWarn();
       const oriRow = this.q('#m-ori-row');
       if (oriRow) oriRow.style.display = (v === 'ORI') ? 'flex' : 'none';
       if (v === 'ORI') {
@@ -4645,6 +4711,7 @@ class Component extends DCLogic {
     out += this.recViewHTML();
     out += this.setupHTML();
     out += this.setupExitHTML();
+    out += this.utDelHTML();
     out += this.addPropHTML();
     out += this.pfFilterHTML();
     out += this.pubModalHTML();
