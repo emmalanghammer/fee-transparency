@@ -507,19 +507,6 @@ class Component extends DCLogic {
         listing:{ name:'Late Fee', category:'Violation', marketing:'', requirement:'Situational', feeDue:'During Term' } }, L('Property'))
     ];
   }
-  // Where those charges live today — shown on setup step 1.
-  setupSources(){
-    return [
-      ['Property Recurring Charges', 4, 'Property'],
-      ['Tenant Charge Setup', 3, 'Property'],
-      ['Unit Type Recurring Charges', 5, 'Unit Type'],
-      ['Unit Recurring Charges', 2, 'Unit'],
-      // Listed on their own rather than lumped into a "Property Specific Charges" row, since each is
-      // a single charge configured in its own place on the property.
-      ['Late Fee', 1, 'Property'],
-      ['NSF Fee', 1, 'Property']
-    ];
-  }
   // Charge type -> MITS fee category. Codes absent here have no category assigned, which
   // surfaces the "Add Category" error state in the Add Charge modal.
   chargeCategoryMap(){
@@ -3128,20 +3115,12 @@ class Component extends DCLogic {
       </div></div>`;
   }
   setupStep1(){
-    const src = this.setupSources();
     const props = this.setupProps();
     const one = props.length === 1;
     // Counts come from what each property would actually discover — a blank new property adds zero.
     const perProp = props.map(pn => this.setupRows(pn));
     const total = perProp.reduce((t, rows) => t + rows.length, 0);
     const recTotal = perProp.reduce((t, rows) => t + rows.filter(r => !/-one$/.test(r.group)).length, 0);
-    // "Where are these charges from?" opens the source breakdown — the same list the old overview
-    // showed. Click-only: the whole label toggles it, and the global panel closer dismisses it on an
-    // outside click (the id ends in -pnl for that reason).
-    const srcPos = "var t=document.getElementById('setup-src-pnl');var r=this.getBoundingClientRect();t.style.display='block';var w=t.offsetWidth,h=t.offsetHeight;var l=r.right-w;if(l<8)l=8;var y=r.bottom+6;if(y+h>window.innerHeight-8)y=r.top-h-6;if(y<8)y=8;t.style.left=l+'px';t.style.top=y+'px';";
-    const srcPanel = `<span id="setup-src-pnl" style="display:none;position:fixed;left:0;top:0;width:330px;padding:14px 16px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5;z-index:400;cursor:default"><span style="display:block;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);padding-bottom:9px;border-bottom:1px solid var(--rmx-line, #cedbe7)">Where these charges come from</span>
-      <span style="display:flex;flex-direction:column;gap:8px;padding-top:10px">${src.map(r=>`<span style="display:flex;align-items:baseline;gap:10px"><span style="flex:1;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${r[0]}</span><span style="font-size:14px;color:var(--rmx-text-muted, #b3b3b3);white-space:nowrap">${r[1]} &rarr; ${r[2]}</span></span>`).join('')}</span></span>`;
-    const srcLink = `<span onclick="event.stopPropagation();var t=document.getElementById('setup-src-pnl');if(t.style.display==='block'){t.style.display='none';}else{${srcPos}}" style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap;cursor:pointer"><span class="material-symbols-outlined" style="font-size:16px">info</span>Where are these charges from?${srcPanel}</span>`;
     // Two plain bullet lists — what setup changes, and what it leaves alone.
     const bul = (t) => `<div style="display:flex;gap:9px;align-items:flex-start">
       <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.5;flex:none">&middot;</span>
@@ -3154,8 +3133,6 @@ class Component extends DCLogic {
       <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:16px 18px;display:flex;flex-direction:column;gap:14px">
         <div style="display:flex;align-items:baseline;gap:12px;padding-bottom:10px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
           <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${total} total charges found, ${recTotal} recurring, ${total - recTotal} one-time</span>
-          <div style="flex:1"></div>
-          ${srcLink}
         </div>
         ${list('What Changes', [
           `All ${total} charges move to the Charges tab and are edited there from now on, including ones that live on tenant charge setup, units, and unit types.`,
