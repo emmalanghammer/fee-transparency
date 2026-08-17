@@ -2889,19 +2889,21 @@ class Component extends DCLogic {
         <span style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title}</span>${note?`<i style="font-size:14px;color:var(--rmx-ink-2, #424e5b)">${note}</i>`:''}</span>
         <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.5">${body}</span>
       </div></div>`;
-    return `<div style="display:flex;flex-direction:column;gap:14px;padding-bottom:4px">
-      <div style="display:flex;align-items:center;gap:18px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:16px 18px">
+    // One property gets the single confirmation tile; a bulk run gets the property-by-property list.
+    const tile = `<div style="display:flex;align-items:center;gap:18px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:16px 18px">
         <span style="width:52px;height:52px;border-radius:50%;background:#e4f3ea;display:flex;align-items:center;justify-content:center;flex:none"><span class="material-symbols-outlined" style="font-size:32px;color:var(--rmx-success, #6eb744)">check</span></span>
         <div style="display:flex;flex-direction:column;gap:4px;min-width:0">
-          <span style="font-size:16px;color:var(--rmx-brand-dark, #13314c)">${n === 1 ? per[0].p + ' is set up' : n + ' properties are set up'}</span>
+          <span style="font-size:16px;color:var(--rmx-brand-dark, #13314c)">${per.length ? per[0].p : 'This property'} is set up</span>
           <span style="font-size:14px;color:var(--rmx-text, #666666)">${total} charges moved to the Charges tab.</span>
         </div>
-      </div>
-      ${n < 2 ? '' : `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${per.map((x,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:11px 16px;${i?'border-top:1px solid var(--rmx-bg-subtle, #f5f8fa)':''}">
+      </div>`;
+    const list = `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${per.map((x,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:11px 16px;${i?'border-top:1px solid var(--rmx-bg-subtle, #f5f8fa)':''}">
         <span class="material-symbols-outlined" style="font-size:18px;color:var(--rmx-success, #6eb744);flex:none">check_circle</span>
         <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${x.p}</span><div style="flex:1"></div>
         <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b);white-space:nowrap">${x.count} charges added</span>
-      </div>`).join('')}</div>`}
+      </div>`).join('')}</div>`;
+    return `<div style="display:flex;flex-direction:column;gap:14px;padding-bottom:4px">
+      ${n === 1 ? tile : list}
       <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:16px 18px;display:flex;flex-direction:column;gap:14px">
         <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Next Steps</span>
         ${step(1, 'Add more details to your charges.', '', 'Fill out the necessary fields on each charge in the Charges tab.')}
