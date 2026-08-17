@@ -3301,6 +3301,10 @@ class Component extends DCLogic {
   }
 
   // ================= PRICING PREVIEW =================
+  // What each lease term does to rent. 12 months is the baseline the unit's rent is quoted at.
+  leaseTermOffsets(){
+    return { '6 Months': 75, '12 Months': 0, '18 Months': -25, '24 Months': -50, 'Month-to-Month': 200 };
+  }
   pricePreviewHTML(){
     const p = this.state.pricePreview; if (!p) return '';
     // On a marketed property the preview mirrors exactly what publishes, so it honours Include on
@@ -3310,7 +3314,17 @@ class Component extends DCLogic {
     const rows = ilsProp ? this.appliedRows().filter(r => r.ils) : this.appliedRows();
     const money = n => '$' + n.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
     const unit = this.unitInfo(p.unit);
-    const amtOf = r => { const a = this.parseAmt(r.amount); if (a) return a; if (r.est != null) return r.est; return /market/i.test(r.amount||'') ? this.parseAmt(unit.rent) : 0; };
+    // Rent moves with the lease term: a short term costs more, a long one less. Only the rent charge
+    // is offset, and the totals follow because everything prices through amtOf.
+    const term = p.term || '12 Months';
+    const termAdj = this.leaseTermOffsets()[term] || 0;
+    const isRent = r => r.mits === 'RC';
+    const amtOf = r => { const base = (() => { const a = this.parseAmt(r.amount); if (a) return a; if (r.est != null) return r.est;
+        return /market/i.test(r.amount||'') ? this.parseAmt(unit.rent) : 0; })();
+      return isRent(r) ? Math.max(0, base + termAdj) : base; };
+    // The rent line says why it isn't the number on the unit.
+    const termNote = r => (isRent(r) && termAdj)
+      ? ` <span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">${termAdj > 0 ? '+' : '&minus;'}${money(Math.abs(termAdj))} for ${term}</span>` : '';
     // Charges with no requirement chosen yet ('ind') sit with the required ones, so a freshly
     // converted property still previews a price instead of an empty breakdown.
     const of = pre => rows.filter(r => r.group.indexOf(pre) === 0 || (pre === 'req' && r.group.indexOf('ind') === 0));
@@ -3340,7 +3354,7 @@ class Component extends DCLogic {
     // A one-time add-on the prospect ticks is money due like any other one-time charge.
     const oTotal = sum(oneTime) + chosenOptOne.reduce((n,r)=>n+lineAmt(r),0);
     const line = (l,v,bold) => `<div style="display:flex;align-items:baseline;justify-content:space-between;padding:5px 0"><span style="font-size:14px;color:${bold?'var(--rmx-brand-dark, #13314c)':'var(--rmx-ink-2, #424e5b)'};${bold?'font-weight:600':''}">${l}</span><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);${bold?'font-weight:600':''}">${v}</span></div>`;
-    const grp = (t, rws, suffix, subLabel) => rws.length ? `<div style="padding:12px 0;border-top:1px solid var(--rmx-bg-subtle, #f5f8fa)"><div style="font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3);margin-bottom:4px">${t}</div>${rws.map(r=>line(r.name + (isPet(r) && qtyOf(r) > 1 ? ` &times; ${qtyOf(r)}` : '') + (atCap(r) ? ` <span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">(max)</span>` : ''), money(lineAmt(r))+(suffix||''))).join('')}${subLabel?line(subLabel, money(rws.reduce((n,r)=>n+lineAmt(r),0)), true):''}</div>` : '';
+    const grp = (t, rws, suffix, subLabel) => rws.length ? `<div style="padding:12px 0;border-top:1px solid var(--rmx-bg-subtle, #f5f8fa)"><div style="font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3);margin-bottom:4px">${t}</div>${rws.map(r=>line(r.name + (isPet(r) && qtyOf(r) > 1 ? ` &times; ${qtyOf(r)}` : '') + (atCap(r) ? ` <span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">(max)</span>` : '') + termNote(r), money(lineAmt(r))+(suffix||''))).join('')}${subLabel?line(subLabel, money(rws.reduce((n,r)=>n+lineAmt(r),0)), true):''}</div>` : '';
     const step = (r, d, icon) => `<span data-act="ppQty" data-arg="${r.id}:${d}" style="display:flex;align-items:center;justify-content:center;width:22px;height:22px;border:1px solid var(--rmx-line, #cedbe7);border-radius:2px;background:#fff;cursor:pointer" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background='#fff'"><span class="material-symbols-outlined" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))">${icon}</span></span>`;
     // A fixed-width slot on every row keeps the steppers (and the amounts beside them) in line.
     const stepper = r => `<span style="display:inline-flex;align-items:center;justify-content:flex-end;gap:7px;width:80px;flex:none">${(!isPet(r) || !p.opt[r.id]) ? '' : `${step(r,-1,'remove')}<span style="min-width:14px;text-align:center;font-size:14px;color:var(--rmx-brand-dark, #13314c)">${qtyOf(r)}</span>${step(r,1,'add')}`}</span>`;
@@ -3361,7 +3375,7 @@ class Component extends DCLogic {
               <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.prop}</span>
             </div>
             <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:14px;color:var(--rmx-text, #666666)">Unit</span>${this.singleSelect('pp-unit', this.units().map(u=>u.u), p.unit, { act:'ppUnit', noSearch:true })}</div>
-            <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:14px;color:var(--rmx-text, #666666)">Lease Terms</span>${this.singleSelect('pp-term', ['12 Months','6 Months','18 Months','24 Months','Month-to-Month'], p.term || '12 Months', { act:'ppTerm', noSearch:true })}</div>
+            <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:14px;color:var(--rmx-text, #666666)">Lease Terms</span>${this.singleSelect('pp-term', Object.keys(this.leaseTermOffsets()), p.term || '12 Months', { act:'ppTerm', noSearch:true })}</div>
             <div style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);padding-bottom:8px;margin-top:4px">Select Optional Fees</div>
             ${optRows.length ? optRows.map(optCb).join('') : '<span style="font-size:12px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No optional fees ' + (ilsProp ? 'set to show on listings yet.' : 'on this profile yet.') + '</span>'}
             <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden;margin-top:4px">
@@ -4197,13 +4211,6 @@ class Component extends DCLogic {
         : `<span style="font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No pet categories yet.</span>`}</span>
       <span style="display:block;font-size:12px;font-style:italic;color:var(--rmx-text, #666666);line-height:1.45;padding-top:10px;border-top:1px solid var(--rmx-line, #cedbe7)">Enter the same Pet Category name to associate charges with the same type of pet.</span>
     </span>`;
-    const petHelpPanel = `<span id="m-pethelp-pnl" style="display:none;position:fixed;left:0;top:0;width:320px;box-sizing:border-box;padding:14px 16px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);z-index:400;cursor:default;white-space:normal">
-      <span style="display:block;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);padding-bottom:9px;border-bottom:1px solid var(--rmx-line, #cedbe7)">Setting up pet charges</span>
-      <span style="display:flex;flex-direction:column;gap:10px;padding-top:11px">
-        <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Give every charge for the same kind of pet the same Pet Category name — the monthly fee, the one-time fee and the deposit — so a listing can show them together.</span>
-        <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Tick <strong style="font-weight:600">Charge per pet</strong> to charge the amount for each pet, and use Max Charge Amount to cap what a resident pays.</span>
-      </span>
-    </span>`;
     const petCheck = (id, label, on, js) => `<label style="display:inline-flex;align-items:center;gap:9px;cursor:pointer;white-space:nowrap"><input id="${id}" type="checkbox" ${on?'checked':''}${js?` onchange="${js}"`:''} style="accent-color:var(--rmx-attention, #f58220);width:16px;height:16px;margin:0"><span style="font-size:14px;color:var(--rmx-text, #666666)">${label}</span></label>`;
     const petMaxJs = "var m=document.getElementById('m-at-petmax');var l=document.getElementById('m-at-petmax-lab');m.disabled=!this.checked;m.style.background=this.checked?'var(--rmx-bg-subtle, #f5f8fa)':'var(--rmx-bg-muted, #f2f2f2)';m.style.borderColor=this.checked?'var(--rmx-line, #cedbe7)':'var(--rmx-line-soft, #ebf1f5)';m.style.color=this.checked?'var(--rmx-brand-dark, #13314c)':'var(--rmx-text-muted, #b3b3b3)';l.style.color=this.checked?'var(--rmx-text, #666666)':'var(--rmx-text-muted, #b3b3b3)';if(!this.checked)m.value='';";
     const petSection = `<div id="m-pet-wrap" style="display:${cat0==='Pet'?'flex':'none'};flex-direction:column;gap:12px">
@@ -4212,7 +4219,7 @@ class Component extends DCLogic {
         <div style="display:flex;align-items:center;gap:12px;background:var(--rmx-brand-dark, #13314c);border-radius:4px;padding:7px 8px 7px 12px">
           <span class="material-symbols-outlined" style="font-size:18px;color:#fff;flex:none">help</span>
           <span style="flex:1;min-width:0;font-size:14px;color:#fff">Want more information on how to set up pet charges?</span>
-          <span onclick="event.stopPropagation();var t=document.getElementById('m-pethelp-pnl');if(t.style.display==='block'){t.style.display='none';}else{${petPnlPos('m-pethelp-pnl')}}" style="display:inline-flex;align-items:center;height:26px;padding:0 12px;border-radius:4px;background:#fff;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;flex:none;white-space:nowrap">Pet Charge${petHelpPanel}</span>
+          <span style="display:inline-flex;align-items:center;height:26px;padding:0 12px;border-radius:4px;background:#fff;font-size:14px;color:var(--rmx-brand-dark, #13314c);flex:none;white-space:nowrap">Pet Charge</span>
         </div>
         <div style="display:flex;flex-direction:column;gap:4px">
           <div style="display:flex;align-items:center;gap:12px">
