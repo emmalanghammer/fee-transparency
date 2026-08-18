@@ -4369,7 +4369,9 @@ class Component extends DCLogic {
     const ilsBox = this.ilsOn() ? `
         <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:12px 14px;display:flex;flex-direction:column;gap:10px">
           <div id="m-ils-msg" style="display:${complete?'none':'flex'};align-items:center;gap:10px;flex-wrap:wrap">
-            <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Complete pricing can't publish while this charge is missing fields listings require:</span>
+            <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${this.state.publishedProps[this.state.property]
+              ? "This property publishes complete pricing, so this charge stays out of the total until these fields are filled in:"
+              : "Complete pricing can't publish while this charge is missing fields listings require:"}</span>
             <span id="m-ils-need" style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap">${missing.map(chip).join('')}</span>
           </div>
           <label style="display:inline-flex;align-items:center;gap:10px;align-self:flex-start;cursor:${swLive?'pointer':'default'}"><span id="m-ils-sw" data-dis="${swLive?'0':'1'}" onclick="${swJs}" data-on="${swOn?'1':'0'}" style="display:inline-block;width:32px;height:18px;border-radius:999px;background:${!swLive?'#dfe6ec':(swOn?'var(--ac,var(--rmx-brand, #008dd5))':'var(--rmx-line, #cedbe7)')};position:relative;flex:none;cursor:${swLive?'pointer':'default'}">${knob}</span><span id="m-ils-lbl" style="font-size:14px;color:${swLive?'var(--rmx-brand-dark, #13314c)':'var(--rmx-text-muted, #b3b3b3)'}">Include on listings</span></label>
