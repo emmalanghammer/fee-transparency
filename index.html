@@ -1873,9 +1873,9 @@ class Component extends DCLogic {
     if (short) return { pill: 'Price', converted: true, warn: `Fee Transparency Issue - ${short} charge${short===1?'':'s'} need${short===1?'s':''} details` };
     return published ? { pill: 'Price + Fees', total: true, converted: true } : { pill: 'Price', converted: true };
   }
-  // Everything the Errors column counts, split the way the popup groups it. Rent Manager and
-  // Trulia/Zillow errors are feed-level problems carried on the row; Fee Transparency errors are the
-  // charges on that property still missing required listing fields.
+  // Everything the Errors column counts, split the way the popup groups it. Only feed-level problems
+  // belong here: a charge missing its details keeps complete pricing from publishing at all, so it
+  // never reaches a listing and isn't a listing error.
   ltErrorsFor(l){
     const RM = ['Company City is missing or blank','Company Info is missing or blank',
       'Company State is missing or blank','Company Street Address is missing or blank',
@@ -1884,20 +1884,9 @@ class Component extends DCLogic {
     const TZ = ['Listing description is longer than the provider allows',
       'Contact phone number is not in a valid format','Photo resolution is below the provider minimum'];
     const take = (pool, n) => Array.from({ length: Math.max(0, n) }, (_, i) => pool[i % pool.length]);
-    const charge = r => `${(r.listing && r.listing.name) || r.desc || r.mits} is missing ${this.mitsMissing(r).join(', ')}`;
-    let ft;
-    if (l.fixed) {
-      // Properties outside the demo portfolio have a fixed count; the seeded charges give it names.
-      const m = String(l.fixed.warn || '').match(/(\d+)\s+charge/);
-      const n = m ? +m[1] : 0;
-      const seeded = this.setupRows('').filter(r => !this.mitsComplete(r));
-      ft = Array.from({ length: n }, (_, i) => charge(seeded[i % Math.max(1, seeded.length)]));
-    } else {
-      ft = this.appliedRows(l.prop).filter(r => !this.mitsComplete(r)).map(charge);
-    }
-    return { rm: take(RM, l.rmErrors || 0), tz: take(TZ, l.tzErrors || 0), ft: ft };
+    return { rm: take(RM, l.rmErrors || 0), tz: take(TZ, l.tzErrors || 0) };
   }
-  ltErrCount(l){ const e = this.ltErrorsFor(l); return e.rm.length + e.tz.length + e.ft.length; }
+  ltErrCount(l){ const e = this.ltErrorsFor(l); return e.rm.length + e.tz.length; }
   // Listing Errors popup: one collapsible section per source, Rent Manager open first.
   ltErrHTML(){
     const st = this.state.ltErr; if (!st) return '';
@@ -1923,7 +1912,6 @@ class Component extends DCLogic {
         <div style="flex:1;min-height:0;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:14px">
           ${sect('rm', 'Rent Manager Errors', e.rm)}
           ${sect('tz', 'Trulia/Zillow Errors', e.tz)}
-          ${sect('ft', 'Fee Transparency Errors', e.ft)}
         </div>
         <div style="flex:none;display:flex;align-items:center;justify-content:flex-end;padding:14px 20px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7)">
           <button data-act="ltErrClose" class="btn-pri" style="height:38px;min-height:38px;padding:0 26px;border-radius:4px;font-size:14px">OK</button>
