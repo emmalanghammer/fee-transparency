@@ -1038,6 +1038,11 @@ class Component extends DCLogic {
         break; }
       case 'pfFilterReset': this.setState({ pfFilters: null }); this.flash('Filters reset'); break;
       case 'groupByReq': this.setState(s => ({ groupByReq: !s.groupByReq })); break;
+      // The not-enabled register's next step: turn this property on for online listings.
+      case 'ilsEnable': { const p = arg;
+        this.setState(s => ({ ilsProps: Object.assign({}, s.ilsProps, { [p]: true }) }));
+        this.logChange(p, 'Fee Transparency', 'Online listings turned on', p);
+        this.flash(p + ' is enabled for online listings'); break; }
       case 'ilsPropToggle': { const p = this.state.property; const turningOn = !this.ilsOn(p);
         this.setState(s => { const m = Object.assign({}, s.ilsProps); if (turningOn) m[p] = true; else delete m[p]; return { ilsProps: m, profMenu: null }; });
         this.logChange(p, 'Fee Transparency', 'Online listings turned ' + (turningOn ? 'on' : 'off'), p);
@@ -1591,16 +1596,8 @@ class Component extends DCLogic {
     });
     window.scrollTo(0, 0);
   }
-  // The Charge Status column only means something where charges publish, so its header says so.
-  ftStatusHelp(){
-    const show = "var t=this.querySelector('.tipf');t.style.display='block';var r=this.getBoundingClientRect();"
-      + "var w=t.offsetWidth,h=t.offsetHeight;var l=r.left-8;if(l+w>window.innerWidth-8)l=window.innerWidth-8-w;if(l<8)l=8;"
-      + "var y=r.bottom+6;if(y+h>window.innerHeight-8)y=r.top-h-6;if(y<8)y=8;t.style.left=l+'px';t.style.top=y+'px';";
-    const hide = "this.querySelector('.tipf').style.display='none';";
-    return `<span onmouseenter="${show}" onmouseleave="${hide}" style="display:inline-flex;flex:none">`
-      + `<span class="material-symbols-outlined" style="font-size:16px;color:#fff;cursor:pointer">info</span>`
-      + `<span class="tipf" style="display:none;position:fixed;left:0;top:0;width:250px;padding:12px 14px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);line-height:1.45;white-space:normal;z-index:400">Only applies to properties enabled for listings.</span></span>`;
-  }
+  // One status per property, worded for the register it lands in: properties enabled for online
+  // listings run all the way to a converted feed, while the rest stop at centralized charges.
   ftStatus(p){
     const rows = this.appliedRows(p);
     const active = this.profStatus(p) === 'active';
@@ -1609,20 +1606,23 @@ class Component extends DCLogic {
     const short = rows.filter(r => !this.mitsComplete(r)).length;
     // Fee Transparency off entirely.
     if (!active) return { key:'none', order:4, icon:'settings', color:'#b3b3b3',
-      pricing:'Not set up', next:'Set Up Fee Transparency', act:'setupOpen' };
-    // On, but the property doesn't advertise — nothing to publish, so it's done as it stands.
+      status:'Not set up', next:'Set Up Fee Transparency', act:'setupOpen' };
+    // On, but the property doesn't advertise — its charges are centralized and that's as far as it goes
+    // until someone enables it for listings.
     if (!ils) return { key:'notEnabled', order:6, icon:'verified', color:'#6eb744',
-      pricing:'Done - Not enabled for listings', next:'View Charges', act:'openFeeProfile' };
+      status:'Centralized', next:'Enable for Online Listings', act:'ilsEnable' };
     if (short) return published
-      ? { key:'pubshort', order:1, icon:'warning', color:'#faa61c',
-          pricing:'Published - Fee missing', pricingColor:'var(--rmx-error, #eb343c)', next:'Add Charge Details', act:'openFeeProfile', issues:short }
+      // Published, then a charge lost (or never had) its details — the feed is converted, but that
+      // charge is sitting out of the price until it's finished.
+      ? { key:'pubshort', order:1, icon:'verified', color:'#6eb744',
+          status:'Feed converted', flag:short + ' charge' + (short===1?'':'s') + ' incomplete since it&#39;s been published',
+          next:'Add Charge Details', act:'openFeeProfile', issues:short }
       : { key:'short', order:2, icon:'warning', color:'#faa61c',
-          pricing:'Not published', next:'Add Charge Details', act:'openFeeProfile', issues:short };
+          status:short + ' charge' + (short===1?'':'s') + ' incomplete', next:'Add Charge Details', act:'openFeeProfile', issues:short };
     return published
-      ? { key:'pub', order:5, icon:'verified', color:'#6eb744',
-          pricing:'Done - Published', next:'View Charges', act:'openFeeProfile' }
+      ? { key:'pub', order:5, icon:'verified', color:'#6eb744', status:'Feed converted' }
       : { key:'ready', order:3, icon:'check_circle', color:'#008dd5',
-          pricing:'Not published - Ready', next:'Publish Complete Pricing', act:'pubOpen' };
+          status:'Ready to convert', next:'Publish Complete Pricing', act:'pubOpen' };
   }
   ftCounts(){
     const c = { none:0, needs:0, ready:0, done:0, pubshort:0, pub:0, notEnabled:0 };
@@ -1707,53 +1707,62 @@ class Component extends DCLogic {
       ${this.bulkSetupCandidates().length ? `<button data-act="ftSelOpen" data-arg="setup" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Bulk Set Up Fee Transparency</button>` : ''}
     </div>`;
 
-    // ---- table: Property | Total Charges | Charge Status | Listing Pricing | Next Step ----
-    const cols = '260fr 140fr 380fr 390fr 200fr 38px';
-    const hc = (t, first, sortUp, after) => `<span style="display:flex;align-items:center;gap:8px;height:26px;box-sizing:border-box;padding:0 ${first?'0 0 17px':'0 0 12px'};font-size:14px;font-weight:600;color:#fff;white-space:nowrap;${first?'':'border-left:1px solid rgba(255,255,255,0.35)'}">${sortUp?'<span class="material-symbols-outlined" style="font-size:18px">arrow_upward</span>':''}${t}${after||''}</span>`;
+    // ---- registers: Property | Total Charges | Status | Next Step ----
+    // Properties enabled for online listings and those that aren't are on different journeys, so they
+    // get their own register whenever the portfolio has both.
+    const cols = '300fr 150fr 480fr 240fr 38px';
+    const hc = (t, first, sortUp) => `<span style="display:flex;align-items:center;gap:8px;height:26px;box-sizing:border-box;padding:0 ${first?'0 0 17px':'0 0 12px'};font-size:14px;font-weight:600;color:#fff;white-space:nowrap;${first?'':'border-left:1px solid rgba(255,255,255,0.35)'}">${sortUp?'<span class="material-symbols-outlined" style="font-size:18px">arrow_upward</span>':''}${t}</span>`;
     const header = `<div style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">
-      ${hc('Property', true)}${hc('Total Charges')}${hc('Charge Status', false, false, this.ftStatusHelp())}${hc('Listing Pricing')}${hc('Next Step', false, true)}
+      ${hc('Property', true)}${hc('Total Charges')}${hc('Status')}${hc('Next Step', false, true)}
       <span style="display:flex;align-items:center;justify-content:center;height:26px;border-left:1px solid rgba(255,255,255,0.35)"><span class="material-symbols-outlined" style="font-size:18px;color:#fff">view_column</span></span>
     </div>`;
     const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
     const mitem = (t, act, arg) => `<div data-act="${act}" data-arg="${esc(arg)}" style="padding:8px 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">${t}</div>`;
-    const body = rows.map((r, i) => {
+    // A converted feed with unfinished charges carries the count as a warning lozenge beside its status.
+    const flagLoz = (t) => `<span class="loz" style="background:#fdf3e3;color:#7a5a2a;text-transform:none;letter-spacing:0;flex:none;display:inline-flex;align-items:center;gap:5px"><span class="material-symbols-outlined" style="font-size:14px;color:var(--rmx-attention, #f58220)">warning</span>${t}</span>`;
+    const rowHTML = (r, i, key) => {
       const st = this.ftStatus(r.name);
       const total = this.appliedRows(r.name).length;
-      const short = st.issues || 0;
       const count = st.key === 'none' ? '-' : String(total);
-      // Charge status is about what publishes to listings, so a property that doesn't advertise — like
-      // one that hasn't been set up at all — has nothing to report here.
-      const chargeStatus = (st.key === 'none' || !this.ilsOn(r.name)) ? '-'
-        : short
-          ? `<span class="material-symbols-outlined" style="font-size:16px;color:var(--rmx-notice, #faa61c)">warning</span><span>${short} charge${short===1?' needs':'s need'} details</span>`
-          : `<span class="material-symbols-outlined" style="font-size:16px;color:var(--rmx-success, #6eb744);font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">check_circle</span><span>All ${total} ready</span>`;
-      // Publish is only offered on listings-enabled properties that haven't published yet;
-      // publishing while charges still need details is allowed but warns in the confirmation.
-      const menuId = `ftrow${i}-pnl`;
+      const menuId = `ft${key}${i}-pnl`;
       const items = (st.key === 'none' ? mitem('Set Up Fee Transparency','setupOpen',r.name) : mitem('View Charges','openFeeProfile',r.name)
-        + (st.key === 'ready' ? mitem('Publish Complete Pricing','pubOpen',r.name) : ''));
-      const menuPos = `event.stopPropagation();var t=document.getElementById('${menuId}');if(t.style.display==='block'){t.style.display='none';}else{t.style.display='block';var r=this.getBoundingClientRect();var w=t.offsetWidth,h=t.offsetHeight;var l=r.right-w;if(l<8)l=8;var y=r.bottom+4;if(y+h>window.innerHeight-8)y=r.top-h-4;t.style.left=l+'px';t.style.top=y+'px';}`;
+        + (st.key === 'ready' ? mitem('Publish Complete Pricing','pubOpen',r.name) : '')
+        + (st.key === 'notEnabled' ? mitem('Enable for Online Listings','ilsEnable',r.name) : ''));
+      const menuPos = `event.stopPropagation();var t=document.getElementById('${menuId}');if(t.style.display==='block'){t.style.display='none';}else{t.style.display='block';var r=this.getBoundingClientRect();var w=t.offsetWidth,h=t.offsetHeight;var l=r.right-w;if(l<8)l=8;var y=r.bottom+4;if(y+h>window.innerHeight-8)y=r.top-h-4;if(y<8)y=8;t.style.left=l+'px';t.style.top=y+'px';}`;
       return `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff">
-        <a data-act="openFeeProfile" data-arg="${esc(r.name)}" style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px 0 17px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${r.name}</a>
+        <a data-act="openFeeProfile" data-arg="${esc(r.name)}" style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px 0 17px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer">${r.name}</a>
         ${cell(count)}
-        <span style="display:flex;align-items:center;gap:7px;min-height:35px;box-sizing:border-box;padding:0 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${chargeStatus}</span>
-        ${cell(`<span style="color:${st.pricingColor||'var(--rmx-brand-dark, #13314c)'}">${st.pricing}</span>`)}
-        <a data-act="${st.act}" data-arg="${esc(r.name)}" style="display:flex;align-items:center;min-height:35px;padding:0 12px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${st.next}</a>
+        <span style="display:flex;align-items:center;gap:10px;min-height:35px;box-sizing:border-box;padding:0 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;min-width:0">
+          <span class="material-symbols-outlined" style="font-size:16px;color:${st.color};flex:none;${st.icon==='verified'||st.icon==='check_circle'?"font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24":''}">${st.icon}</span>
+          <span style="overflow:hidden;text-overflow:ellipsis">${st.status}</span>${st.flag ? flagLoz(st.flag) : ''}
+        </span>
+        ${st.next
+          ? `<a data-act="${st.act}" data-arg="${esc(r.name)}" style="display:flex;align-items:center;min-height:35px;padding:0 12px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${st.next}</a>`
+          : cell('<span style="color:var(--rmx-text-muted, #b3b3b3)">&mdash;</span>')}
         <span style="position:relative;display:flex;align-items:center;justify-content:center;min-height:35px">
           <span onclick="${menuPos}" style="display:flex;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5))">more_vert</span></span>
-          <div id="${menuId}" style="display:none;position:fixed;z-index:1200;min-width:230px;background:#fff;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);padding:4px 0">${items}</div>
+          <div id="${menuId}" style="display:none;position:fixed;z-index:1200;min-width:230px;background:#fff;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);padding:4px 0" onclick="this.style.display='none'">${items}</div>
         </span>
       </div>`;
-    }).join('');
+    };
+    const listed = rows.filter(r => this.ilsOn(r.name));
+    const unlisted = rows.filter(r => !this.ilsOn(r.name));
+    const split = listed.length && unlisted.length;
+    const register = (label, list, key) => !list.length ? '' : `<div style="display:flex;flex-direction:column;gap:6px">
+        ${split ? `<span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${label}</span>` : ''}
+        <div style="overflow-x:auto"><div style="min-width:1000px">${header}${list.map((r, i) => rowHTML(r, i, key)).join('')}</div></div>
+        <div style="display:flex;justify-content:flex-end"><span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">${list.length} ${list.length===1?'Property':'Properties'}</span></div>
+      </div>`;
 
     return `<div style="padding:16px 24px 24px;display:flex;flex-direction:column;gap:16px">
       ${tiles}
       ${toolbar}
-      <div style="display:flex;flex-direction:column;gap:6px">
-        <div style="overflow-x:auto"><div style="min-width:1100px">${header}${body}</div></div>
-        <div style="display:flex;justify-content:flex-end"><span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">${rows.length} of ${all.length} Properties</span></div>
-      </div>
+      ${split
+        ? register('Enabled for Online Listings', listed, 'a') + register('Not Enabled for Online Listings', unlisted, 'b')
+        : register('', listed.concat(unlisted), 'a')}
+      <div style="display:flex;justify-content:flex-end"><span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">${rows.length} of ${all.length} Properties</span></div>
     </div>`;
+
   }
   // ---------- Select Properties dialog (mock 2699-105683) ----------
   ftSelHTML(){
