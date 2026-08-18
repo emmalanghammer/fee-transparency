@@ -1002,9 +1002,7 @@ class Component extends DCLogic {
         const name = ((this.q('#ap-name') || {}).value || '').trim();
         if (!name) { this.setState(s => ({ addProp: Object.assign({}, s.addProp, { err: true }) })); this.flash('Property Name is required'); break; }
         const short = ((this.q('#ap-short') || {}).value || '').trim() || name.slice(0, 6).toUpperCase();
-        // Unit-level marketing has no property-wide profile, so nothing is copied even if a source
-        // was picked before switching.
-        const picked = a.mkt !== 'unit' && a.fee === 'copy' && a.copyFrom
+        const picked = a.fee === 'copy' && a.copyFrom
           ? this.profileRows(a.copyFrom).filter(r => a.sel[r.id]).map(r => Object.assign({}, r))
           : [];
         // Copy From with nothing ticked is the same as Blank — no profile rather than an empty one.
@@ -3812,6 +3810,8 @@ class Component extends DCLogic {
     const copyable = this.copyableProfiles();
     const isCopy = a.fee === 'copy';
     // Unit-level marketing keeps fees on each unit, so there's no property-wide profile to configure.
+    // Marketing configuration is independent of Fee Transparency — centralizing charges doesn't depend
+    // on whether the property markets at property or unit level.
     const unitMkt = a.mkt === 'unit';
     const srcRows = isCopy && a.copyFrom ? this.profileRows(a.copyFrom) : [];
     const chargeTable = (label, rows, rec) => {
@@ -3871,9 +3871,7 @@ class Component extends DCLogic {
         fld('Type of Unit to create', `<div style="height:32px;box-sizing:border-box;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;background:var(--rmx-bg-subtle, #f5f8fa);display:flex;align-items:center;gap:6px;padding:0 8px"><span class="material-symbols-outlined" style="font-size:16px;color:var(--rmx-text-muted, #b3b3b3)">search</span></div>`)
       ))}
       ${sect('Marketing Configuration', `<div style="display:flex;align-items:center;gap:24px">${radio(unitMkt===false,'Property-level Marketing','addPropMkt','property')}${radio(unitMkt,'Unit-level Marketing','addPropMkt','unit')}</div>`)}
-      ${sect('Fee Transparency', unitMkt
-        ? `<div style="display:flex;align-items:flex-start;gap:10px;opacity:0.55"><span class="material-symbols-outlined" style="font-size:18px;color:var(--rmx-text-muted, #b3b3b3);flex:none">block</span><span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3);line-height:1.5">Not available with unit-level marketing. Fee Transparency centralizes charges for the whole property, so fees stay on each unit instead. Switch to property-level marketing to turn it on.</span></div>`
-        : `
+      ${sect('Fee Transparency', `
         ${radio(!isCopy,'Blank','addPropFee','blank')}
         ${hint('Start with no fees, and add charges after the property is created.')}
         ${radio(isCopy,'Copy From','addPropFee','copy')}
