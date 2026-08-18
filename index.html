@@ -714,7 +714,11 @@ class Component extends DCLogic {
         else this.setState({ ftSel: null, pubModal: { props: sel, ack: false } });
         break; }
       // Publishing complete pricing runs through a confirmation with an explicit acknowledgement.
-      case 'pubOpen': this.setState({ pubModal: { prop: arg, ack: false } }); break;
+      case 'pubOpen': { const st = this.ftStatus(arg);
+        // Publishing an incomplete charge set would advertise a price missing required fees, so the
+        // charges have to be finished first.
+        if (st.issues) { this.flash(st.issues + ' charge' + (st.issues===1?'':'s') + ' still need details before complete pricing can publish'); break; }
+        this.setState({ pubModal: { prop: arg, ack: false } }); break; }
       case 'pubAck': this.setState(s => ({ pubModal: Object.assign({}, s.pubModal, { ack: !s.pubModal.ack }) })); break;
       case 'pubCancel': this.setState({ pubModal: null }); break;
       case 'pubConfirm': { const m = this.state.pubModal; const props = m.props || [m.prop];
@@ -1645,7 +1649,9 @@ class Component extends DCLogic {
 
     // Publishable = listings-enabled, set up, not yet published. Incomplete charges don't block
     // publishing — the confirmation warns about them instead.
-    const pubProps = this.propertiesData().map(p => p.name).filter(n => ['ready','short'].indexOf(this.ftStatus(n).key) >= 0);
+    // Complete pricing can only publish once every charge has its required fields, so only properties
+    // sitting at "Ready" are on offer.
+    const pubProps = this.propertiesData().map(p => p.name).filter(n => this.ftStatus(n).key === 'ready');
 
     // ---- status tiles: bordered cards, count, and a qualifying line underneath ----
     const tile = (border, icon, iconColor, label, count, action, sub) => `<div style="flex:1;min-width:295px;background:#fff;border:2px solid ${border};border-radius:4px;padding:10px 14px 11px;display:flex;flex-direction:column;gap:7px;box-sizing:border-box">
@@ -1725,7 +1731,7 @@ class Component extends DCLogic {
       // publishing while charges still need details is allowed but warns in the confirmation.
       const menuId = `ftrow${i}-pnl`;
       const items = (st.key === 'none' ? mitem('Set Up Fee Transparency','setupOpen',r.name) : mitem('View Charges','openFeeProfile',r.name)
-        + (st.key === 'ready' || st.key === 'short' ? mitem('Publish Complete Pricing','pubOpen',r.name) : ''));
+        + (st.key === 'ready' ? mitem('Publish Complete Pricing','pubOpen',r.name) : ''));
       const menuPos = `event.stopPropagation();var t=document.getElementById('${menuId}');if(t.style.display==='block'){t.style.display='none';}else{t.style.display='block';var r=this.getBoundingClientRect();var w=t.offsetWidth,h=t.offsetHeight;var l=r.right-w;if(l<8)l=8;var y=r.bottom+4;if(y+h>window.innerHeight-8)y=r.top-h-4;t.style.left=l+'px';t.style.top=y+'px';}`;
       return `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff">
         <a data-act="openFeeProfile" data-arg="${esc(r.name)}" style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px 0 17px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${r.name}</a>
@@ -1754,7 +1760,7 @@ class Component extends DCLogic {
     const f = this.state.ftSel;
     if (!f) return '';
     const opts = f.mode === 'pub'
-      ? this.propertiesData().map(p => p.name).filter(n => ['ready','short'].indexOf(this.ftStatus(n).key) >= 0)
+      ? this.propertiesData().map(p => p.name).filter(n => this.ftStatus(n).key === 'ready')
       : this.bulkSetupCandidates().map(p => p.name);
     return `<div data-act="ftSelCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:140">
       <div data-act="noop" style="width:360px;max-width:94vw;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column">
@@ -1781,14 +1787,12 @@ class Component extends DCLogic {
     const props = m.props || [m.prop];
     const single = props.length === 1;
     const prop = single ? props[0] : props.length + ' selected properties';
-    const short = props.reduce((acc, p) => acc.concat(this.profileRows(p).filter(r => !this.mitsComplete(r))), []);
-    const names = short.map(r => r.mits);
-    const list = names.length === 1 ? names[0] : names.length === 2 ? names.join(' and ') : names.slice(0, -1).join(', ') + ', and ' + names[names.length - 1];
-    // Red warning appears only when publishing would leave required charges out of the total.
-    const redBox = !short.length ? '' : `<div style="background:#fbe9e9;border:1px solid var(--rmx-error, #eb343c);border-radius:4px;padding:14px 16px;display:flex;flex-direction:column;gap:10px">
-      <span style="font-size:14px;font-weight:600;color:var(--rmx-error, #eb343c)">${short.length} required charge${short.length===1?'':'s'} may not be included</span>
-      <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">The ${list} charge${short.length===1?' is':'s are'} missing details, so ${short.length===1?'it':'they'} may not appear on listings and ${short.length===1?"isn&#39;t":"aren&#39;t"} counted in the total price.</span>
-      <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Where fee transparency laws apply, advertised prices must include all required fees. Publishing now may show renters an incomplete price.</span>
+    // Every charge is ready by the time this opens — publishing is only offered on properties whose
+    // charges are complete — so there's nothing to warn about beyond the one-way switch.
+    const total = props.reduce((n, p) => n + this.appliedRows(p).length, 0);
+    const readyBox = `<div style="background:#eef7e9;border:1px solid var(--rmx-success, #6eb744);border-radius:4px;padding:12px 16px;display:flex;align-items:flex-start;gap:10px">
+      <span class="material-symbols-outlined" style="font-size:20px;color:var(--rmx-success, #6eb744);flex:none;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">verified</span>
+      <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">All ${total} charge${total===1?'':'s'} ${total===1?'has':'have'} the fields listings require, so the total monthly price will include every required fee.</span>
     </div>`;
     return `<div data-act="pubCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:152">
       <div data-act="noop" style="width:640px;max-width:94vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
@@ -1800,10 +1804,10 @@ class Component extends DCLogic {
         </div>
         <div style="padding:18px 20px;display:flex;flex-direction:column;gap:14px;overflow-y:auto">
           <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Are you sure you would like to publish complete pricing for ${prop}?</span>
-          ${redBox}
+          ${readyBox}
           <div style="display:flex;align-items:flex-start;gap:12px;background:#fdf3e3;border:1px solid #f0ad4e;border-radius:4px;padding:12px 14px">
             <span class="material-symbols-outlined" style="font-size:20px;color:var(--rmx-notice, #faa61c);flex:none;margin-top:1px">warning</span>
-            <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.5">Publishing switches ${single ? 'this property&#39;s listing feed' : 'these properties&#39; listing feeds'} permanently and can&#39;t be undone. You can add the missing details anytime, and your listings will reflect that on the next feed update.</span>
+            <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.5">Publishing switches ${single ? 'this property&#39;s listing feed' : 'these properties&#39; listing feeds'} permanently and can&#39;t be undone. Later changes to these charges appear on the next feed update.</span>
           </div>
           <div style="height:1px;background:var(--rmx-line, #cedbe7)"></div>
           <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer">
@@ -2866,13 +2870,13 @@ class Component extends DCLogic {
       <span class="material-symbols-outlined" style="font-size:20px;color:var(--rmx-error, #eb343c);flex:none;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">warning</span>
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
         <span style="font-size:14px;font-weight:600;color:var(--rmx-error, #eb343c);line-height:1.5">Complete pricing is published, but ${need} of ${total} charges are missing required fields.</span>
-        <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Charges that don't have all of the necessary fields may not display on listings and would be non-compliant where fee transparency laws apply.</span>
+        <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">These charges are left out of the published price until their details are filled in, which is non-compliant where fee transparency laws apply.</span>
       </div>
       <a data-act="bulkOpen" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap;cursor:pointer">Bulk Update Charges</a></div>`;
     return `<div style="display:flex;align-items:flex-start;gap:10px;background:#fef4e8;border:1px solid #f6d9ac;border-radius:4px;padding:12px 16px">
       <span class="material-symbols-outlined" style="font-size:20px;color:var(--rmx-attention, #f58220);flex:none">error</span>
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
-        <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">${need} of ${total} charges still need marketing details before they can be included on listings. Open a charge to fill in what's missing, or hover its Listing Ready status to see the exact fields required.</span>
+        <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">${need} of ${total} charges still need marketing details, so complete pricing can't publish yet. Open a charge to fill in what's missing, or hover its Listing Ready status to see the exact fields required.</span>
       </div>
       <a data-act="bulkOpen" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap;cursor:pointer">Bulk Update Charges</a></div>`;
   }
@@ -3277,10 +3281,10 @@ class Component extends DCLogic {
       <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:16px 18px;display:flex;flex-direction:column;gap:14px">
         <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Next Steps</span>
         ${step(1, 'Add more details to your charges.', '', 'Fill out the necessary fields on each charge in the Charges tab.')}
-        ${step(2, 'Publish complete pricing.', 'Only properties enabled for online listings.', `Once your charges are how you want them, go to the Fee Transparency page to publish complete pricing. This is the most important step, it switches ${n === 1 ? "this property's" : "these properties'"} listings to show a Total Monthly Price.`, true)}
+        ${step(2, 'Publish complete pricing.', 'Only properties enabled for online listings.', `Once every charge has its required fields, go to the Fee Transparency page to publish complete pricing. This is the most important step, it switches ${n === 1 ? "this property's" : "these properties'"} listings to show a Total Monthly Price.`, true)}
         <div style="display:flex;gap:10px;align-items:flex-start;border:1px solid #f0d9ae;border-radius:4px;padding:10px 14px">
           <span class="material-symbols-outlined" style="font-size:18px;color:#e59f2e;flex:none">warning</span>
-          <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.5">You can publish complete pricing immediately, but any charges that do not have the required fields will not display on listings and is non-compliant.</span>
+          <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.5">Complete pricing can't publish while a charge is missing required fields, so a listing is never left advertising an incomplete price. The Fee Transparency page shows what each property still needs.</span>
         </div>
       </div>
     </div>`;
@@ -4365,7 +4369,7 @@ class Component extends DCLogic {
     const ilsBox = this.ilsOn() ? `
         <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:12px 14px;display:flex;flex-direction:column;gap:10px">
           <div id="m-ils-msg" style="display:${complete?'none':'flex'};align-items:center;gap:10px;flex-wrap:wrap">
-            <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Without these fields, this charge may not display on listings — and would be non-compliant with fee transparency if it's a required charge:</span>
+            <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Complete pricing can't publish while this charge is missing fields listings require:</span>
             <span id="m-ils-need" style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap">${missing.map(chip).join('')}</span>
           </div>
           <label style="display:inline-flex;align-items:center;gap:10px;align-self:flex-start;cursor:${swLive?'pointer':'default'}"><span id="m-ils-sw" data-dis="${swLive?'0':'1'}" onclick="${swJs}" data-on="${swOn?'1':'0'}" style="display:inline-block;width:32px;height:18px;border-radius:999px;background:${!swLive?'#dfe6ec':(swOn?'var(--ac,var(--rmx-brand, #008dd5))':'var(--rmx-line, #cedbe7)')};position:relative;flex:none;cursor:${swLive?'pointer':'default'}">${knob}</span><span id="m-ils-lbl" style="font-size:14px;color:${swLive?'var(--rmx-brand-dark, #13314c)':'var(--rmx-text-muted, #b3b3b3)'}">Include on listings</span></label>
@@ -4963,10 +4967,18 @@ class Component extends DCLogic {
     const ftPublished = !!this.state.publishedProps[prop2];
     const ftNote = !ftOn ? '' : ftPublished
       ? `<span style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--rmx-brand-dark, #13314c);padding-top:2px"><span class="material-symbols-outlined" style="font-size:18px;color:var(--rmx-success, #6eb744);font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">verified</span>This property is using Fee Transparency and is displaying complete pricing on its listings.</span>`
-      : (this.ilsOn(prop2) ? `<div style="display:flex;align-items:center;gap:18px">
-          <button data-act="pubOpen" data-arg="${prop2}" class="btn-pri" style="height:36px;min-height:36px;padding:0 18px;border-radius:4px;font-size:14px;white-space:nowrap">Publish Complete Pricing</button>
-          <a data-act="announceOpen" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Learn More</a>
-        </div>` : '');
+      : (this.ilsOn(prop2) ? (() => { const need = this.ftStatus(prop2).issues || 0;
+          // Publishing waits until every charge has the fields listings require.
+          return need
+            ? `<div style="display:flex;align-items:flex-start;gap:10px;background:#fef4e8;border:1px solid #f6d9ac;border-radius:4px;padding:11px 14px">
+                <span class="material-symbols-outlined" style="font-size:18px;color:var(--rmx-attention, #f58220);flex:none;margin-top:1px">error</span>
+                <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Complete pricing can publish once every charge has its required fields — ${need} still need${need===1?'s':''} details.</span>
+                <a data-act="openFeeProfile" data-arg="${prop2}" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Add Charge Details</a>
+              </div>`
+            : `<div style="display:flex;align-items:center;gap:18px">
+                <button data-act="pubOpen" data-arg="${prop2}" class="btn-pri" style="height:36px;min-height:36px;padding:0 18px;border-radius:4px;font-size:14px;white-space:nowrap">Publish Complete Pricing</button>
+                <a data-act="announceOpen" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Learn More</a>
+              </div>`; })() : '');
     const prefs = `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;background:#fff">
       ${cardHead('Preferences')}
       <div style="padding:14px 20px 20px;display:grid;grid-template-columns:1fr 1fr;gap:16px 28px">
