@@ -1618,8 +1618,7 @@ class Component extends DCLogic {
       // Published, then a charge lost (or never had) its details — the feed is converted, but that
       // charge is sitting out of the price until it's finished.
       ? { key:'pubshort', order:1, icon:'verified', color:'#6eb744',
-          status:'Feed converted', flag:'Incomplete since published',
-          next:'Add Charge Details', act:'openFeeProfile', issues:short }
+          status:'Feed converted', next:'Add Charge Details', act:'openFeeProfile', issues:short }
       : { key:'short', order:2, icon:'warning', color:'#faa61c',
           status:short + ' charge' + (short===1?'':'s') + ' incomplete', next:'Add Charge Details', act:'openFeeProfile', issues:short };
     return published
@@ -1722,8 +1721,6 @@ class Component extends DCLogic {
     </div>`;
     const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
     const mitem = (t, act, arg) => `<div data-act="${act}" data-arg="${esc(arg)}" style="padding:8px 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">${t}</div>`;
-    // A converted feed with unfinished charges carries the count as a warning lozenge beside its status.
-    const flagLoz = (t) => `<span class="loz" style="background:#fdf3e3;color:#7a5a2a;text-transform:none;letter-spacing:0;flex:none;display:inline-flex;align-items:center;gap:5px"><span class="material-symbols-outlined" style="font-size:14px;color:var(--rmx-attention, #f58220)">warning</span>${t}</span>`;
     const rowHTML = (r, i, key, ils) => {
       const st = this.ftStatus(r.name);
       const total = this.appliedRows(r.name).length;
@@ -1743,7 +1740,7 @@ class Component extends DCLogic {
         ${cell(count)}${ils ? pending : ''}
         <span style="display:flex;align-items:center;gap:10px;min-height:35px;box-sizing:border-box;padding:0 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;min-width:0">
           <span class="material-symbols-outlined" style="font-size:16px;color:${st.color};flex:none;${st.icon==='verified'||st.icon==='check_circle'?"font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24":''}">${st.icon}</span>
-          <span style="overflow:hidden;text-overflow:ellipsis">${st.status}</span>${st.flag ? flagLoz(st.flag) : ''}
+          <span style="overflow:hidden;text-overflow:ellipsis">${st.status}</span>
         </span>
         ${st.next
           ? `<a data-act="${st.act}" data-arg="${esc(r.name)}" style="display:flex;align-items:center;min-height:35px;padding:0 12px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${st.next}</a>`
