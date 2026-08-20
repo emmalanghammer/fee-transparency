@@ -157,10 +157,10 @@ class Component extends DCLogic {
     ltProp: 'all', // Listings page property filter
     // props: the properties a pet type applies to; null means every property.
     petTypes: [
-      { name:'Dog', desc:'', props:null, maxSize:'Medium', maxWeight:'50 lbs', care:true, rec:25, recMax:50, recPer:true, one:0, oneMax:0, onePer:false, dep:200, depMax:400, depPer:true },
-      { name:'Cat', desc:'', props:null, maxSize:'Small', maxWeight:'20 lbs', care:true, rec:15, recMax:0, recPer:false, one:0, oneMax:0, onePer:false, dep:150, depMax:0, depPer:false },
-      { name:'Big Dog', desc:'', props:['Riverview Apartments','The Hamptons'], maxSize:'Large', maxWeight:'120 lbs', care:false, rec:50, recMax:90, recPer:true, one:0, oneMax:0, onePer:false, dep:300, depMax:0, depPer:false },
-      { name:'Fish', desc:'Fish', props:['The Berkshires'], maxSize:'', maxWeight:'', care:false, rec:0, recMax:0, recPer:false, one:25, oneMax:0, onePer:false, dep:0, depMax:0, depPer:false }
+      { name:'Dog', desc:'', props:null, maxPets:2, maxSize:'Medium', maxWeight:'50 lbs', care:true, rec:25, recMax:50, recPer:true, one:0, oneMax:0, onePer:false, dep:200, depMax:400, depPer:true },
+      { name:'Cat', desc:'', props:null, maxPets:2, maxSize:'Small', maxWeight:'20 lbs', care:true, rec:15, recMax:0, recPer:false, one:0, oneMax:0, onePer:false, dep:150, depMax:0, depPer:false },
+      { name:'Big Dog', desc:'', props:['Riverview Apartments','The Hamptons'], maxPets:1, maxSize:'Large', maxWeight:'120 lbs', care:false, rec:50, recMax:90, recPer:true, one:0, oneMax:0, onePer:false, dep:300, depMax:0, depPer:false },
+      { name:'Fish', desc:'Fish', props:['The Berkshires'], maxPets:1, maxSize:'', maxWeight:'', care:false, rec:0, recMax:0, recPer:false, one:25, oneMax:0, onePer:false, dep:0, depMax:0, depPer:false }
     ],
     petType: null, // index being edited in Pet Type Details, or 'new'
     spNav: 'Tenant Charge Setup', // System Preferences left-nav selection
@@ -616,6 +616,8 @@ class Component extends DCLogic {
   componentDidUpdate() {
     this.applyVars();
     this.fitToolbar();
+    // A charge that already follows a pet type opens with its amount locked, not just after a change.
+    if (window.__petTypePick) { const pt = this.q('#m-at-pettype'); if (pt) window.__petTypePick(pt.value); }
     const snap = this._scrollSnap; this._scrollSnap = null;
     if (this._resetScroll) { this._resetScroll = false; return; }
     if (snap) { const panes = this.scrollPanes(); snap.forEach((v,i)=>{ if(panes[i]) panes[i].scrollTop = v; }); }
@@ -667,6 +669,8 @@ class Component extends DCLogic {
       case 'navFeeTrans': this.go('feetrans', { profMenu: null }); break;
       case 'navListings': this.go('listings'); break;
       case 'navPetTypes': this.go('pettypes'); break;
+      // "edited on the Pet Type" — leaving the charge form behind rather than stacking pages.
+      case 'petTypeLink': this.setState({ modal: null, bulk: null, bulkUpd: null }); this.go('pettypes'); break;
       case 'navSysPrefs': this.go('sysprefs'); break;
       // Straight into a bulk setup: the tracker page with the property picker already open.
       case 'navFeeTransBulk': this.go('feetrans', { ftSel: { mode: 'setup' } }); break;
@@ -682,7 +686,7 @@ class Component extends DCLogic {
         const recPer = chk2('pt-rec-per'), onePer = chk2('pt-one-per'), depPer = chk2('pt-dep-per');
         const picked = Array.from(document.querySelectorAll('#pt-props-list input:checked')).map(i => i.value);
         const row = { name, desc: v('pt-desc'), props: picked.length === this.propNames().length ? null : picked,
-          maxSize: v('pt-size'), maxWeight: v('pt-weight'), care: chk2('pt-care'),
+          maxPets: num('pt-maxpets'), maxSize: v('pt-size'), maxWeight: v('pt-weight'), care: chk2('pt-care'),
           rec: num('pt-rec'), recMax: recPer ? num('pt-rec-max') : 0, recPer,
           one: num('pt-one'), oneMax: onePer ? num('pt-one-max') : 0, onePer,
           dep: num('pt-dep'), depMax: depPer ? num('pt-dep-max') : 0, depPer };
@@ -1200,9 +1204,8 @@ class Component extends DCLogic {
       attrs: (() => { const cc = this.chargeCategoryFor(code);
         if (cc === 'Storage') return { storageType: v('m-at-stype'), uom: v('m-at-uom'), height: v('m-at-h'), width: v('m-at-w'), length: v('m-at-l') };
         if (cc === 'Parking') return { structure: v('m-at-struct'), size: v('m-at-size'), regular: v('m-at-reg'), handicapped: v('m-at-hc'), electric: v('m-at-elec'), desc: v('m-at-desc') };
-        if (cc === 'Pet') { const per = chkd('m-at-petper');
-          return { petCategory: v('m-at-petcat'), maxSize: v('m-at-petsize'), maxWeight: v('m-at-petweight'),
-            petCare: chkd('m-at-petcare') ? 'Yes' : '', chargePer: per, chargeMax: per ? v('m-at-petmax') : '' }; }
+        // Pet specifics live on the Pet Type now — the charge just records which type it follows.
+        if (cc === 'Pet') return { petType: v('m-at-pettype') };
         return undefined; })(),
       listing: { name, category: this.chargeCategoryFor(code), marketing: v('m-marketing'), requirement: req, feeDue: v('m-due'), schedule: isOne ? '' : v('m-sched'), refundable: chkd('m-refund') }
     };
@@ -2389,27 +2392,21 @@ class Component extends DCLogic {
     </div>`;
   }
   // Pet types available on a property — a type with no property list applies everywhere.
-  // Pet categories this property's charges already use — the list behind "View Existing Categories".
-  petCategoriesFor(prop){
-    const seen = [];
-    this.profileRows(prop).forEach(r => { const n = String((r.attrs || {}).petCategory || '').trim();
-      if (n && seen.indexOf(n) < 0) seen.push(n); });
-    return seen;
-  }
+  petTypeByName(n){ return this.state.petTypes.filter(t => t.name === String(n || '').trim())[0] || null; }
   petTypesFor(prop){ const p = prop || this.state.property;
     return this.state.petTypes.filter(t => !t.props || t.props.indexOf(p) >= 0); }
   // ---------- Pet Types register + details ----------
   petTypesBody(){
     const money = n => (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const cols = 'minmax(150px,1.1fr) minmax(170px,1.3fr) 110fr 120fr 130fr 140fr 160fr 120fr 150fr 120fr 150fr 44px';
+    const cols = 'minmax(140px,1fr) minmax(150px,1.1fr) 100fr 105fr 115fr 120fr 140fr 160fr 120fr 150fr 120fr 150fr 44px';
     const hc = (t, first, right) => `<span style="display:flex;align-items:center;${right?'justify-content:flex-end;':''}height:28px;box-sizing:border-box;padding:4px ${first?'8px 4px 16px':'8px'};font-size:14px;font-weight:500;letter-spacing:0.5px;color:#fff;border-right:1px solid rgba(255,255,255,0.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>`;
     const header = `<div style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">
-      ${hc('Name', true)}${hc('Description')}${hc('Max Size')}${hc('Max Weight')}${hc('Pet Care')}${hc('Recurring Amount', false, true)}${hc('Max Recurring Amount', false, true)}${hc('One Time Fee', false, true)}${hc('Max One Time Fee', false, true)}${hc('Pet Deposit', false, true)}${hc('Max Pet Deposit', false, true)}<span></span>
+      ${hc('Name', true)}${hc('Description')}${hc('Max Pets')}${hc('Max Size')}${hc('Max Weight')}${hc('Pet Care')}${hc('Recurring Amount', false, true)}${hc('Max Recurring Amount', false, true)}${hc('One Time Fee', false, true)}${hc('Max One Time Fee', false, true)}${hc('Pet Deposit', false, true)}${hc('Max Pet Deposit', false, true)}<span></span>
     </div>`;
     const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:0 8px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
     const rows = this.state.petTypes.map((t, i) => `<div data-act="petTypeOpen" data-arg="${i}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);cursor:pointer;background:#fff" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background=''">
       ${cell(t.name, 'padding-left:16px')}${cell(t.desc || '')}
-      ${cell(t.maxSize || '—')}${cell(t.maxWeight || '—')}
+      ${cell(t.maxPets || '—')}${cell(t.maxSize || '—')}${cell(t.maxWeight || '—')}
       ${cell(t.care
         ? `<span class="material-symbols-outlined" style="font-size:18px;color:var(--rmx-success, #6eb744);font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">check_circle</span>`
         : '<span style="color:var(--rmx-text-muted, #b3b3b3)">—</span>')}
@@ -2428,10 +2425,10 @@ class Component extends DCLogic {
           </div>
         </div>
         <div style="flex:1"></div>
-        <button data-act="petTypeOpen" data-arg="new" class="btn-pri" style="height:38px;min-height:38px;padding:0 18px 0 12px;border-radius:19px;font-size:14px;display:inline-flex;align-items:center;gap:8px"><span class="material-symbols-outlined" style="font-size:20px">add_circle</span>Add Pet Type</button>
+        <button data-act="petTypeOpen" data-arg="new" class="btn-pri" style="height:38px;min-height:38px;padding:0 18px 0 12px;border-radius:4px;font-size:14px;display:inline-flex;align-items:center;gap:8px"><span class="material-symbols-outlined" style="font-size:20px">add_circle</span>Add Pet Type</button>
       </div>
       <div style="display:flex;flex-direction:column;gap:6px;flex:1;min-height:0">
-        <div style="overflow-x:auto"><div style="min-width:1520px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${header}${rows}</div></div>
+        <div style="overflow-x:auto"><div style="min-width:1660px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${header}${rows}</div></div>
         <div style="flex:1"></div>
         <div style="display:flex;justify-content:flex-end"><span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">${this.state.petTypes.length} Pet Types</span></div>
       </div>
@@ -2440,7 +2437,7 @@ class Component extends DCLogic {
   petTypeHTML(){
     const sel = this.state.petType;
     if (sel == null) return '';
-    const t = sel === 'new' ? { name:'', desc:'', maxSize:'', maxWeight:'', care:false, rec:0, recMax:0, recPer:false, one:0, oneMax:0, onePer:false, dep:0, depMax:0, depPer:false } : this.state.petTypes[sel];
+    const t = sel === 'new' ? { name:'', desc:'', maxPets:0, maxSize:'', maxWeight:'', care:false, rec:0, recMax:0, recPer:false, one:0, oneMax:0, onePer:false, dep:0, depMax:0, depPer:false } : this.state.petTypes[sel];
     const money = n => (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const esc = v => ('' + (v || '')).replace(/"/g, '&quot;');
     const lab = (x) => `<span style="font-size:14px;color:var(--rmx-text, #666666)">${x}</span>`;
@@ -2470,6 +2467,7 @@ class Component extends DCLogic {
           <div style="display:flex;flex-direction:column;gap:4px">${lab('Properties')}${this.multiSelect('pt-props', this.propNames(), t.props || this.propNames())}</div>
           <div style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);padding:6px 0 8px;border-bottom:1px solid var(--rmx-line, #cedbe7)">Pet Details</div>
           <div style="display:flex;gap:12px;align-items:flex-start">
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Maximum Pets Allowed')}${txt('pt-maxpets', t.maxPets || '')}</div>
             <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Max Size')}${txt('pt-size', t.maxSize)}</div>
             <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Max Weight')}${txt('pt-weight', t.maxWeight)}</div>
           </div>
@@ -3645,7 +3643,9 @@ class Component extends DCLogic {
     const qtyOf = r => { const v = p.opt[r.id]; return v === true ? 1 : (v || 0); };
     // A per-pet charge can carry a Max Charge Amount, which caps what the resident pays however many
     // pets they add — four pets at $30 with a $100 max is $100, not $120.
-    const petCap = r => { const a = r.attrs || {}; return a.chargePer ? this.parseAmt(a.chargeMax) : 0; };
+    const petCap = r => { const t = this.petTypeByName((r.attrs || {}).petType); if (!t) return 0;
+      const one = /-one$/.test(r.group || '');
+      return (one ? t.onePer : t.recPer) ? (one ? (t.oneMax || 0) : (t.recMax || 0)) : 0; };
     const lineAmt = r => { const t = amtOf(r) * (isPet(r) ? Math.max(1, qtyOf(r)) : 1);
       const cap = petCap(r); return cap ? Math.min(t, cap) : t; };
     // True once the cap is what the resident actually pays, so the line can say why.
@@ -4511,47 +4511,78 @@ class Component extends DCLogic {
     // Pet Details (mock 2865-80885): pet-category charges carry their own optional attributes, and can
     // copy the amounts straight off a configured Pet Type.
     const petPer = !!at.chargePer;
-    // ---- Pet Details (mock 2865-80885) ----
-    // Pet categories are typed per charge and matched by name, so the link lists the ones this
-    // property already uses. Click-only, and the id ends in -pnl so the global closer dismisses it.
-    const petCats = this.petCategoriesFor();
-    const petPnlPos = (id) => `var t=document.getElementById('${id}');var r=this.getBoundingClientRect();t.style.display='block';var w=t.offsetWidth,h=t.offsetHeight;var l=r.right-w;if(l<8)l=8;var y=r.bottom+6;if(y+h>window.innerHeight-8)y=r.top-h-6;if(y<8)y=8;t.style.left=l+'px';t.style.top=y+'px';`;
-    const petCatPanel = `<span id="m-petcat-pnl" style="display:none;position:fixed;left:0;top:0;width:290px;box-sizing:border-box;padding:14px 16px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);z-index:400;cursor:default;white-space:normal">
-      <span style="display:block;font-size:14px;color:var(--rmx-brand-dark, #13314c);padding-bottom:9px;border-bottom:1px solid var(--rmx-line, #cedbe7)">Existing Pet Categories on this Property</span>
-      <span style="display:flex;flex-direction:column;gap:9px;padding:10px 0 11px">${petCats.length
-        ? petCats.map(n => `<span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${n}</span>`).join('')
-        : `<span style="font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No pet categories yet.</span>`}</span>
-      <span style="display:block;font-size:12px;font-style:italic;color:var(--rmx-text, #666666);line-height:1.45;padding-top:10px;border-top:1px solid var(--rmx-line, #cedbe7)">Enter the same Pet Category name to associate charges with the same type of pet.</span>
-    </span>`;
-    const petCheck = (id, label, on, js) => `<label style="display:inline-flex;align-items:center;gap:9px;cursor:pointer;white-space:nowrap"><input id="${id}" type="checkbox" ${on?'checked':''}${js?` onchange="${js}"`:''} style="accent-color:var(--rmx-attention, #f58220);width:16px;height:16px;margin:0"><span style="font-size:14px;color:var(--rmx-text, #666666)">${label}</span></label>`;
-    const petMaxJs = "var m=document.getElementById('m-at-petmax');var l=document.getElementById('m-at-petmax-lab');m.disabled=!this.checked;m.style.background=this.checked?'var(--rmx-bg-subtle, #f5f8fa)':'var(--rmx-bg-muted, #f2f2f2)';m.style.borderColor=this.checked?'var(--rmx-line, #cedbe7)':'var(--rmx-line-soft, #ebf1f5)';m.style.color=this.checked?'var(--rmx-brand-dark, #13314c)':'var(--rmx-text-muted, #b3b3b3)';l.style.color=this.checked?'var(--rmx-text, #666666)':'var(--rmx-text-muted, #b3b3b3)';if(!this.checked)m.value='';";
+    // ---- Pet Details (mock 3042-107577) ----
+    // Pet specifics live on the Pet Type, not the charge: the charge picks a type and shows what that
+    // type says. When the type carries an amount, it drives the charge's amount, which locks.
+    const petList = this.petTypesFor();
+    const petSel = String(at.petType || '');
+    const petOf = (n) => petList.filter(t => t.name === n)[0];
+    // A one-time charge takes the type's one-time figures; a recurring charge its monthly ones.
+    const petAmt = (t) => !t ? 0 : (isOne ? (t.one || 0) : (t.rec || 0));
+    const petMax = (t) => !t ? 0 : (isOne ? (t.oneMax || 0) : (t.recMax || 0));
+    const petPerPet = (t) => !t ? false : (isOne ? !!t.onePer : !!t.recPer);
+    const na = '<span style="color:var(--rmx-text-muted, #b3b3b3)">N/A</span>';
+    const strong = (v) => `<span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${v}</span>`;
+    const sumCell = (id, l, v) => `<span style="display:flex;align-items:baseline;gap:10px;min-width:0;padding:9px 12px">
+      <span style="font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap">${l}</span>
+      <div style="flex:1"></div><span id="${id}" style="text-align:right">${v}</span></span>`;
+    const pt0 = petOf(petSel);
+    const petSummary = (t) => ({
+      maxpets: t && t.maxPets ? strong(t.maxPets) : na,
+      per: t ? strong(petPerPet(t) ? 'Yes' : 'No') : na,
+      max: t && petMax(t) ? strong(this.money(petMax(t)).replace('$','')) : na,
+      size: t && t.maxSize ? strong(t.maxSize) : na,
+      care: t ? strong(t.care ? 'Yes' : 'No') : na,
+      weight: t && t.maxWeight ? strong(t.maxWeight) : na
+    });
+    const sum0 = petSummary(pt0);
+    // Locking the amount is what the note warns about, so both live in one place.
+    window.__petTypePick = (v) => {
+      const t = petList.filter(x => x.name === String(v || '').trim())[0];
+      const sm = petSummary(t);
+      Object.keys(sm).forEach(k => { const e = this.q('#m-pt-' + k); if (e) e.innerHTML = sm[k]; });
+      const amt = this.q('#m-amount'), lck = this.q('#m-pt-lock');
+      const locked = !!(t && petAmt(t));
+      if (amt) {
+        if (locked) amt.value = this.money(petAmt(t)).replace('$','');
+        amt.disabled = locked;
+        amt.style.color = locked ? 'var(--rmx-text-muted, #b3b3b3)' : 'var(--rmx-brand-dark, #13314c)';
+        const wrap = amt.parentElement;
+        if (wrap) { wrap.style.background = locked ? 'var(--rmx-bg-muted, #f2f2f2)' : 'var(--rmx-bg-subtle, #f5f8fa)';
+          wrap.style.borderColor = locked ? 'var(--rmx-line-soft, #ebf1f5)' : 'var(--rmx-line, #cedbe7)'; }
+      }
+      if (lck) lck.style.display = locked ? 'flex' : 'none';
+      // The method belongs to the pet type too, so it greys out with the amount.
+      const mdisp = this.q('#m-method-disp'), mwrap = mdisp && mdisp.parentElement;
+      if (mwrap) {
+        mwrap.style.pointerEvents = locked ? 'none' : '';
+        mwrap.style.background = locked ? 'var(--rmx-bg-muted, #f2f2f2)' : 'var(--rmx-bg-subtle, #f5f8fa)';
+        mwrap.style.borderColor = locked ? 'var(--rmx-line-soft, #ebf1f5)' : 'var(--rmx-line, #cedbe7)';
+        mdisp.style.color = locked ? 'var(--rmx-text-muted, #b3b3b3)' : 'var(--rmx-brand-dark, #13314c)';
+      }
+    };
     const petSection = `<div id="m-pet-wrap" style="display:${cat0==='Pet'?'flex':'none'};flex-direction:column;gap:12px">
       ${attrHead('m-pet', 'Pet Details (Optional)')}
       <div id="m-pet-body" style="display:flex;flex-direction:column;gap:12px">
-        <div style="display:flex;align-items:center;gap:12px;background:var(--rmx-brand-dark, #13314c);border-radius:4px;padding:7px 8px 7px 12px">
-          <span class="material-symbols-outlined" style="font-size:18px;color:#fff;flex:none">help</span>
-          <span style="flex:1;min-width:0;font-size:14px;color:#fff">Want more information on how to set up pet charges?</span>
-          <span style="display:inline-flex;align-items:center;height:26px;padding:0 12px;border-radius:4px;background:#fff;font-size:14px;color:var(--rmx-brand-dark, #13314c);flex:none;white-space:nowrap">Pet Charge</span>
-        </div>
         <div style="display:flex;flex-direction:column;gap:4px">
-          <div style="display:flex;align-items:center;gap:12px">
-            ${lab('Pet Category')}
-            <div style="flex:1"></div>
-            <span onclick="event.stopPropagation();var t=document.getElementById('m-petcat-pnl');if(t.style.display==='block'){t.style.display='none';}else{${petPnlPos('m-petcat-pnl')}}" style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap"><span class="material-symbols-outlined" style="font-size:16px">info</span>View Existing Categories${petCatPanel}</span>
-          </div>
-          ${attrInput('m-at-petcat', at.petCategory, 'E.g. Large dog, small dog, cat, bird, reptile')}
+          <span style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--rmx-text, #666666)">Pet Type${this.infoTip('<span style="display:block;white-space:normal">Pet Details must be edited on the Pet Type. It also affects the charge amount above.</span>', 290)}</span>
+          ${dd('m-at-pettype', petList.map(t => t.name), petSel, { blank:true, placeholder:' ', js:"if(window.__petTypePick)window.__petTypePick(_v)" })}
         </div>
-        <div style="display:flex;gap:12px;align-items:flex-start">
-          ${attrField('Maximum Size', attrInput('m-at-petsize', at.maxSize))}
-          ${attrField('Maximum Weight', attrInput('m-at-petweight', at.maxWeight))}
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,var(--rmx-brand, #008dd5));flex:none">info</span>
+          <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Pet Details can be edited on the <a data-act="petTypeLink" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Pet Type</a>.</span>
         </div>
-        <div style="display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap">
-          <div style="padding-bottom:9px">${petCheck('m-at-petcare', 'Pet Care Available', !!at.petCare)}</div>
-          <div style="padding-bottom:9px">${petCheck('m-at-petper', 'Charge per pet', petPer, petMaxJs)}</div>
-          <div style="flex:1;min-width:180px;max-width:250px;display:flex;flex-direction:column;gap:4px">
-            <span id="m-at-petmax-lab" style="font-size:14px;color:${petPer?'var(--rmx-text, #666666)':'var(--rmx-text-muted, #b3b3b3)'}">Max Charge Amount</span>
-            <input id="m-at-petmax" value="${esc(petPer ? (at.chargeMax||'') : '')}" ${petPer?'':'disabled'} style="width:100%;box-sizing:border-box;height:36px;background:${petPer?'var(--rmx-bg-subtle, #f5f8fa)':'var(--rmx-bg-muted, #f2f2f2)'};border:1px solid ${petPer?'var(--rmx-line, #cedbe7)':'var(--rmx-line-soft, #ebf1f5)'};border-radius:4px;padding:0 10px;font:400 14px Roboto,sans-serif;color:${petPer?'var(--rmx-brand-dark, #13314c)':'var(--rmx-text-muted, #b3b3b3)'};outline:none">
+        <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa)">
+            ${sumCell('m-pt-maxpets','Maximum Pets Allowed',sum0.maxpets)}${sumCell('m-pt-per','Charge Per Pet',sum0.per)}${sumCell('m-pt-max','Maximum Charge Amount',sum0.max)}
           </div>
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr))">
+            ${sumCell('m-pt-size','Maximum Size',sum0.size)}${sumCell('m-pt-care','Pet Care Available',sum0.care)}${sumCell('m-pt-weight','Maximum Weight',sum0.weight)}
+          </div>
+        </div>
+        <div id="m-pt-lock" style="display:${(pt0 && petAmt(pt0))?'flex':'none'};align-items:center;gap:8px">
+          <span class="material-symbols-outlined" style="font-size:16px;color:var(--rmx-text-muted, #b3b3b3);flex:none">lock</span>
+          <span style="font-size:12px;color:var(--rmx-text, #666666);line-height:1.45">The amount comes from this pet type, so it can't be edited here.</span>
         </div>
       </div>
     </div>`;
