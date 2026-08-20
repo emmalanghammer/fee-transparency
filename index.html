@@ -669,8 +669,6 @@ class Component extends DCLogic {
       case 'navFeeTrans': this.go('feetrans', { profMenu: null }); break;
       case 'navListings': this.go('listings'); break;
       case 'navPetTypes': this.go('pettypes'); break;
-      // "edited on the Pet Type" — leaving the charge form behind rather than stacking pages.
-      case 'petTypeLink': this.setState({ modal: null, bulk: null, bulkUpd: null }); this.go('pettypes'); break;
       case 'navSysPrefs': this.go('sysprefs'); break;
       // Straight into a bulk setup: the tracker page with the property picker already open.
       case 'navFeeTransBulk': this.go('feetrans', { ftSel: { mode: 'setup' } }); break;
@@ -4522,10 +4520,12 @@ class Component extends DCLogic {
     const petMax = (t) => !t ? 0 : (isOne ? (t.oneMax || 0) : (t.recMax || 0));
     const petPerPet = (t) => !t ? false : (isOne ? !!t.onePer : !!t.recPer);
     const na = '<span style="color:var(--rmx-text-muted, #b3b3b3)">N/A</span>';
+    // The third pair carries the longest label and the widest value, so it gets more of the row.
+    const petSumCols = 'minmax(0,0.92fr) minmax(0,0.86fr) minmax(0,1.22fr)';
     const strong = (v) => `<span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${v}</span>`;
     const sumCell = (id, l, v) => `<span style="display:flex;align-items:baseline;gap:10px;min-width:0;padding:9px 12px">
-      <span style="font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap">${l}</span>
-      <div style="flex:1"></div><span id="${id}" style="text-align:right">${v}</span></span>`;
+      <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l}</span>
+      <span id="${id}" style="flex:none;white-space:nowrap;text-align:right">${v}</span></span>`;
     const pt0 = petOf(petSel);
     const petSummary = (t) => ({
       maxpets: t && t.maxPets ? strong(t.maxPets) : na,
@@ -4541,7 +4541,7 @@ class Component extends DCLogic {
       const t = petList.filter(x => x.name === String(v || '').trim())[0];
       const sm = petSummary(t);
       Object.keys(sm).forEach(k => { const e = this.q('#m-pt-' + k); if (e) e.innerHTML = sm[k]; });
-      const amt = this.q('#m-amount'), lck = this.q('#m-pt-lock');
+      const amt = this.q('#m-amount');
       const locked = !!(t && petAmt(t));
       if (amt) {
         if (locked) amt.value = this.money(petAmt(t)).replace('$','');
@@ -4551,7 +4551,6 @@ class Component extends DCLogic {
         if (wrap) { wrap.style.background = locked ? 'var(--rmx-bg-muted, #f2f2f2)' : 'var(--rmx-bg-subtle, #f5f8fa)';
           wrap.style.borderColor = locked ? 'var(--rmx-line-soft, #ebf1f5)' : 'var(--rmx-line, #cedbe7)'; }
       }
-      if (lck) lck.style.display = locked ? 'flex' : 'none';
       // The method belongs to the pet type too, so it greys out with the amount.
       const mdisp = this.q('#m-method-disp'), mwrap = mdisp && mdisp.parentElement;
       if (mwrap) {
@@ -4568,21 +4567,13 @@ class Component extends DCLogic {
           <span style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--rmx-text, #666666)">Pet Type${this.infoTip('<span style="display:block;white-space:normal">Pet Details must be edited on the Pet Type. It also affects the charge amount above.</span>', 290)}</span>
           ${dd('m-at-pettype', petList.map(t => t.name), petSel, { blank:true, placeholder:' ', js:"if(window.__petTypePick)window.__petTypePick(_v)" })}
         </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,var(--rmx-brand, #008dd5));flex:none">info</span>
-          <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Pet Details can be edited on the <a data-act="petTypeLink" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Pet Type</a>.</span>
-        </div>
         <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
-          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa)">
+          <div style="display:grid;grid-template-columns:${petSumCols};border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa)">
             ${sumCell('m-pt-maxpets','Maximum Pets Allowed',sum0.maxpets)}${sumCell('m-pt-per','Charge Per Pet',sum0.per)}${sumCell('m-pt-max','Maximum Charge Amount',sum0.max)}
           </div>
-          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr))">
+          <div style="display:grid;grid-template-columns:${petSumCols}">
             ${sumCell('m-pt-size','Maximum Size',sum0.size)}${sumCell('m-pt-care','Pet Care Available',sum0.care)}${sumCell('m-pt-weight','Maximum Weight',sum0.weight)}
           </div>
-        </div>
-        <div id="m-pt-lock" style="display:${(pt0 && petAmt(pt0))?'flex':'none'};align-items:center;gap:8px">
-          <span class="material-symbols-outlined" style="font-size:16px;color:var(--rmx-text-muted, #b3b3b3);flex:none">lock</span>
-          <span style="font-size:12px;color:var(--rmx-text, #666666);line-height:1.45">The amount comes from this pet type, so it can't be edited here.</span>
         </div>
       </div>
     </div>`;
