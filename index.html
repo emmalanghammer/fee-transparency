@@ -621,7 +621,8 @@ class Component extends DCLogic {
     if (snap) { const panes = this.scrollPanes(); snap.forEach((v,i)=>{ if(panes[i]) panes[i].scrollTop = v; }); }
   }
   // The Charges tab toolbar stays on one line: when the level chips would push it past the edge, they
-  // collapse into a single dropdown of the same five choices.
+  // collapse into a single dropdown of the same five choices. Narrower still, the row scrolls
+  // sideways rather than clipping the actions off the end.
   fitToolbar(){
     const row = this.q('#pf-toolbar'); if (!row) return;
     const chips = this.q('#pf-lvl-chips'), dd = this.q('#pf-lvl-dd');
@@ -2630,7 +2631,7 @@ class Component extends DCLogic {
       </div>
       <div id="pf-lvl-pnl" style="display:none;position:fixed;z-index:1000;min-width:250px;background:#fff;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);overflow:hidden;padding:4px 0">${levels.map(lvlRow).join('')}</div>
     </span>`;
-    return `<div id="pf-toolbar" style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;overflow:hidden">
+    return `<div id="pf-toolbar" style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;padding-bottom:2px">
       <span id="pf-lvl-chips" style="display:flex;align-items:center;gap:8px;flex:none">
         ${levels.map(l => this.levelCountChip(l[0], l[1], l[2], l[3])).join('')}
       </span>
