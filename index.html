@@ -660,6 +660,7 @@ class Component extends DCLogic {
     switch (act) {
       case 'accToggle': { const ao = Object.assign({}, this.state.accOpen); ao[arg] = !ao[arg]; this.setState({ accOpen: ao }); break; }
       case 'scenSet': this.scenarioApply(arg); break;
+      case 'navFullMenu': this.go('fullmenu'); break;
       case 'navRegister': this.go('register'); break;
       case 'navFeeTrans': this.go('feetrans', { profMenu: null }); break;
       case 'navListings': this.go('listings'); break;
@@ -1439,6 +1440,8 @@ class Component extends DCLogic {
         <div style="display:flex;align-items:center;gap:1px;flex:none">
           <span onclick="var p=document.getElementById('nav-menu-pnl');if(p.style.display==='block'){p.style.display='none';return}var r=this.getBoundingClientRect();p.style.left=r.left+'px';p.style.top=(r.bottom+6)+'px';p.style.display='block'" style="display:inline-flex;align-items:center;justify-content:center;width:39px;height:32px;background:var(--rmx-overlay-search, #425a70);border-radius:4px 0 0 4px;cursor:pointer"><img src="assets/icon-menu.svg" alt="Menu" style="width:20px;height:20px"></span>
           <div id="nav-menu-pnl" style="display:none;position:fixed;z-index:1000;min-width:230px;background:#fff;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.2);overflow:hidden;padding:4px 0">
+            <div data-act="navFullMenu" style="padding:10px 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">Full Menu</div>
+            <div style="height:1px;background:var(--rmx-brand-tint-bg, #ebf1f5);margin:4px 0"></div>
             <div data-act="kickoffOpen" style="padding:10px 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">Coming Soon Announcement</div>
             <div data-act="announceOpen" style="padding:10px 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">New Feature Announcement</div>
             <div style="height:1px;background:var(--rmx-brand-tint-bg, #ebf1f5);margin:4px 0"></div>
@@ -1782,6 +1785,42 @@ class Component extends DCLogic {
       <div style="display:flex;justify-content:flex-end"><span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">${rows.length} of ${all.length} Properties</span></div>
     </div>`;
 
+  }
+  // ---------- Full Menu (mock 3027-80478) ----------
+  // Every screen in the prototype, grouped. The ones that don't exist yet say so when clicked rather
+  // than going nowhere.
+  fullMenuGroups(){
+    return [
+      ['General', [
+        ['Properties', 'navRegister'],
+        ['Fee Transparency', 'navFeeTrans'],
+        ['Listings', 'navListings']
+      ]],
+      ['Additional Pages', [
+        ['Prospect Details (Rent Quotes)', ''],
+        ['Tenant Details', ''],
+        ['Unit Details', 'navUnit', '1B'],
+        ['Unit Type Details', ''],
+        ['Pet Types', 'navPetTypes'],
+        ['Tenant Charge Setup', 'navSysPrefs']
+      ]],
+      ['Announcements', [
+        ['Coming Soon', 'kickoffOpen'],
+        ['New Feature', 'announceOpen']
+      ]]
+    ];
+  }
+  fullMenuBody(){
+    const link = ([label, act, arg]) => act
+      ? `<a data-act="${act}"${arg?` data-arg="${arg}"`:''} style="display:block;padding:8px 0;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">${label}</a>`
+      : `<a data-act="toast" data-arg="${label} isn&#39;t built yet" style="display:block;padding:8px 0;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">${label}</a>`;
+    const group = ([title, items]) => `<div style="display:flex;flex-direction:column;gap:2px;padding-bottom:10px">
+      <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);padding:10px 0 6px">${title}</span>
+      ${items.map(link).join('')}
+    </div>`;
+    return `<div style="padding:8px 24px 24px;display:flex;flex-direction:column">
+      ${this.fullMenuGroups().map(group).join('')}
+    </div>`;
   }
   // ---------- Select Properties dialog (mock 2699-105683) ----------
   ftSelHTML(){
@@ -5116,6 +5155,12 @@ class Component extends DCLogic {
         <span class="material-symbols-outlined" style="font-size:18px;opacity:0.85;cursor:pointer">help</span>
       </div>`;
       out += `<div style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column">${this.feeTransBody()}</div>`;
+    } else if (s.view === 'fullmenu') {
+      out += `<div style="height:40px;background:var(--ac,var(--rmx-brand, #008dd5));display:flex;align-items:center;padding:0 16px;gap:12px;color:#fff;flex:none">
+        <span style="font-size:18px;line-height:24px">Full Menu</span>
+        <div style="flex:1"></div>
+      </div>`;
+      out += `<div style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column">${this.fullMenuBody()}</div>`;
     } else if (s.view === 'register') {
       out += `<div style="height:40px;background:var(--ac,var(--rmx-brand, #008dd5));display:flex;align-items:center;padding:0 16px;gap:12px;color:#fff;flex:none">
         <span style="font-size:18px;line-height:24px">Properties</span>
