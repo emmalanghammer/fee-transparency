@@ -906,7 +906,10 @@ class Component extends DCLogic {
         const picked = this.bulkSelRows().map(r => r.id);
         const gen = { level: v('bu-level'), mits: v('bu-ctype').toUpperCase(), desc: v('bu-comment'),
           freq: v('bu-freq'), from: v('bu-from'), to: v('bu-to'), amtMethod: v('bu-amtm'), amount: v('bu-amt') };
-        const mkt = { name: v('bu-name'), marketing: v('bu-marketing'), requirement: v('bu-req'), feeDue: v('bu-due'), schedule: v('bu-sched') };
+        const chkd = id => { const el = document.getElementById(id); return !!(el && el.checked); };
+        // Refundable only applies when it's ticked — blank means keep, like every other field here.
+        const mkt = { name: v('bu-name'), marketing: v('bu-marketing'), requirement: v('bu-req'), feeDue: v('bu-due'), schedule: v('bu-sched'),
+          refundable: chkd('bu-refund') || '' };
         const nGen = Object.keys(gen).filter(k => gen[k]).length, nMkt = Object.keys(mkt).filter(k => mkt[k]).length;
         if (!nGen && !nMkt) { this.flash('No changes to apply — every field kept its current value'); break; }
         // Same rule as the charge form: no two charges of one charge type may share a name at the same
@@ -2970,7 +2973,13 @@ class Component extends DCLogic {
       field('Marketing Description', txt('bu-marketing')),
       field('Charge Requirement', dd('bu-req', ['Required','Optional','Situational'])),
       field('Fee Due', dd('bu-due', [{value:'At Application',label:'At Application'},{value:'Move-In',label:'At Move-In'},{value:'During Term',label:'During Term'}])),
-      allRec ? field('Charge Schedule', dd('bu-sched', ['Monthly','Weekly','Daily'])) : ''
+      allRec ? field('Charge Schedule', dd('bu-sched', ['Monthly','Weekly','Daily'])) : '',
+      // Every other field keeps its current value when left blank, so an unticked box means the same:
+      // ticking it marks all the selected charges refundable, leaving it clear changes nothing.
+      `<div style="display:flex;flex-direction:column;gap:3px">
+        <label style="display:inline-flex;align-items:center;gap:9px;align-self:flex-start;cursor:pointer"><input id="bu-refund" type="checkbox" style="accent-color:var(--rmx-attention, #f58220);width:16px;height:16px;margin:0"><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Refundable</span></label>
+        <span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3);line-height:1.45">Leave clear to keep each charge's current setting.</span>
+      </div>`
     ].filter(Boolean).join('');
     // Sections expand/collapse on the DOM so typed values survive — a re-render would wipe them.
     const sect = (key, title, open, inner) => `<div style="display:flex;flex-direction:column">
