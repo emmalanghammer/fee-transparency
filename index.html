@@ -171,6 +171,7 @@ class Component extends DCLogic {
     // any renamed headers, colSetup opens the Customize Column Setup dialog.
     chgCols: null, colNames: {}, colSetup: false,
     ftFilter: 'all', // tracker Status filter: all | ready | needs | none | done
+    ftIncOnly: false, // tracker: only properties with incomplete charges
     // "Charge Exceptions" overlay: { id }. A charge's own exceptions live on the row as
     // exclFrom:{ types:[], units:[], prop:true }.
     chargeExcl: null,
@@ -728,6 +729,7 @@ class Component extends DCLogic {
         props.forEach(p => this.logChange(p, 'Fee Transparency', 'Complete pricing published to listings', p));
         this.flash('Complete pricing published for ' + (props.length === 1 ? props[0] : props.length + ' properties')); break; }
       case 'ftFilterSet': this.setState({ ftFilter: arg }); break;
+      case 'ftIncToggle': this.setState(s => ({ ftIncOnly: !s.ftIncOnly })); break;
       case 'navProperty': this.go('property', arg ? { property: arg, propTab: 'General' } : { propTab: 'General' }); break;
       case 'navUnit': this.go('unit', { unit: arg }); break;
       case 'proptab':
@@ -1602,43 +1604,41 @@ class Component extends DCLogic {
     });
     window.scrollTo(0, 0);
   }
-  // One status per property, worded for the register it lands in: properties enabled for online
-  // listings run all the way to a converted feed, while the rest stop at centralized charges.
-  ftStatus(p){
+  // How a property's charges split for the register: the ones listings can carry, the ones still
+  // missing fields, and the ones deliberately left off listings. The three add up to the total.
+  ftCharges(p){
     const rows = this.appliedRows(p);
+    const on = rows.filter(r => r.ils);
+    return { total: rows.length,
+      ready: on.filter(r => this.mitsComplete(r)).length,
+      incomplete: on.filter(r => !this.mitsComplete(r)).length,
+      excluded: rows.length - on.length };
+  }
+  // One status per property, worded for the register it lands in: properties enabled for online
+  // listings run all the way to published, while the rest stop at centralized charges.
+  ftStatus(p){
     const active = this.profStatus(p) === 'active';
     const published = !!this.state.publishedProps[p];
     const ils = this.ilsOn(p);
-    const short = rows.filter(r => !this.mitsComplete(r)).length;
+    // Only charges that are actually included on listings can hold publishing up.
+    const short = this.ftCharges(p).incomplete;
     // Fee Transparency off entirely.
-    if (!active) return { key:'none', order:4, icon:'settings', color:'#b3b3b3',
-      status:'Not set up', next:'Set Up Fee Transparency', act:'setupOpen' };
+    if (!active) return { key:'none', order:4, status:'Not Set Up', loz:'grey',
+      next:'Set Up Fee Transparency', act:'setupOpen' };
     // On, but the property doesn't advertise — its charges are centralized and that's as far as it goes
     // until someone enables it for listings.
-    if (!ils) return { key:'notEnabled', order:6, icon:'verified', color:'#6eb744',
-      status:'Centralized', next:'Enable for Online Listings', act:'ilsEnable' };
+    if (!ils) return { key:'notEnabled', order:6, status:'Centralized', loz:'green',
+      next:'Enable for Online Listings', act:'ilsEnable' };
     if (short) return published
       // Published, then a charge lost (or never had) its details — the feed is converted, but that
       // charge is sitting out of the price until it's finished.
-      ? { key:'pubshort', order:1, icon:'verified', color:'#6eb744',
-          status:'Feed converted', next:'Add Charge Details', act:'openFeeProfile', issues:short }
-      : { key:'short', order:2, icon:'warning', color:'#faa61c',
-          status:short + ' charge' + (short===1?'':'s') + ' incomplete', next:'Add Charge Details', act:'openFeeProfile', issues:short };
+      // Published, then a charge lost (or never had) its details — it sits out of the price until it's
+      // finished, so the incomplete count is called out in red.
+      ? { key:'pubshort', order:1, status:'Published', loz:'green', next:'Add Charge Details', act:'openFeeProfile', issues:short }
+      : { key:'short', order:2, status:'Charges Incomplete', loz:'amber', next:'Add Charge Details', act:'openFeeProfile', issues:short };
     return published
-      ? { key:'pub', order:5, icon:'verified', color:'#6eb744', status:'Feed converted' }
-      : { key:'ready', order:3, icon:'check_circle', color:'#008dd5',
-          status:'Ready to publish', next:'Publish Complete Pricing', act:'pubOpen' };
-  }
-  ftCounts(){
-    const c = { none:0, needs:0, ready:0, done:0, pubshort:0, pub:0, notEnabled:0 };
-    this.propertiesData().forEach(p => { const st = this.ftStatus(p.name);
-      if (st.key === 'none') c.none++;
-      else if (st.key === 'short') { c.needs++; }
-      else if (st.key === 'pubshort') { c.needs++; c.pubshort++; }
-      else if (st.key === 'ready') c.ready++;
-      else { c.done++; if (st.key === 'pub') c.pub++; else c.notEnabled++; }
-    });
-    return c;
+      ? { key:'pub', order:5, status:'Published', loz:'green' }
+      : { key:'ready', order:3, status:'Ready to Publish', loz:'blue', next:'Publish Complete Pricing', act:'pubOpen' };
   }
   feeTransBody(){
     // Grouped by status in the order the work happens: published-but-incomplete first, then charges
@@ -1647,8 +1647,8 @@ class Component extends DCLogic {
     const group = k => (k==='short'||k==='pubshort') ? 'needs' : (k==='pub'||k==='notEnabled') ? 'done' : k==='ready' ? 'ready' : 'none';
     const all = this.propertiesData().slice()
       .sort((x, y) => (this.ftStatus(x.name).order - this.ftStatus(y.name).order) || x.name.localeCompare(y.name));
-    const rows = filt === 'all' ? all : all.filter(p => group(this.ftStatus(p.name).key) === filt);
-    const c = this.ftCounts();
+    const rows = (filt === 'all' ? all : all.filter(p => group(this.ftStatus(p.name).key) === filt))
+      .filter(p => !this.state.ftIncOnly || (this.ftStatus(p.name).issues || 0) > 0);
     const esc = s => (''+s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
     const clampJs = id => `var p=document.getElementById('${id}');if(p.style.display==='block'){p.style.display='none';}else{p.style.display='block';p.style.right='0';p.style.left='auto';var r=p.getBoundingClientRect();if(r.left<8){p.style.right='auto';p.style.left='0';}}`;
 
@@ -1658,30 +1658,23 @@ class Component extends DCLogic {
     // sitting at "Ready" are on offer.
     const pubProps = this.propertiesData().map(p => p.name).filter(n => this.ftStatus(n).key === 'ready');
 
-    // ---- status tiles: bordered cards, count, and a qualifying line underneath ----
-    const tile = (border, icon, iconColor, label, count, action, sub) => `<div style="flex:1;min-width:295px;background:#fff;border:2px solid ${border};border-radius:4px;padding:10px 14px 11px;display:flex;flex-direction:column;gap:7px;box-sizing:border-box">
-      <span style="display:flex;align-items:center;gap:8px;min-width:0">
-        <span class="material-symbols-outlined" style="font-size:16px;color:${iconColor};font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">${icon}</span>
-        <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${label}</span>
-        <div style="flex:1"></div>
-        ${action || ''}
-      </span>
-      <span style="font-size:20px;font-weight:600;color:var(--rmx-brand-dark, #13314c);line-height:1">${count}</span>
-      ${sub ? `<span style="font-size:12px;font-style:italic;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${sub.c}">${sub.t}</span>` : '<span style="font-size:12px;line-height:1.3">&nbsp;</span>'}
+    // ---- status tiles: one row per register, a coloured spine and the count on the right ----
+    const tile = (spine, label, count) => `<div style="flex:1;min-width:220px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-left:4px solid ${spine};border-radius:3px;padding:11px 16px;display:flex;align-items:center;gap:12px;box-sizing:border-box">
+      <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}</span>
+      <span style="font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${count}</span>
     </div>`;
-    // Ordered the way the work happens: nothing started, then details owed, then ready, then finished.
-    const tiles = `<div style="display:flex;gap:16px;flex-wrap:wrap">
-      ${tile('var(--rmx-text-muted, #b3b3b3)','settings','var(--rmx-text-muted, #b3b3b3)','Not set up',c.none, '', null)}
-      ${tile('var(--rmx-notice, #faa61c)','warning','var(--rmx-notice, #faa61c)','Charges need details',c.needs, '',
-        c.pubshort ? { t:`${c.pubshort} ${c.pubshort===1?'property is':'properties are'} published, fees are missing from listings`, c:'color:var(--rmx-error, #eb343c)' } : null)}
-      ${tile('var(--rmx-brand, #008dd5)','check_circle','var(--rmx-brand, #008dd5)','Ready to publish',c.ready, '',
-        { t:'Listed properties with complete charge details', c:'color:var(--rmx-text, #666666)' })}
-      ${tile('var(--rmx-success, #6eb744)','task_alt','var(--rmx-success, #6eb744)','Done',c.done, '',
-        c.done ? { t:`${c.pub} published&nbsp;&nbsp;&nbsp;${c.notEnabled} not enabled for listings`, c:'color:var(--rmx-success, #6eb744)' } : null)}
-    </div>`;
+    // Counts come from the register's own rows, so each group summarises itself.
+    const tilesFor = (list, ils) => { const n = k => list.filter(r => this.ftStatus(r.name).key === k).length;
+      return `<div style="display:flex;gap:12px;flex-wrap:wrap">` + (ils
+        ? tile('var(--rmx-text-muted, #b3b3b3)', 'Not Set Up', n('none'))
+          + tile('var(--rmx-attention, #f58220)', 'Charges Incomplete', n('short'))
+          + tile('var(--ac,var(--rmx-brand, #008dd5))', 'Ready to Publish', n('ready'))
+          + tile('var(--rmx-success, #6eb744)', 'Published', n('pub') + n('pubshort'))
+        : tile('var(--rmx-text-muted, #b3b3b3)', 'Not Set Up', n('none'))
+          + tile('var(--rmx-success, #6eb744)', 'Centralized', n('notEnabled'))) + `</div>`; };
 
     // ---- toolbar: search, saved filters, and a working Status filter ----
-    const filtLabels = { all:'', ready:'Ready to publish', needs:'Charges need details', none:'Not set up', done:'Done' };
+    const filtLabels = { all:'All selected', ready:'Ready to Publish', needs:'Charges Incomplete', none:'Not Set Up', done:'Published' };
     const fopt = (v, t) => `<div data-act="ftFilterSet" data-arg="${v}" style="padding:7px 14px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">${t}</div>`;
     const toolbar = `<div style="display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap">
       <div style="display:flex;flex-direction:column;gap:4px;width:248px">
@@ -1702,52 +1695,61 @@ class Component extends DCLogic {
         <span style="position:relative;display:flex">
           <div onclick="var p=document.getElementById('ft-status-pnl');p.style.display=(p.style.display==='block'?'none':'block')" style="flex:1;display:flex;align-items:center;height:34px;box-sizing:border-box;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:0 8px;cursor:pointer"><span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden">${filtLabels[filt] || ''}</span><span class="material-symbols-outlined" style="font-size:18px;color:var(--rmx-text, #666666)">keyboard_arrow_down</span></div>
           <div id="ft-status-pnl" style="display:none;position:absolute;left:0;top:38px;z-index:1000;min-width:200px;background:#fff;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);padding:4px 0">
-            ${fopt('all','All Statuses')}${fopt('ready','Ready to publish')}${fopt('needs','Charges need details')}${fopt('none','Not set up')}${fopt('done','Done')}
+            ${fopt('all','All selected')}${fopt('ready','Ready to Publish')}${fopt('needs','Charges Incomplete')}${fopt('none','Not Set Up')}${fopt('done','Published')}
           </div>
         </span>
       </div>
+      <div style="flex:1"></div>
+      <label style="display:inline-flex;align-items:center;gap:9px;height:34px;cursor:pointer;white-space:nowrap">
+        <input type="checkbox" data-act="ftIncToggle" ${this.state.ftIncOnly?'checked':''} style="accent-color:var(--ac,var(--rmx-brand, #008dd5));width:16px;height:16px;margin:0">
+        <span style="font-size:14px;color:var(--rmx-text, #666666)">Only show properties with incomplete charges</span>
+      </label>
       <div style="flex:1"></div>
       <a data-act="announceOpen" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap;padding-bottom:8px">What is fee transparency?</a>
       ${pubProps.length ? `<button data-act="ftSelOpen" data-arg="pub" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Bulk Publish Complete Pricing</button>` : ''}
       ${this.bulkSetupCandidates().length ? `<button data-act="ftSelOpen" data-arg="setup" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Bulk Set Up Fee Transparency</button>` : ''}
     </div>`;
 
-    // ---- registers: Property | Total Charges | [Pending Charges] | Status | Next Step ----
-    // Properties enabled for online listings and those that aren't are on different journeys, so they
-    // get their own register whenever the portfolio has both. Pending charges — the ones still missing
-    // fields listings require — only hold up a property that advertises, so only that register counts them.
-    const colsFor = (ils) => ils ? '280fr 140fr 160fr 420fr 240fr 38px' : '300fr 150fr 480fr 240fr 38px';
-    const hc = (t, first, sortUp) => `<span style="display:flex;align-items:center;gap:8px;height:26px;box-sizing:border-box;padding:0 ${first?'0 0 17px':'0 0 12px'};font-size:14px;font-weight:600;color:#fff;white-space:nowrap;${first?'':'border-left:1px solid rgba(255,255,255,0.35)'}">${sortUp?'<span class="material-symbols-outlined" style="font-size:18px">arrow_upward</span>':''}${t}</span>`;
+    // ---- registers: Property | Status | Total Charges | [charge breakdown] | Next Step ----
+    // Properties enabled for online listings and those that aren't are on different journeys, so each
+    // gets its own register — with its own status tiles — whenever the portfolio has both. Only the
+    // enabled register breaks the charges down, since only its charges reach a listing.
+    const colsFor = (ils) => ils
+      ? '260fr 200fr 130fr 190fr 180fr 170fr 200fr 38px'
+      : '300fr 200fr 150fr 240fr 38px';
+    const hc = (t, first) => `<span style="display:flex;align-items:center;gap:8px;height:26px;box-sizing:border-box;padding:0 0 0 ${first?'17px':'12px'};font-size:14px;font-weight:600;color:#fff;white-space:nowrap;${first?'':'border-left:1px solid rgba(255,255,255,0.35)'}">${t}</span>`;
     const headerFor = (ils) => `<div style="display:grid;grid-template-columns:${colsFor(ils)};background:var(--rmx-register-header, #737373)">
-      ${hc('Property', true)}${hc('Total Charges')}${ils?hc('Pending Charges'):''}${hc('Status')}${hc('Next Step', false, true)}
+      ${hc('Property', true)}${hc('Status')}${hc('Total Charges')}${ils?hc('Listing Ready Charges')+hc('Incomplete Charges')+hc('Excluded Charges'):''}${hc('Next Step')}
       <span style="display:flex;align-items:center;justify-content:center;height:26px;border-left:1px solid rgba(255,255,255,0.35)"><span class="material-symbols-outlined" style="font-size:18px;color:#fff">view_column</span></span>
     </div>`;
     const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
     const mitem = (t, act, arg) => `<div data-act="${act}" data-arg="${esc(arg)}" style="padding:8px 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">${t}</div>`;
+    const lozStyle = { green:'background:var(--rmx-success-bg, #e2f1da);color:#2f5d43', amber:'background:#fdf3e3;color:#7a5a2a',
+      blue:'background:var(--rmx-brand-tint-bg, #ebf1f5);color:var(--rmx-brand-hover, #0071aa)', grey:'background:#eceff1;color:var(--rmx-ink-2, #424e5b)' };
+    // Incomplete charges on a published property are live non-compliance, so that count is called out.
+    const incTip = 'Charges are missing necessary information and will not display on listings.';
     const rowHTML = (r, i, key, ils) => {
       const st = this.ftStatus(r.name);
-      const total = this.appliedRows(r.name).length;
-      const count = st.key === 'none' ? '-' : String(total);
-      // Charges still missing a field listings require. Nothing set up yet means nothing to count.
-      const pending = st.key === 'none' ? cell('-')
-        : st.issues
-          ? cell(`<span style="color:var(--rmx-attention, #f58220)">${st.issues}</span>`)
-          : cell('<span style="color:var(--rmx-text-muted, #b3b3b3)">&mdash;</span>');
+      const ch = this.ftCharges(r.name);
+      const none = st.key === 'none';
+      const num = (v) => cell(none ? '-' : String(v));
+      const incCell = none ? cell('-')
+        : (st.key === 'pubshort'
+          ? `<span style="display:flex;align-items:center;gap:7px;min-height:35px;box-sizing:border-box;padding:0 12px;font-size:14px;color:var(--rmx-error, #eb343c);white-space:nowrap">${ch.incomplete}<span class="tipw" style="display:inline-flex;flex:none"><span class="material-symbols-outlined" style="font-size:16px;color:var(--rmx-error, #eb343c);font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">warning</span><span class="tip" style="left:auto;right:-4px;top:24px;width:250px;white-space:normal">${incTip}</span></span></span>`
+          : cell(String(ch.incomplete)));
       const menuId = `ft${key}${i}-pnl`;
-      const items = (st.key === 'none' ? mitem('Set Up Fee Transparency','setupOpen',r.name) : mitem('View Charges','openFeeProfile',r.name)
+      const items = (none ? mitem('Set Up Fee Transparency','setupOpen',r.name) : mitem('View Charges','openFeeProfile',r.name)
         + (st.key === 'ready' ? mitem('Publish Complete Pricing','pubOpen',r.name) : '')
         + (st.key === 'notEnabled' ? mitem('Enable for Online Listings','ilsEnable',r.name) : ''));
       const menuPos = `event.stopPropagation();var t=document.getElementById('${menuId}');if(t.style.display==='block'){t.style.display='none';}else{t.style.display='block';var r=this.getBoundingClientRect();var w=t.offsetWidth,h=t.offsetHeight;var l=r.right-w;if(l<8)l=8;var y=r.bottom+4;if(y+h>window.innerHeight-8)y=r.top-h-4;if(y<8)y=8;t.style.left=l+'px';t.style.top=y+'px';}`;
       return `<div style="display:grid;grid-template-columns:${colsFor(ils)};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff">
         <a data-act="openFeeProfile" data-arg="${esc(r.name)}" style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px 0 17px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer">${r.name}</a>
-        ${cell(count)}${ils ? pending : ''}
-        <span style="display:flex;align-items:center;gap:10px;min-height:35px;box-sizing:border-box;padding:0 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;min-width:0">
-          <span class="material-symbols-outlined" style="font-size:16px;color:${st.color};flex:none;${st.icon==='verified'||st.icon==='check_circle'?"font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24":''}">${st.icon}</span>
-          <span style="overflow:hidden;text-overflow:ellipsis">${st.status}</span>
-        </span>
+        <span style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px"><span class="loz" style="${lozStyle[st.loz]};text-transform:none;letter-spacing:0">${st.status}</span></span>
+        ${num(ch.total)}
+        ${ils ? num(ch.ready) + incCell + num(ch.excluded) : ''}
         ${st.next
           ? `<a data-act="${st.act}" data-arg="${esc(r.name)}" style="display:flex;align-items:center;min-height:35px;padding:0 12px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${st.next}</a>`
-          : cell('<span style="color:var(--rmx-text-muted, #b3b3b3)">&mdash;</span>')}
+          : cell('')}
         <span style="position:relative;display:flex;align-items:center;justify-content:center;min-height:35px">
           <span onclick="${menuPos}" style="display:flex;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5))">more_vert</span></span>
           <div id="${menuId}" style="display:none;position:fixed;z-index:1200;min-width:230px;background:#fff;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);padding:4px 0" onclick="this.style.display='none'">${items}</div>
@@ -1757,14 +1759,20 @@ class Component extends DCLogic {
     const listed = rows.filter(r => this.ilsOn(r.name));
     const unlisted = rows.filter(r => !this.ilsOn(r.name));
     const split = listed.length && unlisted.length;
-    const register = (label, list, key, ils) => !list.length ? '' : `<div style="display:flex;flex-direction:column;gap:6px">
-        ${split ? `<span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${label}</span>` : ''}
-        <div style="overflow-x:auto"><div style="min-width:1000px">${headerFor(ils)}${list.map((r, i) => rowHTML(r, i, key, ils)).join('')}</div></div>
-        <div style="display:flex;justify-content:flex-end"><span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">${list.length} ${list.length===1?'Property':'Properties'}</span></div>
+    // The heading collapses its own group, so a long portfolio can be read a register at a time.
+    const groupJs = (id) => `var b=document.getElementById('${id}');var c=this.querySelector('.material-symbols-outlined');var on=b.style.display!=='none';b.style.display=on?'none':'flex';c.textContent=on?'chevron_right':'keyboard_arrow_down'`;
+    const register = (label, list, key, ils) => !list.length ? '' : `<div style="display:flex;flex-direction:column;gap:10px">
+        ${split ? `<div onclick="${groupJs('ftgrp-'+key)}" style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <span class="material-symbols-outlined" style="font-size:20px;color:var(--rmx-text, #666666)">keyboard_arrow_down</span>
+          <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${label} (${list.length})</span>
+        </div>` : ''}
+        <div id="ftgrp-${key}" style="display:flex;flex-direction:column;gap:10px">
+          ${tilesFor(list, ils)}
+          <div style="overflow-x:auto"><div style="min-width:${ils?1240:900}px">${headerFor(ils)}${list.map((r, i) => rowHTML(r, i, key, ils)).join('')}</div></div>
+        </div>
       </div>`;
 
     return `<div style="padding:16px 24px 24px;display:flex;flex-direction:column;gap:16px">
-      ${tiles}
       ${toolbar}
       ${split
         ? register('Enabled for Online Listings', listed, 'a', true) + register('Not Enabled for Online Listings', unlisted, 'b', false)
