@@ -1717,12 +1717,15 @@ class Component extends DCLogic {
     // Properties enabled for online listings and those that aren't are on different journeys, so each
     // gets its own register — with its own status tiles — whenever the portfolio has both. Only the
     // enabled register breaks the charges down, since only its charges reach a listing.
-    const colsFor = (ils) => ils
-      ? '260fr 200fr 130fr 190fr 180fr 170fr 200fr 38px'
-      : '300fr 200fr 150fr 240fr 38px';
+    // Both registers share one grid so Property, Status, Total Charges and Next Step line up between
+    // them; the register that has no charge breakdown leaves that span empty rather than reflowing.
+    const cols = '260fr 200fr 130fr 190fr 180fr 170fr 215px 38px';
+    const colsFor = () => cols;
     const hc = (t, first) => `<span style="display:flex;align-items:center;gap:8px;height:26px;box-sizing:border-box;padding:0 0 0 ${first?'17px':'12px'};font-size:14px;font-weight:600;color:#fff;white-space:nowrap;${first?'':'border-left:1px solid rgba(255,255,255,0.35)'}">${t}</span>`;
     const headerFor = (ils) => `<div style="display:grid;grid-template-columns:${colsFor(ils)};background:var(--rmx-register-header, #737373)">
-      ${hc('Property', true)}${hc('Status')}${hc('Total Charges')}${ils?hc('Listing Ready Charges')+hc('Incomplete Charges')+hc('Excluded Charges'):''}${hc('Next Step')}
+      ${hc('Property', true)}${hc('Status')}${hc('Total Charges')}${ils
+        ? hc('Listing Ready Charges')+hc('Incomplete Charges')+hc('Excluded Charges')
+        : `<span style="height:26px;border-left:1px solid rgba(255,255,255,0.35)"></span><span style="height:26px"></span><span style="height:26px"></span>`}${hc('Next Step')}
       <span style="display:flex;align-items:center;justify-content:center;height:26px;border-left:1px solid rgba(255,255,255,0.35)"><span class="material-symbols-outlined" style="font-size:18px;color:#fff">view_column</span></span>
     </div>`;
     const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
@@ -1749,9 +1752,9 @@ class Component extends DCLogic {
         <a data-act="openFeeProfile" data-arg="${esc(r.name)}" style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px 0 17px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer">${r.name}</a>
         <span style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px"><span class="loz" style="${lozStyle[st.loz]};text-transform:none;letter-spacing:0">${st.status}</span></span>
         ${num(ch.total)}
-        ${ils ? num(ch.ready) + incCell + num(ch.excluded) : ''}
+        ${ils ? num(ch.ready) + incCell + num(ch.excluded) : '<span></span><span></span><span></span>'}
         ${st.next
-          ? `<a data-act="${st.act}" data-arg="${esc(r.name)}" style="display:flex;align-items:center;min-height:35px;padding:0 12px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${st.next}</a>`
+          ? `<a data-act="${st.act}" data-arg="${esc(r.name)}" style="display:flex;align-items:center;min-height:35px;padding:0 12px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis">${st.next}</a>`
           : cell('')}
         <span style="position:relative;display:flex;align-items:center;justify-content:center;min-height:35px">
           <span onclick="${menuPos}" style="display:flex;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5))">more_vert</span></span>
@@ -1771,7 +1774,7 @@ class Component extends DCLogic {
         </div>` : ''}
         <div id="ftgrp-${key}" style="display:flex;flex-direction:column;gap:10px">
           ${tilesFor(list, ils)}
-          <div style="overflow-x:auto"><div style="min-width:${ils?1240:900}px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${headerFor(ils)}${list.map((r, i) => rowHTML(r, i, key, ils)).join('')}</div></div>
+          <div style="overflow-x:auto"><div style="min-width:1240px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${headerFor(ils)}${list.map((r, i) => rowHTML(r, i, key, ils)).join('')}</div></div>
         </div>
       </div>`;
 
