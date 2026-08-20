@@ -662,6 +662,7 @@ class Component extends DCLogic {
       case 'accToggle': { const ao = Object.assign({}, this.state.accOpen); ao[arg] = !ao[arg]; this.setState({ accOpen: ao }); break; }
       case 'scenSet': this.scenarioApply(arg); break;
       case 'navFullMenu': this.go('fullmenu'); break;
+      case 'navProspect': this.go('prospect'); break;
       case 'navRegister': this.go('register'); break;
       case 'navFeeTrans': this.go('feetrans', { profMenu: null }); break;
       case 'navListings': this.go('listings'); break;
@@ -1790,6 +1791,208 @@ class Component extends DCLogic {
     </div>`;
 
   }
+  // ================= PROSPECT DETAILS (mock 2869-82204) =================
+  // Rent Manager's prospect page — the surface rent quotes and move-ins come from. Static: the fields
+  // read, they don't edit.
+  prospectBody(){
+    const NAME = 'Charlie Apegian';
+    const lab = (t) => `<span style="font-size:14px;color:var(--rmx-text, #666666)">${t}</span>`;
+    const box = (inner, extra) => `<div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;height:36px;box-sizing:border-box;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:0 10px;${extra||''}">${inner}</div>`;
+    const val = (v) => `<span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v}</span>`;
+    const ph = (t) => `<span style="flex:1;min-width:0;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3);white-space:nowrap">${t}</span>`;
+    const icon = (n, color, size) => `<span class="material-symbols-outlined" style="font-size:${size||18}px;color:${color||'var(--ac,var(--rmx-brand, #008dd5))'};flex:none">${n}</span>`;
+    const txt = (v) => box(v ? val(v) : ph(''));
+    const date = (v) => box((v ? val(v) : ph('mm/dd/yyyy')) + icon('calendar_month'));
+    const dd = (v) => box((v ? val(v) : ph('')) + icon('keyboard_arrow_down', 'var(--rmx-text, #666666)'));
+    const num = (v) => box(val(v));
+    const field = (l, inner) => `<div style="display:flex;flex-direction:column;gap:4px;min-width:0">${lab(l)}${inner}</div>`;
+    const twoUp = (a, b) => `<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px">${a}${b}</div>`;
+    // Square lookup button beside a field, as drawn.
+    const sqBtn = (n) => `<span data-act="toast" data-arg="Lookup" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;flex:none;background:var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:#fff">${n}</span></span>`;
+    const link = (t) => `<span data-act="toast" data-arg="${t}" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${t}</span>`;
+    const ddLink = (t) => `<span data-act="toast" data-arg="${t}" style="display:inline-flex;align-items:center;gap:2px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${t}<span class="material-symbols-outlined" style="font-size:18px">arrow_drop_down</span></span>`;
+    const openIcon = (t) => `<span data-act="toast" data-arg="${t}" class="material-symbols-outlined" style="font-size:17px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;flex:none">open_in_new</span>`;
+    // Grid tiles carry an orange header rule, form tiles a blue one — as drawn in the mock.
+    const tile = (title, right, body, opt) => { const o = opt || {};
+      return `<div class="tile" style="${o.span?`grid-column:span ${o.span};`:''}display:flex;flex-direction:column;min-width:0">
+      <div style="display:flex;align-items:center;gap:14px;padding:8px 14px;border-bottom:2px solid ${o.grid?'var(--rmx-attention, #f58220)':'var(--ac,var(--rmx-brand, #008dd5))'};flex:none">
+        <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${title}</span>
+        ${o.mid || ''}<div style="flex:1"></div>${right || ''}
+      </div>
+      <div style="flex:1;min-width:0;padding:${o.flush?'0':'12px 14px 14px'};${o.minH?`min-height:${o.minH}px;`:''}display:flex;flex-direction:column;gap:${o.flush?'0':'10px'}">${body}</div>
+    </div>`; };
+    const thc = (t, r) => `<span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);padding:7px 12px;${r?'text-align:right;':''}">${t}</span>`;
+    const tdc = (t, r) => `<span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);padding:9px 12px;${r?'text-align:right;':''}overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t}</span>`;
+    const grid = (cols, head, rows, minW) => `<div style="overflow-x:auto"><div style="display:flex;flex-direction:column;${minW?`min-width:${minW}px`:''}">
+      <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7)">${head}</div>
+      ${rows}</div></div>`;
+    const gRow = (cols, cells, alt) => `<div style="display:grid;grid-template-columns:${cols};align-items:center;${alt?'background:var(--rmx-bg-subtle, #f5f8fa);':''}border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa)">${cells}</div>`;
+    const empty = (t, extra) => `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;font-size:14px;color:var(--rmx-text, #666666)">${t}${extra||''}</div>`;
+
+    // ---- header card ----
+    const chip = (c, t) => `<span style="display:inline-flex;align-items:center;gap:7px;background:${c.bg};border-radius:4px;padding:4px 11px;font-size:14px;color:${c.fg};white-space:nowrap"><span style="width:7px;height:7px;border-radius:50%;background:${c.dot};flex:none"></span>${t}</span>`;
+    const meta = (n, t) => `<span style="display:inline-flex;align-items:center;gap:7px;white-space:nowrap">${icon(n)}<span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${t}</span></span>`;
+    const splitBtn = (t) => `<span style="display:inline-flex;align-items:stretch;flex:none">
+      <span data-act="toast" data-arg="${t}" class="btn-pri" style="display:inline-flex;align-items:center;height:32px;padding:0 16px;border-radius:4px 0 0 4px;font-size:14px;white-space:nowrap">${t}</span>
+      <span data-act="toast" data-arg="${t}" style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:32px;background:var(--rmx-brand-hover, #0071aa);border-radius:0 4px 4px 0;cursor:pointer"><span class="material-symbols-outlined" style="font-size:18px;color:#fff">arrow_drop_down</span></span>
+    </span>`;
+    const stat = (l, v) => `<div style="display:flex;align-items:center;justify-content:flex-end;gap:12px">
+      <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${l}</span>
+      <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${v}</span></div>`;
+    const head = `<div class="tile" style="display:flex;align-items:stretch;overflow:hidden">
+      <span style="width:8px;flex:none;background:var(--rmx-brand-dark, #13314c)"></span>
+      <div style="flex:1;min-width:0;display:flex;align-items:center;gap:18px;padding:14px 18px">
+        <span style="width:56px;height:56px;border-radius:50%;background:var(--ac,var(--rmx-brand, #008dd5));color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;flex:none">CA</span>
+        <div style="display:flex;flex-direction:column;gap:8px;min-width:0;flex:1">
+          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+            <span style="font-size:18px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${NAME}</span>
+            <span style="font-size:14px;font-style:italic;color:var(--rmx-text, #666666)">Account #:&nbsp; 516</span>
+            ${chip({bg:'var(--rmx-success-bg, #e2f1da)', fg:'#2f5d43', dot:'var(--rmx-success, #6eb744)'}, 'Prospect')}
+            ${chip({bg:'var(--rmx-brand-tint-bg, #ebf1f5)', fg:'var(--rmx-brand-hover, #0071aa)', dot:'var(--ac,var(--rmx-brand, #008dd5))'}, 'Screening Completed')}
+          </div>
+          <div style="display:flex;align-items:center;gap:22px;flex-wrap:wrap">
+            ${meta('home','Riverview Apartments')}${meta('apartment','1B')}${meta('mail','capegian@lcs.com')}${meta('call','513-555-1235')}
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;flex:none">
+          <div style="display:flex;align-items:center;gap:14px">${stat('Reserved Move-In:','04/01/2026')}${splitBtn('Move In')}</div>
+          <div style="display:flex;align-items:center;gap:14px">${stat('Last Contacted:','03/12/2026')}${splitBtn('Add Note')}</div>
+        </div>
+      </div>
+    </div>`;
+
+    // ---- History / Notes + Rent Quotes ----
+    const hCols = '120px 190px minmax(0,1fr)';
+    const notes = [
+      ['02/25/2026','Lease Renewal Offer','Lease Renewal Offer: Offer Declined'],
+      ['02/25/2026','Survey','Survey Self Inspection: Inspection Sent to Tenant'],
+      ['02/25/2026','Text Message','The signable document for tenant is waiting to be signed.'],
+      ['02/25/2026','Service Issue','Tenant added to Ticket #471 in Service Manager'],
+      ['02/25/2026','Email','Unit Inspection has been completed'],
+      ['02/25/2026','Text Messages','The signable document for Tenant is waiting to be signed']
+    ];
+    const history = tile('History / Notes', ddLink('Add Note') + openIcon('History / Notes'),
+      grid(hCols, thc('Date') + thc('Type') + thc('Note'),
+        notes.map((n, i) => gRow(hCols, tdc(n[0]) + tdc(n[1]) + tdc(n[2]), i % 2 === 1)).join(''), 560) + '<div style="flex:1"></div>',
+      { span:2, grid:true, flush:true, minH:300 });
+    const qCols = 'minmax(0,1.1fr) 110px 150px 120px';
+    const qLoz = (t, ok) => `<span class="loz" style="${ok?'background:var(--rmx-success-bg, #e2f1da);color:#2f5d43':'background:#fdeaea;color:var(--rmx-error, #eb343c)'};text-transform:none;letter-spacing:0">${t}</span>`;
+    const labelPill = (on) => `<span data-act="toast" data-arg="Rent quote filter" style="display:inline-flex;align-items:center;height:26px;padding:0 14px;border-radius:4px;font-size:14px;cursor:pointer;${on?'border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--rmx-brand-dark, #13314c);background:#fff':'border:1px solid var(--rmx-line, #cedbe7);color:var(--rmx-text, #666666);background:#fff'}">Label</span>`;
+    const quotes = tile('Rent Quotes', link('Add Quote'),
+      grid(qCols, thc('Property') + thc('Unit') + thc('Status') + thc('Amount', true),
+        gRow(qCols, tdc('RIVER') + tdc('201C') + `<span style="padding:7px 12px">${qLoz('Reserved', true)}</span>` + tdc('1,500.00', true))
+        + gRow(qCols, tdc('RIVER') + tdc('103A') + `<span style="padding:7px 12px">${qLoz('Expired')}</span>` + tdc('1,800.00', true), true), 420)
+        + '<div style="flex:1"></div>',
+      { grid:true, flush:true, mid:`<span style="display:inline-flex;align-items:center;gap:8px">${labelPill(true)}${labelPill(false)}</span>`, minH:300 });
+
+    // ---- Lead Information / Preferences / Reservation ----
+    const lead = tile('Lead Information', link('Cancel') + openIcon('Lead Information'), `
+      ${field('Leasing Agent', dd(''))}
+      ${field('Lead Source', dd('Website'))}
+      ${field('Stage', `<div style="display:flex;align-items:center;gap:8px">${dd('Waitlisted')}${sqBtn('history')}</div>`)}
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${lab('Interest Level')}
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="flex:1;height:3px;border-radius:2px;background:var(--rmx-line, #cedbe7);position:relative">
+            <span style="position:absolute;left:0;top:0;width:17%;height:3px;border-radius:2px;background:var(--rmx-attention, #f58220)"></span>
+            <span style="position:absolute;left:17%;top:-5px;width:13px;height:13px;border-radius:50%;background:var(--rmx-attention, #f58220);transform:translateX(-50%)"></span>
+          </span>
+          <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">2</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:18px">
+        ${lab('Status')}<span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Prospect</span>
+        <div style="flex:1"></div>
+        <button data-act="toast" data-arg="Change status" class="btn-pri" style="height:32px;min-height:32px;padding:0 20px;border-radius:4px;font-size:14px">Change</button>
+      </div>
+      ${field('Application Date', date(''))}
+      <div style="flex:1"></div>`);
+    const prefs = tile('Preferences', link('Unit Picker') + openIcon('Preferences'), `
+      ${field('Preferred Unit Types', dd('1B / 1B'))}
+      ${field('Preferred Amenities', dd('W/D Unit'))}
+      ${field('Preferred Floors', dd('1st Floor'))}
+      ${field('People Count', num('1'))}
+      ${twoUp(field('Rent Min.', num('1,000.00')), field('Rent Max.', num('1,650.00')))}
+      ${twoUp(field('Move In Date', date('')), field('Move Out Date', date('')))}
+      <div style="flex:1"></div>`);
+    const lease = tile('Reservation / Expected Lease Information', link('Move In') + openIcon('Reservation'), `
+      ${field('Reserved Unit', `<div style="display:flex;align-items:center;gap:8px">${dd('201C')}${sqBtn('apartment')}</div>`)}
+      ${field('ORI Unit', `<div style="display:flex;align-items:center;gap:8px">${dd('')}${sqBtn('apartment')}</div>`)}
+      ${twoUp(field('Reserved Move In', date('')), field('Reserved Move Out', date('')))}
+      ${field('Lease Term', dd(''))}
+      ${twoUp(field('Expected Lease Start', date('')), field('Expected Lease End', date('')))}
+      ${twoUp(field('Rent Period', dd('Monthly')), field('Due Day', box(val('1') + icon('calculate'))))}
+      <div style="flex:1"></div>`);
+
+    // ---- the rest of the page, from the same prospect screen ----
+    const contacts = tile('Contacts', link('Add Contact') + openIcon('Contacts'),
+      `<div style="display:flex;align-items:center;gap:12px">
+        <span style="width:36px;height:36px;border-radius:50%;background:var(--ac,var(--rmx-brand, #008dd5));color:#fff;font-size:14px;display:flex;align-items:center;justify-content:center;flex:none">CA</span>
+        <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${NAME}</span>
+        <span style="font-size:14px;font-style:italic;color:var(--rmx-text, #666666)">(Primary)</span>
+      </div><div style="flex:1"></div>`);
+    const general = tile('General', openIcon('General'), `
+      ${twoUp(field('First Name', txt('Charlie')), field('Last Name', txt('Apegian')))}
+      ${field('Property', box(icon('search') + val('Riverview Apartments')))}
+      ${field('Display Color', box(`<span style="width:14px;height:14px;background:#13314c;flex:none"></span>` + val('Default') + icon('keyboard_arrow_down','var(--rmx-text, #666666)')))}
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <div style="display:flex;align-items:center">${lab('Comment')}<div style="flex:1"></div>${icon('notes')}</div>
+        <div style="height:56px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px"></div>
+      </div>
+      <label style="display:inline-flex;align-items:center;gap:9px;cursor:pointer"><input type="checkbox" style="width:16px;height:16px;margin:0;accent-color:var(--rmx-attention, #f58220)"><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Show on Comment Banner</span></label>
+      <div style="flex:1"></div>`);
+    const tCols = '110px minmax(0,1fr) 110px 110px';
+    const transactions = tile('Transactions', link('Add Payment') + link('Add Charge') + openIcon('Transactions'),
+      grid(tCols, thc('Date') + thc('Description') + thc('Amount', true) + thc('Balance', true), '', 420)
+      + `<div style="flex:1"></div>`, { grid:true, flush:true, minH:170 });
+    const subBox = (inner) => `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:10px 12px;display:flex;flex-direction:column;gap:8px">${inner}</div>`;
+    const screening = tile('Screening / Verification', ddLink('Run Screening') + openIcon('Screening'), `
+      <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Screening</span>
+      ${subBox(`<span style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))">${NAME}</span>
+        <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Status: Screening Completed</span>`)}
+      <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);padding-top:2px">Income &amp; ID Verification</span>
+      ${subBox(`<span style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))">${NAME}</span>
+        <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">ID: Verified</span>
+        <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Income: Verified</span>
+        <div style="display:flex;justify-content:flex-end"><span style="font-size:14px;color:var(--rmx-text-muted, #b3b3b3)">Refresh Status</span></div>`)}
+      <div style="flex:1"></div>`);
+    const interested = tile('Interested Properties / Units', openIcon('Interested Properties / Units'),
+      grid('110px minmax(0,1fr)', thc('Wait List') + thc('Property Name'), '', 260)
+      + empty('No interested properties or units found'), { grid:true, flush:true, minH:170 });
+    const addrTab = (t, on) => `<span data-act="toast" data-arg="${t} address" style="display:inline-flex;align-items:center;height:32px;padding:0 4px;font-size:14px;color:${on?'var(--rmx-brand-dark, #13314c)':'var(--rmx-text, #666666)'};border-bottom:2px solid ${on?'var(--rmx-attention, #f58220)':'transparent'};cursor:pointer">${t}</span>`;
+    const addresses = tile('Addresses', openIcon('Addresses'), `
+      <div style="display:flex;align-items:center;gap:22px;border-bottom:1px solid var(--rmx-line, #cedbe7)">${addrTab('Primary', true)}${addrTab('Secondary')}</div>
+      ${twoUp(field('Street Address', txt('4102 Riverview Way')), field('Unit', txt('1B')))}
+      ${twoUp(field('City', txt('Loveland')), twoUp(field('State', dd('OH')), field('ZIP', txt('45140'))))}
+      <div style="display:flex;align-items:center;gap:14px">
+        <label style="display:inline-flex;align-items:center;gap:9px;cursor:pointer"><input type="checkbox" checked style="width:16px;height:16px;margin:0;accent-color:var(--rmx-attention, #f58220)"><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Default</span></label>
+        <div style="flex:1"></div>${link('Fill From Unit Address')}${link('Details')}
+      </div>
+      <div style="flex:1"></div>`, { span:2 });
+    const uCols = 'minmax(0,1fr) minmax(0,1fr)';
+    const udfs = tile('UDFs', openIcon('UDFs'),
+      grid(uCols, thc('Name') + thc('Value'),
+        gRow(uCols, tdc('PET MON') + tdc('Hugo&#39;s Dog'))
+        + gRow(uCols, tdc('drivers license') + `<span style="display:flex;align-items:center;gap:8px;min-width:0;padding:7px 12px">
+            <span style="width:32px;height:22px;border-radius:2px;background:linear-gradient(160deg,#e6c88a,#8fae6a);flex:none"></span>
+            <span style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));overflow:hidden;text-overflow:ellipsis;white-space:nowrap">raphael-rychetsky.jpg</span></span>`, true), 320)
+      + '<div style="flex:1"></div>', { grid:true, flush:true });
+    const pets = tile('Pets', link('Add Pet') + openIcon('Pets'),
+      grid('minmax(0,1fr) 150px 150px 150px', thc('Name') + thc('Pet Type') + thc('Weight') + thc('Pet Care'),
+        gRow('minmax(0,1fr) 150px 150px 150px', tdc('Hugo') + tdc('Big Dog') + tdc('95 lbs') + tdc('Yes')), 700),
+      { grid:true, flush:true, span:3 });
+
+    return `<div style="padding:12px 16px 20px;display:flex;flex-direction:column;gap:12px">
+      ${head}
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:stretch">
+        ${history}${quotes}
+        ${lead}${prefs}${lease}
+        ${contacts}${general}${transactions}
+        ${screening}${interested}${udfs}
+        ${addresses}${pets}
+      </div>
+    </div>`;
+  }
   // ---------- Full Menu (mock 3027-80478) ----------
   // Every screen in the prototype, grouped. The ones that don't exist yet say so when clicked rather
   // than going nowhere.
@@ -1801,7 +2004,7 @@ class Component extends DCLogic {
         ['Listings', 'navListings']
       ]],
       ['Additional Pages', [
-        ['Prospect Details (Rent Quotes)', ''],
+        ['Prospect Details (Rent Quotes)', 'navProspect'],
         ['Tenant Details', ''],
         ['Unit Details', 'navUnit', '1B'],
         ['Unit Type Details', ''],
@@ -5159,6 +5362,22 @@ class Component extends DCLogic {
         <span class="material-symbols-outlined" style="font-size:18px;opacity:0.85;cursor:pointer">help</span>
       </div>`;
       out += `<div style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column">${this.feeTransBody()}</div>`;
+    } else if (s.view === 'prospect') {
+      out += `<div style="height:40px;background:var(--ac,var(--rmx-brand, #008dd5));display:flex;align-items:center;padding:0 16px;gap:14px;color:#fff;font-size:14px;flex:none">
+        <span style="font-weight:500">Prospect</span>
+        <span style="display:flex;align-items:center;gap:8px;height:26px;box-sizing:border-box;background:#fff;border-radius:4px;padding:0 10px;min-width:220px">
+          <span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,var(--rmx-brand, #008dd5))">search</span>
+          <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Charlie Apegian</span>
+        </span>
+        <span style="display:flex;align-items:center;gap:6px;opacity:0.95"><span class="material-symbols-outlined" style="font-size:16px;cursor:pointer">chevron_left</span><span>125 of 255</span><span class="material-symbols-outlined" style="font-size:16px;cursor:pointer">chevron_right</span></span>
+        <span data-act="toast" data-arg="Filters" style="display:inline-flex;align-items:center;gap:8px;height:26px;background:var(--rmx-attention, #f58220);border-radius:4px;padding:0 10px;cursor:pointer;white-space:nowrap">
+          <span class="material-symbols-outlined" style="font-size:16px">tune</span>1 Filters Applied<span class="material-symbols-outlined" style="font-size:16px">close</span>
+        </span>
+        <div style="flex:1"></div>
+        <span class="material-symbols-outlined" style="font-size:18px;opacity:0.85">sync</span>
+        <span class="material-symbols-outlined" style="font-size:18px;opacity:0.85">help</span>
+      </div>`;
+      out += `<div style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column">${this.prospectBody()}</div>`;
     } else if (s.view === 'fullmenu') {
       out += `<div style="height:40px;background:var(--ac,var(--rmx-brand, #008dd5));display:flex;align-items:center;padding:0 16px;gap:12px;color:#fff;flex:none">
         <span style="font-size:18px;line-height:24px">Full Menu</span>
