@@ -532,6 +532,10 @@ class Component extends DCLogic {
     this.extraChargeCategories().forEach(c => { seen[c] = 1; });
     return Object.keys(seen).sort();
   }
+  chargeTypeDesc(code){
+    const hit = this.chargeTypeList().filter(c => c[0] === String(code || '').toUpperCase())[0];
+    return hit ? hit[1] : '';
+  }
   chargeTypeList(){
     return [['ADMIN','Administrative Fee'],['AMENFEE','Amenity Fee'],['APPFEE','Application Fee'],['CABLE','Cable Utility'],
       ['CAM','Common Area Maintenance'],['CAMTAX','CAM - Taxes'],['CLEAN','Cleaning Fee'],['COVPARK','Covered Parking'],
@@ -910,10 +914,17 @@ class Component extends DCLogic {
           freq: v('bu-freq'), from: v('bu-from'), to: v('bu-to'), amtMethod: v('bu-amtm'), amount: v('bu-amt') };
         const chkd = id => { const el = document.getElementById(id); return !!(el && el.checked); };
         // Refundable only applies when it's ticked — blank means keep, like every other field here.
-        const mkt = { name: v('bu-name'), marketing: v('bu-marketing'), requirement: v('bu-req'), feeDue: v('bu-due'), schedule: v('bu-sched'),
+        const mkt = { marketing: v('bu-marketing'), requirement: v('bu-req'), feeDue: v('bu-due'), schedule: v('bu-sched'),
           refundable: chkd('bu-refund') || '' };
+        // Name is either one typed value or one taken from each charge — so it resolves per row.
+        const nameSrc = ((document.querySelector('input[name="bu-name-src"]:checked') || {}).value) || 'type';
+        const typedName = v('bu-name');
+        const nameFor = (r) => nameSrc === 'comment' ? String(r.desc || '').trim()
+          : nameSrc === 'ctdesc' ? this.chargeTypeDesc(r.mits)
+          : typedName;
+        const nameChanges = nameSrc !== 'type' || !!typedName;
         const nGen = Object.keys(gen).filter(k => gen[k]).length, nMkt = Object.keys(mkt).filter(k => mkt[k]).length;
-        if (!nGen && !nMkt) { this.flash('No changes to apply — every field kept its current value'); break; }
+        if (!nGen && !nMkt && !nameChanges) { this.flash('No changes to apply — every field kept its current value'); break; }
         // Same rule as the charge form: no two charges of one charge type may share a name at the same
         // charge level. Applying one set of values to many charges is the easiest way to break it, so
         // the collision is caught before anything is written — against the other selected charges and
@@ -922,6 +933,7 @@ class Component extends DCLogic {
           const nr = Object.assign({}, r, { listing: Object.assign({}, r.listing) });
           Object.keys(gen).forEach(k => { if (gen[k]) nr[k] = gen[k]; });
           Object.keys(mkt).forEach(k => { if (mkt[k]) nr.listing[k] = mkt[k]; });
+          const nm = nameFor(r); if (nm) nr.listing.name = nm;
           return nr;
         };
         const key = r => [String(r.mits || '').toUpperCase(), String(r.level || 'Property'),
@@ -954,8 +966,9 @@ class Component extends DCLogic {
           const nr = Object.assign({}, r);
           Object.keys(gen).forEach(k => { if (gen[k]) nr[k] = gen[k]; });
           if (gen.level && gen.level === 'Property') nr.target = '';
-          if (nMkt) { nr.listing = Object.assign({}, nr.listing);
-            Object.keys(mkt).forEach(k => { if (mkt[k]) nr.listing[k] = mkt[k]; }); }
+          if (nMkt || nameChanges) { nr.listing = Object.assign({}, nr.listing);
+            Object.keys(mkt).forEach(k => { if (mkt[k]) nr.listing[k] = mkt[k]; });
+            const nm = nameFor(r); if (nm) nr.listing.name = nm; }
           return nr;
         }));
         this.setState({ bulkUpd: null, bulkSel: null });
@@ -3213,7 +3226,22 @@ class Component extends DCLogic {
       field('Amount', txt('bu-amt','calculate'))
     ].filter(Boolean).join('');
     const mktFields = [
-      field('Name', txt('bu-name')),
+      // Name can be typed, or taken from each charge's own Comment or its charge type's description.
+      `<div style="display:flex;flex-direction:column;gap:8px">
+        ${lab('Name')}
+        <div style="display:flex;align-items:center;gap:10px">
+          <input type="radio" name="bu-name-src" value="type" checked style="width:17px;height:17px;margin:0;flex:none;accent-color:var(--ac,var(--rmx-brand, #008dd5))">
+          ${txt('bu-name')}
+        </div>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+          <input type="radio" name="bu-name-src" value="comment" style="width:17px;height:17px;margin:0;flex:none;accent-color:var(--ac,var(--rmx-brand, #008dd5))">
+          <span style="font-size:14px;color:var(--rmx-text, #666666)">Use existing Charge <strong style="color:var(--rmx-brand-dark, #13314c)">Comment</strong> value</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+          <input type="radio" name="bu-name-src" value="ctdesc" style="width:17px;height:17px;margin:0;flex:none;accent-color:var(--ac,var(--rmx-brand, #008dd5))">
+          <span style="font-size:14px;color:var(--rmx-text, #666666)">Use existing Charge Type <strong style="color:var(--rmx-brand-dark, #13314c)">Description</strong> value</span>
+        </label>
+      </div>`,
       field('Marketing Description', txt('bu-marketing')),
       field('Charge Requirement', dd('bu-req', ['Required','Optional','Situational'])),
       field('Fee Due', dd('bu-due', [{value:'At Application',label:'At Application'},{value:'Move-In',label:'At Move-In'},{value:'During Term',label:'During Term'}])),
@@ -3410,7 +3438,7 @@ class Component extends DCLogic {
       <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title}</span>
       <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.55">${body}</span></div>`;
     const table = (rows) => {
-      const cols = '130px minmax(220px,1fr) 130px 130px';
+      const cols = '130px minmax(200px,1fr) 120px 200px';
       const heads = ['Charge Type','Comment','Amount','Charge Level'];
       const hc = (t) => `<span style="padding:8px 12px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;${/Amount/.test(t)?'justify-content:flex-end;display:flex;':''}">${t}</span>`;
       const cell = (t,extra) => `<span style="display:flex;align-items:center;min-height:36px;padding:6px 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
@@ -3455,7 +3483,7 @@ class Component extends DCLogic {
         <div style="display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
           <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${many ? all.length + ' charges found on ' + cur : total + ' charges found'}</span>
         </div>
-        <div style="overflow-x:auto"><div style="min-width:640px">
+        <div style="overflow-x:auto"><div style="min-width:740px">
           ${sect('rec', 'Recurring Charges', all.filter(r=>!/-one$/.test(r.group)), true)}
           ${sect('one', 'One-Time Charges', all.filter(r=>/-one$/.test(r.group)))}
         </div></div>
