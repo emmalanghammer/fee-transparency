@@ -4541,6 +4541,8 @@ class Component extends DCLogic {
       const t = petList.filter(x => x.name === String(v || '').trim())[0];
       const sm = petSummary(t);
       Object.keys(sm).forEach(k => { const e = this.q('#m-pt-' + k); if (e) e.innerHTML = sm[k]; });
+      const sumBox = this.q('#m-pt-sum');
+      if (sumBox) sumBox.style.display = t ? 'block' : 'none';
       const amt = this.q('#m-amount');
       const locked = !!(t && petAmt(t));
       if (amt) {
@@ -4567,7 +4569,7 @@ class Component extends DCLogic {
           <span style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--rmx-text, #666666)">Pet Type${this.infoTip('<span style="display:block;white-space:normal">Pet Details must be edited on the Pet Type. It also affects the charge amount above.</span>', 290)}</span>
           ${dd('m-at-pettype', petList.map(t => t.name), petSel, { blank:true, placeholder:' ', js:"if(window.__petTypePick)window.__petTypePick(_v)" })}
         </div>
-        <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
+        <div id="m-pt-sum" style="display:${pt0?'block':'none'};border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
           <div style="display:grid;grid-template-columns:${petSumCols};border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa)">
             ${sumCell('m-pt-maxpets','Maximum Pets Allowed',sum0.maxpets)}${sumCell('m-pt-per','Charge Per Pet',sum0.per)}${sumCell('m-pt-max','Maximum Charge Amount',sum0.max)}
           </div>
