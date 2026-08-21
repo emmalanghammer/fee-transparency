@@ -1713,8 +1713,7 @@ class Component extends DCLogic {
           </div>
         </span>
       </div>
-      <div style="flex:1"></div>
-      <label style="display:inline-flex;align-items:center;gap:9px;height:34px;cursor:pointer;white-space:nowrap">
+      <label style="display:inline-flex;align-items:center;gap:9px;height:34px;margin-left:8px;cursor:pointer;white-space:nowrap">
         <input type="checkbox" data-act="ftIncToggle" ${this.state.ftIncOnly?'checked':''} style="accent-color:var(--ac,var(--rmx-brand, #008dd5));width:16px;height:16px;margin:0">
         <span style="font-size:14px;color:var(--rmx-text, #666666)">Only show properties with incomplete charges</span>
       </label>
@@ -1743,15 +1742,32 @@ class Component extends DCLogic {
     const lozStyle = { green:'background:var(--rmx-success-bg, #e2f1da);color:#2f5d43', amber:'background:#fdf3e3;color:#7a5a2a',
       blue:'background:var(--rmx-brand-tint-bg, #ebf1f5);color:var(--rmx-brand-hover, #0071aa)', grey:'background:#eceff1;color:var(--rmx-ink-2, #424e5b)' };
     // Incomplete charges on a published property are live non-compliance, so that count is called out.
-    const incTip = 'Charges are missing necessary information and will not display on listings.';
+    // Hovering the count names the charges that still need fields, so the next step is obvious without
+    // opening the property. Long lists stop at ten and count the rest.
+    const incLabel = (r) => `${r.mits ? r.mits + ' ' : ''}${r.desc || (r.listing && r.listing.name) || r.name || ''}`.trim();
+    const incTipHTML = (prop) => {
+      const need = this.appliedRows(prop).filter(r => r.ils && !this.mitsComplete(r));
+      const shown = need.slice(0, 10), more = need.length - shown.length;
+      return `<span style="display:block;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${need.length} charge${need.length === 1 ? '' : 's'} missing required fields:</span>`
+        + `<span style="display:block;height:1px;background:var(--rmx-line, #cedbe7);margin:8px 0"></span>`
+        + `<span style="display:flex;flex-direction:column;gap:8px">`
+        + shown.map(r => `<span style="display:block;font-size:14px;font-weight:400;line-height:20px;color:var(--rmx-brand-dark, #13314c);white-space:normal">${esc(incLabel(r))}</span>`).join('')
+        + (more > 0 ? `<span style="display:block;font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">+${more} more</span>` : '')
+        + `</span>`;
+    };
+    const incWarn = `<span class="material-symbols-outlined" style="font-size:16px;color:var(--rmx-error, #eb343c);font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">warning</span>`;
     const rowHTML = (r, i, key, ils) => {
       const st = this.ftStatus(r.name);
       const ch = this.ftCharges(r.name);
       const none = st.key === 'none';
       const num = (v) => cell(none ? '-' : String(v));
+      const incNum = st.key === 'pubshort' ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-brand-dark, #13314c)';
+      const incTrigger = `<span style="display:inline-flex;align-items:center;gap:7px;font-size:14px;color:${incNum};cursor:default">${ch.incomplete}${st.key === 'pubshort' ? incWarn : ''}</span>`;
+      const incOpts = { pad:'16px', shadow:'0 3px 3px rgba(0,0,0,0.1)', trigger:incTrigger };
+      const incHover = this.infoTip(incTipHTML(r.name), 324, incOpts);
       const incCell = none ? cell('-')
-        : (st.key === 'pubshort'
-          ? `<span style="display:flex;align-items:center;gap:7px;min-height:35px;box-sizing:border-box;padding:0 12px;font-size:14px;color:var(--rmx-error, #eb343c);white-space:nowrap">${ch.incomplete}<span class="tipw" style="display:inline-flex;flex:none"><span class="material-symbols-outlined" style="font-size:16px;color:var(--rmx-error, #eb343c);font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">warning</span><span class="tip" style="left:auto;right:-4px;top:24px;width:250px;white-space:normal">${incTip}</span></span></span>`
+        : (ch.incomplete
+          ? `<span style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px;white-space:nowrap">${incHover}</span>`
           : cell(String(ch.incomplete)));
       const menuId = `ft${key}${i}-pnl`;
       const items = (none ? mitem('Set Up Fee Transparency','setupOpen',r.name) : mitem('View Charges','openFeeProfile',r.name)
@@ -3491,15 +3507,17 @@ class Component extends DCLogic {
   // An info icon whose panel is position:fixed and placed on hover — right-aligned to the icon,
   // flipped above when there's no room below, always kept inside the viewport. Needed wherever the
   // icon sits inside a scroll container, which would clip an absolutely positioned panel.
-  infoTip(inner, width){
+  infoTip(inner, width, opts){
+    const o = opts || {};
     const show = "var t=this.querySelector('.tipf');t.style.display='block';var r=this.getBoundingClientRect();"
       + "var w=t.offsetWidth,h=t.offsetHeight;var l=r.right-w;if(l<8)l=8;if(l+w>window.innerWidth-8)l=window.innerWidth-8-w;"
       + "var y=r.bottom+6;if(y+h>window.innerHeight-8)y=r.top-h-6;"
       + "if(y+h>window.innerHeight-8)y=window.innerHeight-8-h;if(y<8)y=8;"
       + "t.style.left=l+'px';t.style.top=y+'px';";
     const hide = "this.querySelector('.tipf').style.display='none';";
-    return `<span onmouseenter="${show}" onmouseleave="${hide}" onclick="event.stopPropagation()" style="display:inline-flex"><span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">info</span>`
-      + `<span class="tipf" style="display:none;position:fixed;left:0;top:0;width:${width||310}px;padding:14px 16px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5;z-index:400;max-width:32em;">${inner}</span></span>`;
+    const trigger = o.trigger || `<span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">info</span>`;
+    return `<span onmouseenter="${show}" onmouseleave="${hide}" onclick="event.stopPropagation()" style="display:inline-flex">${trigger}`
+      + `<span class="tipf" style="display:none;position:fixed;left:0;top:0;width:${width||310}px;padding:${o.pad||'14px 16px'};background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:${o.shadow||'0 6px 20px rgba(0,0,0,0.18)'};font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5;z-index:400;max-width:32em;">${inner}</span></span>`;
   }
   reqHelp(){
     const term = (t,d) => `<span style="display:block;font-size:14px;font-weight:400;color:var(--rmx-brand-dark, #13314c);white-space:normal"><strong style="font-weight:600">${t}</strong> — ${d}</span>`;
