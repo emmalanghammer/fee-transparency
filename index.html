@@ -157,10 +157,10 @@ class Component extends DCLogic {
     ltProp: 'all', // Listings page property filter
     // props: the properties a pet type applies to; null means every property.
     petTypes: [
-      { name:'Dog', desc:'', props:null, maxPets:2, maxSize:'Medium', maxWeight:'50 lbs', care:true, rec:25, recMax:50, recPer:true, one:0, oneMax:0, onePer:false, dep:200, depMax:400, depPer:true },
-      { name:'Cat', desc:'', props:null, maxPets:2, maxSize:'Small', maxWeight:'20 lbs', care:true, rec:15, recMax:0, recPer:false, one:0, oneMax:0, onePer:false, dep:150, depMax:0, depPer:false },
-      { name:'Big Dog', desc:'', props:['Riverview Apartments','The Hamptons'], maxPets:1, maxSize:'Large', maxWeight:'120 lbs', care:false, rec:50, recMax:90, recPer:true, one:0, oneMax:0, onePer:false, dep:300, depMax:0, depPer:false },
-      { name:'Fish', desc:'Fish', props:['The Berkshires'], maxPets:1, maxSize:'', maxWeight:'', care:false, rec:0, recMax:0, recPer:false, one:25, oneMax:0, onePer:false, dep:0, depMax:0, depPer:false }
+      { name:'Dog', desc:'', props:null, maxPets:2, maxSize:'Medium', maxWeight:'50 lbs', rec:25, recMax:50, recPer:true, one:0, oneMax:0, onePer:false, dep:200, depMax:400, depPer:true },
+      { name:'Cat', desc:'', props:null, maxPets:2, maxSize:'Small', maxWeight:'20 lbs', rec:15, recMax:0, recPer:false, one:0, oneMax:0, onePer:false, dep:150, depMax:0, depPer:false },
+      { name:'Big Dog', desc:'', props:['Riverview Apartments','The Hamptons'], maxPets:1, maxSize:'Large', maxWeight:'120 lbs', rec:50, recMax:90, recPer:true, one:0, oneMax:0, onePer:false, dep:300, depMax:0, depPer:false },
+      { name:'Fish', desc:'Fish', props:['The Berkshires'], maxPets:1, maxSize:'', maxWeight:'', rec:0, recMax:0, recPer:false, one:25, oneMax:0, onePer:false, dep:0, depMax:0, depPer:false }
     ],
     petType: null, // index being edited in Pet Type Details, or 'new'
     spNav: 'Tenant Charge Setup', // System Preferences left-nav selection
@@ -688,7 +688,7 @@ class Component extends DCLogic {
         const recPer = chk2('pt-rec-per'), onePer = chk2('pt-one-per'), depPer = chk2('pt-dep-per');
         const picked = Array.from(document.querySelectorAll('#pt-props-list input:checked')).map(i => i.value);
         const row = { name, desc: v('pt-desc'), props: picked.length === this.propNames().length ? null : picked,
-          maxPets: num('pt-maxpets'), maxSize: v('pt-size'), maxWeight: v('pt-weight'), care: chk2('pt-care'),
+          maxPets: num('pt-maxpets'), maxSize: v('pt-size'), maxWeight: v('pt-weight'),
           rec: num('pt-rec'), recMax: recPer ? num('pt-rec-max') : 0, recPer,
           one: num('pt-one'), oneMax: onePer ? num('pt-one-max') : 0, onePer,
           dep: num('pt-dep'), depMax: depPer ? num('pt-dep-max') : 0, depPer };
@@ -2403,18 +2403,15 @@ class Component extends DCLogic {
   // ---------- Pet Types register + details ----------
   petTypesBody(){
     const money = n => (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const cols = 'minmax(140px,1fr) minmax(150px,1.1fr) 100fr 105fr 115fr 120fr 140fr 160fr 120fr 150fr 120fr 150fr 44px';
+    const cols = 'minmax(140px,1fr) minmax(150px,1.1fr) 100fr 105fr 115fr 140fr 160fr 120fr 150fr 120fr 150fr 44px';
     const hc = (t, first, right) => `<span style="display:flex;align-items:center;${right?'justify-content:flex-end;':''}height:28px;box-sizing:border-box;padding:4px ${first?'8px 4px 16px':'8px'};font-size:14px;font-weight:500;letter-spacing:0.5px;color:#fff;border-right:1px solid rgba(255,255,255,0.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>`;
     const header = `<div style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">
-      ${hc('Name', true)}${hc('Description')}${hc('Max Pets')}${hc('Max Size')}${hc('Max Weight')}${hc('Pet Care')}${hc('Recurring Amount', false, true)}${hc('Max Recurring Amount', false, true)}${hc('One Time Fee', false, true)}${hc('Max One Time Fee', false, true)}${hc('Pet Deposit', false, true)}${hc('Max Pet Deposit', false, true)}<span></span>
+      ${hc('Name', true)}${hc('Description')}${hc('Max Pets')}${hc('Max Size')}${hc('Max Weight')}${hc('Recurring Amount', false, true)}${hc('Max Recurring Amount', false, true)}${hc('One Time Fee', false, true)}${hc('Max One Time Fee', false, true)}${hc('Pet Deposit', false, true)}${hc('Max Pet Deposit', false, true)}<span></span>
     </div>`;
     const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:0 8px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
     const rows = this.state.petTypes.map((t, i) => `<div data-act="petTypeOpen" data-arg="${i}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);cursor:pointer;background:#fff" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background=''">
       ${cell(t.name, 'padding-left:16px')}${cell(t.desc || '')}
       ${cell(t.maxPets || '—')}${cell(t.maxSize || '—')}${cell(t.maxWeight || '—')}
-      ${cell(t.care
-        ? `<span class="material-symbols-outlined" style="font-size:18px;color:var(--rmx-success, #6eb744);font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">check_circle</span>`
-        : '<span style="color:var(--rmx-text-muted, #b3b3b3)">—</span>')}
       ${cell(money(t.rec), 'justify-content:flex-end')}${cell(money(t.recMax), 'justify-content:flex-end')}
       ${cell(money(t.one), 'justify-content:flex-end')}${cell(money(t.oneMax), 'justify-content:flex-end')}
       ${cell(money(t.dep), 'justify-content:flex-end')}${cell(money(t.depMax), 'justify-content:flex-end')}
@@ -2433,7 +2430,7 @@ class Component extends DCLogic {
         <button data-act="petTypeOpen" data-arg="new" class="btn-pri" style="height:38px;min-height:38px;padding:0 18px 0 12px;border-radius:4px;font-size:14px;display:inline-flex;align-items:center;gap:8px"><span class="material-symbols-outlined" style="font-size:20px">add_circle</span>Add Pet Type</button>
       </div>
       <div style="display:flex;flex-direction:column;gap:6px;flex:1;min-height:0">
-        <div style="overflow-x:auto"><div style="min-width:1660px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${header}${rows}</div></div>
+        <div style="overflow-x:auto"><div style="min-width:1540px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${header}${rows}</div></div>
         <div style="flex:1"></div>
         <div style="display:flex;justify-content:flex-end"><span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">${this.state.petTypes.length} Pet Types</span></div>
       </div>
@@ -2442,7 +2439,7 @@ class Component extends DCLogic {
   petTypeHTML(){
     const sel = this.state.petType;
     if (sel == null) return '';
-    const t = sel === 'new' ? { name:'', desc:'', maxPets:0, maxSize:'', maxWeight:'', care:false, rec:0, recMax:0, recPer:false, one:0, oneMax:0, onePer:false, dep:0, depMax:0, depPer:false } : this.state.petTypes[sel];
+    const t = sel === 'new' ? { name:'', desc:'', maxPets:0, maxSize:'', maxWeight:'', rec:0, recMax:0, recPer:false, one:0, oneMax:0, onePer:false, dep:0, depMax:0, depPer:false } : this.state.petTypes[sel];
     const money = n => (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const esc = v => ('' + (v || '')).replace(/"/g, '&quot;');
     const lab = (x) => `<span style="font-size:14px;color:var(--rmx-text, #666666)">${x}</span>`;
@@ -2476,7 +2473,6 @@ class Component extends DCLogic {
             <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Max Size')}${txt('pt-size', t.maxSize)}</div>
             <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Max Weight')}${txt('pt-weight', t.maxWeight)}</div>
           </div>
-          <label style="display:inline-flex;align-items:center;gap:9px;align-self:flex-start;cursor:pointer"><input id="pt-care" type="checkbox" ${t.care?'checked':''} style="accent-color:var(--rmx-attention, #f58220);width:16px;height:16px;margin:0"><span style="font-size:14px;color:var(--rmx-text, #666666)">Pet Care Available</span></label>
           <div style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);padding:6px 0 8px;border-bottom:1px solid var(--rmx-line, #cedbe7)">Charges</div>
           ${amt('Recurring Amount', 'pt-rec', t.rec, 'pt-rec-per', t.recPer, 'pt-rec-max', t.recMax)}
           ${amt('One Time Fee Amount', 'pt-one', t.one, 'pt-one-per', t.onePer, 'pt-one-max', t.oneMax)}
@@ -4536,7 +4532,6 @@ class Component extends DCLogic {
       per: t ? strong(petPerPet(t) ? 'Yes' : 'No') : na,
       max: t && petMax(t) ? strong(this.money(petMax(t)).replace('$','')) : na,
       size: t && t.maxSize ? strong(t.maxSize) : na,
-      care: t ? strong(t.care ? 'Yes' : 'No') : na,
       weight: t && t.maxWeight ? strong(t.maxWeight) : na
     });
     const sum0 = petSummary(pt0);
@@ -4578,7 +4573,7 @@ class Component extends DCLogic {
             ${sumCell('m-pt-maxpets','Maximum Pets Allowed',sum0.maxpets)}${sumCell('m-pt-per','Charge Per Pet',sum0.per)}${sumCell('m-pt-max','Maximum Charge Amount',sum0.max)}
           </div>
           <div style="display:grid;grid-template-columns:${petSumCols}">
-            ${sumCell('m-pt-size','Maximum Size',sum0.size)}${sumCell('m-pt-care','Pet Care Available',sum0.care)}${sumCell('m-pt-weight','Maximum Weight',sum0.weight)}
+            ${sumCell('m-pt-size','Maximum Size',sum0.size)}${sumCell('m-pt-weight','Maximum Weight',sum0.weight)}<span></span>
           </div>
         </div>
       </div>
