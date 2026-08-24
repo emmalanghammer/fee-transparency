@@ -577,6 +577,27 @@ class Component extends DCLogic {
       'The Windermere':       ['COVPARK','STORAGE','EVCHG']
     };
   }
+  // The rentable items themselves, so a quote can name the actual space being rented.
+  oriUnitData(){
+    return {
+      'Riverview Apartments': { COVPARK:['CP-01','CP-02','CP-03'], GARAGE:['GAR-01','GAR-02'], SF:['ST-101','ST-102','ST-103'] },
+      'The Berkshires':       { COVPARK:['CP-A1','CP-A2'], PARK:['P-11','P-12','P-13','P-14'] },
+      'The Hamptons':         { COVPARK:['CP-H1','CP-H2'], GARAGE:['GAR-H1'], EVCHG:['EV-H1','EV-H2'] },
+      'Cedar Ridge':          { PARK:['P-01','P-02','P-03'], STORAGE:['ST-1','ST-2'] },
+      'The Windermere':       { COVPARK:['CP-N1','CP-N2'], STORAGE:['SS4N','SS5N'], EVCHG:['EV-N1'] }
+    };
+  }
+  oriUnitsFor(prop, ctype){
+    const m = this.oriUnitData()[prop] || {};
+    if (ctype) return m[ctype] || [];
+    return Object.keys(m).reduce((a, k) => a.concat(m[k]), []);
+  }
+  // A rentable item belongs to one charge type, so picking the item settles the type.
+  oriTypeOfUnit(prop, unit){
+    const m = this.oriUnitData()[prop] || {};
+    const hit = Object.keys(m).filter(k => (m[k] || []).indexOf(unit) >= 0)[0];
+    return hit || '';
+  }
   // Anywhere without its own inventory offers the full set of rentable-item types.
   oriTypesFor(prop){ return this.oriChargeTypes()[prop] || ['COVPARK','GARAGE','PARK','SF','STORAGE','EVCHG']; }
   // Rentable-item types offered in the ORI Type dropdown, per property.
@@ -3562,10 +3583,19 @@ class Component extends DCLogic {
     const oriProps = this.rqOriProps();
     const vacant = this.units().filter(u => /vacant/i.test(u.tenant)).map(u => u.u);
     // Charge types belong to the property, so a new property clears a type that no longer applies.
+    window.__rqOriUnit = (i, v) => {
+      this.rqCapture();
+      const q = this.state.rq; if (!q || !q.oris[i]) return;
+      q.oris[i].unit = String(v || '');
+      const t = this.oriTypeOfUnit(q.oris[i].prop, q.oris[i].unit);
+      if (t) q.oris[i].ctype = t;
+      this.setState(s => ({ rq: Object.assign({}, s.rq) }));
+    };
     window.__rqOriProp = (i, v) => {
       this.rqCapture();
       const q = this.state.rq; if (!q || !q.oris[i]) return;
       q.oris[i].prop = String(v || '');
+      if (q.oris[i].unit && this.oriUnitsFor(q.oris[i].prop).indexOf(q.oris[i].unit) < 0) q.oris[i].unit = '';
       if (q.oris[i].ctype && this.oriTypesFor(q.oris[i].prop).indexOf(q.oris[i].ctype) < 0) q.oris[i].ctype = '';
       this.setState(s => ({ rq: Object.assign({}, s.rq) }));
     };
@@ -3583,7 +3613,8 @@ class Component extends DCLogic {
     const oriCard = (o, i) => card(
       `<div style="display:flex;align-items:center"><div style="flex:1"></div><span data-act="rqRmOri" data-arg="${i}" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Remove</span></div>`
       + unitRow(lab('Property', true) + this.singleSelect(`rq-ori-prop-${i}`, oriProps, o.prop, { placeholder:'Select a property', js:`if(window.__rqOriProp)window.__rqOriProp(${i},_v)` }),
-        lab('Unit', true), search(`rq-ori-unit-${i}`, o.unit))
+        lab('Unit', true), this.singleSelect(`rq-ori-unit-${i}`, o.prop ? this.oriUnitsFor(o.prop) : [], o.unit,
+          { placeholder: o.prop ? 'Select a unit' : 'Select a property first', js:`if(window.__rqOriUnit)window.__rqOriUnit(${i},_v)` }))
       + pairRow(lab('Charge Type', true) + this.singleSelect(`rq-ori-ctype-${i}`, o.prop ? this.oriTypesFor(o.prop) : [], o.ctype,
           { noSearch:true, placeholder: o.prop ? 'Select a charge type' : 'Select a property first' }),
         lab('Amount', true) + withBtn(wrap(bare(`rq-ori-amount-${i}`, o.amount)), amtBtn)));
