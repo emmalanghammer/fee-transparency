@@ -164,7 +164,7 @@ class Component extends DCLogic {
     ltProp: 'all', // Listings page property filter
     // props: the properties a pet type applies to; null means every property.
     petTypes: [
-      { name:'Dog', desc:'', props:null, maxPets:2, maxWeight:'50 lbs', rec:25, recMax:50, recPer:true, one:0, oneMax:0, onePer:false, dep:200, depMax:400, depPer:true },
+      { name:'Dog', desc:'', props:null, maxPets:2, maxWeight:'50 lbs', rec:25, recMax:50, recPer:true, one:75, oneMax:150, onePer:true, dep:200, depMax:400, depPer:true },
       { name:'Cat', desc:'', props:null, maxPets:2, maxWeight:'20 lbs', rec:15, recMax:0, recPer:false, one:0, oneMax:0, onePer:false, dep:150, depMax:0, depPer:false },
       { name:'Big Dog', desc:'', props:['Riverview Apartments','The Hamptons'], maxPets:1, maxWeight:'120 lbs', rec:50, recMax:90, recPer:true, one:0, oneMax:0, onePer:false, dep:300, depMax:0, depPer:false },
       { name:'Fish', desc:'Fish', props:['The Berkshires'], maxPets:1, maxWeight:'', rec:0, recMax:0, recPer:false, one:25, oneMax:0, onePer:false, dep:0, depMax:0, depPer:false }
@@ -628,7 +628,8 @@ class Component extends DCLogic {
     this.applyVars();
     this.fitToolbar();
     // A charge that already follows a pet type opens with its amount locked, not just after a change.
-    if (window.__petTypePick) { const pt = this.q('#m-at-pettype'); if (pt) window.__petTypePick(pt.value); }
+    // Reopening applies the kind already saved on the charge — it must not re-ask.
+    if (window.__petApply) { const pk = this.q('#m-at-petkind'); if (pk) window.__petApply(pk.value); }
     const snap = this._scrollSnap; this._scrollSnap = null;
     if (this._resetScroll) { this._resetScroll = false; return; }
     if (snap) { const panes = this.scrollPanes(); snap.forEach((v,i)=>{ if(panes[i]) panes[i].scrollTop = v; }); }
@@ -1244,7 +1245,7 @@ class Component extends DCLogic {
         if (cc === 'Storage') return { storageType: v('m-at-stype'), uom: v('m-at-uom'), height: v('m-at-h'), width: v('m-at-w'), length: v('m-at-l') };
         if (cc === 'Parking') return { structure: v('m-at-struct'), size: v('m-at-size'), regular: v('m-at-reg'), handicapped: v('m-at-hc'), electric: v('m-at-elec'), desc: v('m-at-desc') };
         // Pet specifics live on the Pet Type now — the charge just records which type it follows.
-        if (cc === 'Pet') return { petType: v('m-at-pettype') };
+        if (cc === 'Pet') return { petType: v('m-at-pettype'), petKind: v('m-at-petkind') };
         return undefined; })(),
       listing: { name, category: this.chargeCategoryFor(code), marketing: v('m-marketing'), requirement: req, feeDue: v('m-due'), schedule: isOne ? '' : v('m-sched'), refundable: chkd('m-refund') }
     };
@@ -4894,34 +4895,44 @@ class Component extends DCLogic {
     const petList = this.petTypesFor();
     const petSel = String(at.petType || '');
     const petOf = (n) => petList.filter(t => t.name === n)[0];
-    // A one-time charge takes the type's one-time figures; a recurring charge its monthly ones.
-    const petAmt = (t) => !t ? 0 : (isOne ? (t.one || 0) : (t.rec || 0));
-    const petMax = (t) => !t ? 0 : (isOne ? (t.oneMax || 0) : (t.recMax || 0));
-    const petPerPet = (t) => !t ? false : (isOne ? !!t.onePer : !!t.recPer);
+    // A recurring charge takes the type's monthly figures. A one-time charge can take either its
+    // one-time fee or its deposit, so which one is a question the form has to ask (mock 3072-109736).
+    const petKind0 = String(at.petKind || (isOne ? 'one' : 'rec'));
+    const petAmtK = (t, k) => !t ? 0 : (k === 'dep' ? (t.dep || 0) : k === 'one' ? (t.one || 0) : (t.rec || 0));
+    const petMaxK = (t, k) => !t ? 0 : (k === 'dep' ? (t.depMax || 0) : k === 'one' ? (t.oneMax || 0) : (t.recMax || 0));
+    const petPerK = (t, k) => !t ? false : (k === 'dep' ? !!t.depPer : k === 'one' ? !!t.onePer : !!t.recPer);
+    const petKindLabel = (k) => k === 'dep' ? 'Max Pet Deposit Amount'
+      : k === 'one' ? 'Max One-Time Charge Amount' : 'Max Recurring Charge Amount';
+    const petBoth = (t) => !!(t && isOne && (t.one || 0) && (t.dep || 0));
     const na = '<span style="color:var(--rmx-text-muted, #b3b3b3)">N/A</span>';
     // Two pairs per row, split evenly.
     const petSumCols = 'minmax(0,1fr) minmax(0,1fr)';
-    const petMaxLabel = isOne ? 'Max One-Time Charge Amount' : 'Max Recurring Charge Amount';
+    const petMaxLabel = petKindLabel(petKind0);
     const strong = (v) => `<span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${v}</span>`;
-    const sumCell = (id, l, v) => `<span style="display:flex;align-items:baseline;gap:10px;min-width:0;padding:9px 12px">
-      <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l}</span>
+    const sumCell = (id, l, v, labId) => `<span style="display:flex;align-items:baseline;gap:10px;min-width:0;padding:9px 12px">
+      <span ${labId?`id="${labId}" `:''}style="flex:1;min-width:0;font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l}</span>
       <span id="${id}" style="flex:none;white-space:nowrap;text-align:right">${v}</span></span>`;
     const pt0 = petOf(petSel);
-    const petSummary = (t) => ({
+    const petSummary = (t, k) => ({
       maxpets: t && t.maxPets ? strong(t.maxPets) : na,
-      per: t ? strong(petPerPet(t) ? 'Yes' : 'No') : na,
-      max: t && petMax(t) ? strong(this.money(petMax(t)).replace('$','')) : na,
+      per: t ? strong(petPerK(t, k) ? 'Yes' : 'No') : na,
+      max: t && petMaxK(t, k) ? strong(this.money(petMaxK(t, k)).replace('$','')) : na,
       weight: t && t.maxWeight ? strong(t.maxWeight) : na
     });
-    const sum0 = petSummary(pt0);
+    const sum0 = petSummary(pt0, petKind0);
     // Locking the amount is what the note warns about, so both live in one place.
-    window.__petTypePick = (v) => {
+    window.__petApply = (kind) => {
+      const v = ((this.q('#m-at-pettype') || {}).value) || '';
       const t = petList.filter(x => x.name === String(v || '').trim())[0];
-      const sm = petSummary(t);
-      Object.keys(sm).forEach(k => { const e = this.q('#m-pt-' + k); if (e) e.innerHTML = sm[k]; });
+      const k = String(kind || petKind0);
+      const hidK = this.q('#m-at-petkind'); if (hidK) hidK.value = k;
+      const sm = petSummary(t, k);
+      Object.keys(sm).forEach(x => { const e = this.q('#m-pt-' + x); if (e) e.innerHTML = sm[x]; });
+      const maxLab = this.q('#m-pt-maxlab'); if (maxLab) maxLab.textContent = petKindLabel(k);
       const sumBox = this.q('#m-pt-sum');
       if (sumBox) sumBox.style.display = t ? 'block' : 'none';
       const amt = this.q('#m-amount');
+      const petAmt = (x) => petAmtK(x, k);
       const locked = !!(t && petAmt(t));
       if (amt) {
         if (locked) amt.value = this.money(petAmt(t)).replace('$','');
@@ -4940,24 +4951,60 @@ class Component extends DCLogic {
         mdisp.style.color = locked ? 'var(--rmx-text-muted, #b3b3b3)' : 'var(--rmx-brand-dark, #13314c)';
       }
     };
+    // Picking a type applies its figures — unless the type carries both a one-time fee and a deposit
+    // on a one-time charge, where only the person filling the form knows which one this charge is.
+    window.__petTypePick = (v) => {
+      const t = petList.filter(x => x.name === String(v || '').trim())[0];
+      if (petBoth(t)) {
+        const ov = this.q('#m-petkind'); if (ov) ov.style.display = 'flex';
+        const r1 = this.q('#m-petkind-one'); if (r1) r1.checked = true;
+        const r2 = this.q('#m-petkind-dep'); if (r2) r2.checked = false;
+        window.__petApply(petKind0);
+        return;
+      }
+      window.__petApply(isOne ? 'one' : 'rec');
+    };
+    window.__petKindClose = () => { const ov = this.q('#m-petkind'); if (ov) ov.style.display = 'none'; };
+    window.__petKindCopy = () => {
+      const dep = this.q('#m-petkind-dep');
+      window.__petApply(dep && dep.checked ? 'dep' : 'one');
+      window.__petKindClose();
+    };
+    const petKindOv = `<div id="m-petkind" style="display:none;position:fixed;inset:0;background:rgba(19,49,76,0.5);align-items:center;justify-content:center;z-index:200">
+      <div style="width:400px;max-width:94vw;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
+          <span style="font-size:18px;color:var(--rmx-brand-dark, #13314c)">Pet Type Charge Amount</span>
+          <span onclick="if(window.__petKindClose)window.__petKindClose()" class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">close</span>
+        </div>
+        <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+          <span style="font-size:14px;color:var(--rmx-text, #666666)">What kind of charge is this?</span>
+          <label style="display:inline-flex;align-items:center;gap:10px;cursor:pointer"><input type="radio" id="m-petkind-one" name="m-petkind-r" checked style="accent-color:var(--ac,var(--rmx-brand, #008dd5));width:16px;height:16px;margin:0"><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">One-time charge</span></label>
+          <label style="display:inline-flex;align-items:center;gap:10px;cursor:pointer"><input type="radio" id="m-petkind-dep" name="m-petkind-r" style="accent-color:var(--ac,var(--rmx-brand, #008dd5));width:16px;height:16px;margin:0"><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Pet deposit</span></label>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:12px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:12px 16px">
+          <button onclick="if(window.__petKindCopy)window.__petKindCopy()" class="btn-pri" style="height:36px;min-height:36px;padding:0 22px;border-radius:4px;font-size:14px">Copy</button>
+          <button onclick="if(window.__petKindClose)window.__petKindClose()" class="btn-out" style="height:36px;min-height:36px;padding:0 22px;border-radius:4px;font-size:14px">Cancel</button>
+        </div>
+      </div></div>`;
     const petSection = `<div id="m-pet-wrap" style="display:${cat0==='Pet'?'flex':'none'};flex-direction:column;gap:12px">
       ${attrHead('m-pet', 'Pet Details (Optional)')}
       <div id="m-pet-body" style="display:flex;flex-direction:column;gap:12px">
         <div style="display:flex;flex-direction:column;gap:4px">
           <span style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--rmx-text, #666666)">Pet Type${this.infoTip('<span style="display:block;white-space:normal">Pet Details must be edited on the Pet Type. It also affects the charge amount above.</span>', 290)}</span>
           ${dd('m-at-pettype', petList.map(t => t.name), petSel, { blank:true, placeholder:' ', js:"if(window.__petTypePick)window.__petTypePick(_v)" })}
+          <input type="hidden" id="m-at-petkind" value="${esc(petKind0)}">
         </div>
         <div id="m-pt-sum" style="display:${pt0?'block':'none'};border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
           <div style="display:grid;grid-template-columns:${petSumCols};border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa)">
             ${sumCell('m-pt-maxpets','Max Allowed',sum0.maxpets)}${sumCell('m-pt-weight','Max Weight',sum0.weight)}
           </div>
           <div style="display:grid;grid-template-columns:${petSumCols}">
-            ${sumCell('m-pt-per','Charge Per Pet',sum0.per)}${sumCell('m-pt-max',petMaxLabel,sum0.max)}
+            ${sumCell('m-pt-per','Charge Per Pet',sum0.per)}${sumCell('m-pt-max',petMaxLabel,sum0.max,'m-pt-maxlab')}
           </div>
         </div>
       </div>
     </div>`;
-    const attrSections = storSection + parkSection + petSection;
+    const attrSections = storSection + parkSection + petSection + petKindOv;
     const listing = `<div style="display:flex;gap:12px;align-items:flex-start">
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Name')}<input id="m-name" class="fld" value="${esc(ed&&ed.listing?ed.listing.name:'')}" oninput="if(window.__mitsRecheck)window.__mitsRecheck()" style="height:36px;box-sizing:border-box"></div>
         ${catBlock}
