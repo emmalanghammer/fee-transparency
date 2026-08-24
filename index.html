@@ -699,9 +699,10 @@ class Component extends DCLogic {
       case 'rqRmOri': { this.rqCapture(); const i = parseInt(arg, 10);
         this.setState(s => { const q = Object.assign({}, s.rq);
           q.oris = (q.oris || []).filter((o, n) => n !== i); return { rq:q }; }); break; }
-      case 'rqTog': { this.setState(s => { const q = Object.assign({}, s.rq);
-          const on = Object.assign({}, q.on); if (on[arg]) delete on[arg]; else on[arg] = true;
-          q.on = on; return { rq:q }; }); break; }
+      case 'rqTog': { const row = this.rqAllRows().filter(r => r.id === arg)[0]; if (!row) break;
+        const next = !this.rqOn(row);
+        this.setState(s => { const q = Object.assign({}, s.rq);
+          const sel = Object.assign({}, q.sel); sel[arg] = next; q.sel = sel; return { rq:q }; }); break; }
       case 'rqGrp': { this.setState(s => { const q = Object.assign({}, s.rq);
           const c = Object.assign({}, q.closed); if (c[arg]) delete c[arg]; else c[arg] = true;
           q.closed = c; return { rq:q }; }); break; }
@@ -3439,7 +3440,7 @@ class Component extends DCLogic {
     return { step:1, prop:'Riverview Apartments', unit:'', quoted:'08/20/2026', exp:'09/20/2026',
       moveIn:'', term:'', term2:'', rent:'500.00', comment:'',
       oris:[],
-      on:{}, closed:{} };
+      sel:{}, closed:{} };
   }
   // Properties carry a short name; an ORI property is free text here, so fall back to its initials.
   rqShort(name){
@@ -3456,8 +3457,9 @@ class Component extends DCLogic {
   // The primary unit brings rent plus whatever else the property charges; each ORI unit brings the
   // charge type named for it. Rent can't be dropped from a quote, so its row is locked on.
   // The quote prices the property's own charges — whatever is on its Charges tab — not a canned list.
-  // Situational charges are left out: they only apply when something happens, so they can't be quoted.
-  // Required charges ride along locked; optional ones are the resident's to add.
+  // Required charges come selected; anything else — optional, situational, or a charge whose
+  // requirement was never set — is offered unticked for whoever builds the quote to decide on.
+  // Rent is the one row that can't be dropped.
   rqRows(){
     const q = this.state.rq || {};
     const unit = q.unit ? this.unitInfo(q.unit) : null;
@@ -3467,9 +3469,9 @@ class Component extends DCLogic {
     // The rent on the quote is the one typed in step one; everything else prices off the charge.
     const amount = (r) => (r.mits === 'RC' && this.rqAmt(q.rent)) ? this.rqAmt(q.rent) : base(r);
     return this.appliedRows(q.prop)
-      .filter(r => r.group.indexOf('sit') !== 0)
       .map(r => ({ id:'c' + r.id, level:r.level || 'Property', type:r.mits, comment:r.desc || '',
-        amount:amount(r), one:/-one$/.test(r.group), lock:r.group.indexOf('opt') === 0 ? null : 'grey' }));
+        amount:amount(r), one:/-one$/.test(r.group),
+        def:r.group.indexOf('req') === 0, lock:r.mits === 'RC' ? 'grey' : null }));
   }
   rqRecurring(){
     const q = this.state.rq || {};
@@ -3482,10 +3484,12 @@ class Component extends DCLogic {
     const q = this.state.rq || {};
     return { primary: { key:'op', label:this.rqLabel(q.prop, q.unit), rows:this.rqRows().filter(r => r.one) }, oris: [] };
   }
-  // Optional charges start off — adding one is a decision, so it has to be made here.
-  rqOn(id){ const q = this.state.rq || {}; return !!(q.on || {})[id]; }
-  rqSum(rows){ return rows.filter(r => r.lock || this.rqOn(r.id)).reduce((n, r) => n + r.amount, 0); }
-  rqCount(rows){ return rows.filter(r => r.lock || this.rqOn(r.id)).length; }
+  // A row follows its default until someone ticks or unticks it.
+  rqOn(r){ const sel = (this.state.rq || {}).sel || {}; const v = sel[r.id]; return v === undefined ? !!r.def : !!v; }
+  rqAllRows(){ const rec = this.rqRecurring();
+    return this.rqRows().concat.apply(this.rqRows(), rec.oris.map(g => g.rows)); }
+  rqSum(rows){ return rows.reduce((n, r) => n + ((r.lock || this.rqOn(r)) ? r.amount : 0), 0); }
+  rqCount(rows){ return rows.filter(r => r.lock || this.rqOn(r)).length; }
   // Pull whatever is on screen into state before a re-render throws the inputs away.
   rqCapture(){
     const q = this.state.rq; if (!q) return;
@@ -3587,9 +3591,9 @@ class Component extends DCLogic {
     const whole = (n) => '$' + Math.round(n).toLocaleString('en-US');
     const dec = (n) => n.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
     const monthly = this.rqSum(rec.primary.rows) + rec.oris.reduce((n, g) => n + this.rqSum(g.rows), 0);
-    const oneTotal = one.primary.rows.reduce((n, r) => n + r.amount, 0) + one.oris.reduce((n, g) => n + g.rows.reduce((m, r) => m + r.amount, 0), 0);
+    const oneTotal = this.rqSum(one.primary.rows) + one.oris.reduce((n, g) => n + this.rqSum(g.rows), 0);
     const recCount = this.rqCount(rec.primary.rows) + rec.oris.reduce((n, g) => n + this.rqCount(g.rows), 0);
-    const oneCount = one.primary.rows.length + one.oris.reduce((n, g) => n + g.rows.length, 0);
+    const oneCount = this.rqCount(one.primary.rows) + one.oris.reduce((n, g) => n + this.rqCount(g.rows), 0);
 
     const chip = (icon, t) => `<span style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap"><span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,var(--rmx-brand, #008dd5))">${icon}</span>${t}</span>`;
     const header = `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:12px 14px;display:flex;flex-direction:column;gap:10px">
@@ -3620,7 +3624,7 @@ class Component extends DCLogic {
       return `<span${act} style="display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;box-sizing:border-box;border:1px solid ${bd};background:${bg};border-radius:2px;cursor:${lock?'default':'pointer'}">${tick}</span>`;
     };
     const recRow = (r) => {
-      const on = r.lock ? true : this.rqOn(r.id);
+      const on = r.lock ? true : this.rqOn(r);
       return `<span style="display:flex;align-items:center;justify-content:center;min-height:34px">${box(on, r.lock, r.id)}</span>`
         + cell(r.level) + cell(r.type) + cell(r.comment || '') + cell(dec(r.amount), true);
     };
@@ -3650,15 +3654,14 @@ class Component extends DCLogic {
       ${footStrip(recCount + ' Recurring Charge' + (recCount===1?'':'s'), dec(monthly))}
     </div>`;
 
-    const oneRow = (r) => `<span></span>` + cell(r.level || '') + cell(r.type) + cell(r.comment || '') + cell(dec(r.amount), true);
     const oneTable = `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
       <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7)">
         ${hc('')}${hc('Charge Level')}${hc('Charge Type')}${hc('Comment')}${hc('Amount', true)}
       </div>
       ${groupLbl('Primary Unit')}
       ${one.primary.rows.length ? grpHead(one.primary.key, one.primary.label, one.primary.rows.length)
-        + grpRows(one.primary.key, one.primary.rows, oneRow)
-        + totalLine('Total: ' + dec(one.primary.rows.reduce((n, r) => n + r.amount, 0)))
+        + grpRows(one.primary.key, one.primary.rows, recRow)
+        + totalLine('Total: ' + dec(this.rqSum(one.primary.rows)))
         : none("No one-time charges on this property's Charges tab.")}
       ${footStrip(oneCount + ' One-Time Charge' + (oneCount===1?'':'s'), dec(oneTotal))}
     </div>`;
