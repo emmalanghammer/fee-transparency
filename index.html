@@ -93,6 +93,12 @@
 class Component extends DCLogic {
   state = {
     view: 'register',
+    // The two quotes the prospect already has; the Add Rent Quote flow appends to this.
+    rentQuotes: [
+      { prop:'RIVER', unit:'201C', status:'Reserved', amount:1500 },
+      { prop:'RIVER', unit:'103A', status:'Expired',  amount:1800 }
+    ],
+    rq: null,
     accOpen: { 'pf-rec':true, 'pf-one':true, 'pf-req':true, 'pf-opt':true, 'pf-sit':true, 'pf-ind':true },
     groupByReq: false,
     pfFilter: null,
@@ -680,6 +686,29 @@ class Component extends DCLogic {
       case 'spBannerDismiss': this.setState({ spBanner: false }); break;
       case 'petTypeOpen': this.setState({ petType: arg === 'new' ? 'new' : parseInt(arg, 10) }); break;
       case 'petTypeClose': this.setState({ petType: null }); break;
+      case 'rqOpen': this.setState({ rq: this.rqBlank() }); break;
+      case 'rqClose': this.setState({ rq: null }); break;
+      case 'rqNext': this.rqCapture(); this.setState(s => ({ rq: Object.assign({}, s.rq, { step:2 }) })); break;
+      case 'rqBack': this.setState(s => ({ rq: Object.assign({}, s.rq, { step:1 }) })); break;
+      case 'rqAddOri': { this.rqCapture();
+        this.setState(s => { const q = Object.assign({}, s.rq);
+          q.oris = (q.oris || []).concat([{ prop:'', unit:'', ctype:'STORAGE', amount:'' }]); return { rq:q }; }); break; }
+      case 'rqRmOri': { this.rqCapture(); const i = parseInt(arg, 10);
+        this.setState(s => { const q = Object.assign({}, s.rq);
+          q.oris = (q.oris || []).filter((o, n) => n !== i); return { rq:q }; }); break; }
+      case 'rqTog': { this.setState(s => { const q = Object.assign({}, s.rq);
+          const off = Object.assign({}, q.off); if (off[arg]) delete off[arg]; else off[arg] = true;
+          q.off = off; return { rq:q }; }); break; }
+      case 'rqGrp': { this.setState(s => { const q = Object.assign({}, s.rq);
+          const c = Object.assign({}, q.closed); if (c[arg]) delete c[arg]; else c[arg] = true;
+          q.closed = c; return { rq:q }; }); break; }
+      case 'rqSave': { const q = this.state.rq; if (!q) break;
+        const rec = this.rqRecurring();
+        const monthly = this.rqSum(rec.primary.rows) + rec.oris.reduce((n, g) => n + this.rqSum(g.rows), 0);
+        const row = { prop: this.rqShort(q.prop), unit: q.unit || '', amount: monthly,
+          status: arg === 'reserve' ? 'Reserved' : 'Quoted' };
+        this.setState(s => ({ rq: null, rentQuotes: s.rentQuotes.concat([row]) }));
+        this.flash(arg === 'reserve' ? 'Quote added and unit reserved' : 'Rent quote added'); break; }
       case 'petTypeSave': { const v = id => ((this.q('#' + id) || {}).value || '').trim();
         const num = id => { const n = parseFloat(v(id).replace(/[$,]/g, '')); return isNaN(n) ? 0 : n; };
         const chk2 = id => { const e = this.q('#' + id); return !!(e && e.checked); };
@@ -1902,10 +1931,12 @@ class Component extends DCLogic {
     const qCols = 'minmax(0,1.1fr) 110px 150px 120px';
     const qLoz = (t, ok) => `<span class="loz" style="${ok?'background:var(--rmx-success-bg, #e2f1da);color:#2f5d43':'background:#fdeaea;color:var(--rmx-error, #eb343c)'};text-transform:none;letter-spacing:0">${t}</span>`;
     const labelPill = (on) => `<span data-act="toast" data-arg="Rent quote filter" style="display:inline-flex;align-items:center;height:26px;padding:0 14px;border-radius:4px;font-size:14px;cursor:pointer;${on?'border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--rmx-brand-dark, #13314c);background:#fff':'border:1px solid var(--rmx-line, #cedbe7);color:var(--rmx-text, #666666);background:#fff'}">Label</span>`;
-    const quotes = tile('Rent Quotes', link('Add Quote'),
+    const qMoney = (n) => n.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
+    const qRow = (r, i) => gRow(qCols, tdc(r.prop) + tdc(r.unit)
+      + `<span style="padding:7px 12px">${qLoz(r.status, r.status !== 'Expired')}</span>` + tdc(qMoney(r.amount), true), i % 2 === 1);
+    const quotes = tile('Rent Quotes', `<span data-act="rqOpen" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Add Quote</span>`,
       grid(qCols, thc('Property') + thc('Unit') + thc('Status') + thc('Amount', true),
-        gRow(qCols, tdc('RIVER') + tdc('201C') + `<span style="padding:7px 12px">${qLoz('Reserved', true)}</span>` + tdc('1,500.00', true))
-        + gRow(qCols, tdc('RIVER') + tdc('103A') + `<span style="padding:7px 12px">${qLoz('Expired')}</span>` + tdc('1,800.00', true), true), 420)
+        this.state.rentQuotes.map(qRow).join(''), 420)
         + '<div style="flex:1"></div>',
       { grid:true, flush:true, mid:`<span style="display:inline-flex;align-items:center;gap:8px">${labelPill(true)}${labelPill(false)}</span>`, minH:300 });
 
@@ -3318,6 +3349,210 @@ class Component extends DCLogic {
     </div>`;
   }
 
+  // ================= ADD RENT QUOTE (mock 2882-105803) =================
+  // A quote is built in two passes: the unit and its rentable items first, then the charges those
+  // choices pull in. Step two only ever shows charges for what step one actually named.
+  rqBlank(){
+    return { step:1, prop:'Riverview Apartments', unit:'105', quoted:'08/20/2026', exp:'09/20/2026',
+      moveIn:'', term:'', term2:'', rent:'500.00', comment:'',
+      oris:[{ prop:'Safe & Secure Storage', unit:'SS4N', ctype:'STORAGE', amount:'50.00' }],
+      off:{ 'p-util':true }, closed:{} };
+  }
+  // Properties carry a short name; an ORI property is free text here, so fall back to its initials.
+  rqShort(name){
+    const n = String(name || '').trim(); if (!n) return '';
+    const hit = this.propertiesData().find(x => x.name === n);
+    if (hit) return hit.short;
+    const parts = n.replace(/&/g, ' ').split(/\s+/).filter(Boolean);
+    return parts.map(w => w[0]).join('').toUpperCase().slice(0, 6);
+  }
+  rqAmt(v){ const n = parseFloat(String(v == null ? 0 : v).replace(/[$,]/g, '')); return isNaN(n) ? 0 : n; }
+  // The primary unit brings rent plus whatever else the property charges; each ORI unit brings the
+  // charge type named for it. Rent can't be dropped from a quote, so its row is locked on.
+  rqRecurring(){
+    const q = this.state.rq || {};
+    const primary = { key:'p', label:`${this.rqShort(q.prop)} - ${q.unit || ''}`,
+      rows: [ { id:'p-rc',   level:'Property', type:'RC',      amount:this.rqAmt(q.rent), lock:'grey' },
+              { id:'p-pet',  level:'Property', type:'PET',     amount:50 },
+              { id:'p-util', level:'Property', type:'UTILITY', amount:75 } ] };
+    const oris = (q.oris || []).map((o, i) => ({ key:'o'+i, label:`${this.rqShort(o.prop)} - ${o.unit || ''}`,
+      rows: [ { id:'o'+i, level:'ORI', type:o.ctype || '', amount:this.rqAmt(o.amount), lock:'light', ori:true } ] }));
+    return { primary, oris };
+  }
+  rqOneTime(){
+    const q = this.state.rq || {};
+    const primary = { key:'op', label:`${this.rqShort(q.prop)} - ${q.unit || ''}`,
+      rows: [ { source:'System', type:'PETDEP', amount:50 },
+              { source:'System', type:'DP',     amount:this.rqAmt(q.rent) },
+              { source:'',       type:'ADMIN',  amount:50 } ] };
+    const oris = (q.oris || []).map((o, i) => ({ key:'oo'+i, label:`${this.rqShort(o.prop)} - ${o.unit || ''}`,
+      rows: [ { source:'', type:'STDP', amount:100 } ] }));
+    return { primary, oris };
+  }
+  rqOn(id){ const q = this.state.rq || {}; return !(q.off || {})[id]; }
+  rqSum(rows){ return rows.filter(r => r.lock || this.rqOn(r.id)).reduce((n, r) => n + r.amount, 0); }
+  rqCount(rows){ return rows.filter(r => r.lock || this.rqOn(r.id)).length; }
+  // Pull whatever is on screen into state before a re-render throws the inputs away.
+  rqCapture(){
+    const q = this.state.rq; if (!q) return;
+    const v = (id) => { const e = this.q('#' + id); return e ? String(e.value == null ? '' : e.value) : undefined; };
+    ['prop','unit','quoted','exp','moveIn','term','term2','rent','comment'].forEach(k => {
+      const got = v('rq-' + k); if (got !== undefined) q[k] = got;
+    });
+    (q.oris || []).forEach((o, i) => {
+      ['prop','unit','ctype','amount'].forEach(k => { const got = v(`rq-ori-${k}-${i}`); if (got !== undefined) o[k] = got; });
+    });
+  }
+  rqHTML(){
+    const q = this.state.rq; if (!q) return '';
+    const body = q.step === 1 ? this.rqStep1() : this.rqStep2();
+    const foot = q.step === 1
+      ? `<div style="flex:1"></div><button data-act="rqNext" class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px">Add Charges</button>`
+      : `<button data-act="rqBack" class="btn-out" style="height:36px;min-height:36px;padding:0 22px;border-radius:4px;font-size:14px">Back</button><div style="flex:1"></div>`
+        + `<button data-act="rqSave" data-arg="add" class="btn-pri" style="height:36px;min-height:36px;padding:0 22px;border-radius:4px;font-size:14px">Add</button>`
+        + `<button data-act="rqSave" data-arg="reserve" class="btn-pri" style="height:36px;min-height:36px;padding:0 18px;border-radius:4px;font-size:14px;white-space:nowrap">Add &amp; Reserve Unit</button>`
+        + `<button data-act="rqClose" class="btn-out" style="height:36px;min-height:36px;padding:0 22px;border-radius:4px;font-size:14px">Cancel</button>`;
+    return `<div data-act="rqClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:150">
+      <div data-act="noop" style="width:880px;max-width:96vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
+          <span style="font-size:20px;color:var(--rmx-brand-dark, #13314c)">Add Rent Quote</span>
+          <span data-act="rqClose" class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">close</span>
+        </div>
+        <div style="flex:1;min-height:0;overflow-y:auto;padding:16px">${body}</div>
+        <div style="display:flex;align-items:center;gap:12px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:12px 16px;flex:none">${foot}</div>
+      </div></div>`;
+  }
+  rqStep1(){
+    const q = this.state.rq;
+    const esc = v => ('' + (v == null ? '' : v)).replace(/"/g, '&quot;');
+    const lab = (t, req) => `<span style="font-size:14px;color:var(--rmx-text, #666666)">${t}${req?' *':''}</span>`;
+    const fld = 'width:100%;box-sizing:border-box;height:36px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:0 10px;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);outline:none';
+    const glyph = (n, c) => `<span class="material-symbols-outlined" style="font-size:18px;color:${c||'var(--ac,var(--rmx-brand, #008dd5))'};flex:none">${n}</span>`;
+    // A field with a leading or trailing glyph, drawn as one control.
+    const wrap = (inner) => `<div style="display:flex;align-items:center;gap:6px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:36px;box-sizing:border-box;padding:0 10px">${inner}</div>`;
+    const bare = (id, val, ph, extra) => `<input id="${id}" value="${esc(val)}" placeholder="${esc(ph||'')}" style="flex:1;min-width:0;border:none;background:transparent;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);outline:none;${extra||''}">`;
+    const search = (id, val) => wrap(glyph('search') + bare(id, val));
+    const dated = (id, val) => wrap(bare(id, val, 'mm/dd/yy') + glyph('calendar_today', 'var(--rmx-text, #666666)'));
+    const muted = (id, val) => `<div style="display:flex;align-items:center;gap:6px;background:var(--rmx-bg-muted, #f2f2f2);border:1px solid var(--rmx-line-soft, #ebf1f5);border-radius:4px;height:36px;box-sizing:border-box;padding:0 4px 0 10px"><input id="${id}" value="${esc(val)}" placeholder="mm/dd/yy" style="flex:1;min-width:0;border:none;background:transparent;font:400 14px Roboto,sans-serif;color:var(--rmx-text-muted, #b3b3b3);outline:none"><span class="material-symbols-outlined" style="font-size:20px;color:var(--rmx-text, #666666)">arrow_drop_down</span></div>`;
+    const unitBtn = `<span data-act="toast" data-arg="Unit lookup" class="material-symbols-outlined" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;flex:none;background:var(--ac,var(--rmx-brand, #008dd5));color:#fff;border-radius:4px;font-size:18px;cursor:pointer">apartment</span>`;
+    const amtBtn = `<button data-act="toast" data-arg="Select Amount" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap;flex:none">Select Amount</button>`;
+    const col = (inner) => `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${inner}</div>`;
+    const row = (inner) => `<div style="display:flex;gap:20px;align-items:flex-start">${inner}</div>`;
+    const card = (inner) => `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:12px">${inner}</div>`;
+    const head = (t) => `<span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span>`;
+    const terms = ['6 Months','12 Months','18 Months','24 Months'];
+
+    const primary = card(
+      row(col(lab('Property', true) + search('rq-prop', q.prop))
+        + col(lab('Unit', true) + `<div style="display:flex;align-items:center;gap:8px">${search('rq-unit', q.unit)}${unitBtn}</div>`))
+      + row(col(lab('Date Quoted', true) + dated('rq-quoted', q.quoted)) + col(lab('Expiration') + dated('rq-exp', q.exp)))
+      + row(col(lab('Move In') + muted('rq-moveIn', q.moveIn))
+        + col(lab('Lease Term') + this.singleSelect('rq-term', terms, q.term, { noSearch:true, placeholder:'\u00a0', blank:true })))
+      + col(lab('Lease Term') + this.singleSelect('rq-term2', terms, q.term2, { noSearch:true, placeholder:'\u00a0', blank:true }))
+      + col(lab('Rent', true) + `<div style="display:flex;align-items:center;gap:8px">${wrap(bare('rq-rent', q.rent))}${amtBtn}</div>`)
+      + col(lab('Comment') + `<textarea id="rq-comment" rows="3" style="${fld};height:auto;padding:8px 10px;resize:vertical">${esc(q.comment)}</textarea>`));
+
+    const oriCard = (o, i) => card(
+      `<div style="display:flex;align-items:center"><div style="flex:1"></div><span data-act="rqRmOri" data-arg="${i}" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Remove</span></div>`
+      + row(col(lab('Property', true) + search(`rq-ori-prop-${i}`, o.prop))
+        + col(lab('Unit', true) + `<div style="display:flex;align-items:center;gap:8px">${search(`rq-ori-unit-${i}`, o.unit)}${unitBtn}</div>`))
+      + row(col(lab('Charge Type', true) + this.singleSelect(`rq-ori-ctype-${i}`, ['STORAGE','PARKING','GARAGE','LOCKER'], o.ctype, { noSearch:true }))
+        + col(lab('Amount', true) + `<div style="display:flex;align-items:center;gap:8px">${wrap(bare(`rq-ori-amount-${i}`, o.amount))}${amtBtn}</div>`)));
+
+    return `<div style="display:flex;flex-direction:column;gap:14px">
+      <span style="font-size:14px;color:var(--rmx-text, #666666)">Once you reserve the Unit, these details fill in the Reservation/Expected Lease information.</span>
+      <div style="display:flex;flex-direction:column;gap:8px">${head('Primary Unit')}${primary}</div>
+      <div style="display:flex;flex-direction:column;gap:8px">${head('Other Rentable Item (ORI) Units')}${(q.oris||[]).map(oriCard).join('')}</div>
+      <span data-act="rqAddOri" style="display:inline-flex;align-items:center;gap:6px;align-self:flex-start;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><span class="material-symbols-outlined" style="font-size:18px">add</span>Add ORI Unit</span>
+    </div>`;
+  }
+  rqStep2(){
+    const q = this.state.rq;
+    const rec = this.rqRecurring(), one = this.rqOneTime();
+    const whole = (n) => '$' + Math.round(n).toLocaleString('en-US');
+    const dec = (n) => n.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
+    const monthly = this.rqSum(rec.primary.rows) + rec.oris.reduce((n, g) => n + this.rqSum(g.rows), 0);
+    const oneTotal = one.primary.rows.reduce((n, r) => n + r.amount, 0) + one.oris.reduce((n, g) => n + g.rows.reduce((m, r) => m + r.amount, 0), 0);
+    const recCount = this.rqCount(rec.primary.rows) + rec.oris.reduce((n, g) => n + this.rqCount(g.rows), 0);
+    const oneCount = one.primary.rows.length + one.oris.reduce((n, g) => n + g.rows.length, 0);
+
+    const chip = (icon, t) => `<span style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap"><span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,var(--rmx-brand, #008dd5))">${icon}</span>${t}</span>`;
+    const header = `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;align-items:flex-start;gap:14px">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+          <span style="font-size:14px;color:var(--rmx-text, #666666)">Total Monthly Price</span>
+          <span style="font-size:20px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${whole(monthly)}<span style="font-size:14px;font-weight:400;color:var(--rmx-text, #666666)">/mo</span></span>
+        </div>
+        <span style="display:inline-flex;align-items:center;gap:14px;flex:none">${chip('home', this.rqShort(q.prop))}${chip('apartment', q.unit || '')}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;background:var(--rmx-brand-dark, #13314c);border-radius:2px;padding:9px 14px">
+        <span style="font-size:14px;color:#fff">Due monthly</span><span style="font-size:14px;font-weight:600;color:#fff">${whole(monthly)}</span>
+        <div style="flex:1"></div>
+        <span style="font-size:14px;color:#fff">Due one-time</span><span style="font-size:14px;font-weight:600;color:#fff">${whole(oneTotal)}</span>
+      </div>
+    </div>`;
+
+    const cols = '44px 130px 150px minmax(0,1fr) 120px';
+    const hc = (t, r) => `<span style="display:flex;align-items:center;${r?'justify-content:flex-end;':''}min-height:30px;padding:4px 12px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span>`;
+    const cell = (t, r) => `<span style="display:flex;align-items:center;${r?'justify-content:flex-end;':''}min-height:34px;padding:4px 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t}</span>`;
+    const groupLbl = (t) => `<span style="display:block;padding:8px 12px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span>`;
+    const box = (on, lock, id) => {
+      // Grey reads as "this one can't come off"; the tint marks a charge the ORI unit brings with it.
+      const bg = !on ? '#fff' : (lock === 'grey' ? '#dfe6ec' : (lock === 'light' ? '#f9c99a' : 'var(--rmx-attention, #f58220)'));
+      const bd = on ? (lock === 'grey' ? 'var(--rmx-line, #cedbe7)' : bg) : 'var(--rmx-line, #cedbe7)';
+      const tick = on ? `<span class="material-symbols-outlined" style="font-size:14px;color:${lock === 'grey' ? 'var(--rmx-text, #666666)' : '#fff'}">check</span>` : '';
+      const act = lock ? '' : ` data-act="rqTog" data-arg="${id}"`;
+      return `<span${act} style="display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;box-sizing:border-box;border:1px solid ${bd};background:${bg};border-radius:2px;cursor:${lock?'default':'pointer'}">${tick}</span>`;
+    };
+    const recRow = (r) => {
+      const on = r.lock ? true : this.rqOn(r.id);
+      return `<span style="display:flex;align-items:center;justify-content:center;min-height:34px">${box(on, r.lock, r.id)}</span>`
+        + cell(r.level) + cell(r.type) + cell('') + cell(dec(r.amount), true);
+    };
+    const grpHead = (key, label, n) => {
+      const open = !(q.closed || {})[key];
+      return `<div style="display:flex;align-items:center"><span data-act="rqGrp" data-arg="${key}" style="display:inline-flex;align-items:center;gap:8px;padding:7px 12px 7px 20px;cursor:pointer"><span class="material-symbols-outlined" style="font-size:18px;color:var(--rmx-text, #666666)">${open?'arrow_drop_down':'arrow_right'}</span><span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${label} (${n} Charge${n===1?'':'s'})</span></span></div>`;
+    };
+    const grpRows = (key, rows, fn) => ((q.closed || {})[key] ? '' : `<div style="display:grid;grid-template-columns:${cols};align-items:center">${rows.map(fn).join('')}</div>`);
+    const totalLine = (t) => `<div style="display:flex;justify-content:flex-end;border-top:1px solid var(--rmx-bg-subtle, #f5f8fa);padding:7px 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c)">${t}</div>`;
+    const addLink = (t) => `<span data-act="toast" data-arg="${t}" style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap"><span class="material-symbols-outlined" style="font-size:18px">add</span>${t}</span>`;
+    const sectionHead = (t, link) => `<div style="display:flex;align-items:center;gap:12px"><span style="font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span><div style="flex:1"></div>${link}</div>`;
+    const footStrip = (l, v) => `<div style="display:flex;align-items:center;gap:12px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:8px 12px"><div style="flex:1"></div><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${l}</span><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);min-width:96px;text-align:right">${v}</span></div>`;
+
+    const recTable = `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
+      <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7)">
+        ${hc('')}${hc('Charge Level')}${hc('Charge Type')}${hc('Comment')}${hc('Amount', true)}
+      </div>
+      ${groupLbl('Primary Unit')}
+      ${grpHead(rec.primary.key, rec.primary.label, rec.primary.rows.length)}
+      ${grpRows(rec.primary.key, rec.primary.rows, recRow)}
+      ${totalLine('Total: ' + dec(this.rqSum(rec.primary.rows)))}
+      ${rec.oris.length ? groupLbl('ORI Units') : ''}
+      ${rec.oris.map(g => grpHead(g.key, g.label, g.rows.length) + grpRows(g.key, g.rows, recRow)).join('')}
+      ${rec.oris.length ? totalLine('ORI Total: ' + dec(rec.oris.reduce((n, g) => n + this.rqSum(g.rows), 0))) : ''}
+      ${footStrip(recCount + ' Recurring Charge' + (recCount===1?'':'s'), dec(monthly))}
+    </div>`;
+
+    const oneRow = (r) => `<span></span>` + cell(r.source || '') + cell(r.type) + cell('') + cell(dec(r.amount), true);
+    const oneTable = `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
+      <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7)">
+        ${hc('')}${hc('Source')}${hc('Charge Type')}${hc('Comment')}${hc('Amount', true)}
+      </div>
+      ${groupLbl('Primary Unit')}
+      ${grpHead(one.primary.key, one.primary.label, one.primary.rows.length)}
+      ${grpRows(one.primary.key, one.primary.rows, oneRow)}
+      ${totalLine('Total: ' + dec(one.primary.rows.reduce((n, r) => n + r.amount, 0)))}
+      ${one.oris.length ? groupLbl('ORI Unit' + (one.oris.length===1?'':'s')) : ''}
+      ${one.oris.map(g => grpHead(g.key, g.label, g.rows.length) + grpRows(g.key, g.rows, oneRow)).join('')}
+      ${footStrip(oneCount + ' One-Time Charge' + (oneCount===1?'':'s'), dec(oneTotal))}
+    </div>`;
+
+    return `<div style="display:flex;flex-direction:column;gap:16px">
+      ${header}
+      <div style="display:flex;flex-direction:column;gap:8px">${sectionHead('Recurring Charges', addLink('Add Recurring Charge'))}${recTable}</div>
+      <div style="display:flex;flex-direction:column;gap:8px">${sectionHead('One-Time Charges', addLink('Add One-Time Charge'))}${oneTable}</div>
+    </div>`;
+  }
   // ================= SETUP WIZARD =================
   setupDots(step){
     const dot = on => `<span style="width:7px;height:7px;border-radius:50%;background:${on?'var(--rmx-text-muted, #b3b3b3)':'#d7dee5'};display:inline-block"></span>`;
@@ -5473,6 +5708,7 @@ class Component extends DCLogic {
     out += this.announceHTML();
     out += this.bulkUpdHTML();
     out += this.copyFeesHTML();
+    out += this.rqHTML();
     out += this.toastHTML();
     return out;
   }
