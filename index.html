@@ -93,11 +93,8 @@
 class Component extends DCLogic {
   state = {
     view: 'register',
-    // The two quotes the prospect already has; the Add Rent Quote flow appends to this.
-    rentQuotes: [
-      { prop:'RIVER', unit:'201C', status:'Reserved', amount:1500 },
-      { prop:'RIVER', unit:'103A', status:'Expired',  amount:1800 }
-    ],
+    // Filled by the Add Rent Quote flow; the tile shows its empty state until then.
+    rentQuotes: [],
     rq: null,
     ftHelp: false,
     accOpen: { 'pf-rec':true, 'pf-one':true, 'pf-req':true, 'pf-opt':true, 'pf-sit':true, 'pf-ind':true },
@@ -2022,11 +2019,17 @@ class Component extends DCLogic {
     const qMoney = (n) => n.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
     const qRow = (r, i) => gRow(qCols, tdc(r.prop) + tdc(r.unit)
       + `<span style="padding:7px 12px">${qLoz(r.status, r.status !== 'Expired')}</span>` + tdc(qMoney(r.amount), true), i % 2 === 1);
+    const qList = this.state.rentQuotes;
+    const qBody = qList.length
+      ? grid(qCols, thc('Property') + thc('Unit') + thc('Status') + thc('Amount', true), qList.map(qRow).join(''), 420)
+        + '<div style="flex:1"></div>'
+      : empty('Add a rent quote to get started.',
+          `<span data-act="rqOpen" style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><span class="material-symbols-outlined" style="font-size:18px">add</span>Add Rent Quote</span>`);
+    // The label filters only mean something once there is something to filter.
     const quotes = tile('Rent Quotes', `<span data-act="rqOpen" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Add Quote</span>`,
-      grid(qCols, thc('Property') + thc('Unit') + thc('Status') + thc('Amount', true),
-        this.state.rentQuotes.map(qRow).join(''), 420)
-        + '<div style="flex:1"></div>',
-      { grid:true, flush:true, mid:`<span style="display:inline-flex;align-items:center;gap:8px">${labelPill(true)}${labelPill(false)}</span>`, minH:300 });
+      qBody,
+      { grid:true, flush:qList.length > 0, minH:300,
+        mid: qList.length ? `<span style="display:inline-flex;align-items:center;gap:8px">${labelPill(true)}${labelPill(false)}</span>` : '' });
 
     // ---- Lead Information / Preferences / Reservation ----
     const lead = tile('Lead Information', link('Cancel') + openIcon('Lead Information'), `
@@ -3469,10 +3472,17 @@ class Component extends DCLogic {
       return /market/i.test(r.amount || '') ? this.parseAmt(unit ? unit.rent : '') : 0; };
     // The rent on the quote is the one typed in step one; everything else prices off the charge.
     const amount = (r) => (r.mits === 'RC' && this.rqAmt(q.rent)) ? this.rqAmt(q.rent) : base(r);
-    return this.appliedRows(q.prop)
+    const rows = this.appliedRows(q.prop)
       .map(r => ({ id:'c' + r.id, level:r.level || 'Property', type:r.mits, comment:r.desc || '',
         amount:amount(r), one:/-one$/.test(r.group),
         def:r.group.indexOf('req') === 0, lock:r.mits === 'RC' ? 'grey' : null }));
+    // A property whose charges aren't centralized yet has no rent charge to read, so the quote
+    // still carries the rent typed in step one rather than pricing at zero.
+    if (!rows.some(r => r.type === 'RC') && this.rqAmt(q.rent)) {
+      rows.unshift({ id:'rent', level:'Property', type:'RC', comment:'Base rent',
+        amount:this.rqAmt(q.rent), one:false, def:true, lock:'grey' });
+    }
+    return rows;
   }
   rqRecurring(){
     const q = this.state.rq || {};
