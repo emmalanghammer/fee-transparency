@@ -3436,9 +3436,9 @@ class Component extends DCLogic {
   // A quote is built in two passes: the unit and its rentable items first, then the charges those
   // choices pull in. Step two only ever shows charges for what step one actually named.
   rqBlank(){
-    return { step:1, prop:'Riverview Apartments', unit:'105', quoted:'08/20/2026', exp:'09/20/2026',
+    return { step:1, prop:'Riverview Apartments', unit:'', quoted:'08/20/2026', exp:'09/20/2026',
       moveIn:'', term:'', term2:'', rent:'500.00', comment:'',
-      oris:[{ prop:'Safe & Secure Storage', unit:'SS4N', ctype:'STORAGE', amount:'50.00' }],
+      oris:[],
       off:{ 'p-util':true }, closed:{} };
   }
   // Properties carry a short name; an ORI property is free text here, so fall back to its initials.
@@ -3449,26 +3449,28 @@ class Component extends DCLogic {
     const parts = n.replace(/&/g, ' ').split(/\s+/).filter(Boolean);
     return parts.map(w => w[0]).join('').toUpperCase().slice(0, 6);
   }
+  rqLabel(prop, unit, fallback){ const p = this.rqShort(prop); const u = String(unit || '').trim();
+    return p ? (u ? p + ' - ' + u : p) : (u || fallback || 'Primary Unit'); }
   rqAmt(v){ const n = parseFloat(String(v == null ? 0 : v).replace(/[$,]/g, '')); return isNaN(n) ? 0 : n; }
   // The primary unit brings rent plus whatever else the property charges; each ORI unit brings the
   // charge type named for it. Rent can't be dropped from a quote, so its row is locked on.
   rqRecurring(){
     const q = this.state.rq || {};
-    const primary = { key:'p', label:`${this.rqShort(q.prop)} - ${q.unit || ''}`,
+    const primary = { key:'p', label:this.rqLabel(q.prop, q.unit),
       rows: [ { id:'p-rc',   level:'Property', type:'RC',      amount:this.rqAmt(q.rent), lock:'grey' },
               { id:'p-pet',  level:'Property', type:'PET',     amount:50 },
               { id:'p-util', level:'Property', type:'UTILITY', amount:75 } ] };
-    const oris = (q.oris || []).map((o, i) => ({ key:'o'+i, label:`${this.rqShort(o.prop)} - ${o.unit || ''}`,
+    const oris = (q.oris || []).map((o, i) => ({ key:'o'+i, label:this.rqLabel(o.prop, o.unit, 'ORI Unit'),
       rows: [ { id:'o'+i, level:'ORI', type:o.ctype || '', amount:this.rqAmt(o.amount), lock:'light', ori:true } ] }));
     return { primary, oris };
   }
   rqOneTime(){
     const q = this.state.rq || {};
-    const primary = { key:'op', label:`${this.rqShort(q.prop)} - ${q.unit || ''}`,
+    const primary = { key:'op', label:this.rqLabel(q.prop, q.unit),
       rows: [ { source:'System', type:'PETDEP', amount:50 },
               { source:'System', type:'DP',     amount:this.rqAmt(q.rent) },
               { source:'',       type:'ADMIN',  amount:50 } ] };
-    const oris = (q.oris || []).map((o, i) => ({ key:'oo'+i, label:`${this.rqShort(o.prop)} - ${o.unit || ''}`,
+    const oris = (q.oris || []).map((o, i) => ({ key:'oo'+i, label:this.rqLabel(o.prop, o.unit, 'ORI Unit'),
       rows: [ { source:'', type:'STDP', amount:100 } ] }));
     return { primary, oris };
   }
@@ -3521,13 +3523,17 @@ class Component extends DCLogic {
     const amtBtn = `<button data-act="toast" data-arg="Select Amount" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap;flex:none">Select Amount</button>`;
     const col = (inner) => `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${inner}</div>`;
     const row = (inner) => `<div style="display:flex;gap:20px;align-items:flex-start">${inner}</div>`;
+    const unitRow = (propField, unitField) => `<div style="display:flex;align-items:flex-end">
+      <div style="flex:1;min-width:0;margin-right:20px;display:flex;flex-direction:column;gap:4px">${propField}</div>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${unitField}</div>
+      <span style="display:inline-flex;flex:none;margin-left:8px">${unitBtn}</span>
+    </div>`;
     const card = (inner) => `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:12px">${inner}</div>`;
     const head = (t) => `<span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span>`;
     const terms = ['6 Months','12 Months','18 Months','24 Months'];
 
     const primary = card(
-      row(col(lab('Property', true) + search('rq-prop', q.prop))
-        + col(lab('Unit', true) + `<div style="display:flex;align-items:center;gap:8px">${search('rq-unit', q.unit)}${unitBtn}</div>`))
+      unitRow(lab('Property', true) + search('rq-prop', q.prop), lab('Unit', true) + search('rq-unit', q.unit))
       + row(col(lab('Date Quoted', true) + dated('rq-quoted', q.quoted)) + col(lab('Expiration') + dated('rq-exp', q.exp)))
       + row(col(lab('Move In') + muted('rq-moveIn', q.moveIn))
         + col(lab('Lease Term') + this.singleSelect('rq-term', terms, q.term, { noSearch:true, placeholder:'\u00a0', blank:true })))
@@ -3537,8 +3543,7 @@ class Component extends DCLogic {
 
     const oriCard = (o, i) => card(
       `<div style="display:flex;align-items:center"><div style="flex:1"></div><span data-act="rqRmOri" data-arg="${i}" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Remove</span></div>`
-      + row(col(lab('Property', true) + search(`rq-ori-prop-${i}`, o.prop))
-        + col(lab('Unit', true) + `<div style="display:flex;align-items:center;gap:8px">${search(`rq-ori-unit-${i}`, o.unit)}${unitBtn}</div>`))
+      + unitRow(lab('Property', true) + search(`rq-ori-prop-${i}`, o.prop), lab('Unit', true) + search(`rq-ori-unit-${i}`, o.unit))
       + row(col(lab('Charge Type', true) + this.singleSelect(`rq-ori-ctype-${i}`, ['STORAGE','PARKING','GARAGE','LOCKER'], o.ctype, { noSearch:true }))
         + col(lab('Amount', true) + `<div style="display:flex;align-items:center;gap:8px">${wrap(bare(`rq-ori-amount-${i}`, o.amount))}${amtBtn}</div>`)));
 
@@ -3566,7 +3571,7 @@ class Component extends DCLogic {
           <span style="font-size:14px;color:var(--rmx-text, #666666)">Total Monthly Price</span>
           <span style="font-size:20px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${whole(monthly)}<span style="font-size:14px;font-weight:400;color:var(--rmx-text, #666666)">/mo</span></span>
         </div>
-        <span style="display:inline-flex;align-items:center;gap:14px;flex:none">${chip('home', this.rqShort(q.prop))}${chip('apartment', q.unit || '')}</span>
+        <span style="display:inline-flex;align-items:center;gap:14px;flex:none">${chip('home', this.rqShort(q.prop))}${q.unit ? chip('apartment', q.unit) : ''}</span>
       </div>
       <div style="display:flex;align-items:center;gap:12px;background:var(--rmx-brand-dark, #13314c);border-radius:2px;padding:9px 14px">
         <span style="font-size:14px;color:#fff">Due monthly</span><span style="font-size:14px;font-weight:600;color:#fff">${whole(monthly)}</span>
