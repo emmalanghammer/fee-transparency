@@ -695,7 +695,7 @@ class Component extends DCLogic {
       case 'rqBack': this.setState(s => ({ rq: Object.assign({}, s.rq, { step:1 }) })); break;
       case 'rqAddOri': { this.rqCapture();
         this.setState(s => { const q = Object.assign({}, s.rq);
-          q.oris = (q.oris || []).concat([{ prop:'', unit:'', ctype:'STORAGE', amount:'' }]); return { rq:q }; }); break; }
+          q.oris = (q.oris || []).concat([{ prop:'', unit:'', ctype:'', amount:'' }]); return { rq:q }; }); break; }
       case 'rqRmOri': { this.rqCapture(); const i = parseInt(arg, 10);
         this.setState(s => { const q = Object.assign({}, s.rq);
           q.oris = (q.oris || []).filter((o, n) => n !== i); return { rq:q }; }); break; }
@@ -3449,6 +3449,7 @@ class Component extends DCLogic {
     const parts = n.replace(/&/g, ' ').split(/\s+/).filter(Boolean);
     return parts.map(w => w[0]).join('').toUpperCase().slice(0, 6);
   }
+  rqOriProps(){ return Object.keys(this.oriChargeTypes()); }
   rqLabel(prop, unit, fallback){ const p = this.rqShort(prop); const u = String(unit || '').trim();
     return p ? (u ? p + ' - ' + u : p) : (u || fallback || 'Primary Unit'); }
   rqAmt(v){ const n = parseFloat(String(v == null ? 0 : v).replace(/[$,]/g, '')); return isNaN(n) ? 0 : n; }
@@ -3531,6 +3532,15 @@ class Component extends DCLogic {
     const card = (inner) => `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:12px">${inner}</div>`;
     const head = (t) => `<span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span>`;
     const terms = ['6 Months','12 Months','18 Months','24 Months'];
+    const oriProps = this.rqOriProps();
+    // Charge types belong to the property, so a new property clears a type that no longer applies.
+    window.__rqOriProp = (i, v) => {
+      this.rqCapture();
+      const q = this.state.rq; if (!q || !q.oris[i]) return;
+      q.oris[i].prop = String(v || '');
+      if (q.oris[i].ctype && this.oriTypesFor(q.oris[i].prop).indexOf(q.oris[i].ctype) < 0) q.oris[i].ctype = '';
+      this.setState(s => ({ rq: Object.assign({}, s.rq) }));
+    };
 
     const primary = card(
       unitRow(lab('Property', true) + search('rq-prop', q.prop), lab('Unit', true) + search('rq-unit', q.unit))
@@ -3538,14 +3548,16 @@ class Component extends DCLogic {
       + row(col(lab('Move In') + muted('rq-moveIn', q.moveIn))
         + col(lab('Lease Term') + this.singleSelect('rq-term', terms, q.term, { noSearch:true, placeholder:'\u00a0', blank:true })))
       + col(lab('Lease Term') + this.singleSelect('rq-term2', terms, q.term2, { noSearch:true, placeholder:'\u00a0', blank:true }))
-      + col(lab('Rent', true) + `<div style="display:flex;align-items:center;gap:8px">${wrap(bare('rq-rent', q.rent))}${amtBtn}</div>`)
+      + col(lab('Rent', true) + `<div style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0">${wrap(bare('rq-rent', q.rent))}</div>${amtBtn}</div>`)
       + col(lab('Comment') + `<textarea id="rq-comment" rows="3" style="${fld};height:auto;padding:8px 10px;resize:vertical">${esc(q.comment)}</textarea>`));
 
     const oriCard = (o, i) => card(
       `<div style="display:flex;align-items:center"><div style="flex:1"></div><span data-act="rqRmOri" data-arg="${i}" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Remove</span></div>`
-      + unitRow(lab('Property', true) + search(`rq-ori-prop-${i}`, o.prop), lab('Unit', true) + search(`rq-ori-unit-${i}`, o.unit))
-      + row(col(lab('Charge Type', true) + this.singleSelect(`rq-ori-ctype-${i}`, ['STORAGE','PARKING','GARAGE','LOCKER'], o.ctype, { noSearch:true }))
-        + col(lab('Amount', true) + `<div style="display:flex;align-items:center;gap:8px">${wrap(bare(`rq-ori-amount-${i}`, o.amount))}${amtBtn}</div>`)));
+      + unitRow(lab('Property', true) + this.singleSelect(`rq-ori-prop-${i}`, oriProps, o.prop, { placeholder:'Select a property', js:`if(window.__rqOriProp)window.__rqOriProp(${i},_v)` }),
+        lab('Unit', true) + search(`rq-ori-unit-${i}`, o.unit))
+      + row(col(lab('Charge Type', true) + this.singleSelect(`rq-ori-ctype-${i}`, o.prop ? this.oriTypesFor(o.prop) : [], o.ctype,
+          { noSearch:true, placeholder: o.prop ? 'Select a charge type' : 'Select a property first' }))
+        + col(lab('Amount', true) + `<div style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0">${wrap(bare(`rq-ori-amount-${i}`, o.amount))}</div>${amtBtn}</div>`)));
 
     return `<div style="display:flex;flex-direction:column;gap:14px">
       <span style="font-size:14px;color:var(--rmx-text, #666666)">Once you reserve the Unit, these details fill in the Reservation/Expected Lease information.</span>
