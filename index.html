@@ -114,7 +114,7 @@ class Component extends DCLogic {
     // The Berkshires is listed but not yet converted, so the setup review can warn about the
     // listing impact. The opt-in itself only surfaces once a profile exists.
     // The Hamptons is the finished example — marketed, with every charge listing-ready.
-    ilsProps: { 'Riverview Apartments': true, 'The Berkshires': true, 'The Windermere': true,
+    ilsProps: { 'Clearcreek Condominiums': true, 'Riverview Apartments': true, 'The Berkshires': true, 'The Windermere': true,
       'The Estates': true, 'Willow Creek': true, 'Greenbriar Village': true, 'Pinewood Place': true,
       'The Highlands': true, 'Stonegate Village': true, 'The Hamptons': true },
     profileStatus: {},
@@ -200,7 +200,10 @@ class Component extends DCLogic {
       { name:'Valley Forge', short:'VALLEY', email:'jayson@valleyforge.com', manager:'Jayson Locklear', addr:'4680 Yankee St, Dayton, OH 45458', billing:'5791 Social Row Rd, Mason, OH 45040', color:'#737373', loc:'Dayton, OH', units:30, occupied:22 },
       { name:'The Arbors', short:'ARBORS', email:'rylee@thearbors.com', manager:'Rylee Herron', addr:'6802 Butler Warren Rd, Mason, OH 45040', billing:'7913 Columbia Rd, Kings Mills, OH 45034', color:'#13314c', loc:'Mason, OH', units:60, occupied:52 },
       { name:'Stonegate Village', short:'STONEG', email:'neha@stonegatevillage.com', manager:'Neha Walter', addr:'8024 Western Row Rd, Maineville, OH 45039', billing:'9135 Irwin Simpson Rd, Mason, OH 45040', color:'#12a150', loc:'Maineville, OH', units:58, occupied:39 },
-      { name:'The Hamptons', short:'HAMPTON', email:'zavier@thehamptons.com', manager:'Zavier Burks', addr:'0246 Fields Ertel Rd, Cincinnati, OH 45241', billing:'1357 Loveland Madeira Rd, Loveland, OH 45140', color:'#f58220', loc:'Cincinnati, OH', units:34, occupied:31 }
+      { name:'The Hamptons', short:'HAMPTON', email:'zavier@thehamptons.com', manager:'Zavier Burks', addr:'0246 Fields Ertel Rd, Cincinnati, OH 45241', billing:'1357 Loveland Madeira Rd, Loveland, OH 45140', color:'#f58220', loc:'Cincinnati, OH', units:34, occupied:31 },
+      // Manufactured housing. It advertises through MH Village, which doesn't carry complete pricing,
+      // so setting up fee transparency centralizes its charges and that is the whole journey.
+      { name:'Clearcreek Condominiums', short:'CLEARC', email:'renee@clearcreekcondos.com', manager:'Renee Salgado', addr:'2468 Clearcreek Franklin Rd, Springboro, OH 45066', billing:'3579 Lower Springboro Rd, Waynesville, OH 45068', color:'#6eb744', loc:'Springboro, OH', units:62, occupied:57, mh:true }
     ]);
   }
   // Properties whose charges can be copied when adding a property.
@@ -223,6 +226,8 @@ class Component extends DCLogic {
     return this.state.profileStatus[n] || (this.seededProfiles().indexOf(n) >= 0 ? 'active' : 'none');
   }
   ilsOn(p){ return !!this.state.ilsProps[p || this.state.property]; }
+  // Manufactured housing: listed, but on a provider that has no complete-pricing feed.
+  mhOn(p){ return !!(this.propInfo(p || this.state.property) || {}).mh; }
   // The MITS 5.0 / listing fields a charge must carry before it can be marketed.
   mitsFields(){
     return [
@@ -491,7 +496,7 @@ class Component extends DCLogic {
       Object.assign({ id:7,  group:'req-one', mits:'DP',         name:'Security deposit',  desc:'Security deposit',             from:'01/01/2026', to:'', amount:'$500.00',   amtMethod:'Flat', ils:true }, L('Property')),
       Object.assign({ id:8,  group:'req-one', mits:'LMR',        name:"Last month's rent", desc:"Last month's rent, prepaid",   from:'01/01/2026', to:'', amount:'$1,350.00', amtMethod:'Flat', ils:true  }, L('Property')),
       Object.assign({ id:9,  group:'req-one', mits:'KEY',        name:'Key & fob deposit', desc:'Key & fob deposit',            from:'01/01/2026', to:'', amount:'$50.00',    amtMethod:'Flat', ils:true  }, L('Property')),
-      Object.assign({ id:10, group:'opt-rec', mits:'SF',         name:'Storage closet',    desc:'Corner storage closet',        freq:'Every Month', from:'01/01/2026', to:'', amount:'$40.00',      amtMethod:'Flat', ils:true }, L('Unit','4C')),
+      Object.assign({ id:10, group:'opt-rec', mits:'SF',         name:'Storage closet',    desc:'Corner storage closet',        freq:'Every Month', from:'01/01/2026', to:'', amount:'$40.00',      amtMethod:'Flat', ils:true }, L('Unit','2B')),
       Object.assign({ id:11, group:'opt-rec', mits:'AMENFEE',    name:'Pool & fitness',    desc:'Pool & fitness access',        freq:'Every Month', from:'01/01/2026', to:'', amount:'$28.00',      amtMethod:'Flat', ils:true  }, L('Property')),
       Object.assign({ id:12, group:'opt-rec', mits:'COVPARK',    name:'Covered parking',   desc:'Covered parking, 12 spots total',freq:'Every Month',from:'01/01/2026', to:'', amount:'Market Rent', amtMethod:'Reference', est:75, ils:true, oriType:'Covered Parking' }, L('ORI')),
       Object.assign({ id:13, group:'opt-one', mits:'HOLD',       name:'Hold fee',          desc:'Unit reservation fee',         from:'01/01/2026', to:'', amount:'$200.00',   amtMethod:'Flat', ils:true  }, L('Property')),
@@ -713,6 +718,8 @@ class Component extends DCLogic {
       case 'rqNext': this.rqCapture(); this.setState(s => ({ rq: Object.assign({}, s.rq, { step:2 }) })); break;
       case 'rqBack': this.setState(s => ({ rq: Object.assign({}, s.rq, { step:1 }) })); break;
       case 'rqAddOri': { this.rqCapture();
+        // A rentable item rides along with a unit, so there has to be one first.
+        if (!(this.state.rq && this.state.rq.unit)) { this.flash('Choose the primary unit first'); break; }
         this.setState(s => { const q = Object.assign({}, s.rq);
           q.oris = (q.oris || []).concat([{ prop:'', unit:'', ctype:'', amount:'' }]); return { rq:q }; }); break; }
       case 'rqRmOri': { this.rqCapture(); const i = parseInt(arg, 10);
@@ -1617,7 +1624,8 @@ class Component extends DCLogic {
   // about publishing complete pricing is surfaced for it.
   scenarioMarketed(){
     return ['Riverview Apartments','The Berkshires','The Windermere','The Estates','Willow Creek',
-      'Greenbriar Village','Pinewood Place','The Highlands','Stonegate Village','The Hamptons'];
+      'Greenbriar Village','Pinewood Place','The Highlands','Stonegate Village','The Hamptons',
+      'Clearcreek Condominiums'];
   }
   // Charges for a converted property: either every marketing detail filled in, or the same charges
   // as they arrive from setup, with details still missing. '' is not a real property, so setupRows
@@ -1642,10 +1650,12 @@ class Component extends DCLogic {
       ['The Hamptons','Stonegate Village'].forEach(n => convert(n, true, false));
       // Not enabled for listings, so centralizing the charges is all there is to do.
       ['Oakwood Manor','Cedar Ridge'].forEach(n => convert(n, true, false));
+      // Listed, but on MH Village — centralized is as far as it goes.
+      convert('Clearcreek Condominiums', true, false);
       // The Berkshires, The Highlands, Valley Forge and The Arbors are still on legacy charges.
     } else if (key === 'post') {
       // Steady state: every property is converted, and every marketed one publishes complete pricing.
-      names.forEach(n => convert(n, true, !!ils[n]));
+      names.forEach(n => convert(n, true, !!ils[n] && !this.mhOn(n)));
     }
     // 'on' and 'noils' are launch day — nothing is converted yet.
     plan.view = key === 'mid' ? 'feetrans' : key === 'post' ? 'listings' : 'register';
@@ -1691,6 +1701,9 @@ class Component extends DCLogic {
     // Fee Transparency off entirely.
     if (!active) return { key:'none', order:4, status:'Not Set Up', loz:'grey',
       next:'Set Up Fee Transparency', act:'setupOpen' };
+    // Manufactured housing advertises on a provider with no complete-pricing feed, so centralizing the
+    // charges finishes the job — there is nothing to publish and no charge details to chase.
+    if (this.mhOn(p)) return { key:'central', order:6, status:'Centralized', loz:'green' };
     // On, but the property doesn't advertise — its charges are centralized and that's as far as it goes
     // until someone enables it for listings.
     if (!ils) return { key:'notEnabled', order:6, status:'Centralized', loz:'green',
@@ -1792,7 +1805,7 @@ class Component extends DCLogic {
     // Grouped by status in the order the work happens: published-but-incomplete first, then charges
     // needing details, ready to publish, not set up, and everything already finished.
     const filt = this.state.ftFilter || 'all';
-    const group = k => (k==='short'||k==='pubshort') ? 'needs' : (k==='pub'||k==='notEnabled') ? 'done' : k==='ready' ? 'ready' : 'none';
+    const group = k => (k==='short'||k==='pubshort') ? 'needs' : (k==='pub'||k==='notEnabled'||k==='central') ? 'done' : k==='ready' ? 'ready' : 'none';
     const all = this.propertiesData().slice()
       .sort((x, y) => (this.ftStatus(x.name).order - this.ftStatus(y.name).order) || x.name.localeCompare(y.name));
     const rows = (filt === 'all' ? all : all.filter(p => group(this.ftStatus(p.name).key) === filt))
@@ -1818,6 +1831,7 @@ class Component extends DCLogic {
           + tile('var(--rmx-attention, #f58220)', 'Charges Incomplete', n('short'))
           + tile('var(--ac,var(--rmx-brand, #008dd5))', 'Ready to Publish', n('ready'))
           + tile('var(--rmx-success, #6eb744)', 'Published', n('pub') + n('pubshort'))
+          + (list.filter(r => this.mhOn(r.name)).length ? tile('var(--rmx-success, #6eb744)', 'Centralized', n('central')) : '')
         : tile('var(--rmx-text-muted, #b3b3b3)', 'Not Set Up', n('none'))
           + tile('var(--rmx-success, #6eb744)', 'Centralized', n('notEnabled'))) + `</div>`; };
 
@@ -1913,7 +1927,7 @@ class Component extends DCLogic {
         <a data-act="openFeeProfile" data-arg="${esc(r.name)}" style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px 0 17px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer">${r.name}</a>
         <span style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px"><span class="loz" style="${lozStyle[st.loz]};text-transform:none;letter-spacing:0">${st.status}</span></span>
         ${num(ch.total)}
-        ${ils ? num(ch.ready) + incCell + num(ch.excluded) : '<span></span><span></span><span></span>'}
+        ${ils && !this.mhOn(r.name) ? num(ch.ready) + incCell + num(ch.excluded) : '<span></span><span></span><span></span>'}
         ${st.next
           ? `<a data-act="${st.act}" data-arg="${esc(r.name)}" style="display:flex;align-items:center;min-height:35px;padding:0 12px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis">${st.next}</a>`
           : cell('')}
@@ -3493,7 +3507,15 @@ class Component extends DCLogic {
       return /market/i.test(r.amount || '') ? this.parseAmt(unit ? unit.rent : '') : 0; };
     // The rent on the quote is the one typed in step one; everything else prices off the charge.
     const amount = (r) => (r.mits === 'RC' && this.rqAmt(q.rent)) ? this.rqAmt(q.rent) : base(r);
-    const rows = this.appliedRows(q.prop)
+    // A charge only reaches this quote if its level points at the unit being quoted. ORI charges are
+    // handled per rentable item, so they stay out of the primary unit's list.
+    const applies = (r) => {
+      if (r.level === 'ORI') return false;
+      if (r.level === 'Unit') return !!(unit && r.target === q.unit);
+      if (r.level === 'Unit Type') return !!(unit && r.target === unit.type);
+      return true;
+    };
+    const rows = this.appliedRows(q.prop).filter(applies)
       .map(r => ({ id:'c' + r.id, level:r.level || 'Property', type:r.mits, comment:r.desc || '',
         amount:amount(r), one:/-one$/.test(r.group),
         def:r.group.indexOf('req') === 0, lock:r.mits === 'RC' ? 'grey' : null }));
@@ -3505,16 +3527,32 @@ class Component extends DCLogic {
     }
     return rows;
   }
+  // The property's ORI charges for this kind of item. The amount typed on the quote wins, since that
+  // is the figure being offered; failing that the charge prices itself.
+  rqOriCharges(o, i, one){
+    const q = this.state.rq || {};
+    const typed = this.rqAmt(o.amount);
+    const hits = this.appliedRows(o.prop || q.prop).filter(r => r.level === 'ORI'
+      && /-one$/.test(r.group) === !!one && (!o.ctype || r.mits === o.ctype));
+    if (hits.length) return hits.map(r => ({ id:'o' + i + '-' + r.id, level:'ORI', type:r.mits, comment:r.desc || '',
+      amount:(!one && typed) || this.parseAmt(r.amount) || r.est || 0, lock:'light', ori:true }));
+    if (one || !o.ctype) return [];
+    return [ { id:'o'+i, level:'ORI', type:o.ctype, comment:'', amount:typed, lock:'light', ori:true } ];
+  }
+  rqOriGroups(one){
+    const q = this.state.rq || {};
+    return (q.oris || []).map((o, i) => ({ key:(one?'oo':'o')+i, label:this.rqLabel(o.prop, o.unit, 'ORI Unit'),
+      rows:this.rqOriCharges(o, i, one) })).filter(g => g.rows.length);
+  }
   rqRecurring(){
     const q = this.state.rq || {};
-    const primary = { key:'p', label:this.rqLabel(q.prop, q.unit), rows:this.rqRows().filter(r => !r.one) };
-    const oris = (q.oris || []).map((o, i) => ({ key:'o'+i, label:this.rqLabel(o.prop, o.unit, 'ORI Unit'),
-      rows: [ { id:'o'+i, level:'ORI', type:o.ctype || '', comment:'', amount:this.rqAmt(o.amount), lock:'light', ori:true } ] }));
-    return { primary, oris };
+    return { primary: { key:'p', label:this.rqLabel(q.prop, q.unit), rows:this.rqRows().filter(r => !r.one) },
+      oris: this.rqOriGroups(false) };
   }
   rqOneTime(){
     const q = this.state.rq || {};
-    return { primary: { key:'op', label:this.rqLabel(q.prop, q.unit), rows:this.rqRows().filter(r => r.one) }, oris: [] };
+    return { primary: { key:'op', label:this.rqLabel(q.prop, q.unit), rows:this.rqRows().filter(r => r.one) },
+      oris: this.rqOriGroups(true) };
   }
   // A row follows its default until someone ticks or unticks it.
   rqOn(r){ const sel = (this.state.rq || {}).sel || {}; const v = sel[r.id]; return v === undefined ? !!r.def : !!v; }
@@ -3583,6 +3621,10 @@ class Component extends DCLogic {
     const oriProps = this.rqOriProps();
     const vacant = this.units().filter(u => /vacant/i.test(u.tenant)).map(u => u.u);
     // Charge types belong to the property, so a new property clears a type that no longer applies.
+    window.__rqUnitPick = () => {
+      this.rqCapture();
+      this.setState(s => ({ rq: Object.assign({}, s.rq) }));
+    };
     window.__rqOriUnit = (i, v) => {
       this.rqCapture();
       const q = this.state.rq; if (!q || !q.oris[i]) return;
@@ -3602,7 +3644,7 @@ class Component extends DCLogic {
 
     const primary = card(
       unitRow(lab('Property', true) + search('rq-prop', q.prop),
-        lab('Unit', true), this.singleSelect('rq-unit', vacant, q.unit, { placeholder:'Select a vacant unit' }))
+        lab('Unit', true), this.singleSelect('rq-unit', vacant, q.unit, { placeholder:'Select a vacant unit', js:'if(window.__rqUnitPick)window.__rqUnitPick(_v)' }))
       + pairRow(lab('Date Quoted', true) + dated('rq-quoted', q.quoted), lab('Expiration') + dated('rq-exp', q.exp))
       + pairRow(lab('Move In') + muted('rq-moveIn', q.moveIn),
         lab('Lease Term') + this.singleSelect('rq-term', terms, q.term, { noSearch:true, placeholder:'\u00a0', blank:true }))
@@ -3623,7 +3665,10 @@ class Component extends DCLogic {
       <span style="font-size:14px;color:var(--rmx-text, #666666)">Once you reserve the Unit, these details fill in the Reservation/Expected Lease information.</span>
       <div style="display:flex;flex-direction:column;gap:8px">${head('Primary Unit')}${primary}</div>
       <div style="display:flex;flex-direction:column;gap:8px">${head('Other Rentable Item (ORI) Units')}${(q.oris||[]).map(oriCard).join('')}</div>
-      <span data-act="rqAddOri" style="display:inline-flex;align-items:center;gap:6px;align-self:flex-start;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><span class="material-symbols-outlined" style="font-size:18px">add</span>Add ORI Unit</span>
+      ${q.unit
+        ? `<span data-act="rqAddOri" style="display:inline-flex;align-items:center;gap:6px;align-self:flex-start;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><span class="material-symbols-outlined" style="font-size:18px">add</span>Add ORI Unit</span>`
+        : `<span style="display:inline-flex;align-items:center;gap:6px;align-self:flex-start;font-size:14px;color:var(--rmx-text-muted, #b3b3b3);cursor:default"><span class="material-symbols-outlined" style="font-size:18px">add</span>Add ORI Unit</span>
+           <span style="font-size:12px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">Choose the primary unit before adding a rentable item.</span>`}
     </div>`;
   }
   rqStep2(){
@@ -3704,6 +3749,9 @@ class Component extends DCLogic {
         + grpRows(one.primary.key, one.primary.rows, recRow)
         + totalLine('Total: ' + dec(this.rqSum(one.primary.rows)))
         : none("No one-time charges on this property's Charges tab.")}
+      ${one.oris.length ? groupLbl('ORI Unit' + (one.oris.length === 1 ? '' : 's'))
+        + one.oris.map(g => grpHead(g.key, g.label, g.rows.length) + grpRows(g.key, g.rows, recRow)).join('')
+        + totalLine('ORI Total: ' + dec(one.oris.reduce((n, g) => n + this.rqSum(g.rows), 0))) : ''}
       ${footStrip(oneCount + ' One-Time Charge' + (oneCount===1?'':'s'), dec(oneTotal))}
     </div>`;
 
