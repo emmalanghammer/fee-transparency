@@ -700,8 +700,8 @@ class Component extends DCLogic {
         this.setState(s => { const q = Object.assign({}, s.rq);
           q.oris = (q.oris || []).filter((o, n) => n !== i); return { rq:q }; }); break; }
       case 'rqTog': { this.setState(s => { const q = Object.assign({}, s.rq);
-          const off = Object.assign({}, q.off); if (off[arg]) delete off[arg]; else off[arg] = true;
-          q.off = off; return { rq:q }; }); break; }
+          const on = Object.assign({}, q.on); if (on[arg]) delete on[arg]; else on[arg] = true;
+          q.on = on; return { rq:q }; }); break; }
       case 'rqGrp': { this.setState(s => { const q = Object.assign({}, s.rq);
           const c = Object.assign({}, q.closed); if (c[arg]) delete c[arg]; else c[arg] = true;
           q.closed = c; return { rq:q }; }); break; }
@@ -3439,7 +3439,7 @@ class Component extends DCLogic {
     return { step:1, prop:'Riverview Apartments', unit:'', quoted:'08/20/2026', exp:'09/20/2026',
       moveIn:'', term:'', term2:'', rent:'500.00', comment:'',
       oris:[],
-      off:{ 'p-util':true }, closed:{} };
+      on:{}, closed:{} };
   }
   // Properties carry a short name; an ORI property is free text here, so fall back to its initials.
   rqShort(name){
@@ -3455,27 +3455,35 @@ class Component extends DCLogic {
   rqAmt(v){ const n = parseFloat(String(v == null ? 0 : v).replace(/[$,]/g, '')); return isNaN(n) ? 0 : n; }
   // The primary unit brings rent plus whatever else the property charges; each ORI unit brings the
   // charge type named for it. Rent can't be dropped from a quote, so its row is locked on.
+  // The quote prices the property's own charges — whatever is on its Charges tab — not a canned list.
+  // Situational charges are left out: they only apply when something happens, so they can't be quoted.
+  // Required charges ride along locked; optional ones are the resident's to add.
+  rqRows(){
+    const q = this.state.rq || {};
+    const unit = q.unit ? this.unitInfo(q.unit) : null;
+    const base = (r) => { const a = this.parseAmt(r.amount); if (a) return a;
+      if (r.est != null) return r.est;
+      return /market/i.test(r.amount || '') ? this.parseAmt(unit ? unit.rent : '') : 0; };
+    // The rent on the quote is the one typed in step one; everything else prices off the charge.
+    const amount = (r) => (r.mits === 'RC' && this.rqAmt(q.rent)) ? this.rqAmt(q.rent) : base(r);
+    return this.appliedRows(q.prop)
+      .filter(r => r.group.indexOf('sit') !== 0)
+      .map(r => ({ id:'c' + r.id, level:r.level || 'Property', type:r.mits, comment:r.desc || '',
+        amount:amount(r), one:/-one$/.test(r.group), lock:r.group.indexOf('opt') === 0 ? null : 'grey' }));
+  }
   rqRecurring(){
     const q = this.state.rq || {};
-    const primary = { key:'p', label:this.rqLabel(q.prop, q.unit),
-      rows: [ { id:'p-rc',   level:'Property', type:'RC',      amount:this.rqAmt(q.rent), lock:'grey' },
-              { id:'p-pet',  level:'Property', type:'PET',     amount:50 },
-              { id:'p-util', level:'Property', type:'UTILITY', amount:75 } ] };
+    const primary = { key:'p', label:this.rqLabel(q.prop, q.unit), rows:this.rqRows().filter(r => !r.one) };
     const oris = (q.oris || []).map((o, i) => ({ key:'o'+i, label:this.rqLabel(o.prop, o.unit, 'ORI Unit'),
-      rows: [ { id:'o'+i, level:'ORI', type:o.ctype || '', amount:this.rqAmt(o.amount), lock:'light', ori:true } ] }));
+      rows: [ { id:'o'+i, level:'ORI', type:o.ctype || '', comment:'', amount:this.rqAmt(o.amount), lock:'light', ori:true } ] }));
     return { primary, oris };
   }
   rqOneTime(){
     const q = this.state.rq || {};
-    const primary = { key:'op', label:this.rqLabel(q.prop, q.unit),
-      rows: [ { source:'System', type:'PETDEP', amount:50 },
-              { source:'System', type:'DP',     amount:this.rqAmt(q.rent) },
-              { source:'',       type:'ADMIN',  amount:50 } ] };
-    const oris = (q.oris || []).map((o, i) => ({ key:'oo'+i, label:this.rqLabel(o.prop, o.unit, 'ORI Unit'),
-      rows: [ { source:'', type:'STDP', amount:100 } ] }));
-    return { primary, oris };
+    return { primary: { key:'op', label:this.rqLabel(q.prop, q.unit), rows:this.rqRows().filter(r => r.one) }, oris: [] };
   }
-  rqOn(id){ const q = this.state.rq || {}; return !(q.off || {})[id]; }
+  // Optional charges start off — adding one is a decision, so it has to be made here.
+  rqOn(id){ const q = this.state.rq || {}; return !!(q.on || {})[id]; }
   rqSum(rows){ return rows.filter(r => r.lock || this.rqOn(r.id)).reduce((n, r) => n + r.amount, 0); }
   rqCount(rows){ return rows.filter(r => r.lock || this.rqOn(r.id)).length; }
   // Pull whatever is on screen into state before a re-render throws the inputs away.
@@ -3524,15 +3532,21 @@ class Component extends DCLogic {
     const amtBtn = `<button data-act="toast" data-arg="Select Amount" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap;flex:none">Select Amount</button>`;
     const col = (inner) => `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${inner}</div>`;
     const row = (inner) => `<div style="display:flex;gap:20px;align-items:flex-start">${inner}</div>`;
-    const unitRow = (propField, unitField) => `<div style="display:flex;align-items:flex-end">
-      <div style="flex:1;min-width:0;margin-right:20px;display:flex;flex-direction:column;gap:4px">${propField}</div>
-      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${unitField}</div>
-      <span style="display:inline-flex;flex:none;margin-left:8px">${unitBtn}</span>
+    // Property and Unit stay identical in width, and each keeps the same room to its right — the Unit
+    // spends it on the lookup button, Property leaves it empty — so the two blocks match as well.
+    const gutter = '<span style="width:36px;flex:none;margin-left:8px"></span>';
+    const pairRow = (left, right, trailing) => `<div style="display:flex;align-items:flex-end">
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${left}</div>
+      <span style="width:36px;flex:none;margin-left:8px;margin-right:20px"></span>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${right}</div>
+      ${trailing ? `<span style="display:inline-flex;flex:none;margin-left:8px">${trailing}</span>` : gutter}
     </div>`;
+    const unitRow = (propField, unitField) => pairRow(propField, unitField, unitBtn);
     const card = (inner) => `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:12px">${inner}</div>`;
     const head = (t) => `<span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span>`;
     const terms = ['6 Months','12 Months','18 Months','24 Months'];
     const oriProps = this.rqOriProps();
+    const vacant = this.units().filter(u => /vacant/i.test(u.tenant)).map(u => u.u);
     // Charge types belong to the property, so a new property clears a type that no longer applies.
     window.__rqOriProp = (i, v) => {
       this.rqCapture();
@@ -3543,10 +3557,11 @@ class Component extends DCLogic {
     };
 
     const primary = card(
-      unitRow(lab('Property', true) + search('rq-prop', q.prop), lab('Unit', true) + search('rq-unit', q.unit))
-      + row(col(lab('Date Quoted', true) + dated('rq-quoted', q.quoted)) + col(lab('Expiration') + dated('rq-exp', q.exp)))
-      + row(col(lab('Move In') + muted('rq-moveIn', q.moveIn))
-        + col(lab('Lease Term') + this.singleSelect('rq-term', terms, q.term, { noSearch:true, placeholder:'\u00a0', blank:true })))
+      unitRow(lab('Property', true) + search('rq-prop', q.prop),
+        lab('Unit', true) + this.singleSelect('rq-unit', vacant, q.unit, { placeholder:'Select a vacant unit' }))
+      + pairRow(lab('Date Quoted', true) + dated('rq-quoted', q.quoted), lab('Expiration') + dated('rq-exp', q.exp))
+      + pairRow(lab('Move In') + muted('rq-moveIn', q.moveIn),
+        lab('Lease Term') + this.singleSelect('rq-term', terms, q.term, { noSearch:true, placeholder:'\u00a0', blank:true }))
       + col(lab('Lease Term') + this.singleSelect('rq-term2', terms, q.term2, { noSearch:true, placeholder:'\u00a0', blank:true }))
       + col(lab('Rent', true) + `<div style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0">${wrap(bare('rq-rent', q.rent))}</div>${amtBtn}</div>`)
       + col(lab('Comment') + `<textarea id="rq-comment" rows="3" style="${fld};height:auto;padding:8px 10px;resize:vertical">${esc(q.comment)}</textarea>`));
@@ -3555,9 +3570,9 @@ class Component extends DCLogic {
       `<div style="display:flex;align-items:center"><div style="flex:1"></div><span data-act="rqRmOri" data-arg="${i}" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Remove</span></div>`
       + unitRow(lab('Property', true) + this.singleSelect(`rq-ori-prop-${i}`, oriProps, o.prop, { placeholder:'Select a property', js:`if(window.__rqOriProp)window.__rqOriProp(${i},_v)` }),
         lab('Unit', true) + search(`rq-ori-unit-${i}`, o.unit))
-      + row(col(lab('Charge Type', true) + this.singleSelect(`rq-ori-ctype-${i}`, o.prop ? this.oriTypesFor(o.prop) : [], o.ctype,
-          { noSearch:true, placeholder: o.prop ? 'Select a charge type' : 'Select a property first' }))
-        + col(lab('Amount', true) + `<div style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0">${wrap(bare(`rq-ori-amount-${i}`, o.amount))}</div>${amtBtn}</div>`)));
+      + pairRow(lab('Charge Type', true) + this.singleSelect(`rq-ori-ctype-${i}`, o.prop ? this.oriTypesFor(o.prop) : [], o.ctype,
+          { noSearch:true, placeholder: o.prop ? 'Select a charge type' : 'Select a property first' }),
+        lab('Amount', true) + `<div style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0">${wrap(bare(`rq-ori-amount-${i}`, o.amount))}</div>${amtBtn}</div>`, ''));
 
     return `<div style="display:flex;flex-direction:column;gap:14px">
       <span style="font-size:14px;color:var(--rmx-text, #666666)">Once you reserve the Unit, these details fill in the Reservation/Expected Lease information.</span>
@@ -3607,7 +3622,7 @@ class Component extends DCLogic {
     const recRow = (r) => {
       const on = r.lock ? true : this.rqOn(r.id);
       return `<span style="display:flex;align-items:center;justify-content:center;min-height:34px">${box(on, r.lock, r.id)}</span>`
-        + cell(r.level) + cell(r.type) + cell('') + cell(dec(r.amount), true);
+        + cell(r.level) + cell(r.type) + cell(r.comment || '') + cell(dec(r.amount), true);
     };
     const grpHead = (key, label, n) => {
       const open = !(q.closed || {})[key];
@@ -3617,6 +3632,7 @@ class Component extends DCLogic {
     const totalLine = (t) => `<div style="display:flex;justify-content:flex-end;border-top:1px solid var(--rmx-bg-subtle, #f5f8fa);padding:7px 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c)">${t}</div>`;
     const addLink = (t) => `<span data-act="toast" data-arg="${t}" style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap"><span class="material-symbols-outlined" style="font-size:18px">add</span>${t}</span>`;
     const sectionHead = (t, link) => `<div style="display:flex;align-items:center;gap:12px"><span style="font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span><div style="flex:1"></div>${link}</div>`;
+    const none = (t) => `<div style="padding:10px 12px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">${t}</div>`;
     const footStrip = (l, v) => `<div style="display:flex;align-items:center;gap:12px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:8px 12px"><div style="flex:1"></div><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${l}</span><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);min-width:96px;text-align:right">${v}</span></div>`;
 
     const recTable = `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
@@ -3624,26 +3640,26 @@ class Component extends DCLogic {
         ${hc('')}${hc('Charge Level')}${hc('Charge Type')}${hc('Comment')}${hc('Amount', true)}
       </div>
       ${groupLbl('Primary Unit')}
-      ${grpHead(rec.primary.key, rec.primary.label, rec.primary.rows.length)}
-      ${grpRows(rec.primary.key, rec.primary.rows, recRow)}
-      ${totalLine('Total: ' + dec(this.rqSum(rec.primary.rows)))}
+      ${rec.primary.rows.length ? grpHead(rec.primary.key, rec.primary.label, rec.primary.rows.length)
+        + grpRows(rec.primary.key, rec.primary.rows, recRow)
+        + totalLine('Total: ' + dec(this.rqSum(rec.primary.rows)))
+        : none("No recurring charges on this property's Charges tab.")}
       ${rec.oris.length ? groupLbl('ORI Units') : ''}
       ${rec.oris.map(g => grpHead(g.key, g.label, g.rows.length) + grpRows(g.key, g.rows, recRow)).join('')}
       ${rec.oris.length ? totalLine('ORI Total: ' + dec(rec.oris.reduce((n, g) => n + this.rqSum(g.rows), 0))) : ''}
       ${footStrip(recCount + ' Recurring Charge' + (recCount===1?'':'s'), dec(monthly))}
     </div>`;
 
-    const oneRow = (r) => `<span></span>` + cell(r.source || '') + cell(r.type) + cell('') + cell(dec(r.amount), true);
+    const oneRow = (r) => `<span></span>` + cell(r.level || '') + cell(r.type) + cell(r.comment || '') + cell(dec(r.amount), true);
     const oneTable = `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
       <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7)">
-        ${hc('')}${hc('Source')}${hc('Charge Type')}${hc('Comment')}${hc('Amount', true)}
+        ${hc('')}${hc('Charge Level')}${hc('Charge Type')}${hc('Comment')}${hc('Amount', true)}
       </div>
       ${groupLbl('Primary Unit')}
-      ${grpHead(one.primary.key, one.primary.label, one.primary.rows.length)}
-      ${grpRows(one.primary.key, one.primary.rows, oneRow)}
-      ${totalLine('Total: ' + dec(one.primary.rows.reduce((n, r) => n + r.amount, 0)))}
-      ${one.oris.length ? groupLbl('ORI Unit' + (one.oris.length===1?'':'s')) : ''}
-      ${one.oris.map(g => grpHead(g.key, g.label, g.rows.length) + grpRows(g.key, g.rows, oneRow)).join('')}
+      ${one.primary.rows.length ? grpHead(one.primary.key, one.primary.label, one.primary.rows.length)
+        + grpRows(one.primary.key, one.primary.rows, oneRow)
+        + totalLine('Total: ' + dec(one.primary.rows.reduce((n, r) => n + r.amount, 0)))
+        : none("No one-time charges on this property's Charges tab.")}
       ${footStrip(oneCount + ' One-Time Charge' + (oneCount===1?'':'s'), dec(oneTotal))}
     </div>`;
 
