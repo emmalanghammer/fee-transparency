@@ -4542,6 +4542,10 @@ class Component extends DCLogic {
     const na = '<span style="color:var(--rmx-text-muted, #b3b3b3)">N/A</span>';
     // The third pair carries the longest label and the widest value, so it gets more of the row.
     const petSumCols = 'minmax(0,0.92fr) minmax(0,0.86fr) minmax(0,1.22fr)';
+    const petMaxLabel = isOne ? 'Max One-Time Charge Amount' : 'Max Recurring Charge Amount';
+    // Row two has two pairs, and the ceiling's label is the longest in the box, so it takes the space
+    // the third column would have used — the first divider still lines up with row one.
+    const petSumCols2 = 'minmax(0,0.92fr) minmax(0,2.08fr)';
     const strong = (v) => `<span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${v}</span>`;
     const sumCell = (id, l, v) => `<span style="display:flex;align-items:baseline;gap:10px;min-width:0;padding:9px 12px">
       <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l}</span>
@@ -4590,10 +4594,10 @@ class Component extends DCLogic {
         </div>
         <div id="m-pt-sum" style="display:${pt0?'block':'none'};border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
           <div style="display:grid;grid-template-columns:${petSumCols};border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa)">
-            ${sumCell('m-pt-maxpets','Maximum Pets Allowed',sum0.maxpets)}${sumCell('m-pt-per','Charge Per Pet',sum0.per)}${sumCell('m-pt-max','Maximum Charge Amount',sum0.max)}
+            ${sumCell('m-pt-maxpets','Max Allowed',sum0.maxpets)}${sumCell('m-pt-weight','Max Weight',sum0.weight)}${sumCell('m-pt-size','Pet Size Available',sum0.size)}
           </div>
-          <div style="display:grid;grid-template-columns:${petSumCols}">
-            ${sumCell('m-pt-size','Pet Size Available',sum0.size)}${sumCell('m-pt-weight','Maximum Weight',sum0.weight)}<span></span>
+          <div style="display:grid;grid-template-columns:${petSumCols2}">
+            ${sumCell('m-pt-per','Charge Per Pet',sum0.per)}${sumCell('m-pt-max',petMaxLabel,sum0.max)}
           </div>
         </div>
       </div>
