@@ -3538,14 +3538,13 @@ class Component extends DCLogic {
     const row = (inner) => `<div style="display:flex;gap:20px;align-items:flex-start">${inner}</div>`;
     // Property and Unit stay identical in width, and each keeps the same room to its right — the Unit
     // spends it on the lookup button, Property leaves it empty — so the two blocks match as well.
-    const gutter = '<span style="width:36px;flex:none;margin-left:8px"></span>';
-    const pairRow = (left, right, trailing) => `<div style="display:flex;align-items:flex-end">
+    const pairRow = (left, right) => `<div style="display:flex;gap:20px;align-items:flex-end">
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${left}</div>
-      <span style="width:36px;flex:none;margin-left:8px;margin-right:20px"></span>
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${right}</div>
-      ${trailing ? `<span style="display:inline-flex;flex:none;margin-left:8px">${trailing}</span>` : gutter}
     </div>`;
-    const unitRow = (propField, unitField) => pairRow(propField, unitField, unitBtn);
+    // A lookup button sits inside its field's column, so the row still ends flush with the card.
+    const withBtn = (field, btn) => `<div style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0">${field}</div>${btn}</div>`;
+    const unitRow = (propField, unitLabel, unitField) => pairRow(propField, unitLabel + withBtn(unitField, unitBtn));
     const card = (inner) => `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:12px">${inner}</div>`;
     const head = (t) => `<span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span>`;
     const terms = ['6 Months','12 Months','18 Months','24 Months'];
@@ -3562,21 +3561,21 @@ class Component extends DCLogic {
 
     const primary = card(
       unitRow(lab('Property', true) + search('rq-prop', q.prop),
-        lab('Unit', true) + this.singleSelect('rq-unit', vacant, q.unit, { placeholder:'Select a vacant unit' }))
+        lab('Unit', true), this.singleSelect('rq-unit', vacant, q.unit, { placeholder:'Select a vacant unit' }))
       + pairRow(lab('Date Quoted', true) + dated('rq-quoted', q.quoted), lab('Expiration') + dated('rq-exp', q.exp))
       + pairRow(lab('Move In') + muted('rq-moveIn', q.moveIn),
         lab('Lease Term') + this.singleSelect('rq-term', terms, q.term, { noSearch:true, placeholder:'\u00a0', blank:true }))
       + col(lab('Lease Term') + this.singleSelect('rq-term2', terms, q.term2, { noSearch:true, placeholder:'\u00a0', blank:true }))
-      + col(lab('Rent', true) + `<div style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0">${wrap(bare('rq-rent', q.rent))}</div>${amtBtn}</div>`)
+      + col(lab('Rent', true) + withBtn(wrap(bare('rq-rent', q.rent)), amtBtn))
       + col(lab('Comment') + `<textarea id="rq-comment" rows="3" style="${fld};height:auto;padding:8px 10px;resize:vertical">${esc(q.comment)}</textarea>`));
 
     const oriCard = (o, i) => card(
       `<div style="display:flex;align-items:center"><div style="flex:1"></div><span data-act="rqRmOri" data-arg="${i}" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Remove</span></div>`
       + unitRow(lab('Property', true) + this.singleSelect(`rq-ori-prop-${i}`, oriProps, o.prop, { placeholder:'Select a property', js:`if(window.__rqOriProp)window.__rqOriProp(${i},_v)` }),
-        lab('Unit', true) + search(`rq-ori-unit-${i}`, o.unit))
+        lab('Unit', true), search(`rq-ori-unit-${i}`, o.unit))
       + pairRow(lab('Charge Type', true) + this.singleSelect(`rq-ori-ctype-${i}`, o.prop ? this.oriTypesFor(o.prop) : [], o.ctype,
           { noSearch:true, placeholder: o.prop ? 'Select a charge type' : 'Select a property first' }),
-        lab('Amount', true) + `<div style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0">${wrap(bare(`rq-ori-amount-${i}`, o.amount))}</div>${amtBtn}</div>`, ''));
+        lab('Amount', true) + withBtn(wrap(bare(`rq-ori-amount-${i}`, o.amount)), amtBtn)));
 
     return `<div style="display:flex;flex-direction:column;gap:14px">
       <span style="font-size:14px;color:var(--rmx-text, #666666)">Once you reserve the Unit, these details fill in the Reservation/Expected Lease information.</span>
