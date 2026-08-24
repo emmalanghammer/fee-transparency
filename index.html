@@ -4388,8 +4388,14 @@ class Component extends DCLogic {
       n.style.display = (method === 'Calculation' && on) ? 'block' : 'none';
     };
     const methodJs = "var t={'Flat':'flat','Reference':'ref','Calculation':'calc'}[_v];document.getElementById('m-source').value=_v;['flat','ref','calc'].forEach(function(k){document.getElementById('m-blk-'+k).style.display=(k===t?'flex':'none')});if(window.__calcNote)window.__calcNote()";
+    const lockShow = "var a=document.getElementById('m-amount');if(!a||!a.disabled)return;"
+      + "var t=document.getElementById('m-lock-tip');t.style.display='block';var r=this.getBoundingClientRect();"
+      + "var w=t.offsetWidth,h=t.offsetHeight;var l=r.left;if(l+w>window.innerWidth-8)l=window.innerWidth-8-w;if(l<8)l=8;"
+      + "var y=r.bottom+6;if(y+h>window.innerHeight-8)y=r.top-h-6;if(y<8)y=8;t.style.left=l+'px';t.style.top=y+'px';";
+    const lockHide = "var t=document.getElementById('m-lock-tip');if(t)t.style.display='none';";
+    const lockTip = `<span id="m-lock-tip" style="display:none;position:fixed;left:0;top:0;width:290px;padding:14px 16px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5;z-index:400"><span style="display:block;white-space:normal">The amount is pulled from the pet type selected and cannot be edited.</span></span>`;
     const amount = `<div style="display:flex;flex-direction:column;gap:6px">
-      <div style="display:flex;gap:12px;align-items:flex-start">
+      <div onmouseenter="${lockShow}" onmouseleave="${lockHide}" style="display:flex;gap:12px;align-items:flex-start">${lockTip}
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Amount Method')}${dd('m-method',['Flat','Reference','Calculation'],src,{noSearch:true,js:methodJs})}</div>
       <div style="flex:1;min-width:0">
         <input type="hidden" id="m-source" value="${src}">
@@ -4543,9 +4549,8 @@ class Component extends DCLogic {
     // The third pair carries the longest label and the widest value, so it gets more of the row.
     const petSumCols = 'minmax(0,0.92fr) minmax(0,0.86fr) minmax(0,1.22fr)';
     const petMaxLabel = isOne ? 'Max One-Time Charge Amount' : 'Max Recurring Charge Amount';
-    // Row two has two pairs, and the ceiling's label is the longest in the box, so it takes the space
-    // the third column would have used — the first divider still lines up with row one.
-    const petSumCols2 = 'minmax(0,0.92fr) minmax(0,2.08fr)';
+    // Row two has two pairs, split evenly.
+    const petSumCols2 = 'minmax(0,1fr) minmax(0,1fr)';
     const strong = (v) => `<span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${v}</span>`;
     const sumCell = (id, l, v) => `<span style="display:flex;align-items:baseline;gap:10px;min-width:0;padding:9px 12px">
       <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l}</span>
