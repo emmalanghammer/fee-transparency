@@ -97,6 +97,10 @@ class Component extends DCLogic {
     rentQuotes: [],
     rq: null,
     ftHelp: false,
+    chargeTypes: null,   // filled on first render from chargeTypesSeed()
+    ctShowInactive: false,
+    ctAdd: null,         // Add Charge Type overlay
+    ctDetail: null,      // Charge Type Details overlay
     accOpen: { 'pf-rec':true, 'pf-one':true, 'pf-req':true, 'pf-opt':true, 'pf-sit':true, 'pf-ind':true },
     groupByReq: false,
     pfFilter: null,
@@ -527,10 +531,13 @@ class Component extends DCLogic {
       NSF:'Violation', NSFFEE:'Violation', PARK:'Parking', PETDP:'Pet',
       PETFEE:'Pet', PET:'Pet', RC:'Lease', RUBS:'Utility', SEWER:'Utility', SF:'Storage', STORAGE:'Storage',
       TRANSFER:'Transfer', TRASH:'Service', UTIL:'Utility', WATER:'Utility' };
+    // Whatever the Charge Types register says wins — that is where a type's category is set.
+    const fromReg = {};
+    (this.state.chargeTypes || []).forEach(r => { if (r.category) fromReg[r.code] = r.category; });
     // Categories assigned through the Add Charge Category overlay. Kept off state deliberately: the
     // overlay opens over the charge details modal, whose fields are DOM-only, and a setState there
     // would re-render the modal and wipe anything typed but not yet saved.
-    return Object.assign(base, this._catAdds || {});
+    return Object.assign(base, fromReg, this._catAdds || {});
   }
   chargeCategoryFor(code){ return this.chargeCategoryMap()[(code||'').toUpperCase()] || ''; }
   // Categories no seeded charge type maps to yet, so they'd otherwise never appear in the list.
@@ -541,7 +548,58 @@ class Component extends DCLogic {
     this.extraChargeCategories().forEach(c => { seen[c] = 1; });
     return Object.keys(seen).sort();
   }
+  // ================= CHARGE TYPES (mock 2219-2405) =================
+  // The charge types a company keeps. Everything a charge knows about its type — description, default
+  // amount, category, which properties may use it — is defined here, so the register is the source and
+  // the Charges tab reads from it.
+  chargeTypeGL(){
+    return { Lease:'4101 Rental Income', Storage:'4103 Storage Fees', Parking:'2110 Parking Fees',
+      Service:'2106 Trash Fees', Utility:'2130 Utility Billing', Pet:'2107 Pet Fees',
+      Violation:'2108 Late Fees', Admin:'2109 Admin Fees', Application:'2118 Application Fees',
+      Key:'2112 Key Fees', Damage:'2105 Damage Fees', Amenity:'2114 Amenity Fees',
+      Insurance:'2140 Renters Insurance', Clean:'2116 Cleaning Fees', Tech:'2150 Technology',
+      Govt:'2160 Taxes', Transfer:'2120 Transfer Fees' };
+  }
+  chargeTypeAmounts(){
+    return { ADMIN:150, AMENFEE:28, APPFEE:50, CLEAN:225, COVPARK:75, DAMAGE:250, GARAGE:125,
+      GARBAG:28, GARBAGEFEE:4, EVCHG:35, HO4:14, HOLD:200, KEY:50, LATE:100, NSF:25, PARK:60,
+      PETDP:300, PETFEE:45, REKEY:75, SF:40, STORAGE:50, TRANSFER:160, TRASH:100, WATER:38 };
+  }
+  // A parking or storage type only belongs to the properties that rent those items out; everything
+  // else is company-wide.
+  chargeTypeProps(code){
+    const ori = { COVPARK:1, GARAGE:1, PARK:1, SF:1, STORAGE:1, EVCHG:1 };
+    if (!ori[code]) return null;
+    return Object.keys(this.oriChargeTypes()).filter(n => this.oriTypesFor(n).indexOf(code) >= 0);
+  }
+  chargeTypeInv(code){
+    if (code === 'DAMAGE') return [ { name:'Carpet', desc:'Beige carpet - in sq. ft.' }, { name:'Laminate', desc:'in sq. ft.' },
+      { name:'Lightbulb', desc:'LED 70W' }, { name:'Lock', desc:'New locks for move outs' }, { name:'Toilet', desc:'Replacement toilet' } ];
+    if (code === 'CLEAN') return [ { name:'Furnace Filter', desc:'16 x 20 x 1 filters' }, { name:'Carpet', desc:'Deep clean - in sq. ft.' } ];
+    return [];
+  }
+  chargeTypesSeed(){
+    const gl = this.chargeTypeGL(), amt = this.chargeTypeAmounts();
+    const inactive = { EPAYAJ:1, EPD:1, CAMTAX:1 };
+    return this.chargeTypeList().map(([code, desc]) => {
+      const cat = this.chargeCategoryFor(code);
+      return { code, desc, gl: gl[cat] || '4301 Maintenance', amount: amt[code] || 0,
+        prorate: code === 'RC' || code === 'LATE', cre: code === 'CAM' || code === 'CAMTAX',
+        props: this.chargeTypeProps(code), category: cat, active: !inactive[code],
+        inv: this.chargeTypeInv(code) };
+    });
+  }
+  // Seeded on first read so the register and the Charges tab always agree, even before an edit.
+  chargeTypeRows(){ return this.state.chargeTypes || this.chargeTypesSeed(); }
+  chargeTypeRow(code){ return this.chargeTypeRows().filter(r => r.code === String(code || '').toUpperCase())[0] || null; }
+  // The charge types a property may actually use: active, and either company-wide or assigned to it.
+  chargeTypesFor(prop){
+    const p = prop || this.state.property;
+    return this.chargeTypeRows().filter(r => r.active && (!r.props || r.props.indexOf(p) >= 0));
+  }
   chargeTypeDesc(code){
+    const row = this.chargeTypeRow(code);
+    if (row) return row.desc;
     const hit = this.chargeTypeList().filter(c => c[0] === String(code || '').toUpperCase())[0];
     return hit ? hit[1] : '';
   }
@@ -704,6 +762,40 @@ class Component extends DCLogic {
       case 'navFeeTrans': this.go('feetrans', { profMenu: null }); break;
       case 'navListings': this.go('listings'); break;
       case 'navPetTypes': this.go('pettypes'); break;
+      case 'navChargeTypes': this.go('chargetypes'); break;
+      case 'ctInactiveToggle': this.setState(s => ({ ctShowInactive: !s.ctShowInactive })); break;
+      case 'ctAddOpen': this.setState({ ctAdd: { code:'', desc:'', gl:'', amount:'0.00', props:null, category:'', active:true } }); break;
+      case 'ctAddClose': this.setState({ ctAdd: null }); break;
+      case 'ctAddSave': { const v = id => ((this.q('#' + id) || {}).value || '').trim();
+        const num = id => { const n = parseFloat(v(id).replace(/[$,]/g, '')); return isNaN(n) ? 0 : n; };
+        const chk2 = id => { const e = this.q('#' + id); return !!(e && e.checked); };
+        const err = (msg) => { const e = this.q('#ct-err'); if (e) { e.textContent = msg; e.style.display = 'flex'; } };
+        const code = v('ct-name').toUpperCase();
+        if (!code) { err('Name is required'); break; }
+        if (!v('ct-cat')) { err('Charge Category is required'); break; }
+        if (this.chargeTypeRow(code)) { err(code + ' already exists'); break; }
+        const picked = Array.prototype.slice.call(document.querySelectorAll('#ct-props-list input:checked')).map(i => i.value);
+        const row = { code, desc: v('ct-desc'), gl: v('ct-gl'), amount: num('ct-amt'),
+          props: picked.length === this.propNames().length ? null : picked,
+          category: v('ct-cat'), active: chk2('ct-active'), prorate:false, cre:false, inv:[] };
+        this.setState(s => ({ chargeTypes: this.chargeTypeRows().concat([row]), ctAdd: null }));
+        this.flash(code + ' added'); break; }
+      case 'ctOpen': this.setState({ ctDetail: arg }); break;
+      case 'ctDetClose': this.setState({ ctDetail: null }); break;
+      case 'ctSave': { const code = this.state.ctDetail; if (!code) break;
+        const v = id => ((this.q('#' + id) || {}).value || '').trim();
+        const num = id => { const n = parseFloat(v(id).replace(/[$,]/g, '')); return isNaN(n) ? 0 : n; };
+        const chk2 = id => { const e = this.q('#' + id); return !!(e && e.checked); };
+        const picked = Array.prototype.slice.call(document.querySelectorAll('#ctd-props-list input:checked')).map(i => i.value);
+        const next = this.chargeTypeRows().map(r => r.code !== code ? r : Object.assign({}, r, {
+          code: v('ctd-name').toUpperCase() || r.code, desc: v('ctd-desc'), gl: v('ctd-gl'), amount: num('ctd-amt'),
+          props: picked.length === this.propNames().length ? null : picked,
+          category: v('ctd-cat'), active: chk2('ctd-active'), prorate: chk2('ctd-prorate'), cre: chk2('ctd-cre') }));
+        this.setState({ chargeTypes: next, ctDetail: arg === 'close' ? null : (v('ctd-name').toUpperCase() || code) });
+        this.flash('Charge type saved'); break; }
+      case 'ctDelete': { const code = this.state.ctDetail; if (!code) break;
+        this.setState({ chargeTypes: this.chargeTypeRows().filter(r => r.code !== code), ctDetail: null });
+        this.flash(code + ' deleted'); break; }
       case 'navSysPrefs': this.go('sysprefs'); break;
       // Straight into a bulk setup: the tracker page with the property picker already open.
       case 'navFeeTransBulk': this.go('feetrans', { ftSel: { mode: 'setup' } }); break;
@@ -1520,6 +1612,7 @@ class Component extends DCLogic {
             <div data-act="navFeeTrans" style="padding:10px 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">Fee Transparency</div>
             <div data-act="navListings" style="padding:10px 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">Listings</div>
             <div style="height:1px;background:var(--rmx-brand-tint-bg, #ebf1f5);margin:4px 0"></div>
+            <div data-act="navChargeTypes" style="padding:10px 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">Charge Types</div>
             <div data-act="navPetTypes" style="padding:10px 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">Pet Types</div>
           </div>
           <span style="display:inline-flex;align-items:center;justify-content:center;width:45px;height:32px;background:var(--rmx-overlay-search, #425a70)"><img src="assets/icon-reports.svg" alt="Reports" style="width:20px;height:20px"></span>
@@ -2189,6 +2282,7 @@ class Component extends DCLogic {
         ['Tenant Details', ''],
         ['Unit Details', 'navUnit', '1B'],
         ['Unit Type Details', ''],
+        ['Charge Types', 'navChargeTypes'],
         ['Pet Types', 'navPetTypes'],
         ['Tenant Charge Setup', 'navSysPrefs']
       ]],
@@ -2573,6 +2667,163 @@ class Component extends DCLogic {
   petTypeByName(n){ return this.state.petTypes.filter(t => t.name === String(n || '').trim())[0] || null; }
   petTypesFor(prop){ const p = prop || this.state.property;
     return this.state.petTypes.filter(t => !t.props || t.props.indexOf(p) >= 0); }
+  // ---------- Charge Types register (mock 2219-2405) ----------
+  chargeTypesBody(){
+    const money = n => (n || 0).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
+    const esc = v => ('' + (v == null ? '' : v)).replace(/"/g, '&quot;');
+    const rows = this.chargeTypeRows()
+      .filter(r => this.state.ctShowInactive || r.active)
+      .slice().sort((a, b) => a.code.localeCompare(b.code));
+    const cols = '110px minmax(180px,1.2fr) minmax(170px,1fr) 130px 120px 90px 150px 90px 44px';
+    const hc = (t, first, right) => `<span style="display:flex;align-items:center;${right?'justify-content:flex-end;':''}height:28px;box-sizing:border-box;padding:4px ${first?'8px 4px 16px':'8px'};font-size:14px;font-weight:500;letter-spacing:0.5px;color:#fff;white-space:nowrap;border-right:1px solid rgba(255,255,255,0.35)">${t}</span>`;
+    const header = `<div style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">
+      ${hc('Name', true)}${hc('Description')}${hc('GL Account')}${hc('Default Amount', false, true)}${hc('Prorate by Day?')}${hc('CRE')}${hc('Property')}${hc('Active')}
+      <span style="display:flex;align-items:center;justify-content:center;height:28px"><span class="material-symbols-outlined" style="font-size:18px;color:#fff">view_column</span></span>
+    </div>`;
+    const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:40px;box-sizing:border-box;padding:0 8px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
+    const tick = (on) => cell(on
+      ? `<span class="material-symbols-outlined" style="font-size:18px;color:var(--rmx-success, #6eb744);font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">check_circle</span>`
+      : '', 'justify-content:center');
+    // Company-wide types say so; the rest name a property and count the others.
+    const propCell = (r) => {
+      if (!r.props || !r.props.length) return cell('All Properties');
+      const first = this.propInfo(r.props[0]).short;
+      const more = r.props.length - 1;
+      return cell(`<span style="display:inline-flex;align-items:center;gap:6px"><span style="color:var(--rmx-brand-hover, #0071aa)">${first}</span>${more ? `<span style="display:inline-flex;align-items:center;height:20px;padding:0 8px;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:10px;font-size:12px;color:var(--rmx-brand-hover, #0071aa)">+${more}</span>` : ''}</span>`);
+    };
+    const row = (r, i) => `<div data-act="ctOpen" data-arg="${esc(r.code)}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);cursor:pointer;background:${r.active ? '#fff' : 'var(--rmx-bg-subtle, #f5f8fa)'}" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background='${r.active ? '#fff' : 'var(--rmx-bg-subtle, #f5f8fa)'}'">
+      ${cell(r.code, 'padding-left:16px')}${cell(r.desc || '')}${cell(r.gl)}${cell(money(r.amount), 'justify-content:flex-end')}
+      ${tick(r.prorate)}${tick(r.cre)}${propCell(r)}${tick(r.active)}
+      <span style="display:flex;align-items:center;justify-content:center;min-height:40px"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5))">more_vert</span></span>
+    </div>`;
+    const searchBox = `<div style="display:flex;flex-direction:column;gap:4px;width:256px">
+      <span style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))">Search</span>
+      <div style="display:flex;align-items:center;gap:8px;height:36px;box-sizing:border-box;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;padding:0 8px">
+        <span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5))">search</span>
+        <span style="flex:1;min-width:0;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">Find a charge type</span>
+      </div></div>`;
+    const savedFilters = `<div style="display:flex;flex-direction:column;gap:4px;width:200px">
+      <span style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))">Saved Filters</span>
+      <div style="display:flex;align-items:center;height:36px;box-sizing:border-box;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:0 8px"><span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c)">&lt; No Filter &gt;</span><span class="material-symbols-outlined" style="font-size:20px;color:var(--rmx-text, #666666)">arrow_drop_down</span></div>
+    </div>`;
+    return `<div style="padding:12px 24px 24px;display:flex;flex-direction:column;gap:12px;flex:1;min-height:0">
+      <div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
+        ${searchBox}${savedFilters}
+        <span data-act="toast" data-arg="Filters" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;box-sizing:border-box;background:var(--ac,var(--rmx-brand, #008dd5));border-radius:2px;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:#fff">filter_alt</span></span>
+        <label style="display:inline-flex;align-items:center;gap:9px;height:36px;cursor:pointer;white-space:nowrap"><input type="checkbox" data-act="ctInactiveToggle" ${this.state.ctShowInactive?'checked':''} style="accent-color:var(--ac,var(--rmx-brand, #008dd5));width:16px;height:16px;margin:0"><span style="font-size:14px;color:var(--rmx-text, #666666)">Show Inactive</span></label>
+        <div style="flex:1"></div>
+        <button data-act="ctAddOpen" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap"><span class="material-symbols-outlined" style="font-size:18px">add_circle</span>Add Charge Type</button>
+        <button data-act="toast" data-arg="Merge charge types" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap"><span class="material-symbols-outlined" style="font-size:18px">merge</span>Merge</button>
+      </div>
+      <div style="overflow-x:auto"><div style="min-width:1180px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
+        ${header}${rows.map(row).join('')}
+      </div></div>
+      <div style="display:flex;justify-content:flex-end"><span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">${rows.length} Charge Types</span></div>
+    </div>`;
+  }
+  // Add Charge Type (mock 2219-6759) and Charge Type Details (mock 2219-2622). Both write to the same
+  // register rows, so a type added here is immediately offered on a property's Charges tab.
+  ctFieldBits(){
+    const esc = v => ('' + (v == null ? '' : v)).replace(/"/g, '&quot;');
+    const lab = (t, req) => `<span style="font-size:14px;color:var(--rmx-text, #666666)">${t}${req?' *':''}</span>`;
+    const txt = (id, val, ph) => `<input id="${id}" value="${esc(val)}" placeholder="${esc(ph||'')}" style="width:100%;box-sizing:border-box;height:36px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:0 10px;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);outline:none">`;
+    const amtField = (id, val) => `<div style="display:flex;align-items:center;gap:6px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:36px;box-sizing:border-box;padding:0 10px">
+      <input id="${id}" value="${esc(val)}" style="flex:1;min-width:0;border:none;background:transparent;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);outline:none">
+      <span class="material-symbols-outlined" style="font-size:18px;color:var(--rmx-text, #666666);flex:none">calculate</span></div>`;
+    const field = (l, ctl, req) => `<div style="display:flex;flex-direction:column;gap:4px">${lab(l, req)}${ctl}</div>`;
+    const check = (id, on, l) => `<label style="display:inline-flex;align-items:center;gap:9px;align-self:flex-start;cursor:pointer"><input id="${id}" type="checkbox" ${on?'checked':''} style="accent-color:var(--rmx-attention, #f58220);width:17px;height:17px;margin:0">${lab(l)}</label>`;
+    return { esc, lab, txt, amtField, field, check };
+  }
+  ctGLOptions(){
+    const seen = {}; const gl = this.chargeTypeGL();
+    Object.keys(gl).forEach(k => { seen[gl[k]] = 1; });
+    this.chargeTypeRows().forEach(r => { if (r.gl) seen[r.gl] = 1; });
+    seen['4301 Maintenance'] = 1;
+    return Object.keys(seen).sort();
+  }
+  ctAddHTML(){
+    const a = this.state.ctAdd; if (!a) return '';
+    const F = this.ctFieldBits();
+    const propCount = this.propNames().length;
+    return `<div data-act="ctAddClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:160">
+      <div data-act="noop" style="width:540px;max-width:94vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
+          <span style="font-size:20px;color:var(--rmx-brand-dark, #13314c)">Add Charge Type</span>
+          <span data-act="ctAddClose" class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">close</span>
+        </div>
+        <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px">
+          <span id="ct-err" style="display:none;align-items:center;gap:6px;font-size:14px;color:var(--rmx-error, #eb343c)"></span>
+          ${F.field('Name', F.txt('ct-name', a.code, 'SUPPLY'), true)}
+          ${F.field('Description', F.txt('ct-desc', a.desc, 'Supply cost for maintenance'))}
+          ${F.field('GL Account', this.singleSelect('ct-gl', this.ctGLOptions(), a.gl || '4301 Maintenance'), true)}
+          ${F.field('Default Amount', F.amtField('ct-amt', a.amount != null ? a.amount : '0.00'))}
+          ${F.field('Properties', this.multiSelect('ct-props', this.propNames(), a.props || this.propNames()))}
+          ${F.field('Allocation Order', this.singleSelect('ct-alloc', ['1','2','3','4','5'], a.alloc || '', { noSearch:true, blank:true, placeholder:'\u00a0' }))}
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <span style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--rmx-text, #666666)">Charge Category *${this.infoTip('<span style="display:block;white-space:normal">Listing sites group fees by category. A charge inherits the category of its charge type.</span>', 290)}</span>
+            ${this.singleSelect('ct-cat', this.chargeCategoryOptions(), a.category || '', { placeholder:'Select a category' })}
+          </div>
+          ${F.check('ct-active', a.active !== false, 'Active')}
+        </div>
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:12px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:12px 16px;flex:none">
+          <button data-act="ctAddSave" class="btn-pri" style="height:36px;min-height:36px;padding:0 22px;border-radius:4px;font-size:14px">Save</button>
+          <button data-act="ctAddClose" class="btn-out" style="height:36px;min-height:36px;padding:0 22px;border-radius:4px;font-size:14px">Cancel</button>
+        </div>
+      </div></div>`;
+  }
+  ctDetailHTML(){
+    const code = this.state.ctDetail; if (!code) return '';
+    const r = this.chargeTypeRow(code); if (!r) return '';
+    const F = this.ctFieldBits();
+    const money = n => (n || 0).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
+    const tile = (title, right, inner) => `<div style="flex:1;min-width:320px;display:flex;flex-direction:column;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:12px;padding:9px 14px;border-bottom:2px solid var(--ac,var(--rmx-brand, #008dd5))">
+        <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title}</span><div style="flex:1"></div>${right || ''}
+      </div>
+      <div style="flex:1;min-height:0;padding:14px;display:flex;flex-direction:column;gap:12px">${inner}</div></div>`;
+    const pair = (a, b) => `<div style="display:flex;gap:16px;align-items:flex-start"><div style="flex:1;min-width:0">${a}</div><div style="flex:1;min-width:0">${b}</div></div>`;
+    const info = tile('Charge Type Information', '', ''
+      + F.check('ctd-active', r.active, 'Active')
+      + pair(F.field('Name', F.txt('ctd-name', r.code), true), F.field('Description', F.txt('ctd-desc', r.desc)))
+      + pair(F.field('GL Account', this.singleSelect('ctd-gl', this.ctGLOptions(), r.gl), true), F.field('Default Amount', F.amtField('ctd-amt', money(r.amount))))
+      + pair(F.field('Properties', this.multiSelect('ctd-props', this.propNames(), r.props || this.propNames())),
+             F.field('Charge Category', this.singleSelect('ctd-cat', this.chargeCategoryOptions(), r.category, { placeholder:'Select a category' }), true))
+      + F.check('ctd-prorate', r.prorate, 'Prorate by Day')
+      + F.check('ctd-cre', r.cre, 'CRE Charge Type'));
+    const invCols = 'minmax(120px,1fr) minmax(160px,1.6fr)';
+    const ih = (t) => `<span style="display:flex;align-items:center;min-height:30px;padding:5px 12px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span>`;
+    const ic = (t) => `<span style="display:flex;align-items:center;min-height:34px;padding:5px 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c)">${t}</span>`;
+    const invRows = r.inv && r.inv.length
+      ? r.inv.map((x, i) => `<div style="display:grid;grid-template-columns:${invCols};border-top:1px solid var(--rmx-bg-subtle, #f5f8fa)">${ic(x.name)}${ic(x.desc)}</div>`).join('')
+      : `<div style="padding:12px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No inventory items linked to this charge type.</div>`;
+    const invTile = tile('Inventory Items',
+      `<span data-act="toast" data-arg="Link Existing Inventory Item" style="display:inline-flex;align-items:center;gap:4px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Link Existing Inventory Item<span class="material-symbols-outlined" style="font-size:18px">arrow_drop_down</span></span>`,
+      `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
+         <div style="display:grid;grid-template-columns:${invCols};background:var(--rmx-bg-subtle, #f5f8fa)">${ih('Name')}${ih('Description')}</div>
+         ${invRows}
+       </div>
+       <div style="flex:1"></div>
+       ${F.check('ctd-inactive-inv', false, 'Show Inactive Items')}`);
+    return `<div data-act="ctDetClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:160">
+      <div data-act="noop" style="width:1180px;max-width:96vw;max-height:92vh;background:var(--rmx-bg-subtle, #f5f8fa);border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 16px;background:#fff;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
+          <span style="font-size:20px;color:var(--rmx-brand-dark, #13314c)">Charge Type Details</span>
+          <span style="display:inline-flex;align-items:center;gap:12px">
+            <span data-act="toast" data-arg="Help" class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">help</span>
+            <span data-act="ctDetClose" class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">close</span>
+          </span>
+        </div>
+        <div style="flex:1;min-height:0;overflow-y:auto;padding:14px;display:flex;gap:14px;flex-wrap:wrap;align-items:stretch">${info}${invTile}</div>
+        <div style="display:flex;align-items:center;gap:12px;background:#fff;border-top:1px solid var(--rmx-line, #cedbe7);padding:12px 16px;flex:none">
+          <span data-act="toast" data-arg="Charge type help" class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">info</span>
+          <div style="flex:1"></div>
+          <button data-act="ctDelete" class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px">Delete</button>
+          <button data-act="ctSave" data-arg="stay" class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px">Save</button>
+          <button data-act="ctSave" data-arg="close" class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px;white-space:nowrap">Save &amp; Close</button>
+          <button data-act="ctDetClose" class="btn-out" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px">Close</button>
+        </div>
+      </div></div>`;
+  }
   // ---------- Pet Types register + details ----------
   petTypesBody(){
     const money = n => (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -4745,7 +4996,7 @@ class Component extends DCLogic {
       if (tw) tw.style.display = (cc === 'Pet') ? 'flex' : 'none';
     };
     // Charge types that can sit on a rentable item — the only ones offered at the ORI level.
-    const ctItems = this.chargeTypeList().map(([c,d2]) => `<div data-cat="${catFor(c)}" data-code="${c}" data-ct="${(c+' '+d2).toLowerCase()}" onmousedown="document.getElementById('m-ctype').value='${c}';document.getElementById('m-ctype-desc').value='${d2.replace(/'/g,"")}';${setCat}document.getElementById('m-ctype-panel').style.display='none'" style="padding:8px 12px;cursor:pointer" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''"><div style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${c}</div><div style="font-size:14px;color:var(--rmx-text-muted, #b3b3b3)">${d2}</div></div>`).join('');
+    const ctItems = this.chargeTypesFor().map(t => [t.code, t.desc]).map(([c,d2]) => `<div data-cat="${catFor(c)}" data-code="${c}" data-ct="${(c+' '+d2).toLowerCase()}" onmousedown="document.getElementById('m-ctype').value='${c}';document.getElementById('m-ctype-desc').value='${d2.replace(/'/g,"")}';${setCat}document.getElementById('m-ctype-panel').style.display='none'" style="padding:8px 12px;cursor:pointer" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''"><div style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${c}</div><div style="font-size:14px;color:var(--rmx-text-muted, #b3b3b3)">${d2}</div></div>`).join('');
     // Every charge type is on offer, except on an ORI charge — there the list is what the selected
      // property actually rents out as items. The search box narrows whatever is left.
     window.__ctFilter = () => {
@@ -5872,6 +6123,15 @@ class Component extends DCLogic {
         <span class="material-symbols-outlined" style="font-size:20px;opacity:0.9;cursor:pointer">help</span>
       </div>`;
       out += this.sysPrefsBody();
+    } else if (s.view === 'chargetypes') {
+      out += `<div style="height:40px;background:var(--ac,var(--rmx-brand, #008dd5));display:flex;align-items:center;padding:0 16px;gap:12px;color:#fff;flex:none">
+        <span style="font-size:18px;line-height:24px">Charge Types</span>
+        <div style="flex:1"></div>
+        <span data-act="toast" data-arg="Print" class="material-symbols-outlined" style="font-size:18px;opacity:0.85;cursor:pointer">print</span>
+        <span data-act="toast" data-arg="Refresh" class="material-symbols-outlined" style="font-size:18px;opacity:0.85;cursor:pointer">autorenew</span>
+        <span data-act="toast" data-arg="Help" class="material-symbols-outlined" style="font-size:18px;opacity:0.85;cursor:pointer">help</span>
+      </div>`;
+      out += `<div style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column">${this.chargeTypesBody()}</div>`;
     } else if (s.view === 'pettypes') {
       out += `<div style="height:40px;background:var(--ac,var(--rmx-brand, #008dd5));display:flex;align-items:center;padding:0 16px;gap:12px;color:#fff;flex:none">
         <span style="font-size:18px;line-height:24px">Pet Types</span>
@@ -5961,6 +6221,8 @@ class Component extends DCLogic {
     out += this.copyFeesHTML();
     out += this.rqHTML();
     out += this.ftHelpHTML();
+    out += this.ctAddHTML();
+    out += this.ctDetailHTML();
     out += this.toastHTML();
     return out;
   }
