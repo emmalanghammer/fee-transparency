@@ -101,6 +101,7 @@ class Component extends DCLogic {
     ctShowInactive: false,
     ctAdd: null,         // Add Charge Type overlay
     ctDetail: null,      // Charge Type Details overlay
+    unitSel: null,       // Unit Selector overlay: { pick, vacantOnly }
     accOpen: { 'pf-rec':true, 'pf-one':true, 'pf-req':true, 'pf-opt':true, 'pf-sit':true, 'pf-ind':true },
     groupByReq: false,
     pfFilter: null,
@@ -805,6 +806,12 @@ class Component extends DCLogic {
       case 'petTypeClose': this.setState({ petType: null }); break;
       case 'ftHelpOpen': this.setState({ ftHelp: true }); break;
       case 'ftHelpClose': this.setState({ ftHelp: false }); break;
+      case 'unitSelOpen': this.rqCapture(); this.setState(s => ({ unitSel: { pick: (s.rq && s.rq.unit) || '', vacantOnly: true } })); break;
+      case 'unitSelClose': this.setState({ unitSel: null }); break;
+      case 'unitSelVacant': this.setState(s => ({ unitSel: Object.assign({}, s.unitSel, { vacantOnly: !(s.unitSel.vacantOnly !== false) }) })); break;
+      case 'unitSelPick': this.setState(s => ({ unitSel: Object.assign({}, s.unitSel, { pick: arg }) })); break;
+      case 'unitSelOk': { const pick = this.state.unitSel && this.state.unitSel.pick; if (!pick) break;
+        this.setState(s => ({ unitSel: null, rq: Object.assign({}, s.rq, { unit: pick }) })); break; }
       case 'rqOpen': this.setState({ rq: this.rqBlank() }); break;
       case 'rqClose': this.setState({ rq: null }); break;
       case 'rqNext': this.rqCapture(); this.setState(s => ({ rq: Object.assign({}, s.rq, { step:2 }) })); break;
@@ -3696,6 +3703,66 @@ class Component extends DCLogic {
     </div>`;
   }
 
+  // Unit Selector — the lookup behind the unit field's building button. Rent Manager picks a unit from
+  // a list of what the property has, not a dropdown, so vacancy and who is moving out are visible.
+  unitSelRows(){
+    const vacantOnly = !(this.state.unitSel && this.state.unitSel.vacantOnly === false);
+    return this.units().filter(u => !vacantOnly || /vacant/i.test(u.tenant)).map(u => ({
+      unit: u.u,
+      status: /vacant/i.test(u.tenant) ? 'Vacant' : (/notice/i.test(u.tenant) ? 'On Notice' : 'Occupied'),
+      out: /notice/i.test(u.tenant) ? '09/30/2026' : '',
+      next: /vacant|notice/i.test(u.tenant) ? '' : u.tenant,
+      type: u.type
+    }));
+  }
+  unitSelHTML(){
+    const f = this.state.unitSel; if (!f) return '';
+    const q = this.state.rq || {};
+    const rows = this.unitSelRows();
+    const cols = 'minmax(90px,1fr) minmax(110px,1fr) minmax(130px,1.2fr) minmax(130px,1.2fr) minmax(110px,1fr)';
+    const hc = (t) => `<span style="display:flex;align-items:center;min-height:30px;padding:5px 12px;font-size:14px;font-weight:600;color:#fff;white-space:nowrap">${t}</span>`;
+    const cellS = (t) => `<span style="display:flex;align-items:center;min-height:36px;padding:5px 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>`;
+    const rowHTML = (r, i) => {
+      const on = f.pick === r.unit;
+      const bg = on ? 'var(--rmx-brand-tint-bg, #ebf1f5)' : (i % 2 ? 'var(--rmx-bg-subtle, #f5f8fa)' : '#fff');
+      return `<div data-act="unitSelPick" data-arg="${r.unit}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:${bg};cursor:pointer">
+        ${cellS(r.unit)}${cellS(r.status)}${cellS(r.out)}${cellS(r.next)}${cellS(r.type)}</div>`;
+    };
+    const fld = 'height:36px;box-sizing:border-box;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:0 10px;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);outline:none';
+    const lab = (t) => `<span style="font-size:14px;color:var(--rmx-text, #666666)">${t}</span>`;
+    const dateBox = (val, ph) => `<div style="display:flex;align-items:center;gap:6px;${fld};flex:1;min-width:0"><span style="flex:1;min-width:0;${val?'':'font-style:italic;color:var(--rmx-text-muted, #b3b3b3)'}">${val || ph}</span><span class="material-symbols-outlined" style="font-size:18px;color:var(--rmx-text, #666666);flex:none">calendar_today</span></div>`;
+    return `<div data-act="unitSelClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:170">
+      <div data-act="noop" style="width:860px;max-width:96vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
+          <span style="font-size:20px;color:var(--rmx-brand-dark, #13314c)">Unit Selector</span>
+          <span style="display:inline-flex;align-items:center;gap:12px">
+            <span data-act="toast" data-arg="Help" class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">help</span>
+            <span data-act="unitSelClose" class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">close</span>
+          </span>
+        </div>
+        <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;gap:20px;align-items:flex-end;flex-wrap:wrap">
+            <div style="flex:1;min-width:240px;display:flex;flex-direction:column;gap:4px">${lab('Property')}
+              <div style="display:flex;align-items:center;gap:6px;${fld}"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,var(--rmx-brand, #008dd5));flex:none">search</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${q.prop || this.state.property}</span></div>
+            </div>
+            <div style="flex:1.4;min-width:280px;display:flex;flex-direction:column;gap:4px">${lab('Vacancy Based On Date')}
+              <div style="display:flex;align-items:center;gap:8px">${dateBox(q.quoted || '', 'From')}${dateBox('', 'To')}
+                <span data-act="toast" data-arg="Date options" class="material-symbols-outlined" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;flex:none;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">list</span>
+              </div>
+            </div>
+          </div>
+          <label style="display:inline-flex;align-items:center;gap:9px;align-self:flex-start;cursor:pointer"><input type="checkbox" data-act="unitSelVacant" ${f.vacantOnly === false ? '' : 'checked'} style="accent-color:var(--rmx-attention, #f58220);width:17px;height:17px;margin:0"><span style="font-size:14px;color:var(--rmx-text, #666666)">Show Vacant Units Only</span></label>
+          <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
+            <div style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">${hc('Unit')}${hc('Status')}${hc('Next Move Out')}${hc('Next Occupant')}${hc('Unit Type')}</div>
+            ${rows.length ? rows.map(rowHTML).join('') : `<div style="padding:14px 12px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No units match this filter.</div>`}
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:12px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:12px 16px;flex:none">
+          <button ${f.pick?'data-act="unitSelOk"':''} class="btn-pri" style="height:36px;min-height:36px;padding:0 26px;border-radius:4px;font-size:14px;${f.pick?'':'opacity:0.45;cursor:default'}">OK</button>
+          <button data-act="unitSelClose" class="btn-out" style="height:36px;min-height:36px;padding:0 22px;border-radius:4px;font-size:14px">Cancel</button>
+        </div>
+      </div></div>`;
+  }
   // ================= ADD RENT QUOTE (mock 2882-105803) =================
   // A quote is built in two passes: the unit and its rentable items first, then the charges those
   // choices pull in. Step two only ever shows charges for what step one actually named.
@@ -3826,7 +3893,7 @@ class Component extends DCLogic {
     const search = (id, val) => wrap(glyph('search') + bare(id, val));
     const dated = (id, val) => wrap(bare(id, val, 'mm/dd/yy') + glyph('calendar_today', 'var(--rmx-text, #666666)'));
     const muted = (id, val) => `<div style="display:flex;align-items:center;gap:6px;background:var(--rmx-bg-muted, #f2f2f2);border:1px solid var(--rmx-line-soft, #ebf1f5);border-radius:4px;height:36px;box-sizing:border-box;padding:0 4px 0 10px"><input id="${id}" value="${esc(val)}" placeholder="mm/dd/yy" style="flex:1;min-width:0;border:none;background:transparent;font:400 14px Roboto,sans-serif;color:var(--rmx-text-muted, #b3b3b3);outline:none"><span class="material-symbols-outlined" style="font-size:20px;color:var(--rmx-text, #666666)">arrow_drop_down</span></div>`;
-    const unitBtn = `<span data-act="toast" data-arg="Unit lookup" class="material-symbols-outlined" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;flex:none;background:var(--ac,var(--rmx-brand, #008dd5));color:#fff;border-radius:4px;font-size:18px;cursor:pointer">apartment</span>`;
+    const unitBtn = `<span data-act="unitSelOpen" class="material-symbols-outlined" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;flex:none;background:var(--ac,var(--rmx-brand, #008dd5));color:#fff;border-radius:4px;font-size:18px;cursor:pointer">apartment</span>`;
     const amtBtn = `<button data-act="toast" data-arg="Select Amount" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap;flex:none">Select Amount</button>`;
     const col = (inner) => `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${inner}</div>`;
     const row = (inner) => `<div style="display:flex;gap:20px;align-items:flex-start">${inner}</div>`;
@@ -3838,12 +3905,12 @@ class Component extends DCLogic {
     </div>`;
     // A lookup button sits inside its field's column, so the row still ends flush with the card.
     const withBtn = (field, btn) => `<div style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0">${field}</div>${btn}</div>`;
-    const unitRow = (propField, unitLabel, unitField) => pairRow(propField, unitLabel + withBtn(unitField, unitBtn));
+    const oriBtn = unitBtn.replace('data-act="unitSelOpen"', 'data-act="toast" data-arg="Item lookup"');
+    const unitRow = (propField, unitLabel, unitField, btn) => pairRow(propField, unitLabel + withBtn(unitField, btn || unitBtn));
     const card = (inner) => `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:12px">${inner}</div>`;
     const head = (t) => `<span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span>`;
     const terms = ['6 Months','12 Months','18 Months','24 Months'];
     const oriProps = this.rqOriProps();
-    const vacant = this.units().filter(u => /vacant/i.test(u.tenant)).map(u => u.u);
     // Charge types belong to the property, so a new property clears a type that no longer applies.
     window.__rqUnitPick = () => {
       this.rqCapture();
@@ -3868,7 +3935,7 @@ class Component extends DCLogic {
 
     const primary = card(
       unitRow(lab('Property', true) + search('rq-prop', q.prop),
-        lab('Unit', true), this.singleSelect('rq-unit', vacant, q.unit, { placeholder:'Select a vacant unit', js:'if(window.__rqUnitPick)window.__rqUnitPick(_v)' }))
+        lab('Unit', true), `<input type="hidden" id="rq-unit" value="${esc(q.unit)}"><div style="display:flex;align-items:center;gap:6px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:36px;box-sizing:border-box;padding:0 10px"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,var(--rmx-brand, #008dd5));flex:none">search</span><span style="flex:1;min-width:0;font-size:14px;${q.unit?'color:var(--rmx-brand-dark, #13314c)':'font-style:italic;color:var(--rmx-text-muted, #b3b3b3)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${q.unit || 'Select a unit'}</span></div>`)
       + pairRow(lab('Date Quoted', true) + dated('rq-quoted', q.quoted), lab('Expiration') + dated('rq-exp', q.exp))
       + pairRow(lab('Move In') + muted('rq-moveIn', q.moveIn),
         lab('Lease Term') + this.singleSelect('rq-term', terms, q.term, { noSearch:true, placeholder:'\u00a0', blank:true }))
@@ -3880,7 +3947,7 @@ class Component extends DCLogic {
       `<div style="display:flex;align-items:center"><div style="flex:1"></div><span data-act="rqRmOri" data-arg="${i}" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Remove</span></div>`
       + unitRow(lab('Property', true) + this.singleSelect(`rq-ori-prop-${i}`, oriProps, o.prop, { placeholder:'Select a property', js:`if(window.__rqOriProp)window.__rqOriProp(${i},_v)` }),
         lab('Unit', true), this.singleSelect(`rq-ori-unit-${i}`, o.prop ? this.oriUnitsFor(o.prop) : [], o.unit,
-          { placeholder: o.prop ? 'Select a unit' : 'Select a property first', js:`if(window.__rqOriUnit)window.__rqOriUnit(${i},_v)` }))
+          { placeholder: o.prop ? 'Select a unit' : 'Select a property first', js:`if(window.__rqOriUnit)window.__rqOriUnit(${i},_v)` }), oriBtn)
       + pairRow(lab('Charge Type', true) + this.singleSelect(`rq-ori-ctype-${i}`, o.prop ? this.oriTypesFor(o.prop) : [], o.ctype,
           { noSearch:true, placeholder: o.prop ? 'Select a charge type' : 'Select a property first' }),
         lab('Amount', true) + withBtn(wrap(bare(`rq-ori-amount-${i}`, o.amount)), amtBtn)));
@@ -6193,6 +6260,7 @@ class Component extends DCLogic {
     out += this.bulkUpdHTML();
     out += this.copyFeesHTML();
     out += this.rqHTML();
+    out += this.unitSelHTML();
     out += this.ftHelpHTML();
     out += this.ctAddHTML();
     out += this.ctDetailHTML();
