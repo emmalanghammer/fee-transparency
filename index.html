@@ -807,12 +807,20 @@ class Component extends DCLogic {
       case 'petTypeClose': this.setState({ petType: null }); break;
       case 'ftHelpOpen': this.setState({ ftHelp: true }); break;
       case 'ftHelpClose': this.setState({ ftHelp: false }); break;
-      case 'amtSelOpen': this.rqCapture(); this.setState({ amtSel: { pick: 'prop' } }); break;
+      case 'amtSelOpen': this.rqCapture(); this.setState({ amtSel: { kind:'rent', pick: 'prop' } }); break;
+      case 'oriAmtOpen': { this.rqCapture(); const i = parseInt(arg, 10);
+        this.setState({ amtSel: { kind:'ori', ori:i, pick: '' } }); break; }
       case 'amtSelClose': this.setState({ amtSel: null }); break;
       case 'amtSelPick': this.setState(s => ({ amtSel: Object.assign({}, s.amtSel, { pick: arg }) })); break;
       case 'amtSelSave': { const f = this.state.amtSel; if (!f || !f.pick) break;
         const hit = this.rqAmountSources().filter(r => r.id === f.pick)[0]; if (!hit) break;
         const val = (hit.amount || 0).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
+        if (f.kind === 'ori') {
+          this.setState(s => { const q = Object.assign({}, s.rq); q.oris = q.oris.slice();
+            q.oris[f.ori] = Object.assign({}, q.oris[f.ori] || {}, { amount: val });
+            return { amtSel: null, rq: q }; });
+          break;
+        }
         this.setState(s => ({ amtSel: null, rq: Object.assign({}, s.rq, { rent: val }) })); break; }
       case 'unitSelOpen': this.rqCapture(); this.setState(s => ({ unitSel: { kind:'unit', pick: (s.rq && s.rq.unit) || '', vacantOnly: true } })); break;
       case 'oriSelOpen': { this.rqCapture(); const i = parseInt(arg, 10);
@@ -3729,7 +3737,21 @@ class Component extends DCLogic {
   // charge the Charges tab keeps at the unit type or the unit itself, since a more specific level
   // overrides the property. Nothing else is offered: the figure has to exist somewhere.
   rqAmountSources(){
+    const f = this.state.amtSel || {};
     const q = this.state.rq || {};
+    // An ORI item is priced by the property's own charge for that kind of item, so the only figures on
+    // offer are the ORI-level charges on that property's Charges tab matching the chosen charge type.
+    if (f.kind === 'ori') {
+      const o = (q.oris || [])[f.ori] || {};
+      if (!o.ctype) return [];
+      const unit = q.unit ? this.unitInfo(q.unit) : null;
+      const amountOf = (r) => { const a = this.parseAmt(r.amount); if (a) return a;
+        if (r.est != null) return r.est;
+        return /market/i.test(r.amount || '') ? this.parseAmt(unit ? unit.rent : '') : 0; };
+      return this.appliedRows(o.prop || q.prop)
+        .filter(r => r.level === 'ORI' && r.mits === o.ctype)
+        .map(r => ({ id:'o' + r.id, source:'Property', note:r.mits, amount:amountOf(r) }));
+    }
     const unit = q.unit ? this.unitInfo(q.unit) : null;
     const rows = this.appliedRows(q.prop).filter(r => !/-one$/.test(r.group));
     const amountOf = (r) => { const a = this.parseAmt(r.amount); if (a) return a;
@@ -3749,6 +3771,9 @@ class Component extends DCLogic {
   }
   amtSelHTML(){
     const f = this.state.amtSel; if (!f) return '';
+    const isOri = f.kind === 'ori';
+    const q = this.state.rq || {};
+    const oriRow = isOri ? ((q.oris || [])[f.ori] || {}) : null;
     const rows = this.rqAmountSources();
     const money = n => (n || 0).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
     const cols = 'minmax(0,1fr) 150px';
@@ -3768,11 +3793,12 @@ class Component extends DCLogic {
           <span data-act="amtSelClose" class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">close</span>
         </div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:4px">
-          <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">The rent will be created as a tenant-level recurring charge at move in.</span>
-          <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);padding-bottom:8px">Charge Type: RC</span>
+          <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">The ${isOri ? 'amount' : 'rent'} will be created as a tenant-level recurring charge at move in.</span>
+          <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);padding-bottom:8px">Charge Type: ${isOri ? (oriRow.ctype || '—') : 'RC'}</span>
           <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
             <div style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">${hc('Source')}${hc('Amount', true)}</div>
-            ${rows.map(rowHTML).join('')}
+            ${rows.length ? rows.map(rowHTML).join('')
+              : `<div style="padding:14px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">This property's Charges tab has no ${isOri ? (oriRow.ctype || 'matching') : 'rent'} charge to price from.</div>`}
           </div>
         </div>
         <div style="display:flex;align-items:center;justify-content:flex-end;gap:12px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:12px 16px;flex:none">
@@ -3990,7 +4016,10 @@ class Component extends DCLogic {
     const dated = (id, val) => wrap(bare(id, val, 'mm/dd/yy') + glyph('calendar_today', 'var(--rmx-text, #666666)'));
     const muted = (id, val) => `<div style="display:flex;align-items:center;gap:6px;background:var(--rmx-bg-muted, #f2f2f2);border:1px solid var(--rmx-line-soft, #ebf1f5);border-radius:4px;height:36px;box-sizing:border-box;padding:0 4px 0 10px"><input id="${id}" value="${esc(val)}" placeholder="mm/dd/yy" style="flex:1;min-width:0;border:none;background:transparent;font:400 14px Roboto,sans-serif;color:var(--rmx-text-muted, #b3b3b3);outline:none"><span class="material-symbols-outlined" style="font-size:20px;color:var(--rmx-text, #666666)">arrow_drop_down</span></div>`;
     const unitBtn = `<span data-act="unitSelOpen" class="material-symbols-outlined" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;flex:none;background:var(--ac,var(--rmx-brand, #008dd5));color:#fff;border-radius:4px;font-size:18px;cursor:pointer">apartment</span>`;
-    const oriAmtBtn = `<button data-act="toast" data-arg="Select Amount" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap;flex:none">Select Amount</button>`;
+    // Nothing to price from until the card names a charge type, so the button waits for one.
+    const oriAmtBtn = (o, i) => o.ctype
+      ? `<button data-act="oriAmtOpen" data-arg="${i}" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap;flex:none">Select Amount</button>`
+      : `<button class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap;flex:none;opacity:0.45;cursor:default">Select Amount</button>`;
     const amtBtn = `<button data-act="amtSelOpen" data-arg="rent" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap;flex:none">Select Amount</button>`;
     const col = (inner) => `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${inner}</div>`;
     const row = (inner) => `<div style="display:flex;gap:20px;align-items:flex-start">${inner}</div>`;
@@ -4047,7 +4076,7 @@ class Component extends DCLogic {
           { placeholder:'\u00a0', js:`if(window.__rqOriUnit)window.__rqOriUnit(${i},_v)` }), oriBtn(i))
       + pairRow(lab('Charge Type', true) + this.singleSelect(`rq-ori-ctype-${i}`, o.prop ? this.oriTypesFor(o.prop) : [], o.ctype,
           { noSearch:true, placeholder:'\u00a0' }),
-        lab('Amount', true) + withBtn(wrap(bare(`rq-ori-amount-${i}`, o.amount)), oriAmtBtn)));
+        lab('Amount', true) + withBtn(wrap(bare(`rq-ori-amount-${i}`, o.amount)), oriAmtBtn(o, i))));
 
     return `<div style="display:flex;flex-direction:column;gap:14px">
       <span style="font-size:14px;color:var(--rmx-text, #666666)">Once you reserve the Unit, these details fill in the Reservation/Expected Lease information.</span>
