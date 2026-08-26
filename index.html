@@ -158,7 +158,7 @@ class Component extends DCLogic {
     rowMenu: null,
     // Properties whose complete pricing has been published from the Fee Transparency page.
     publishedProps: {},
-    pubModal: null, // { prop, ack } — Publish Complete Pricing confirmation
+    pubModal: null, // { prop, ack } — Convert to Fee Transparency confirmation
     mktSetup: false, // Marketing Setup overlay (opened from the action rail's copy flyout)
     mktAdv: false, // Advanced Settings overlay on top of Marketing Setup
     ftSel: null, // { mode:'pub'|'setup' } — Select Properties dialog on the tracker
@@ -1789,31 +1789,31 @@ class Component extends DCLogic {
     // Only charges that are actually included on listings can hold publishing up.
     const short = this.ftCharges(p).incomplete;
     // Fee Transparency off entirely.
-    if (!active) return { key:'none', order:4, status:'Not Set Up', loz:'grey',
-      next:'Set Up Fee Transparency', act:'setupOpen' };
+    if (!active) return { key:'none', step:1, order:4, status:'Not Set Up', loz:'grey',
+      next:'Centralize Charges', act:'setupOpen' };
     // Manufactured housing advertises on a provider with no complete-pricing feed, so centralizing the
     // charges finishes the job — there is nothing to publish and no charge details to chase.
-    if (this.mhOn(p)) return { key:'central', order:6, status:'Centralized', loz:'green' };
+    if (this.mhOn(p)) return { key:'central', step:1, order:6, status:'Centralized', loz:'green' };
     // On, but the property doesn't advertise — its charges are centralized and that's as far as it goes
     // until someone enables it for listings.
-    if (!ils) return { key:'notEnabled', order:6, status:'Centralized', loz:'green',
-      next:'Enable for Online Listings', act:'ilsEnable' };
+    // Centralizing is the whole job here, so the row rests — enabling listings is still on the kebab.
+    if (!ils) return { key:'notEnabled', step:1, order:6, status:'Centralized', loz:'green' };
     if (short) return published
       // Published, then a charge lost (or never had) its details — the feed is converted, but that
       // charge is sitting out of the price until it's finished.
       // Published, then a charge lost (or never had) its details — it sits out of the price until it's
       // finished, so the incomplete count is called out in red.
-      ? { key:'pubshort', order:1, status:'Published', loz:'green', next:'Add Charge Details', act:'openFeeProfile', issues:short }
-      : { key:'short', order:2, status:'Charges Incomplete', loz:'amber', next:'Add Charge Details', act:'openFeeProfile', issues:short };
+      ? { key:'pubshort', step:2, order:1, status:'Converted', loz:'green', next:'Add Charge Details', act:'openFeeProfile', issues:short }
+      : { key:'short', step:2, order:2, status:'Charges Incomplete', loz:'amber', next:'Add Charge Details', act:'openFeeProfile', issues:short };
     return published
-      ? { key:'pub', order:5, status:'Published', loz:'green' }
-      : { key:'ready', order:3, status:'Ready to Publish', loz:'blue', next:'Publish Complete Pricing', act:'pubOpen' };
+      ? { key:'pub', step:2, order:5, status:'Converted', loz:'green' }
+      : { key:'ready', step:2, order:3, status:'Ready to Convert', loz:'blue', next:'Convert to Fee Transparency', act:'pubOpen' };
   }
   // ---------- Status guide: which path a property takes, and what each status means ----------
   // The listing provider decides how far a property can go, so the guide is organised by provider
   // rather than by status — that is the question people actually arrive with.
   ftHelpPaths(){
-    const full = ['Not Set Up','Charges Incomplete','Ready to Publish','Published'];
+    const full = ['Not Set Up','Charges Incomplete','Ready to Convert','Converted'];
     const central = ['Not Set Up','Centralized'];
     return {
       listed: [
@@ -1829,7 +1829,7 @@ class Component extends DCLogic {
     };
   }
   ftHelpLoz(status){
-    const map = { 'Not Set Up':'grey', 'Charges Incomplete':'amber', 'Ready to Publish':'blue', 'Published':'green', 'Centralized':'green' };
+    const map = { 'Not Set Up':'grey', 'Charges Incomplete':'amber', 'Ready to Convert':'blue', 'Converted':'green', 'Centralized':'green' };
     const styles = { green:'background:var(--rmx-success-bg, #e2f1da);color:#2f5d43', amber:'background:#fdf3e3;color:#7a5a2a',
       blue:'background:var(--rmx-brand-tint-bg, #ebf1f5);color:var(--rmx-brand-hover, #0071aa)', grey:'background:#eceff1;color:var(--rmx-ink-2, #424e5b)' };
     return `<span class="loz" style="${styles[map[status] || 'grey']};text-transform:none;letter-spacing:0;white-space:nowrap">${status}</span>`;
@@ -1849,11 +1849,11 @@ class Component extends DCLogic {
 
     // What each status means, and the one action that moves it along.
     const legend = [
-      ['Not Set Up', 'Charges are still kept in the old places — recurring charges, deposits and rentable items each on their own screen.', 'Set Up Fee Transparency'],
+      ['Not Set Up', 'Charges are still kept in the old places — recurring charges, deposits and rentable items each on their own screen.', 'Centralize Charges'],
       ['Charges Incomplete', 'Charges are centralized, but some are missing the fields listings require, so they stay out of the published price.', 'Add Charge Details'],
-      ['Ready to Publish', 'Every charge has its required fields. The property can publish complete pricing.', 'Publish Complete Pricing'],
-      ['Published', 'The listing feed carries complete pricing. A charge that loses a required field is called out here.', 'Nothing to do'],
-      ['Centralized', 'Every charge is on the Charges tab and nothing publishes — either the property is not listed, or its provider does not carry complete pricing.', 'Enable for Online Listings']
+      ['Ready to Convert', 'Every charge has its required fields. The property can convert and show complete pricing.', 'Convert to Fee Transparency'],
+      ['Converted', 'The listing feed carries complete pricing. A charge that loses a required field is called out here.', 'Nothing to do'],
+      ['Centralized', 'Every charge is on the Charges tab and nothing publishes — either the property is not listed, or its provider does not carry complete pricing.', 'Nothing to do']
     ];
     const lcols = '190px minmax(0,1fr) 210px';
     const lh = (t) => `<span style="display:flex;align-items:center;min-height:28px;padding:5px 12px;font-size:14px;font-weight:600;color:#fff">${t}</span>`;
@@ -1909,24 +1909,8 @@ class Component extends DCLogic {
     // sitting at "Ready" are on offer.
     const pubProps = this.propertiesData().map(p => p.name).filter(n => this.ftStatus(n).key === 'ready');
 
-    // ---- status tiles: one row per register, a coloured spine and the count on the right ----
-    const tile = (spine, label, count) => `<div style="flex:1;min-width:220px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-left:4px solid ${spine};border-radius:3px;padding:11px 16px;display:flex;align-items:center;gap:12px;box-sizing:border-box">
-      <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}</span>
-      <span style="font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${count}</span>
-    </div>`;
-    // Counts come from the register's own rows, so each group summarises itself.
-    const tilesFor = (list, ils) => { const n = k => list.filter(r => this.ftStatus(r.name).key === k).length;
-      return `<div style="display:flex;gap:12px;flex-wrap:wrap">` + (ils
-        ? tile('var(--rmx-text-muted, #b3b3b3)', 'Not Set Up', n('none'))
-          + tile('var(--rmx-attention, #f58220)', 'Charges Incomplete', n('short'))
-          + tile('var(--ac,var(--rmx-brand, #008dd5))', 'Ready to Publish', n('ready'))
-          + tile('var(--rmx-success, #6eb744)', 'Published', n('pub') + n('pubshort'))
-          + (list.filter(r => this.mhOn(r.name)).length ? tile('var(--rmx-success, #6eb744)', 'Centralized', n('central')) : '')
-        : tile('var(--rmx-text-muted, #b3b3b3)', 'Not Set Up', n('none'))
-          + tile('var(--rmx-success, #6eb744)', 'Centralized', n('notEnabled'))) + `</div>`; };
-
     // ---- toolbar: search, saved filters, and a working Status filter ----
-    const filtLabels = { all:'All selected', ready:'Ready to Publish', needs:'Charges Incomplete', none:'Not Set Up', done:'Published' };
+    const filtLabels = { all:'All selected', ready:'Ready to Convert', needs:'Charges Incomplete', none:'Not Set Up', done:'Converted' };
     const fopt = (v, t) => `<div data-act="ftFilterSet" data-arg="${v}" style="padding:7px 14px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">${t}</div>`;
     const toolbar = `<div style="display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap">
       <div style="display:flex;flex-direction:column;gap:4px;width:248px">
@@ -1947,7 +1931,7 @@ class Component extends DCLogic {
         <span style="position:relative;display:flex">
           <div onclick="var p=document.getElementById('ft-status-pnl');p.style.display=(p.style.display==='block'?'none':'block')" style="flex:1;display:flex;align-items:center;height:34px;box-sizing:border-box;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:0 8px;cursor:pointer"><span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden">${filtLabels[filt] || ''}</span><span class="material-symbols-outlined" style="font-size:18px;color:var(--rmx-text, #666666)">keyboard_arrow_down</span></div>
           <div id="ft-status-pnl" style="display:none;position:absolute;left:0;top:38px;z-index:1000;min-width:200px;background:#fff;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);padding:4px 0">
-            ${fopt('all','All selected')}${fopt('ready','Ready to Publish')}${fopt('needs','Charges Incomplete')}${fopt('none','Not Set Up')}${fopt('done','Published')}
+            ${fopt('all','All selected')}${fopt('ready','Ready to Convert')}${fopt('needs','Charges Incomplete')}${fopt('none','Not Set Up')}${fopt('done','Converted')}
           </div>
         </span>
       </div>
@@ -1955,32 +1939,27 @@ class Component extends DCLogic {
         <input type="checkbox" data-act="ftIncToggle" ${this.state.ftIncOnly?'checked':''} style="accent-color:var(--ac,var(--rmx-brand, #008dd5));width:16px;height:16px;margin:0">
         <span style="font-size:14px;color:var(--rmx-text, #666666)">Only show properties with incomplete charges</span>
       </label>
-      <span data-act="ftHelpOpen" style="display:inline-flex;align-items:center;gap:6px;height:34px;margin-left:16px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap"><span class="material-symbols-outlined" style="font-size:18px">help</span>How statuses work</span>
       <div style="flex:1"></div>
-      ${pubProps.length ? `<button data-act="ftSelOpen" data-arg="pub" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Bulk Publish Complete Pricing</button>` : ''}
-      ${this.bulkSetupCandidates().length ? `<button data-act="ftSelOpen" data-arg="setup" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Bulk Set Up Fee Transparency</button>` : ''}
+      <span data-act="ftHelpOpen" style="display:inline-flex;align-items:center;gap:6px;height:34px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap"><span class="material-symbols-outlined" style="font-size:18px">help</span>How does this page work?</span>
     </div>`;
 
-    // ---- registers: Property | Status | Total Charges | [charge breakdown] | Next Step ----
-    // Properties enabled for online listings and those that aren't are on different journeys, so each
-    // gets its own register — with its own status tiles — whenever the portfolio has both. Only the
-    // enabled register breaks the charges down, since only its charges reach a listing.
-    // Both registers share one grid so Property, Status, Total Charges and Next Step line up between
-    // them; the register that has no charge breakdown leaves that span empty rather than reflowing.
-    const cols = '260fr 200fr 130fr 190fr 180fr 170fr 215px 38px';
-    const colsFor = () => cols;
+    // ---- two registers, one per step of the job (mock 3161-158892) ----
+    // Step one gets a property's charges onto its Charges tab; step two adds what listings need and
+    // converts it. A property sits in exactly one step, so each register carries only the columns its
+    // step can answer — the breakdown means nothing until the charges are centralized.
+    const cols1 = '260fr 200fr 670fr 215px 38px';
+    const cols2 = '260fr 200fr 130fr 190fr 180fr 170fr 215px 38px';
+    const colsFor = (step) => step === 1 ? cols1 : cols2;
     const hc = (t, first) => `<span style="display:flex;align-items:center;gap:8px;height:26px;box-sizing:border-box;padding:0 0 0 ${first?'17px':'12px'};font-size:14px;font-weight:600;color:#fff;white-space:nowrap;${first?'':'border-left:1px solid rgba(255,255,255,0.35)'}">${t}</span>`;
-    const headerFor = (ils) => `<div style="display:grid;grid-template-columns:${colsFor(ils)};background:var(--rmx-register-header, #737373)">
-      ${hc('Property', true)}${hc('Status')}${hc('Total Charges')}${ils
-        ? hc('Listing Ready Charges')+hc('Incomplete Charges')+hc('Excluded Charges')
-        : `<span style="height:26px;border-left:1px solid rgba(255,255,255,0.35)"></span><span style="height:26px"></span><span style="height:26px"></span>`}${hc('Next Step')}
+    const headerFor = (step) => `<div style="display:grid;grid-template-columns:${colsFor(step)};background:var(--rmx-register-header, #737373)">
+      ${hc('Property', true)}${hc('Status')}${hc('Total Charges')}${step === 2
+        ? hc('Listing Ready Charges')+hc('Incomplete Charges')+hc('Excluded Charges') : ''}${hc('Next Step')}
       <span style="display:flex;align-items:center;justify-content:center;height:26px;border-left:1px solid rgba(255,255,255,0.35)"><span class="material-symbols-outlined" style="font-size:18px;color:#fff">view_column</span></span>
     </div>`;
     const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
     const mitem = (t, act, arg) => `<div data-act="${act}" data-arg="${esc(arg)}" style="padding:8px 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">${t}</div>`;
     const lozStyle = { green:'background:var(--rmx-success-bg, #e2f1da);color:#2f5d43', amber:'background:#fdf3e3;color:#7a5a2a',
       blue:'background:var(--rmx-brand-tint-bg, #ebf1f5);color:var(--rmx-brand-hover, #0071aa)', grey:'background:#eceff1;color:var(--rmx-ink-2, #424e5b)' };
-    // Incomplete charges on a published property are live non-compliance, so that count is called out.
     // Hovering the count names the charges that still need fields, so the next step is obvious without
     // opening the property. Long lists stop at ten and count the rest.
     const incLabel = (r) => `${r.mits ? r.mits + ' ' : ''}${r.desc || (r.listing && r.listing.name) || r.name || ''}`.trim();
@@ -1995,7 +1974,7 @@ class Component extends DCLogic {
         + `</span>`;
     };
     const incWarn = `<span class="material-symbols-outlined" style="font-size:16px;color:var(--rmx-error, #eb343c);font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">warning</span>`;
-    const rowHTML = (r, i, key, ils) => {
+    const rowHTML = (r, i, key, step) => {
       const st = this.ftStatus(r.name);
       const ch = this.ftCharges(r.name);
       const none = st.key === 'none';
@@ -2009,15 +1988,15 @@ class Component extends DCLogic {
           ? `<span style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px;white-space:nowrap">${incHover}</span>`
           : cell(String(ch.incomplete)));
       const menuId = `ft${key}${i}-pnl`;
-      const items = (none ? mitem('Set Up Fee Transparency','setupOpen',r.name) : mitem('View Charges','openFeeProfile',r.name)
-        + (st.key === 'ready' ? mitem('Publish Complete Pricing','pubOpen',r.name) : '')
+      const items = (none ? mitem('Centralize Charges','setupOpen',r.name) : mitem('View Charges','openFeeProfile',r.name)
+        + (st.key === 'ready' ? mitem('Convert to Fee Transparency','pubOpen',r.name) : '')
         + (st.key === 'notEnabled' ? mitem('Enable for Online Listings','ilsEnable',r.name) : ''));
-      const menuPos = `event.stopPropagation();var t=document.getElementById('${menuId}');if(t.style.display==='block'){t.style.display='none';}else{t.style.display='block';var r=this.getBoundingClientRect();var w=t.offsetWidth,h=t.offsetHeight;var l=r.right-w;if(l<8)l=8;var y=r.bottom+4;if(y+h>window.innerHeight-8)y=r.top-h-4;if(y<8)y=8;t.style.left=l+'px';t.style.top=y+'px';}`;
-      return `<div style="display:grid;grid-template-columns:${colsFor(ils)};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff">
+      const menuPos = `event.stopPropagation();var t=document.getElementById('${menuId}');if(t.style.display==='block'){t.style.display='none';}else{t.style.display='block';var r=this.getBoundingClientRect();var w=t.offsetWidth,h=t.offsetHeight;var l=r.right-w;if(l<8)l=8;var y=r.bottom+4;if(y+h>window.innerHeight-8)y=r.top-h-4;t.style.left=l+'px';t.style.top=y+'px';}`;
+      return `<div style="display:grid;grid-template-columns:${colsFor(step)};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff">
         <a data-act="openFeeProfile" data-arg="${esc(r.name)}" style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px 0 17px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer">${r.name}</a>
         <span style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px"><span class="loz" style="${lozStyle[st.loz]};text-transform:none;letter-spacing:0">${st.status}</span></span>
         ${num(ch.total)}
-        ${ils && !this.mhOn(r.name) ? num(ch.ready) + incCell + num(ch.excluded) : '<span></span><span></span><span></span>'}
+        ${step === 2 ? num(ch.ready) + incCell + num(ch.excluded) : ''}
         ${st.next
           ? `<a data-act="${st.act}" data-arg="${esc(r.name)}" style="display:flex;align-items:center;min-height:35px;padding:0 12px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis">${st.next}</a>`
           : cell('')}
@@ -2027,29 +2006,26 @@ class Component extends DCLogic {
         </span>
       </div>`;
     };
-    const listed = rows.filter(r => this.ilsOn(r.name));
-    const unlisted = rows.filter(r => !this.ilsOn(r.name));
-    const split = listed.length && unlisted.length;
-    // The heading collapses its own group, so a long portfolio can be read a register at a time.
-    const groupJs = (id) => `var b=document.getElementById('${id}');var c=this.querySelector('.material-symbols-outlined');var on=b.style.display!=='none';b.style.display=on?'none':'flex';c.textContent=on?'chevron_right':'keyboard_arrow_down'`;
-    const register = (label, list, key, ils) => !list.length ? '' : `<div style="display:flex;flex-direction:column;gap:10px">
-        ${split ? `<div onclick="${groupJs('ftgrp-'+key)}" style="display:flex;align-items:center;gap:6px;cursor:pointer">
-          <span class="material-symbols-outlined" style="font-size:20px;color:var(--rmx-text, #666666)">keyboard_arrow_down</span>
-          <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${label} (${list.length})</span>
-        </div>` : ''}
-        <div id="ftgrp-${key}" style="display:flex;flex-direction:column;gap:10px">
-          ${tilesFor(list, ils)}
-          <div style="overflow-x:auto"><div style="min-width:1240px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${headerFor(ils)}${list.map((r, i) => rowHTML(r, i, key, ils)).join('')}</div></div>
+
+    const stepOf = (r) => this.ftStatus(r.name).step || 1;
+    const step1 = rows.filter(r => stepOf(r) === 1);
+    const step2 = rows.filter(r => stepOf(r) === 2);
+    const btn = (act, arg, label, show) => !show ? '' : `<button data-act="${act}" data-arg="${arg}" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">${label}</button>`;
+    const register = (n, title, sub, list, key, step, button) => !list.length ? '' : `<div style="display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+          <span style="font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">Step ${n}: ${title} (${list.length})</span>
+          <span style="font-size:14px;color:var(--rmx-text, #666666)">${sub}</span>
+          <div style="flex:1"></div>${button}
         </div>
+        <div style="overflow-x:auto"><div style="min-width:${step === 2 ? 1240 : 900}px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${headerFor(step)}${list.map((r, i) => rowHTML(r, i, key, step)).join('')}</div></div>
       </div>`;
 
-    return `<div style="padding:16px 24px 24px;display:flex;flex-direction:column;gap:16px">
+    return `<div style="padding:16px 24px 24px;display:flex;flex-direction:column;gap:20px">
       ${toolbar}
-      ${split
-        ? register('Enabled for Online Listings', listed, 'a', true) + register('Not Enabled for Online Listings', unlisted, 'b', false)
-        : listed.length
-          ? register('', listed, 'a', true)
-          : register('', unlisted, 'b', false)}
+      ${register(1, 'Centralize Charges', 'Every charge consolidated onto a charges tab on the property.', step1, 'a', 1,
+        btn('ftSelOpen', 'setup', 'Bulk Centralize Charges', this.bulkSetupCandidates().length))}
+      ${register(2, 'Set Up Fee Transparency', 'Add information on your charges and convert each property to display complete pricing for fee transparency.', step2, 'b', 2,
+        btn('ftSelOpen', 'pub', 'Bulk Convert to Fee Transparency', pubProps.length))}
       <div style="display:flex;justify-content:flex-end"><span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">${rows.length} of ${all.length} Properties</span></div>
     </div>`;
 
@@ -2326,7 +2302,7 @@ class Component extends DCLogic {
       </div>
     </div>`;
   }
-  // ---------- Publish Complete Pricing confirmation (mock 2699-105683) ----------
+  // ---------- Convert to Fee Transparency confirmation (mock 2699-105683) ----------
   pubModalHTML(){
     const m = this.state.pubModal;
     if (!m) return '';
@@ -2343,7 +2319,7 @@ class Component extends DCLogic {
     return `<div data-act="pubCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:152">
       <div data-act="noop" style="width:640px;max-width:94vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
-          <span style="font-size:20px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Publish Complete Pricing</span>
+          <span style="font-size:20px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Convert to Fee Transparency</span>
           <div style="flex:1"></div>
           <span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">help</span>
           <span data-act="pubCancel" class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">close</span>
@@ -6042,7 +6018,7 @@ class Component extends DCLogic {
                 <a data-act="openFeeProfile" data-arg="${prop2}" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Add Charge Details</a>
               </div>`
             : `<div style="display:flex;align-items:center;gap:18px">
-                <button data-act="pubOpen" data-arg="${prop2}" class="btn-pri" style="height:36px;min-height:36px;padding:0 18px;border-radius:4px;font-size:14px;white-space:nowrap">Publish Complete Pricing</button>
+                <button data-act="pubOpen" data-arg="${prop2}" class="btn-pri" style="height:36px;min-height:36px;padding:0 18px;border-radius:4px;font-size:14px;white-space:nowrap">Convert to Fee Transparency</button>
                 <a data-act="announceOpen" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Learn More</a>
               </div>`; })() : '');
     const prefs = `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;background:#fff">
@@ -6149,7 +6125,7 @@ class Component extends DCLogic {
       out += `<div style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column">${this.listingsBody()}</div>`;
     } else if (s.view === 'feetrans') {
       out += `<div style="height:40px;background:var(--ac,var(--rmx-brand, #008dd5));display:flex;align-items:center;padding:0 16px;gap:12px;color:#fff;flex:none">
-        <span style="font-size:18px;line-height:24px">Fee Transparency</span>
+        <span style="font-size:18px;line-height:24px">Pricing Setup</span>
         <div style="flex:1"></div>
         <span data-act="navListings" style="display:inline-flex;align-items:center;gap:6px;font-size:14px;cursor:pointer;opacity:0.95;margin-right:4px">Listings<span class="material-symbols-outlined" style="font-size:18px">arrow_right_alt</span></span>
         <span data-act="toast" data-arg="Print" class="material-symbols-outlined" style="font-size:18px;opacity:0.85;cursor:pointer">print</span>
