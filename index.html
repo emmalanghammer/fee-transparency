@@ -814,11 +814,25 @@ class Component extends DCLogic {
         const hit = this.rqAmountSources().filter(r => r.id === f.pick)[0]; if (!hit) break;
         const val = (hit.amount || 0).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
         this.setState(s => ({ amtSel: null, rq: Object.assign({}, s.rq, { rent: val }) })); break; }
-      case 'unitSelOpen': this.rqCapture(); this.setState(s => ({ unitSel: { pick: (s.rq && s.rq.unit) || '', vacantOnly: true } })); break;
+      case 'unitSelOpen': this.rqCapture(); this.setState(s => ({ unitSel: { kind:'unit', pick: (s.rq && s.rq.unit) || '', vacantOnly: true } })); break;
+      case 'oriSelOpen': { this.rqCapture(); const i = parseInt(arg, 10);
+        this.setState(s => ({ unitSel: { kind:'ori', ori:i, pick: ((s.rq && s.rq.oris[i]) || {}).unit || '', vacantOnly: true } })); break; }
       case 'unitSelClose': this.setState({ unitSel: null }); break;
       case 'unitSelVacant': this.setState(s => ({ unitSel: Object.assign({}, s.unitSel, { vacantOnly: !(s.unitSel.vacantOnly !== false) }) })); break;
       case 'unitSelPick': this.setState(s => ({ unitSel: Object.assign({}, s.unitSel, { pick: arg }) })); break;
-      case 'unitSelOk': { const pick = this.state.unitSel && this.state.unitSel.pick; if (!pick) break;
+      case 'unitSelOk': { const f = this.state.unitSel; const pick = f && f.pick; if (!pick) break;
+        if (f.kind === 'ori') {
+          // The item settles its charge type, the same as picking it from the card's own list.
+          this.setState(s => { const q = Object.assign({}, s.rq);
+            q.oris = q.oris.slice();
+            const o = Object.assign({}, q.oris[f.ori] || {});
+            o.unit = pick;
+            const t = this.oriTypeOfUnit(o.prop, pick);
+            if (t) o.ctype = t;
+            q.oris[f.ori] = o;
+            return { unitSel: null, rq: q }; });
+          break;
+        }
         this.setState(s => ({ unitSel: null, rq: Object.assign({}, s.rq, { unit: pick }) })); break; }
       case 'rqOpen': this.setState({ rq: this.rqBlank() }); break;
       case 'rqClose': this.setState({ rq: null }); break;
@@ -3768,8 +3782,22 @@ class Component extends DCLogic {
   }
   // Unit Selector — the lookup behind the unit field's building button. Rent Manager picks a unit from
   // a list of what the property has, not a dropdown, so vacancy and who is moving out are visible.
+  oriTypeName(code){
+    const names = { COVPARK:'Covered Parking', GARAGE:'Garage', PARK:'Parking', SF:'Storage', STORAGE:'Storage', EVCHG:'EV Charging' };
+    return names[code] || code;
+  }
   unitSelRows(){
-    const vacantOnly = !(this.state.unitSel && this.state.unitSel.vacantOnly === false);
+    const f = this.state.unitSel || {};
+    const vacantOnly = f.vacantOnly !== false;
+    // Rentable items list what the property actually rents out, with the item's own kind as its type.
+    if (f.kind === 'ori') {
+      const q = this.state.rq || {};
+      const o = (q.oris || [])[f.ori] || {};
+      const prop = o.prop || '';
+      if (!prop) return [];
+      return this.oriUnitsFor(prop).map(u => ({ unit:u, status:'Vacant', out:'', next:'',
+        type:this.oriTypeName(this.oriTypeOfUnit(prop, u)) }));
+    }
     return this.units().filter(u => !vacantOnly || /vacant/i.test(u.tenant)).map(u => ({
       unit: u.u,
       status: /vacant/i.test(u.tenant) ? 'Vacant' : (/notice/i.test(u.tenant) ? 'On Notice' : 'Occupied'),
@@ -3781,6 +3809,9 @@ class Component extends DCLogic {
   unitSelHTML(){
     const f = this.state.unitSel; if (!f) return '';
     const q = this.state.rq || {};
+    const isOri = f.kind === 'ori';
+    const oriRow = isOri ? ((q.oris || [])[f.ori] || {}) : null;
+    const propShown = isOri ? (oriRow.prop || '') : (q.prop || this.state.property);
     const rows = this.unitSelRows();
     const cols = 'minmax(90px,1fr) minmax(110px,1fr) minmax(130px,1.2fr) minmax(130px,1.2fr) minmax(110px,1fr)';
     const hc = (t) => `<span style="display:flex;align-items:center;min-height:30px;padding:5px 12px;font-size:14px;font-weight:600;color:#fff;white-space:nowrap">${t}</span>`;
@@ -3799,7 +3830,7 @@ class Component extends DCLogic {
     return `<div data-act="unitSelClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:170">
       <div data-act="noop" style="width:860px;max-width:96vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
-          <span style="font-size:20px;color:var(--rmx-brand-dark, #13314c)">Unit Selector</span>
+          <span style="font-size:20px;color:var(--rmx-brand-dark, #13314c)">${isOri ? 'ORI Unit Selector' : 'Unit Selector'}</span>
           <span style="display:inline-flex;align-items:center;gap:12px">
             <span data-act="toast" data-arg="Help" class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">help</span>
             <span data-act="unitSelClose" class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">close</span>
@@ -3808,7 +3839,7 @@ class Component extends DCLogic {
         <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px">
           <div style="display:flex;gap:20px;align-items:flex-end;flex-wrap:wrap">
             <div style="flex:1;min-width:240px;display:flex;flex-direction:column;gap:4px">${lab('Property')}
-              <div style="display:flex;align-items:center;gap:6px;${fld}"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,var(--rmx-brand, #008dd5));flex:none">search</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${q.prop || this.state.property}</span></div>
+              <div style="display:flex;align-items:center;gap:6px;${fld}"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,var(--rmx-brand, #008dd5));flex:none">search</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${propShown}</span></div>
             </div>
             <div style="flex:1.4;min-width:280px;display:flex;flex-direction:column;gap:4px">${lab('Vacancy Based On Date')}
               <div style="display:flex;align-items:center;gap:8px">${dateBox(q.quoted || '', 'From')}${dateBox('', 'To')}
@@ -3819,7 +3850,7 @@ class Component extends DCLogic {
           <label style="display:inline-flex;align-items:center;gap:9px;align-self:flex-start;cursor:pointer"><input type="checkbox" data-act="unitSelVacant" ${f.vacantOnly === false ? '' : 'checked'} style="accent-color:var(--rmx-attention, #f58220);width:17px;height:17px;margin:0"><span style="font-size:14px;color:var(--rmx-text, #666666)">Show Vacant Units Only</span></label>
           <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
             <div style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">${hc('Unit')}${hc('Status')}${hc('Next Move Out')}${hc('Next Occupant')}${hc('Unit Type')}</div>
-            ${rows.length ? rows.map(rowHTML).join('') : `<div style="padding:14px 12px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No units match this filter.</div>`}
+            ${rows.length ? rows.map(rowHTML).join('') : `<div style="padding:14px 12px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">${isOri && !propShown ? 'Choose the property on the card first.' : 'No units match this filter.'}</div>`}
           </div>
         </div>
         <div style="display:flex;align-items:center;justify-content:flex-end;gap:12px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:12px 16px;flex:none">
@@ -3971,7 +4002,7 @@ class Component extends DCLogic {
     </div>`;
     // A lookup button sits inside its field's column, so the row still ends flush with the card.
     const withBtn = (field, btn) => `<div style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0">${field}</div>${btn}</div>`;
-    const oriBtn = unitBtn.replace('data-act="unitSelOpen"', 'data-act="toast" data-arg="Item lookup"');
+    const oriBtn = (i) => unitBtn.replace('data-act="unitSelOpen"', `data-act="oriSelOpen" data-arg="${i}"`);
     const unitRow = (propField, unitLabel, unitField, btn) => pairRow(propField, unitLabel + withBtn(unitField, btn || unitBtn));
     const card = (inner) => `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:12px">${inner}</div>`;
     const head = (t) => `<span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span>`;
@@ -4001,7 +4032,7 @@ class Component extends DCLogic {
 
     const primary = card(
       unitRow(lab('Property', true) + search('rq-prop', q.prop),
-        lab('Unit', true), `<input type="hidden" id="rq-unit" value="${esc(q.unit)}"><div style="display:flex;align-items:center;gap:6px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:36px;box-sizing:border-box;padding:0 10px"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,var(--rmx-brand, #008dd5));flex:none">search</span><span style="flex:1;min-width:0;font-size:14px;${q.unit?'color:var(--rmx-brand-dark, #13314c)':'font-style:italic;color:var(--rmx-text-muted, #b3b3b3)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${q.unit || 'Select a unit'}</span></div>`)
+        lab('Unit', true), `<input type="hidden" id="rq-unit" value="${esc(q.unit)}"><div style="display:flex;align-items:center;gap:6px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:36px;box-sizing:border-box;padding:0 10px"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,var(--rmx-brand, #008dd5));flex:none">search</span><span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${q.unit || '&nbsp;'}</span></div>`)
       + pairRow(lab('Date Quoted', true) + dated('rq-quoted', q.quoted), lab('Expiration') + dated('rq-exp', q.exp))
       + pairRow(lab('Move In') + muted('rq-moveIn', q.moveIn),
         lab('Lease Term') + this.singleSelect('rq-term', terms, q.term, { noSearch:true, placeholder:'\u00a0', blank:true }))
@@ -4011,11 +4042,11 @@ class Component extends DCLogic {
 
     const oriCard = (o, i) => card(
       `<div style="display:flex;align-items:center"><div style="flex:1"></div><span data-act="rqRmOri" data-arg="${i}" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Remove</span></div>`
-      + unitRow(lab('Property', true) + this.singleSelect(`rq-ori-prop-${i}`, oriProps, o.prop, { placeholder:'Select a property', js:`if(window.__rqOriProp)window.__rqOriProp(${i},_v)` }),
+      + unitRow(lab('Property', true) + this.singleSelect(`rq-ori-prop-${i}`, oriProps, o.prop, { placeholder:'\u00a0', js:`if(window.__rqOriProp)window.__rqOriProp(${i},_v)` }),
         lab('Unit', true), this.singleSelect(`rq-ori-unit-${i}`, o.prop ? this.oriUnitsFor(o.prop) : [], o.unit,
-          { placeholder: o.prop ? 'Select a unit' : 'Select a property first', js:`if(window.__rqOriUnit)window.__rqOriUnit(${i},_v)` }), oriBtn)
+          { placeholder:'\u00a0', js:`if(window.__rqOriUnit)window.__rqOriUnit(${i},_v)` }), oriBtn(i))
       + pairRow(lab('Charge Type', true) + this.singleSelect(`rq-ori-ctype-${i}`, o.prop ? this.oriTypesFor(o.prop) : [], o.ctype,
-          { noSearch:true, placeholder: o.prop ? 'Select a charge type' : 'Select a property first' }),
+          { noSearch:true, placeholder:'\u00a0' }),
         lab('Amount', true) + withBtn(wrap(bare(`rq-ori-amount-${i}`, o.amount)), oriAmtBtn)));
 
     return `<div style="display:flex;flex-direction:column;gap:14px">
