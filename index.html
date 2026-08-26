@@ -3721,12 +3721,14 @@ class Component extends DCLogic {
     const rows = this.unitSelRows();
     const cols = 'minmax(90px,1fr) minmax(110px,1fr) minmax(130px,1.2fr) minmax(130px,1.2fr) minmax(110px,1fr)';
     const hc = (t) => `<span style="display:flex;align-items:center;min-height:30px;padding:5px 12px;font-size:14px;font-weight:600;color:#fff;white-space:nowrap">${t}</span>`;
-    const cellS = (t) => `<span style="display:flex;align-items:center;min-height:36px;padding:5px 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>`;
+    const cellS = (t, on) => `<span style="display:flex;align-items:center;min-height:36px;padding:5px 12px;font-size:14px;color:${on ? '#fff' : 'var(--rmx-brand-dark, #13314c)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>`;
+    // The selected row fills with brand blue and its text turns white, the way Rent Manager marks a
+    // chosen row in a selector.
     const rowHTML = (r, i) => {
       const on = f.pick === r.unit;
-      const bg = on ? 'var(--rmx-brand-tint-bg, #ebf1f5)' : (i % 2 ? 'var(--rmx-bg-subtle, #f5f8fa)' : '#fff');
+      const bg = on ? 'var(--ac,var(--rmx-brand, #008dd5))' : (i % 2 ? 'var(--rmx-bg-subtle, #f5f8fa)' : '#fff');
       return `<div data-act="unitSelPick" data-arg="${r.unit}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:${bg};cursor:pointer">
-        ${cellS(r.unit)}${cellS(r.status)}${cellS(r.out)}${cellS(r.next)}${cellS(r.type)}</div>`;
+        ${cellS(r.unit, on)}${cellS(r.status, on)}${cellS(r.out, on)}${cellS(r.next, on)}${cellS(r.type, on)}</div>`;
     };
     const fld = 'height:36px;box-sizing:border-box;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:0 10px;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);outline:none';
     const lab = (t) => `<span style="font-size:14px;color:var(--rmx-text, #666666)">${t}</span>`;
