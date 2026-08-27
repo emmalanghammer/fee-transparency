@@ -1966,13 +1966,19 @@ class Component extends DCLogic {
     </div>`;
 
     // ---- register ----
-    const cols = '250fr 120fr 140fr 190fr 130fr 180fr 165fr 155fr 215px 38px';
-    const hc = (t, first) => `<span style="display:flex;align-items:center;gap:8px;height:26px;box-sizing:border-box;padding:0 0 0 ${first?'17px':'12px'};font-size:14px;font-weight:600;color:#fff;white-space:nowrap;${first?'':'border-left:1px solid rgba(255,255,255,0.35)'}">${t}</span>`;
+    // Every column stays in view — the tracks share the page width rather than forcing a scroll, and
+    // a header label wraps instead of truncating. Grouping by status drops the Status column, since
+    // the section above the table already says it.
+    const grouped = !!this.state.ftGroup;
+    const cols = grouped
+      ? 'minmax(140px,215fr) minmax(78px,105fr) minmax(96px,125fr) minmax(72px,110fr) minmax(90px,140fr) minmax(88px,135fr) minmax(84px,130fr) minmax(140px,180fr) 38px'
+      : 'minmax(140px,215fr) minmax(78px,105fr) minmax(96px,125fr) minmax(126px,150fr) minmax(72px,110fr) minmax(90px,140fr) minmax(88px,135fr) minmax(84px,130fr) minmax(140px,180fr) 38px';
+    const hc = (t, first) => `<span style="display:flex;align-items:center;min-height:30px;box-sizing:border-box;padding:6px 10px 6px ${first?'16px':'10px'};font-size:14px;font-weight:600;color:#fff;line-height:1.25">${t}</span>`;
     const header = `<div style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">
-      ${hc('Property', true)}${hc('Centralized')}${hc('Fee Transparent')}${hc('Status')}${hc('Total Charges')}${hc('Listing Ready Charges')}${hc('Incomplete Charges')}${hc('Excluded Charges')}${hc('Next Step')}
-      <span style="display:flex;align-items:center;justify-content:center;height:26px;border-left:1px solid rgba(255,255,255,0.35)"><span class="material-symbols-outlined" style="font-size:18px;color:#fff">view_column</span></span>
+      ${hc('Property', true)}${hc('Centralized')}${hc('Fee Transparent')}${grouped ? '' : hc('Status')}${hc('Total Charges')}${hc('Listing Ready Charges')}${hc('Incomplete Charges')}${hc('Excluded Charges')}${hc('Next Step')}
+      <span style="display:flex;align-items:center;justify-content:center"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,var(--rmx-brand, #008dd5))">view_column</span></span>
     </div>`;
-    const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
+    const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:39px;box-sizing:border-box;padding:0 10px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
     const na = cell('<span style="font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">N/A</span>');
     const tick = `<span class="material-symbols-outlined" style="font-size:18px;color:var(--rmx-success, #6eb744);font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">check_circle</span>`;
     const mitem = (t, act, arg) => `<div data-act="${act}" data-arg="${esc(arg)}" style="padding:8px 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">${t}</div>`;
@@ -2002,29 +2008,29 @@ class Component extends DCLogic {
       const incTrigger = `<span style="display:inline-flex;align-items:center;gap:7px;font-size:14px;color:${incNum};cursor:default">${ch.incomplete}${st.key === 'attention' ? incWarn : ''}</span>`;
       const incHover = this.infoTip(incTipHTML(r.name), 324, { pad:'16px', shadow:'0 3px 3px rgba(0,0,0,0.1)', trigger:incTrigger });
       const incCell = dash ? cell('-') : naCounts ? na
-        : (ch.incomplete ? `<span style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px;white-space:nowrap">${incHover}</span>` : cell('0'));
+        : (ch.incomplete ? `<span style="display:flex;align-items:center;min-height:39px;box-sizing:border-box;padding:0 10px;white-space:nowrap">${incHover}</span>` : cell('0'));
       const menuId = `ft${key}${i}-pnl`;
       const items = (!st.centralized ? mitem('Centralize Charges','setupOpen',r.name) : mitem('View Charges','openFeeProfile',r.name)
         + (st.key === 'ready' ? mitem('Convert to Fee Transparency','pubOpen',r.name) : '')
         + (st.ft === 'na' && !this.ilsOn(r.name) ? mitem('Enable for Online Listings','ilsEnable',r.name) : ''));
       const menuPos = `event.stopPropagation();var t=document.getElementById('${menuId}');if(t.style.display==='block'){t.style.display='none';}else{t.style.display='block';var r=this.getBoundingClientRect();var w=t.offsetWidth,h=t.offsetHeight;var l=r.right-w;if(l<8)l=8;var y=r.bottom+4;if(y+h>window.innerHeight-8)y=r.top-h-4;t.style.left=l+'px';t.style.top=y+'px';}`;
       return `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff">
-        <a data-act="openFeeProfile" data-arg="${esc(r.name)}" style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px 0 17px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer">${r.name}</a>
+        <a data-act="openFeeProfile" data-arg="${esc(r.name)}" style="display:flex;align-items:center;min-height:39px;box-sizing:border-box;padding:0 10px 0 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer">${r.name}</a>
         ${cell(st.centralized ? tick : '', 'justify-content:center')}
         ${st.ft === 'na' ? na : cell(st.ft ? tick : '', 'justify-content:center')}
-        <span style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px"><span class="loz" style="${lozStyle[st.loz]};text-transform:none;letter-spacing:0">${st.status}</span></span>
+        ${grouped ? '' : `<span style="display:flex;align-items:center;min-height:39px;box-sizing:border-box;padding:0 10px"><span class="loz" style="${lozStyle[st.loz]};text-transform:none;letter-spacing:0;white-space:nowrap">${st.status}</span></span>`}
         ${dash ? cell('-') : cell(String(ch.total))}
         ${num(ch.ready)}${incCell}${num(ch.excluded)}
         ${st.next
-          ? `<a data-act="${st.act}" data-arg="${esc(r.name)}" style="display:flex;align-items:center;min-height:35px;padding:0 12px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis">${st.next}</a>`
+          ? `<a data-act="${st.act}" data-arg="${esc(r.name)}" style="display:flex;align-items:center;min-height:39px;padding:0 10px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis">${st.next}</a>`
           : cell('<span style="font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No action needed</span>')}
-        <span style="position:relative;display:flex;align-items:center;justify-content:center;min-height:35px">
+        <span style="position:relative;display:flex;align-items:center;justify-content:center;min-height:39px">
           <span onclick="${menuPos}" style="display:flex;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5))">more_vert</span></span>
           <div id="${menuId}" style="display:none;position:fixed;z-index:1200;min-width:230px;background:#fff;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);padding:4px 0" onclick="this.style.display='none'">${items}</div>
         </span>
       </div>`;
     };
-    const table = (list, key) => `<div style="overflow-x:auto"><div style="min-width:1560px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${header}${list.map((r, i) => rowHTML(r, i, key)).join('')}</div></div>`;
+    const table = (list, key) => `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${header}${list.map((r, i) => rowHTML(r, i, key)).join('')}</div>`;
 
     // ---- grouped by status: a section per status, spine coloured to match its lozenge ----
     const spine = { none:'var(--rmx-ink-2, #424e5b)', short:'var(--rmx-attention, #f58220)',
