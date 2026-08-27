@@ -1973,8 +1973,9 @@ class Component extends DCLogic {
     const cols = grouped
       ? 'minmax(140px,215fr) minmax(78px,105fr) minmax(96px,125fr) minmax(72px,110fr) minmax(90px,140fr) minmax(88px,135fr) minmax(84px,130fr) minmax(140px,180fr) 38px'
       : 'minmax(140px,215fr) minmax(78px,105fr) minmax(96px,125fr) minmax(126px,150fr) minmax(72px,110fr) minmax(90px,140fr) minmax(88px,135fr) minmax(84px,130fr) minmax(140px,180fr) 38px';
-    const hc = (t, first) => `<span style="display:flex;align-items:center;min-height:30px;box-sizing:border-box;padding:6px 10px 6px ${first?'16px':'10px'};font-size:14px;font-weight:600;color:#fff;line-height:1.25">${t}</span>`;
-    const header = `<div style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">
+    const resizer = `<span style="position:absolute;top:3.5px;bottom:3.5px;right:0;width:1px;background:var(--rmx-line, #cedbe7)"></span>`;
+    const hc = (t, first) => `<span style="position:relative;display:flex;align-items:center;min-height:30px;box-sizing:border-box;padding:4px 8px 4px ${first?'16px':'8px'};font:500 12.6px Roboto,sans-serif;letter-spacing:1.134px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}${resizer}</span>`;
+    const header = `<div style="display:grid;grid-template-columns:${cols};background:#fff;border-top:1px solid var(--rmx-line, #cedbe7);border-bottom:1px solid var(--rmx-line, #cedbe7)">
       ${hc('Property', true)}${hc('Centralized')}${hc('Fee Transparent')}${grouped ? '' : hc('Status')}${hc('Total Charges')}${hc('Listing Ready Charges')}${hc('Incomplete Charges')}${hc('Excluded Charges')}${hc('Next Step')}
       <span style="display:flex;align-items:center;justify-content:center"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,var(--rmx-brand, #008dd5))">view_column</span></span>
     </div>`;
@@ -2362,7 +2363,7 @@ class Component extends DCLogic {
           </div>
           <div style="height:1px;background:var(--rmx-line, #cedbe7)"></div>
           <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer">
-            <input type="checkbox" data-act="pubAck" ${m.ack?'checked':''} style="accent-color:var(--ac,var(--rmx-brand, #008dd5));width:16px;height:16px;margin:2px 0 0;flex:none">
+            <input type="checkbox" data-act="pubAck" ${m.ack?'checked':''} style="accent-color:var(--rmx-attention, #f58220);width:16px;height:16px;margin:2px 0 0;flex:none">
             <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">I understand this permanently changes how pricing displays on ${single ? prop + ' listings' : "the selected properties' listings"}.</span>
           </label>
         </div>
@@ -2503,7 +2504,7 @@ class Component extends DCLogic {
         </span>
       </div>
       <label style="display:inline-flex;align-items:center;gap:9px;height:34px;cursor:pointer">
-        <input type="checkbox" data-act="ltErrToggle" ${this.state.ltErrOnly?'checked':''} style="accent-color:var(--ac,var(--rmx-brand, #008dd5));width:16px;height:16px;margin:0">
+        <input type="checkbox" data-act="ltErrToggle" ${this.state.ltErrOnly?'checked':''} style="accent-color:var(--rmx-attention, #f58220);width:16px;height:16px;margin:0">
         <span style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))">Hide listings without errors</span>
       </label>
       <div style="flex:1"></div>
@@ -2638,7 +2639,7 @@ class Component extends DCLogic {
         ${chargeTable([['RC','Flat Amount']])}
         ${addLink('Add Recurring Charge')}
         <label style="display:flex;align-items:flex-start;gap:14px;cursor:pointer;max-width:790px">
-          <input type="checkbox" id="sp-auto-one" onchange="var d=document.getElementById('sp-postday-wrap');var u=document.getElementById('sp-userent');d.style.opacity=this.checked?'1':'0.55';u.style.color=this.checked?'var(--rmx-ink-2, #424e5b)':'var(--rmx-text-muted, #b3b3b3)';u.firstElementChild.disabled=!this.checked" style="accent-color:var(--ac,var(--rmx-brand, #008dd5));width:19px;height:19px;margin:2px 0 0;flex:none">
+          <input type="checkbox" id="sp-auto-one" onchange="var d=document.getElementById('sp-postday-wrap');var u=document.getElementById('sp-userent');d.style.opacity=this.checked?'1':'0.55';u.style.color=this.checked?'var(--rmx-ink-2, #424e5b)':'var(--rmx-text-muted, #b3b3b3)';u.firstElementChild.disabled=!this.checked" style="accent-color:var(--rmx-attention, #f58220);width:19px;height:19px;margin:2px 0 0;flex:none">
           <span style="font-size:16px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">If the recurring charges for next month have already been posted, automatically create one-time charges.</span>
         </label>
         <div id="sp-postday-wrap" style="display:flex;flex-direction:column;gap:16px;padding-left:33px;max-width:757px;opacity:0.55">
@@ -2712,7 +2713,7 @@ class Component extends DCLogic {
       <div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
         ${searchBox}${savedFilters}
         <span data-act="toast" data-arg="Filters" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;box-sizing:border-box;background:var(--ac,var(--rmx-brand, #008dd5));border-radius:2px;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:#fff">filter_alt</span></span>
-        <label style="display:inline-flex;align-items:center;gap:9px;height:36px;cursor:pointer;white-space:nowrap"><input type="checkbox" data-act="ctInactiveToggle" ${this.state.ctShowInactive?'checked':''} style="accent-color:var(--ac,var(--rmx-brand, #008dd5));width:16px;height:16px;margin:0"><span style="font-size:14px;color:var(--rmx-text, #666666)">Show Inactive</span></label>
+        <label style="display:inline-flex;align-items:center;gap:9px;height:36px;cursor:pointer;white-space:nowrap"><input type="checkbox" data-act="ctInactiveToggle" ${this.state.ctShowInactive?'checked':''} style="accent-color:var(--rmx-attention, #f58220);width:16px;height:16px;margin:0"><span style="font-size:14px;color:var(--rmx-text, #666666)">Show Inactive</span></label>
         <div style="flex:1"></div>
         <button data-act="ctAddOpen" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap"><span class="material-symbols-outlined" style="font-size:18px">add_circle</span>Add Charge Type</button>
         <button data-act="toast" data-arg="Merge charge types" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap"><span class="material-symbols-outlined" style="font-size:18px">merge</span>Merge</button>
@@ -4916,7 +4917,7 @@ class Component extends DCLogic {
     const lab = (t, menu) => `<span style="display:flex;align-items:center;font-size:14px;color:#5a6773">${t}${menu?`<div style="flex:1"></div><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">menu</span>`:''}</span>`;
     const inp = (id, val, ph, icon) => `<div style="display:flex;align-items:center;gap:6px;height:34px;box-sizing:border-box;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:0 8px">${icon?`<span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,var(--rmx-brand, #008dd5));flex:none">${icon}</span>`:''}<input id="${id}" value="${(val||'').replace(/"/g,'&quot;')}" placeholder="${ph||''}" style="flex:1;min-width:0;border:none;outline:none;background:transparent;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)"></div>`;
     const dateInp = (id, val) => `<div style="flex:1;min-width:0;display:flex;align-items:center;gap:4px;height:34px;box-sizing:border-box;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:0 6px"><input id="${id}" value="${val||''}" placeholder="mm/dd/yyyy" style="flex:1;min-width:0;border:none;outline:none;background:transparent;font:400 13px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)"><span class="material-symbols-outlined" style="font-size:16px;color:#5a6773;flex:none">calendar_month</span></div>`;
-    const cb = (id, label, on) => `<label style="display:inline-flex;align-items:center;gap:7px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><input type="checkbox" id="${id}" ${on?'checked':''} style="width:16px;height:16px;margin:0;accent-color:var(--ac,var(--rmx-brand, #008dd5))">${label}</label>`;
+    const cb = (id, label, on) => `<label style="display:inline-flex;align-items:center;gap:7px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><input type="checkbox" id="${id}" ${on?'checked':''} style="width:16px;height:16px;margin:0;accent-color:var(--rmx-attention, #f58220)">${label}</label>`;
     const field = (label, inner, menu) => `<div style="display:flex;flex-direction:column;gap:4px">${lab(label, menu)}${inner}</div>`;
     return `<div data-act="pfFilterClose" style="position:fixed;inset:0;z-index:150"></div>
       <div data-act="noop" style="position:fixed;left:${left}px;top:${top}px;width:${W}px;max-height:${maxH}px;background:var(--rmx-brand-tint-bg, #ebf1f5);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 8px 24px rgba(0,0,0,0.2);z-index:151;display:flex;flex-direction:column;overflow:hidden">
@@ -6120,7 +6121,7 @@ class Component extends DCLogic {
         </div>`;
     const listing = card('Listing Details', `
       ${ftCallout}
-      <label style="display:inline-flex;align-items:center;gap:9px;cursor:pointer"><input type="checkbox" style="accent-color:var(--ac,var(--rmx-brand, #008dd5));width:15px;height:15px;margin:0"><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Exclude Unit-specific information</span></label>
+      <label style="display:inline-flex;align-items:center;gap:9px;cursor:pointer"><input type="checkbox" style="accent-color:var(--rmx-attention, #f58220);width:15px;height:15px;margin:0"><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Exclude Unit-specific information</span></label>
       ${field('Lease Terms', { t:'' })}
       <div style="display:flex;flex-direction:column;gap:4px">${lab('Property Images')}<div style="display:flex;gap:10px;align-items:center"><div style="flex:1;min-width:0">${ddPh({ t:'Property Image' })}</div>${preview}</div></div>
       <div style="display:flex;flex-direction:column;gap:4px">${lab('Unit Images')}<div style="display:flex;gap:10px;align-items:center"><div style="flex:1;min-width:0">${ddPh({ t:'' })}</div>${preview}</div></div>
@@ -6231,7 +6232,7 @@ class Component extends DCLogic {
       <div style="padding:18px 20px 20px;display:flex;flex-direction:column;gap:12px">
         ${ftNote}
         ${ftNote ? '<div style="height:1px;background:var(--rmx-line, #cedbe7);margin:4px 0"></div>' : ''}
-        <label style="display:inline-flex;align-items:center;gap:10px;cursor:pointer"><input type="checkbox" style="accent-color:var(--ac,var(--rmx-brand, #008dd5));width:16px;height:16px;margin:0"><span style="font-size:14px;color:var(--rmx-ink-2, #424e5b)">Override System Preferences</span></label>
+        <label style="display:inline-flex;align-items:center;gap:10px;cursor:pointer"><input type="checkbox" style="accent-color:var(--rmx-attention, #f58220);width:16px;height:16px;margin:0"><span style="font-size:14px;color:var(--rmx-ink-2, #424e5b)">Override System Preferences</span></label>
         <label style="display:inline-flex;align-items:center;gap:10px;padding-left:28px;cursor:default"><input type="checkbox" disabled style="width:16px;height:16px;margin:0"><span style="font-size:14px;color:var(--rmx-text-muted, #b3b3b3)">Enable Online Listings</span></label>
         <span style="font-size:14px;color:var(--rmx-error, #eb343c);padding-left:28px">ILS Providers may require a paid account before your listings can be posted.</span>
         <div style="height:38px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;margin-left:28px"></div>
