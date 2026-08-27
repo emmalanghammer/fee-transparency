@@ -181,7 +181,7 @@ class Component extends DCLogic {
     // any renamed headers, colSetup opens the Customize Column Setup dialog.
     chgCols: null, colNames: {}, colSetup: false,
     ftFilter: 'all', // tracker Status filter: all | ready | needs | none | done
-    ftIncOnly: false, // tracker: only properties with incomplete charges
+    ftGroup: false,   // Pricing Setup: group the register by status
     // "Charge Exceptions" overlay: { id }. A charge's own exceptions live on the row as
     // exclFrom:{ types:[], units:[], prop:true }.
     chargeExcl: null,
@@ -916,17 +916,17 @@ class Component extends DCLogic {
       case 'pubOpen': { const st = this.ftStatus(arg);
         // Publishing an incomplete charge set would advertise a price missing required fees, so the
         // charges have to be finished first.
-        if (st.issues) { this.flash(st.issues + ' charge' + (st.issues===1?'':'s') + ' still need details before complete pricing can publish'); break; }
+        if (st.issues) { this.flash(st.issues + ' charge' + (st.issues===1?'':'s') + ' still need details before this property can convert'); break; }
         this.setState({ pubModal: { prop: arg, ack: false } }); break; }
       case 'pubAck': this.setState(s => ({ pubModal: Object.assign({}, s.pubModal, { ack: !s.pubModal.ack }) })); break;
       case 'pubCancel': this.setState({ pubModal: null }); break;
       case 'pubConfirm': { const m = this.state.pubModal; const props = m.props || [m.prop];
         this.setState(s => { const pp = Object.assign({}, s.publishedProps);
           props.forEach(p => { pp[p] = true; }); return { pubModal: null, publishedProps: pp }; });
-        props.forEach(p => this.logChange(p, 'Fee Transparency', 'Complete pricing published to listings', p));
-        this.flash('Complete pricing published for ' + (props.length === 1 ? props[0] : props.length + ' properties')); break; }
+        props.forEach(p => this.logChange(p, 'Fee Transparency', 'Converted to fee transparency', p));
+        this.flash('Converted to fee transparency: ' + (props.length === 1 ? props[0] : props.length + ' properties')); break; }
       case 'ftFilterSet': this.setState({ ftFilter: arg }); break;
-      case 'ftIncToggle': this.setState(s => ({ ftIncOnly: !s.ftIncOnly })); break;
+      case 'ftGroupToggle': this.setState(s => ({ ftGroup: !s.ftGroup })); break;
       case 'navProperty': this.go('property', arg ? { property: arg, propTab: 'General' } : { propTab: 'General' }); break;
       case 'navUnit': this.go('unit', { unit: arg }); break;
       case 'proptab':
@@ -1646,7 +1646,7 @@ class Component extends DCLogic {
             <div style="height:1px;background:var(--rmx-brand-tint-bg, #ebf1f5);margin:4px 0"></div>
             <div data-act="navRegister" style="padding:10px 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">Properties</div>
             <div style="height:1px;background:var(--rmx-brand-tint-bg, #ebf1f5);margin:4px 0"></div>
-            <div data-act="navFeeTrans" style="padding:10px 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">Fee Transparency</div>
+            <div data-act="navFeeTrans" style="padding:10px 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">Pricing Setup</div>
             <div data-act="navListings" style="padding:10px 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">Listings</div>
           </div>
           <span style="display:inline-flex;align-items:center;justify-content:center;width:45px;height:32px;background:var(--rmx-overlay-search, #425a70)"><img src="assets/icon-reports.svg" alt="Reports" style="width:20px;height:20px"></span>
@@ -1819,136 +1819,119 @@ class Component extends DCLogic {
   }
   // One status per property, worded for the register it lands in: properties enabled for online
   // listings run all the way to published, while the rest stop at centralized charges.
+  // Five states, in the order the work happens. Centralizing comes first for every property; only a
+  // property that lists online with fee transparency available goes on to convert, and one that
+  // doesn't is finished as soon as its charges are centralized.
+  ftApplicable(p){ return this.ilsOn(p) && !this.mhOn(p); }
   ftStatus(p){
-    const active = this.profStatus(p) === 'active';
-    const published = !!this.state.publishedProps[p];
-    const ils = this.ilsOn(p);
-    // Only charges that are actually included on listings can hold publishing up.
+    const centralized = this.profStatus(p) === 'active';
+    const converted = !!this.state.publishedProps[p];
+    const applicable = this.ftApplicable(p);
     const short = this.ftCharges(p).incomplete;
-    // Fee Transparency off entirely.
-    if (!active) return { key:'none', step:1, order:4, status:'Not Set Up', loz:'grey',
-      next:'Centralize Charges', act:'setupOpen' };
-    // Manufactured housing advertises on a provider with no complete-pricing feed, so centralizing the
-    // charges finishes the job — there is nothing to publish and no charge details to chase.
-    if (this.mhOn(p)) return { key:'central', step:1, order:6, status:'Centralized', loz:'green' };
-    // On, but the property doesn't advertise — its charges are centralized and that's as far as it goes
-    // until someone enables it for listings.
-    // Centralizing is the whole job here, so the row rests — enabling listings is still on the kebab.
-    if (!ils) return { key:'notEnabled', step:1, order:6, status:'Centralized', loz:'green' };
-    if (short) return published
-      // Published, then a charge lost (or never had) its details — the feed is converted, but that
-      // charge is sitting out of the price until it's finished.
-      // Published, then a charge lost (or never had) its details — it sits out of the price until it's
-      // finished, so the incomplete count is called out in red.
-      ? { key:'pubshort', step:2, order:1, status:'Converted', loz:'green', next:'Add Charge Details', act:'openFeeProfile', issues:short }
-      : { key:'short', step:2, order:2, status:'Charges Incomplete', loz:'amber', next:'Add Charge Details', act:'openFeeProfile', issues:short };
-    return published
-      ? { key:'pub', step:2, order:5, status:'Converted', loz:'green' }
-      : { key:'ready', step:2, order:3, status:'Ready to Convert', loz:'blue', next:'Convert to Fee Transparency', act:'pubOpen' };
+    if (!centralized) return { key:'none', order:1, status:'Not Centralized', loz:'grey',
+      next:'Centralize Charges', act:'setupOpen', centralized:false, ft:applicable ? false : 'na' };
+    if (!applicable) return { key:'complete', order:5, status:'Complete', loz:'green',
+      centralized:true, ft:'na' };
+    if (converted) return short
+      ? { key:'attention', order:4, status:'Needs Attention', loz:'red', next:'Add Charge Details',
+          act:'openFeeProfile', issues:short, centralized:true, ft:true }
+      : { key:'complete', order:5, status:'Complete', loz:'green', centralized:true, ft:true };
+    return short
+      ? { key:'short', order:2, status:'Incomplete Charges', loz:'amber', next:'Add Charge Details',
+          act:'openFeeProfile', issues:short, centralized:true, ft:false }
+      : { key:'ready', order:3, status:'Ready to Convert', loz:'blue',
+          next:'Convert to Fee Transparency', act:'pubOpen', centralized:true, ft:false };
   }
-  // ---------- Status guide: which path a property takes, and what each status means ----------
-  // The listing provider decides how far a property can go, so the guide is organised by provider
-  // rather than by status — that is the question people actually arrive with.
-  ftHelpPaths(){
-    const full = ['Not Set Up','Charges Incomplete','Ready to Convert','Converted'];
-    const central = ['Not Set Up','Centralized'];
-    return {
-      listed: [
-        { name:'Zillow / Apartments.com', flow:full,
-          note:'These providers carry complete pricing, so every charge needs its listing fields before the feed converts.' },
-        { name:'MH Village', flow:central,
-          note:'MH Village does not carry complete pricing. Charges are centralized on the Charges tab and stop there.' },
-        { name:'Both', flow:full,
-          note:'A property feeding both follows the complete pricing path, since Zillow and Apartments.com expect it.' }
-      ],
-      unlisted: { flow:central,
-        note:'Charges still move onto the Charges tab, but nothing publishes. Enable the property for online listings to take it further.' }
-    };
-  }
+  // ---------- How does pricing setup work? (mock 2699-105683) ----------
+  // The page's own explainer: the three steps, what each status means, and what every column counts.
   ftHelpLoz(status){
-    const map = { 'Not Set Up':'grey', 'Charges Incomplete':'amber', 'Ready to Convert':'blue', 'Converted':'green', 'Centralized':'green' };
+    const map = { 'Not Centralized':'grey', 'Incomplete Charges':'amber', 'Ready to Convert':'blue',
+      'Needs Attention':'red', 'Complete':'green' };
     const styles = { green:'background:var(--rmx-success-bg, #e2f1da);color:#2f5d43', amber:'background:#fdf3e3;color:#7a5a2a',
-      blue:'background:var(--rmx-brand-tint-bg, #ebf1f5);color:var(--rmx-brand-hover, #0071aa)', grey:'background:#eceff1;color:var(--rmx-ink-2, #424e5b)' };
+      blue:'background:var(--rmx-brand-tint-bg, #ebf1f5);color:var(--rmx-brand-hover, #0071aa)',
+      grey:'background:#eceff1;color:var(--rmx-ink-2, #424e5b)', red:'background:#fdeaea;color:#a3252c' };
     return `<span class="loz" style="${styles[map[status] || 'grey']};text-transform:none;letter-spacing:0;white-space:nowrap">${status}</span>`;
   }
   ftHelpHTML(){
     if (!this.state.ftHelp) return '';
-    const paths = this.ftHelpPaths();
-    const arrow = `<span class="material-symbols-outlined" style="font-size:18px;color:var(--rmx-text-muted, #b3b3b3);flex:none">arrow_forward</span>`;
-    const flow = (list) => `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${list.map(this.ftHelpLoz, this).join(arrow)}</div>`;
-    const note = (t) => `<span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.5">${t}</span>`;
-    const card = (title, list, n) => `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:12px 14px;display:flex;flex-direction:column;gap:8px">
-      ${title ? `<span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title}</span>` : ''}
-      ${flow(list)}${note(n)}</div>`;
-    const heading = (t, sub) => `<div style="display:flex;flex-direction:column;gap:2px">
-      <span style="font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span>
-      ${sub ? `<span style="font-size:14px;color:var(--rmx-text, #666666)">${sub}</span>` : ''}</div>`;
+    const card = (inner, pad) => `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:${pad||'14px'};display:flex;flex-direction:column;gap:12px">${inner}</div>`;
+    const heading = (t) => `<span style="font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span>`;
+    const body = (t) => `<span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.45">${t}</span>`;
+    const pill = (t) => `<span style="display:inline-flex;align-items:center;height:22px;padding:0 10px;border-radius:11px;background:var(--rmx-brand-tint-bg, #ebf1f5);color:var(--rmx-brand-hover, #0071aa);font-size:12px;white-space:nowrap">${t}</span>`;
+    // Numbered steps, in order, with the one that only applies to online listings marked as such.
+    const step = (n, title, note, tag) => `<div style="display:flex;align-items:flex-start;gap:10px">
+      <span style="flex:none;width:20px;height:20px;border-radius:50%;background:var(--ac,var(--rmx-brand, #008dd5));color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center;margin-top:1px">${n}</span>
+      <span style="display:flex;flex-direction:column;gap:4px;min-width:0">
+        <span style="display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title}</span>${tag ? pill(tag) : ''}</span>
+        ${body(note)}
+      </span></div>`;
+    const steps = card(
+      step(1, 'Centralize Charges', 'Every charge consolidated onto a charges tab on the property.')
+      + step(2, 'Add Charge Details', 'Fill in more details that describe each charge.')
+      + step(3, 'Convert to Fee Transparency', 'Listings show a total monthly price.', 'If you list online &amp; fee transparency is available')
+      + `<div style="display:flex;align-items:center;gap:8px;border-top:1px solid var(--rmx-bg-subtle, #f5f8fa);padding-top:10px">
+          <span class="material-symbols-outlined" style="font-size:18px;color:var(--rmx-success, #6eb744)">check</span>
+          ${body("Not listing online? You're done at step 2.")}
+        </div>`);
 
-    // What each status means, and the one action that moves it along.
-    const legend = [
-      ['Not Set Up', 'Charges are still kept in the old places — recurring charges, deposits and rentable items each on their own screen.', 'Centralize Charges'],
-      ['Charges Incomplete', 'Charges are centralized, but some are missing the fields listings require, so they stay out of the published price.', 'Add Charge Details'],
-      ['Ready to Convert', 'Every charge has its required fields. The property can convert and show complete pricing.', 'Convert to Fee Transparency'],
-      ['Converted', 'The listing feed carries complete pricing. A charge that loses a required field is called out here.', 'Nothing to do'],
-      ['Centralized', 'Every charge is on the Charges tab and nothing publishes — either the property is not listed, or its provider does not carry complete pricing.', 'Nothing to do']
+    const keyRows = [
+      ['Not Centralized', 'Charges still live in various places. Start by centralizing them.'],
+      ['Incomplete Charges', 'Centralized, but some charges are missing details listings need.'],
+      ['Ready to Convert', 'Every charge has what it needs. Convert when you’re ready.'],
+      ['Needs Attention', 'Converted, but charges are missing details, so some fees are not showing on listings right now.'],
+      ['Complete', 'No setup left to do for this property.']
     ];
-    const lcols = '190px minmax(0,1fr) 210px';
-    const lh = (t) => `<span style="display:flex;align-items:center;min-height:28px;padding:5px 12px;font-size:14px;font-weight:600;color:#fff">${t}</span>`;
-    const lc = (t, muted) => `<span style="display:flex;align-items:flex-start;padding:9px 12px;font-size:14px;line-height:1.45;color:${muted?'var(--rmx-text, #666666)':'var(--rmx-brand-dark, #13314c)'}">${t}</span>`;
-    const legendTable = `<div style="overflow-x:auto"><div style="min-width:660px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
-      <div style="display:grid;grid-template-columns:${lcols};background:var(--rmx-register-header, #737373)">${lh('Status')}${lh('What it means')}${lh('Next step')}</div>
-      ${legend.map((r, i) => `<div style="display:grid;grid-template-columns:${lcols};align-items:start;border-top:1px solid var(--rmx-bg-subtle, #f5f8fa);background:${i%2?'var(--rmx-bg-subtle, #f5f8fa)':'#fff'}">
-        <span style="display:flex;align-items:flex-start;padding:9px 12px">${this.ftHelpLoz(r[0])}</span>${lc(r[1])}${lc(r[2], r[2]==='Nothing to do')}</div>`).join('')}
-    </div></div>`;
+    const keyCols = '170px minmax(0,1fr)';
+    const statusKey = `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
+      ${keyRows.map((r, i) => `<div style="display:grid;grid-template-columns:${keyCols};align-items:start;background:${i % 2 ? 'var(--rmx-bg-subtle, #f5f8fa)' : '#fff'};${i ? 'border-top:1px solid var(--rmx-bg-subtle, #f5f8fa);' : ''}">
+        <span style="display:flex;align-items:flex-start;padding:10px 12px">${this.ftHelpLoz(r[0])}</span>
+        <span style="display:flex;padding:10px 12px 10px 0;font-size:14px;color:var(--rmx-text, #666666);line-height:1.45">${r[1]}</span>
+      </div>`).join('')}
+    </div>`;
+
+    const colRows = [
+      ['Centralized', 'If checked, charges are managed on the property’s Charges tab.'],
+      ['Fee Transparent', 'If checked, listings show a total monthly price with all fees displaying. N/A means this step isn’t applicable to this property.'],
+      ['Total Charges', 'Total charges on every property after centralizing charges.'],
+      ['Listing Ready Charges', 'Charges with all the fields that listings require.'],
+      ['Incomplete Charges', 'Charges missing required fields. These will not appear on listings.'],
+      ['Excluded Charges', 'Charges you’ve chosen to keep off listings. These are excluded on the individual charge.']
+    ];
+    const columns = card(colRows.map(r => `<span style="display:flex;flex-direction:column;gap:3px">
+      <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${r[0]}</span>${body(r[1])}</span>`).join(''));
 
     return `<div data-act="ftHelpClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:150">
-      <div data-act="noop" style="width:820px;max-width:96vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+      <div data-act="noop" style="width:560px;max-width:96vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
-          <span style="font-size:20px;color:var(--rmx-brand-dark, #13314c)">How Fee Transparency Works</span>
+          <span style="font-size:20px;color:var(--rmx-brand-dark, #13314c)">How does pricing setup work?</span>
           <span data-act="ftHelpClose" class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">close</span>
         </div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:16px">
-          <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.5">How far a property goes depends on whether it is enabled for online listings, and which provider its listings feed.</span>
-          <div style="display:flex;flex-direction:column;gap:10px">
-            ${heading('Enabled for Online Listings', 'The provider decides whether the property can publish complete pricing.')}
-            ${paths.listed.map(x => card(x.name, x.flow, x.note)).join('')}
-          </div>
-          <div style="display:flex;flex-direction:column;gap:10px">
-            ${heading('Not Enabled for Online Listings')}
-            ${card('', paths.unlisted.flow, paths.unlisted.note)}
-          </div>
-          <div style="display:flex;flex-direction:column;gap:10px">
-            ${heading('What each status means')}
-            ${legendTable}
-          </div>
+          ${steps}
+          <div style="display:flex;flex-direction:column;gap:8px">${heading('Status Key')}${statusKey}</div>
+          <div style="display:flex;flex-direction:column;gap:8px">${heading('Column Descriptions')}${columns}</div>
         </div>
-        <div style="display:flex;align-items:center;gap:12px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:12px 16px;flex:none">
-          <div style="flex:1"></div>
-          <button data-act="ftHelpClose" class="btn-pri" style="height:36px;min-height:36px;padding:0 22px;border-radius:4px;font-size:14px">Got it</button>
+        <div style="display:flex;align-items:center;gap:8px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:12px 16px;flex:none">
+          <span data-act="toast" data-arg="Help article" style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><span class="material-symbols-outlined" style="font-size:18px">link</span>Learn more with the help article</span>
         </div>
       </div></div>`;
   }
   feeTransBody(){
-    // Grouped by status in the order the work happens: published-but-incomplete first, then charges
-    // needing details, ready to publish, not set up, and everything already finished.
+    // One register of every property, in the order the work happens; Group by Status splits the same
+    // rows into a section per status (mock 2699-105683).
     const filt = this.state.ftFilter || 'all';
-    const group = k => (k==='short'||k==='pubshort') ? 'needs' : (k==='pub'||k==='notEnabled'||k==='central') ? 'done' : k==='ready' ? 'ready' : 'none';
     const all = this.propertiesData().slice()
       .sort((x, y) => (this.ftStatus(x.name).order - this.ftStatus(y.name).order) || x.name.localeCompare(y.name));
-    const rows = (filt === 'all' ? all : all.filter(p => group(this.ftStatus(p.name).key) === filt))
-      .filter(p => !this.state.ftIncOnly || (this.ftStatus(p.name).issues || 0) > 0);
-    const esc = s => (''+s).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
-    const clampJs = id => `var p=document.getElementById('${id}');if(p.style.display==='block'){p.style.display='none';}else{p.style.display='block';p.style.right='0';p.style.left='auto';var r=p.getBoundingClientRect();if(r.left<8){p.style.right='auto';p.style.left='0';}}`;
+    const rows = filt === 'all' ? all : all.filter(p => this.ftStatus(p.name).key === filt);
+    const esc = s2 => (''+s2).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
 
-    // Publishable = listings-enabled, set up, not yet published. Incomplete charges don't block
-    // publishing — the confirmation warns about them instead.
-    // Complete pricing can only publish once every charge has its required fields, so only properties
-    // sitting at "Ready" are on offer.
-    const pubProps = this.propertiesData().map(p => p.name).filter(n => this.ftStatus(n).key === 'ready');
+    const convertable = this.propertiesData().map(p => p.name).filter(n => this.ftStatus(n).key === 'ready');
 
-    // ---- toolbar: search, saved filters, and a working Status filter ----
-    const filtLabels = { all:'All selected', ready:'Ready to Convert', needs:'Charges Incomplete', none:'Not Set Up', done:'Converted' };
+    // ---- toolbar ----
+    const filtLabels = { all:'All selected', none:'Not Centralized', short:'Incomplete Charges',
+      ready:'Ready to Convert', attention:'Needs Attention', complete:'Complete' };
     const fopt = (v, t) => `<div data-act="ftFilterSet" data-arg="${v}" style="padding:7px 14px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">${t}</div>`;
+    const clampJs = id => `var p=document.getElementById('${id}');if(p.style.display==='block'){p.style.display='none';}else{p.style.display='block';p.style.right='0';p.style.left='auto';var r=p.getBoundingClientRect();if(r.right>window.innerWidth-8){p.style.right='0';}}`;
     const toolbar = `<div style="display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap">
       <div style="display:flex;flex-direction:column;gap:4px;width:248px">
         <span style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))">Search</span>
@@ -1960,45 +1943,43 @@ class Component extends DCLogic {
       </div>
       <div style="display:flex;flex-direction:column;gap:4px;width:200px">
         <span style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))">Saved Filters</span>
-        <div style="display:flex;align-items:center;height:34px;box-sizing:border-box;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:0 8px"><span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c)">&lt; No Filter &gt;</span><span class="material-symbols-outlined" style="font-size:18px;color:var(--rmx-text, #666666)">keyboard_arrow_down</span></div>
+        <div style="display:flex;align-items:center;height:34px;box-sizing:border-box;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:0 8px"><span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c)">&lt; No Filter &gt;</span><span class="material-symbols-outlined" style="font-size:18px;color:var(--rmx-text, #666666)">arrow_drop_down</span></div>
       </div>
-      <span data-act="toast" data-arg="Filters" style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;box-sizing:border-box;background:var(--ac,var(--rmx-brand, #008dd5));border-radius:2px;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:#fff">tune</span></span>
+      <span data-act="toast" data-arg="Filters" style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;box-sizing:border-box;background:var(--ac,var(--rmx-brand, #008dd5));border-radius:2px;cursor:pointer"><span class="material-symbols-outlined" style="font-size:18px;color:#fff">filter_alt</span></span>
       <div style="display:flex;flex-direction:column;gap:4px;width:200px">
         <span style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))">Status</span>
         <span style="position:relative;display:flex">
-          <div onclick="var p=document.getElementById('ft-status-pnl');p.style.display=(p.style.display==='block'?'none':'block')" style="flex:1;display:flex;align-items:center;height:34px;box-sizing:border-box;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:0 8px;cursor:pointer"><span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden">${filtLabels[filt] || ''}</span><span class="material-symbols-outlined" style="font-size:18px;color:var(--rmx-text, #666666)">keyboard_arrow_down</span></div>
+          <div onclick="${clampJs('ft-status-pnl')}" style="flex:1;display:flex;align-items:center;height:34px;box-sizing:border-box;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:0 8px;cursor:pointer"><span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${filtLabels[filt]}</span><span class="material-symbols-outlined" style="font-size:18px;color:var(--rmx-text, #666666)">arrow_drop_down</span></div>
           <div id="ft-status-pnl" style="display:none;position:absolute;left:0;top:38px;z-index:1000;min-width:200px;background:#fff;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);padding:4px 0">
-            ${fopt('all','All selected')}${fopt('ready','Ready to Convert')}${fopt('needs','Charges Incomplete')}${fopt('none','Not Set Up')}${fopt('done','Converted')}
+            ${fopt('all','All selected')}${fopt('none','Not Centralized')}${fopt('short','Incomplete Charges')}${fopt('ready','Ready to Convert')}${fopt('attention','Needs Attention')}${fopt('complete','Complete')}
           </div>
         </span>
       </div>
       <label style="display:inline-flex;align-items:center;gap:9px;height:34px;margin-left:8px;cursor:pointer;white-space:nowrap">
-        <input type="checkbox" data-act="ftIncToggle" ${this.state.ftIncOnly?'checked':''} style="accent-color:var(--ac,var(--rmx-brand, #008dd5));width:16px;height:16px;margin:0">
-        <span style="font-size:14px;color:var(--rmx-text, #666666)">Only show properties with incomplete charges</span>
+        <input type="checkbox" data-act="ftGroupToggle" ${this.state.ftGroup?'checked':''} style="accent-color:var(--rmx-attention, #f58220);width:16px;height:16px;margin:0">
+        <span style="font-size:14px;color:var(--rmx-text, #666666)">Group by Status</span>
       </label>
       <div style="flex:1"></div>
-      <span data-act="ftHelpOpen" style="display:inline-flex;align-items:center;gap:6px;height:34px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap"><span class="material-symbols-outlined" style="font-size:18px">help</span>How does this page work?</span>
+      <span data-act="ftHelpOpen" style="display:inline-flex;align-items:center;gap:6px;height:34px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap"><span class="material-symbols-outlined" style="font-size:18px">help</span>How does pricing setup work?</span>
+      ${convertable.length ? `<button data-act="ftSelOpen" data-arg="pub" class="btn-out" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Bulk Convert to Fee Transparency</button>` : ''}
+      ${this.bulkSetupCandidates().length ? `<button data-act="ftSelOpen" data-arg="setup" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Bulk Centralize Charges</button>` : ''}
     </div>`;
 
-    // ---- two registers, one per step of the job (mock 3161-158892) ----
-    // Step one gets a property's charges onto its Charges tab; step two adds what listings need and
-    // converts it. A property sits in exactly one step, so each register carries only the columns its
-    // step can answer — the breakdown means nothing until the charges are centralized.
-    const cols1 = '260fr 200fr 670fr 215px 38px';
-    const cols2 = '260fr 200fr 130fr 190fr 180fr 170fr 215px 38px';
-    const colsFor = (step) => step === 1 ? cols1 : cols2;
+    // ---- register ----
+    const cols = '250fr 120fr 140fr 190fr 130fr 180fr 165fr 155fr 215px 38px';
     const hc = (t, first) => `<span style="display:flex;align-items:center;gap:8px;height:26px;box-sizing:border-box;padding:0 0 0 ${first?'17px':'12px'};font-size:14px;font-weight:600;color:#fff;white-space:nowrap;${first?'':'border-left:1px solid rgba(255,255,255,0.35)'}">${t}</span>`;
-    const headerFor = (step) => `<div style="display:grid;grid-template-columns:${colsFor(step)};background:var(--rmx-register-header, #737373)">
-      ${hc('Property', true)}${hc('Status')}${hc('Total Charges')}${step === 2
-        ? hc('Listing Ready Charges')+hc('Incomplete Charges')+hc('Excluded Charges') : ''}${hc('Next Step')}
+    const header = `<div style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">
+      ${hc('Property', true)}${hc('Centralized')}${hc('Fee Transparent')}${hc('Status')}${hc('Total Charges')}${hc('Listing Ready Charges')}${hc('Incomplete Charges')}${hc('Excluded Charges')}${hc('Next Step')}
       <span style="display:flex;align-items:center;justify-content:center;height:26px;border-left:1px solid rgba(255,255,255,0.35)"><span class="material-symbols-outlined" style="font-size:18px;color:#fff">view_column</span></span>
     </div>`;
     const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
+    const na = cell('<span style="font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">N/A</span>');
+    const tick = `<span class="material-symbols-outlined" style="font-size:18px;color:var(--rmx-success, #6eb744);font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">check_circle</span>`;
     const mitem = (t, act, arg) => `<div data-act="${act}" data-arg="${esc(arg)}" style="padding:8px 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">${t}</div>`;
     const lozStyle = { green:'background:var(--rmx-success-bg, #e2f1da);color:#2f5d43', amber:'background:#fdf3e3;color:#7a5a2a',
-      blue:'background:var(--rmx-brand-tint-bg, #ebf1f5);color:var(--rmx-brand-hover, #0071aa)', grey:'background:#eceff1;color:var(--rmx-ink-2, #424e5b)' };
-    // Hovering the count names the charges that still need fields, so the next step is obvious without
-    // opening the property. Long lists stop at ten and count the rest.
+      blue:'background:var(--rmx-brand-tint-bg, #ebf1f5);color:var(--rmx-brand-hover, #0071aa)', grey:'background:#eceff1;color:var(--rmx-ink-2, #424e5b)',
+      red:'background:#fdeaea;color:#a3252c' };
+    // Hovering the incomplete count names the charges that still need fields.
     const incLabel = (r) => `${r.mits ? r.mits + ' ' : ''}${r.desc || (r.listing && r.listing.name) || r.name || ''}`.trim();
     const incTipHTML = (prop) => {
       const need = this.appliedRows(prop).filter(r => r.ils && !this.mitsComplete(r));
@@ -2011,61 +1992,66 @@ class Component extends DCLogic {
         + `</span>`;
     };
     const incWarn = `<span class="material-symbols-outlined" style="font-size:16px;color:var(--rmx-error, #eb343c);font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">warning</span>`;
-    const rowHTML = (r, i, key, step) => {
+    const rowHTML = (r, i, key) => {
       const st = this.ftStatus(r.name);
       const ch = this.ftCharges(r.name);
-      const none = st.key === 'none';
-      const num = (v) => cell(none ? '-' : String(v));
-      const incNum = st.key === 'pubshort' ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-brand-dark, #13314c)';
-      const incTrigger = `<span style="display:inline-flex;align-items:center;gap:7px;font-size:14px;color:${incNum};cursor:default">${ch.incomplete}${st.key === 'pubshort' ? incWarn : ''}</span>`;
-      const incOpts = { pad:'16px', shadow:'0 3px 3px rgba(0,0,0,0.1)', trigger:incTrigger };
-      const incHover = this.infoTip(incTipHTML(r.name), 324, incOpts);
-      const incCell = none ? cell('-')
-        : (ch.incomplete
-          ? `<span style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px;white-space:nowrap">${incHover}</span>`
-          : cell(String(ch.incomplete)));
+      const dash = !st.centralized;                 // nothing to count until the charges are centralized
+      const naCounts = st.ft === 'na';              // listings columns mean nothing without fee transparency
+      const num = (v) => dash ? cell('-') : (naCounts ? na : cell(String(v)));
+      const incNum = st.key === 'attention' ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-brand-dark, #13314c)';
+      const incTrigger = `<span style="display:inline-flex;align-items:center;gap:7px;font-size:14px;color:${incNum};cursor:default">${ch.incomplete}${st.key === 'attention' ? incWarn : ''}</span>`;
+      const incHover = this.infoTip(incTipHTML(r.name), 324, { pad:'16px', shadow:'0 3px 3px rgba(0,0,0,0.1)', trigger:incTrigger });
+      const incCell = dash ? cell('-') : naCounts ? na
+        : (ch.incomplete ? `<span style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px;white-space:nowrap">${incHover}</span>` : cell('0'));
       const menuId = `ft${key}${i}-pnl`;
-      const items = (none ? mitem('Centralize Charges','setupOpen',r.name) : mitem('View Charges','openFeeProfile',r.name)
+      const items = (!st.centralized ? mitem('Centralize Charges','setupOpen',r.name) : mitem('View Charges','openFeeProfile',r.name)
         + (st.key === 'ready' ? mitem('Convert to Fee Transparency','pubOpen',r.name) : '')
-        + (st.key === 'notEnabled' ? mitem('Enable for Online Listings','ilsEnable',r.name) : ''));
+        + (st.ft === 'na' && !this.ilsOn(r.name) ? mitem('Enable for Online Listings','ilsEnable',r.name) : ''));
       const menuPos = `event.stopPropagation();var t=document.getElementById('${menuId}');if(t.style.display==='block'){t.style.display='none';}else{t.style.display='block';var r=this.getBoundingClientRect();var w=t.offsetWidth,h=t.offsetHeight;var l=r.right-w;if(l<8)l=8;var y=r.bottom+4;if(y+h>window.innerHeight-8)y=r.top-h-4;t.style.left=l+'px';t.style.top=y+'px';}`;
-      return `<div style="display:grid;grid-template-columns:${colsFor(step)};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff">
+      return `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff">
         <a data-act="openFeeProfile" data-arg="${esc(r.name)}" style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px 0 17px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer">${r.name}</a>
+        ${cell(st.centralized ? tick : '', 'justify-content:center')}
+        ${st.ft === 'na' ? na : cell(st.ft ? tick : '', 'justify-content:center')}
         <span style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px"><span class="loz" style="${lozStyle[st.loz]};text-transform:none;letter-spacing:0">${st.status}</span></span>
-        ${num(ch.total)}
-        ${step === 2 ? num(ch.ready) + incCell + num(ch.excluded) : ''}
+        ${dash ? cell('-') : cell(String(ch.total))}
+        ${num(ch.ready)}${incCell}${num(ch.excluded)}
         ${st.next
           ? `<a data-act="${st.act}" data-arg="${esc(r.name)}" style="display:flex;align-items:center;min-height:35px;padding:0 12px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis">${st.next}</a>`
-          : cell('')}
+          : cell('<span style="font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No action needed</span>')}
         <span style="position:relative;display:flex;align-items:center;justify-content:center;min-height:35px">
           <span onclick="${menuPos}" style="display:flex;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5))">more_vert</span></span>
           <div id="${menuId}" style="display:none;position:fixed;z-index:1200;min-width:230px;background:#fff;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);padding:4px 0" onclick="this.style.display='none'">${items}</div>
         </span>
       </div>`;
     };
+    const table = (list, key) => `<div style="overflow-x:auto"><div style="min-width:1560px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${header}${list.map((r, i) => rowHTML(r, i, key)).join('')}</div></div>`;
 
-    const stepOf = (r) => this.ftStatus(r.name).step || 1;
-    const step1 = rows.filter(r => stepOf(r) === 1);
-    const step2 = rows.filter(r => stepOf(r) === 2);
-    const btn = (act, arg, label, show) => !show ? '' : `<button data-act="${act}" data-arg="${arg}" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">${label}</button>`;
-    const register = (n, title, sub, list, key, step, button) => !list.length ? '' : `<div style="display:flex;flex-direction:column;gap:10px">
-        <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
-          <span style="font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">Step ${n}: ${title} (${list.length})</span>
-          <span style="font-size:14px;color:var(--rmx-text, #666666)">${sub}</span>
-          <div style="flex:1"></div>${button}
+    // ---- grouped by status: a section per status, spine coloured to match its lozenge ----
+    const spine = { none:'var(--rmx-ink-2, #424e5b)', short:'var(--rmx-attention, #f58220)',
+      ready:'var(--ac,var(--rmx-brand, #008dd5))', attention:'var(--rmx-error, #eb343c)', complete:'var(--rmx-success, #6eb744)' };
+    const groupJs = (id) => `var b=document.getElementById('${id}');var c=this.querySelector('.material-symbols-outlined');var on=b.style.display!=='none';b.style.display=on?'none':'block';c.textContent=on?'keyboard_arrow_right':'keyboard_arrow_up';`;
+    const section = (key) => {
+      const list = rows.filter(r => this.ftStatus(r.name).key === key);
+      if (!list.length) return '';
+      const label = filtLabels[key];
+      return `<div style="display:flex;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-left:5px solid ${spine[key]};border-radius:4px;overflow:hidden">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+          <div onclick="${groupJs('ftsec-'+key)}" style="display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer">
+            <span class="material-symbols-outlined" style="font-size:20px;color:var(--rmx-text, #666666)">keyboard_arrow_up</span>
+            <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${label}</span>
+          </div>
+          <div id="ftsec-${key}" style="display:block;padding:0 14px 14px">${table(list, key)}</div>
         </div>
-        <div style="overflow-x:auto"><div style="min-width:${step === 2 ? 1240 : 900}px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${headerFor(step)}${list.map((r, i) => rowHTML(r, i, key, step)).join('')}</div></div>
       </div>`;
+    };
 
-    return `<div style="padding:16px 24px 24px;display:flex;flex-direction:column;gap:20px">
+    return `<div style="padding:16px 24px 24px;display:flex;flex-direction:column;gap:16px">
       ${toolbar}
-      ${register(1, 'Centralize Charges', 'Every charge consolidated onto a charges tab on the property.', step1, 'a', 1,
-        btn('ftSelOpen', 'setup', 'Bulk Centralize Charges', this.bulkSetupCandidates().length))}
-      ${register(2, 'Set Up Fee Transparency', 'Add information on your charges and convert each property to display complete pricing for fee transparency.', step2, 'b', 2,
-        btn('ftSelOpen', 'pub', 'Bulk Convert to Fee Transparency', pubProps.length))}
+      ${this.state.ftGroup
+        ? `<div style="display:flex;flex-direction:column;gap:14px">${['none','short','ready','attention','complete'].map(section).join('')}</div>`
+        : table(rows, 'a')}
       <div style="display:flex;justify-content:flex-end"><span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">${rows.length} of ${all.length} Properties</span></div>
     </div>`;
-
   }
   // ================= PROSPECT DETAILS (mock 2869-82204) =================
   // Rent Manager's prospect page — the surface rent quotes and move-ins come from. Static: the fields
@@ -2284,7 +2270,7 @@ class Component extends DCLogic {
     return [
       ['General', [
         ['Properties', 'navRegister'],
-        ['Fee Transparency', 'navFeeTrans'],
+        ['Pricing Setup', 'navFeeTrans'],
         ['Listings', 'navListings']
       ]],
       ['Additional Pages', [
@@ -2362,11 +2348,11 @@ class Component extends DCLogic {
           <span data-act="pubCancel" class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">close</span>
         </div>
         <div style="padding:18px 20px;display:flex;flex-direction:column;gap:14px;overflow-y:auto">
-          <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Are you sure you would like to publish complete pricing for ${prop}?</span>
+          <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Are you sure you would like to convert ${prop} to fee transparency?</span>
           ${readyBox}
           <div style="display:flex;align-items:flex-start;gap:12px;background:#fdf3e3;border:1px solid #f0ad4e;border-radius:4px;padding:12px 14px">
             <span class="material-symbols-outlined" style="font-size:20px;color:var(--rmx-notice, #faa61c);flex:none;margin-top:1px">warning</span>
-            <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.5">Publishing switches ${single ? 'this property&#39;s listing feed' : 'these properties&#39; listing feeds'} permanently and can&#39;t be undone. Later changes to these charges appear on the next feed update.</span>
+            <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.5">Converting switches ${single ? 'this property&#39;s listing feed' : 'these properties&#39; listing feeds'} permanently and can&#39;t be undone. Later changes to these charges appear on the next feed update.</span>
           </div>
           <div style="height:1px;background:var(--rmx-line, #cedbe7)"></div>
           <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer">
@@ -2375,7 +2361,7 @@ class Component extends DCLogic {
           </label>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:10px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:12px 20px;flex:none">
-          <button ${m.ack?'data-act="pubConfirm"':''} class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px;${m.ack?'':'opacity:0.55;cursor:default'}">Publish Pricing</button>
+          <button ${m.ack?'data-act="pubConfirm"':''} class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px;${m.ack?'':'opacity:0.55;cursor:default'}">Convert</button>
           <button data-act="pubCancel" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Cancel</button>
         </div>
       </div>
@@ -2427,7 +2413,7 @@ class Component extends DCLogic {
     const st = this.ftStatus(p);
     const published = !!this.state.publishedProps[p];
     // Anything not publishing complete pricing — including unconverted properties — advertises Price only.
-    if (st.key === 'none' || st.key === 'notEnabled') return { pill: 'Price', legacy: true };
+    if (st.key === 'none' || st.ft === 'na') return { pill: 'Price', legacy: true };
     const short = st.issues || 0;
     if (short) return { pill: 'Price', converted: true, warn: `Fee Transparency Issue - ${short} charge${short===1?'':'s'} need${short===1?'s':''} details` };
     return published ? { pill: 'Price + Fees', total: true, converted: true } : { pill: 'Price', converted: true };
@@ -2490,7 +2476,7 @@ class Component extends DCLogic {
     const banner = `<div style="display:flex;align-items:center;gap:12px;background:#fef4e8;border:1px solid #f6b26b;border-radius:4px;padding:12px 16px">
       <span class="material-symbols-outlined" style="font-size:20px;color:var(--rmx-attention, #f58220);flex:none">warning</span>
       <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">To comply with federal fee transparency requirements, ensure all required monthly fees are included in the price or clearly disclosed in the description. You can do this by centralizing your charges on each property with our new Fee Transparency feature.</span>
-      <a data-act="navFeeTrans" style="flex:none;display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap;cursor:pointer">Set Up Fee Transparency<span class="material-symbols-outlined" style="font-size:18px">arrow_right_alt</span></a>
+      <a data-act="navFeeTrans" style="flex:none;display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap;cursor:pointer">Centralize Charges<span class="material-symbols-outlined" style="font-size:18px">arrow_right_alt</span></a>
     </div>`;
     const fopt = (v, t) => `<div data-act="ltPropSet" data-arg="${v}" style="padding:7px 14px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">${t}</div>`;
     const toolbar = `<div style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap">
@@ -2619,7 +2605,7 @@ class Component extends DCLogic {
       <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title}</span>
       <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5;padding-right:30px">Fee Transparency moves your charges, deposits, and pricing on the property's Charges tab, simplifying setup, move-ins, and quotes. If you publish listings, complete pricing comes ready-made.</span>
       <span style="display:flex;align-items:center;gap:20px">
-        <button data-act="navFeeTransBulk" class="btn-pri" style="height:36px;min-height:36px;padding:0 18px;border-radius:4px;font-size:14px">Set Up Fee Transparency</button>
+        <button data-act="navFeeTransBulk" class="btn-pri" style="height:36px;min-height:36px;padding:0 18px;border-radius:4px;font-size:14px">Centralize Charges</button>
         <a data-act="announceOpen" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Learn More</a>
       </span>
     </div>`;
@@ -2629,12 +2615,12 @@ class Component extends DCLogic {
     </div>`;
     const allStrip = `<div style="display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;padding:11px 16px">
       <span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5));flex:none">info</span>
-      <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Fee Transparency has been set up for all properties, so all charges are managed on the property level. Go to the property details or Fee Transparency page to view the charges setup.</span>
-      <a data-act="navFeeTrans" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Fee Transparency</a>
+      <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Charges are centralized for all properties, so all charges are managed on the property level. Go to the property details or Fee Transparency page to view the charges setup.</span>
+      <a data-act="navFeeTrans" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Pricing Setup</a>
     </div>`;
     const callouts = ftState === 'all' ? allStrip
       : ftState === 'none' ? blueBanner('Centralize your charges with Fee Transparency.')
-      : blueBanner('Finish setting up Fee Transparency on your properties.') + warnStrip;
+      : blueBanner('Finish centralizing charges on your properties.') + warnStrip;
     const body = sel !== 'Tenant Charge Setup'
       ? `<div style="padding:40px 4px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">${sel} preferences</div>`
       : ftState === 'all'
@@ -2949,7 +2935,7 @@ class Component extends DCLogic {
     const selBar = !bs ? '' : `<div style="position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:130;display:flex;align-items:center;gap:18px;background:var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;box-shadow:0 8px 24px rgba(0,0,0,0.28);padding:12px 14px 12px 20px;white-space:nowrap">
         <span style="font-size:14px;font-weight:600;color:#fff">Select properties</span>
         <span style="font-size:14px;color:rgba(255,255,255,0.85)">${nSel} of ${avail.length} selected</span>
-        <button ${nSel?'data-act="bulkSetupGo"':''} style="height:34px;min-height:34px;padding:0 18px;border-radius:4px;font:400 14px Roboto,sans-serif;color:#fff;background:rgba(255,255,255,${nSel?'0.2':'0.08'});border:1px solid rgba(255,255,255,${nSel?'0.65':'0.3'});cursor:${nSel?'pointer':'default'}">Set Up Fee Transparency</button>
+        <button ${nSel?'data-act="bulkSetupGo"':''} style="height:34px;min-height:34px;padding:0 18px;border-radius:4px;font:400 14px Roboto,sans-serif;color:#fff;background:rgba(255,255,255,${nSel?'0.2':'0.08'});border:1px solid rgba(255,255,255,${nSel?'0.65':'0.3'});cursor:${nSel?'pointer':'default'}">Centralize Charges</button>
         <span data-act="bulkSetupCancel" class="material-symbols-outlined" style="font-size:24px;color:#fff;cursor:pointer">close</span>
       </div>`;
     const dim = bs ? 'opacity:0.45;pointer-events:none;' : '';
@@ -3164,7 +3150,7 @@ class Component extends DCLogic {
       <img src="assets/logo-rentmanager-mark.svg" alt="" style="width:76px;height:76px">
       <div style="font-size:16px;font-weight:600;color:var(--rmx-text, #666666)">Manage this property&rsquo;s charges in one place</div>
       <div style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.5">Fee Transparency brings your charges, deposits, and pricing together for setup, move-ins, quotes, and listings.&nbsp; <a data-act="toast" data-arg="Opens contextual help" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Learn More</a></div>
-      <button data-act="setupOpen" class="btn-pri" style="margin-top:4px;height:36px;padding:0 18px;border-radius:4px;font-size:14px">Set Up Fee Transparency</button>
+      <button data-act="setupOpen" class="btn-pri" style="margin-top:4px;height:36px;padding:0 18px;border-radius:4px;font-size:14px">Centralize Charges</button>
     </div>`;
   }
   feeProfileLoading(){
@@ -3297,7 +3283,7 @@ class Component extends DCLogic {
       <div style="position:fixed;left:${left}px;top:${p.y}px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);z-index:151;overflow:hidden;padding:4px 0">
         ${ilsItem}<div style="height:1px;background:var(--rmx-brand-tint-bg, #ebf1f5);margin:4px 0"></div>
         ${item('Bulk Update Charges','bulkOpen')}${item('Copy Charges from Property','copyOpen')}<div style="height:1px;background:var(--rmx-brand-tint-bg, #ebf1f5);margin:4px 0"></div>
-        ${item('Charge History', 'profHistOpen')}${item('Fee Transparency','navFeeTrans')}
+        ${item('Charge History', 'profHistOpen')}${item('Pricing Setup','navFeeTrans')}
       </div>`;
   }
   // Recurring / One-Time subtable inside a profile section.
@@ -3566,21 +3552,21 @@ class Component extends DCLogic {
     if (!need) return !published ? '' : `<div style="display:flex;align-items:flex-start;gap:10px;background:#eef7e9;border:1px solid var(--rmx-success, #6eb744);border-radius:4px;padding:12px 16px">
       <span class="material-symbols-outlined" style="font-size:20px;color:var(--rmx-success, #6eb744);flex:none;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">verified</span>
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
-        <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);line-height:1.5">This property has published complete pricing.</span>
+        <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);line-height:1.5">This property is converted to fee transparency.</span>
         <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">These charges are the live feed for this property's listing pricing — changes you make here appear on listings with the next feed update.</span>
       </div></div>`;
     // Published with incomplete charges is live non-compliance — the loudest callout on the tab.
     if (published) return `<div style="display:flex;align-items:flex-start;gap:10px;background:#fbe9e9;border:1px solid var(--rmx-error, #eb343c);border-radius:4px;padding:12px 16px">
       <span class="material-symbols-outlined" style="font-size:20px;color:var(--rmx-error, #eb343c);flex:none;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">warning</span>
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
-        <span style="font-size:14px;font-weight:600;color:var(--rmx-error, #eb343c);line-height:1.5">Complete pricing is published, but ${need} of ${total} charges are missing required fields.</span>
+        <span style="font-size:14px;font-weight:600;color:var(--rmx-error, #eb343c);line-height:1.5">This property is converted, but ${need} of ${total} charges are missing required fields.</span>
         <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">These charges are left out of the published price until their details are filled in, which is non-compliant where fee transparency laws apply.</span>
       </div>
       <a data-act="bulkOpen" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap;cursor:pointer">Bulk Update Charges</a></div>`;
     return `<div style="display:flex;align-items:flex-start;gap:10px;background:#fef4e8;border:1px solid #f6d9ac;border-radius:4px;padding:12px 16px">
       <span class="material-symbols-outlined" style="font-size:20px;color:var(--rmx-attention, #f58220);flex:none">error</span>
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
-        <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">${need} of ${total} charges still need marketing details, so complete pricing can't publish yet. Open a charge to fill in what's missing, or hover its Listing Ready status to see the exact fields required.</span>
+        <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">${need} of ${total} charges still need marketing details, so this property can't convert yet. Open a charge to fill in what's missing, or hover its Listing Ready count to see which fields.</span>
       </div>
       <a data-act="bulkOpen" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap;cursor:pointer">Bulk Update Charges</a></div>`;
   }
@@ -3725,7 +3711,7 @@ class Component extends DCLogic {
         <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">This property has ${n} fees. Manage them in one place.</span>
         <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">Fee Transparency centralizes your charges, deposits, and pricing on the property's Charges tab, simplifying setup, move-ins, and quotes. If you publish listings, complete pricing comes ready-made. Current tenants are unaffected.</span>
         <div style="display:flex;align-items:center;gap:16px;margin-top:6px">
-          <button data-act="setupOpen" class="btn-pri" style="height:34px;padding:0 16px;border-radius:4px;font-size:14px">Set Up Fee Transparency</button>
+          <button data-act="setupOpen" class="btn-pri" style="height:34px;padding:0 16px;border-radius:4px;font-size:14px">Centralize Charges</button>
           <a data-act="toast" data-arg="Opens contextual help" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Learn More</a>
         </div>
       </div>
@@ -4234,7 +4220,7 @@ class Component extends DCLogic {
           <span class="material-symbols-outlined" style="font-size:40px;color:var(--ac,var(--rmx-brand, #008dd5));flex:none;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">warning</span>
           <div style="display:flex;flex-direction:column;gap:18px;min-width:0;font-size:14px;color:var(--rmx-text, #666666);line-height:1.5">
             <span>Your changes will not be saved.</span>
-            <span>Are you sure you want to exit the Fee Transparency Setup?</span>
+            <span>Are you sure you want to exit Centralize Charges?</span>
           </div>
         </div>
         <div style="display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:14px 20px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7)">
@@ -4292,7 +4278,7 @@ class Component extends DCLogic {
     return `<div data-act="setupClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:120">
       <div data-act="noop" style="width:860px;max-width:96vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:12px 16px 0"><span data-act="setupClose" class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">close</span></div>
-        <div style="text-align:center;font-size:20px;color:var(--rmx-brand-dark, #13314c);padding:0 24px 16px">${c.step === 'done' ? 'Set Up Complete' : 'Fee Transparency Setup'}</div>
+        <div style="text-align:center;font-size:20px;color:var(--rmx-brand-dark, #13314c);padding:0 24px 16px">${c.step === 'done' ? 'Centralize Charges Complete' : 'Centralize Charges'}</div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:0 24px 8px">${body}</div>
         ${foot ? `<div style="display:flex;align-items:center;gap:12px;padding:12px 24px 16px">${foot}</div>` : '<div style="height:16px"></div>'}
         ${chrome ? '' : `<div style="position:relative;height:0"><div style="position:absolute;left:50%;transform:translateX(-50%);bottom:26px">${this.setupDots(c.step)}</div></div>`}
@@ -4400,7 +4386,7 @@ class Component extends DCLogic {
         <span style="position:absolute;inset:0;border:5px solid #fbe4cf;border-top-color:var(--rmx-attention, #f58220);border-radius:50%;animation:spin 0.9s linear infinite"></span>
         <span class="material-symbols-outlined" style="font-size:40px;color:var(--ac,var(--rmx-brand, #008dd5))">apartment</span>
       </span>
-      <span style="font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${props.length > 1 ? `Turning on Fee Transparency for ${props.length} properties` : 'Turning on Fee Transparency'}</span>
+      <span style="font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${props.length > 1 ? `Centralizing charges for ${props.length} properties` : 'Centralizing charges'}</span>
       <span style="font-size:14px;color:var(--rmx-text-muted, #b3b3b3)">Moving your charges onto ${props.length > 1 ? 'each property' : props[0] || 'the property'}&hellip;</span>
     </div>`;
   }
@@ -4435,10 +4421,10 @@ class Component extends DCLogic {
       <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:16px 18px;display:flex;flex-direction:column;gap:14px">
         <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Next Steps</span>
         ${step(1, 'Add more details to your charges.', '', 'Fill out the necessary fields on each charge in the Charges tab.')}
-        ${step(2, 'Publish complete pricing.', 'Only properties enabled for online listings.', `Once every charge has its required fields, go to the Fee Transparency page to publish complete pricing. This is the most important step, it switches ${n === 1 ? "this property's" : "these properties'"} listings to show a Total Monthly Price.`, true)}
+        ${step(2, 'Convert to fee transparency.', 'Only properties enabled for online listings.', `Once every charge has its required fields, go to the Pricing Setup page to publish complete pricing. This is the most important step, it switches ${n === 1 ? "this property's" : "these properties'"} listings to show a Total Monthly Price.`, true)}
         <div style="display:flex;gap:10px;align-items:flex-start;border:1px solid #f0d9ae;border-radius:4px;padding:10px 14px">
           <span class="material-symbols-outlined" style="font-size:18px;color:#e59f2e;flex:none">warning</span>
-          <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.5">Complete pricing can't publish while a charge is missing required fields, so a listing is never left advertising an incomplete price. The Fee Transparency page shows what each property still needs.</span>
+          <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.5">A property can't convert to fee transparency while a charge is missing required fields, so a listing is never left advertising an incomplete price. The Fee Transparency page shows what each property still needs.</span>
         </div>
       </div>
     </div>`;
@@ -4679,7 +4665,7 @@ class Component extends DCLogic {
           <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">Fee Transparency centralizes your charges, deposits, and pricing on the property's Charges tab, simplifying setup, move-ins, and quotes. If you publish listings, complete pricing comes ready-made. Current tenant charges are unaffected.</span>
         </div>
         <div style="display:flex;align-items:center;gap:16px;flex:none;padding-top:2px">
-          <button data-act="setupOpen" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Set Up Fee Transparency</button>
+          <button data-act="setupOpen" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Centralize Charges</button>
           <a data-act="toast" data-arg="Opens contextual help" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Learn More</a>
         </div>
         <span data-act="recViewNoteDismiss" class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;flex:none">close</span>
@@ -4758,7 +4744,7 @@ class Component extends DCLogic {
         <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">Fee Transparency centralizes your charges, deposits, and pricing on the property's Charges tab, simplifying setup, move-ins, and quotes. If you publish listings, complete pricing comes ready-made. Current tenant charges are unaffected.</span>
       </div>
       <div style="display:flex;align-items:center;gap:16px;flex:none;padding-top:2px">
-        <button data-act="setupOpen" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Set Up Fee Transparency</button>
+        <button data-act="setupOpen" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Centralize Charges</button>
         <a data-act="toast" data-arg="Opens contextual help" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Learn More</a>
       </div>
       <span data-act="recViewNoteDismiss" class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;flex:none">close</span>
@@ -5603,8 +5589,8 @@ class Component extends DCLogic {
         <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:12px 14px;display:flex;flex-direction:column;gap:10px">
           <div id="m-ils-msg" style="display:${complete?'none':'flex'};align-items:center;gap:10px;flex-wrap:wrap">
             <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${this.state.publishedProps[this.state.property]
-              ? "This property publishes complete pricing, so this charge stays out of the total until these fields are filled in:"
-              : "Complete pricing can't publish while this charge is missing fields listings require:"}</span>
+              ? "This property is converted to fee transparency, so this charge stays out of the total until these fields are filled in:"
+              : "This property can't convert to fee transparency while this charge is missing fields listings require:"}</span>
             <span id="m-ils-need" style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap">${missing.map(chip).join('')}</span>
           </div>
           <label style="display:inline-flex;align-items:center;gap:10px;align-self:flex-start;cursor:${swLive?'pointer':'default'}"><span id="m-ils-sw" data-dis="${swLive?'0':'1'}" onclick="${swJs}" data-on="${swOn?'1':'0'}" style="display:inline-block;width:32px;height:18px;border-radius:999px;background:${!swLive?'#dfe6ec':(swOn?'var(--ac,var(--rmx-brand, #008dd5))':'var(--rmx-line, #cedbe7)')};position:relative;flex:none;cursor:${swLive?'pointer':'default'}">${knob}</span><span id="m-ils-lbl" style="font-size:14px;color:${swLive?'var(--rmx-brand-dark, #13314c)':'var(--rmx-text-muted, #b3b3b3)'}">Include on listings</span></label>
@@ -5960,8 +5946,8 @@ class Component extends DCLogic {
       ${closeX}
       <span style="display:flex;flex-direction:column;gap:14px;min-width:0;flex:1">
         <span style="align-self:flex-start;background:var(--rmx-attention, #f58220);color:#fff;font-size:12px;font-weight:600;letter-spacing:0.06em;border-radius:12px;padding:4px 11px">NEW FEATURE</span>
-        <span style="font-size:24px;font-weight:600;color:#fff;line-height:1.2">Introducing Fee Transparency</span>
-        <span style="font-size:14px;color:#e8eef4;line-height:1.6">Every charge a property collects, in one place.<br>Complete pricing on your listings.</span>
+        <span style="font-size:24px;font-weight:600;color:#fff;line-height:1.2">Introducing Fee Transparency with Charge Centralization</span>
+        <span style="font-size:14px;color:#e8eef4;line-height:1.6">Every charge a property collects, in one place.<br>Transparent pricing on your listings.</span>
       </span>
       <span style="flex:none;width:74px;height:74px;border-radius:50%;border:2px solid var(--ac,var(--rmx-brand, #008dd5));display:flex;align-items:center;justify-content:center">
         <img src="assets/logo-rentmanager-mark-white.svg" alt="" style="width:42px;height:42px">
@@ -5981,8 +5967,8 @@ class Component extends DCLogic {
       <span style="text-align:center;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Why now?</span>
       <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.6">A growing number of states require advertised rent to include all required fees, and renters expect it.</span>
       ${benefit('layers','Every charge in one place.','Recurring charges, deposits, rentable items, and more all per property.')}
-      ${benefit('person_add','Accurate quotes and move-ins.','The same pricing flows into rent quotes and new leases.')}
-      ${benefit('verified','Complete pricing on listings.','If you advertise online, your listings can show a total monthly price for compliance.')}
+      ${benefit('person_add','Accurate quotes and move-ins.','The same pricing flows into rent quotes, applications, and new leases.')}
+      ${benefit('verified','Total monthly price on listings.','If you advertise online, your listings can show all fees for compliance.')}
     </div>`;
 
     // ---- Step 2: a skeleton preview of the Charges tab, then the three things they'll do ----
@@ -6032,9 +6018,9 @@ class Component extends DCLogic {
     const body2 = `<div style="display:flex;flex-direction:column;gap:16px">
       ${preview}
       <div style="display:flex;flex-direction:column">
-        ${stepRow(1,'Set Up Fee Transparency','Every charge consolidated onto a charges tab on the property.')}
+        ${stepRow(1,'Centralize Charges','Every charge consolidated onto a charges tab on the property.')}
         ${stepRow(2,'Add Charge Details','Fill in more details that describe each charge.')}
-        ${stepRow(3,'Publish Complete Pricing.','Listings show a total monthly price.','If you list online',true)}
+        ${stepRow(3,'Convert to Fee Transparency','Listings show a total monthly price.','If you list online',true)}
       </div>
       <div style="height:1px;background:var(--rmx-line, #cedbe7)"></div>
       <div style="display:flex;align-items:center;gap:10px">
@@ -6051,19 +6037,19 @@ class Component extends DCLogic {
     const body3 = `<div style="display:flex;flex-direction:column;gap:16px">
       <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:14px 16px;display:flex;flex-direction:column;gap:12px">
         <span style="text-align:center;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Where to Start</span>
-        <div style="background:#f2f6f9;border-radius:4px;padding:14px 16px;font-size:14px;color:var(--rmx-text, #666666);line-height:1.55">Open the <strong style="color:var(--rmx-brand-dark, #13314c)">Fee Transparency</strong> page to see every property's status, or set up a single property from its <strong style="color:var(--rmx-brand-dark, #13314c)">Charges</strong> tab.</div>
+        <div style="background:#f2f6f9;border-radius:4px;padding:14px 16px;font-size:14px;color:var(--rmx-text, #666666);line-height:1.55">Open the <strong style="color:var(--rmx-brand-dark, #13314c)">Pricing Setup</strong> page to see every property's status, or set up a single property from its <strong style="color:var(--rmx-brand-dark, #13314c)">Charges</strong> tab.</div>
       </div>
       <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:16px 18px;display:flex;flex-direction:column;gap:14px">
         <span style="text-align:center;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">What to Expect</span>
         ${expect('Tenant-level charges stay where they are.')}
-        ${expect('Listings keep publishing as they do now until you publish complete pricing.')}
+        ${expect('Listings keep displaying as they do now until you convert to fee transparency.')}
         ${expect('Late and NSF fees are displayed on the Charges tab for centralization. How they work doesn\'t change.')}
       </div>
     </div>`;
 
     const cta = step < 3
       ? `<button data-act="announceNext" class="btn-pri" style="height:34px;min-height:34px;padding:0 20px;border-radius:4px;font-size:14px">Next</button>`
-      : `<button data-act="announceSetup" class="btn-pri" style="height:34px;min-height:34px;padding:0 20px;border-radius:4px;font-size:14px">Set Up Fee Transparency</button>`;
+      : `<button data-act="announceSetup" class="btn-pri" style="height:34px;min-height:34px;padding:0 20px;border-radius:4px;font-size:14px">Go to Pricing Setup</button>`;
     return `<div data-act="announceClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:145">
       <div data-act="noop" style="width:660px;max-width:96vw;height:${step === 3 ? 525 : 625}px;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         ${step === 1 ? head1 : head(step === 2 ? 'How it works' : 'What happens next')}
@@ -6124,7 +6110,7 @@ class Component extends DCLogic {
             <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Show renters complete, transparent pricing.</span>
             <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">Fee Transparency brings every charge onto the Charges tab and publishes a total monthly price to your listings — no fee surprises.</span>
           </div>
-          <button data-act="setupOpen" data-arg="${mkProp}" class="btn-pri" style="height:32px;min-height:32px;padding:0 14px;border-radius:4px;font-size:14px;white-space:nowrap;flex:none">Set Up Fee Transparency</button>
+          <button data-act="setupOpen" data-arg="${mkProp}" class="btn-pri" style="height:32px;min-height:32px;padding:0 14px;border-radius:4px;font-size:14px;white-space:nowrap;flex:none">Centralize Charges</button>
         </div>`;
     const listing = card('Listing Details', `
       ${ftCallout}
@@ -6207,7 +6193,7 @@ class Component extends DCLogic {
           return need
             ? `<div style="display:flex;align-items:flex-start;gap:10px;background:#fef4e8;border:1px solid #f6d9ac;border-radius:4px;padding:11px 14px">
                 <span class="material-symbols-outlined" style="font-size:18px;color:var(--rmx-attention, #f58220);flex:none;margin-top:1px">error</span>
-                <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Complete pricing can publish once every charge has its required fields — ${need} still need${need===1?'s':''} details.</span>
+                <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">This property can convert to fee transparency once every charge has its required fields — ${need} still need${need===1?'s':''} details.</span>
                 <a data-act="openFeeProfile" data-arg="${prop2}" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Add Charge Details</a>
               </div>`
             : `<div style="display:flex;align-items:center;gap:18px">
