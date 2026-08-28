@@ -385,7 +385,7 @@ class Component extends DCLogic {
     pre.forEach(e => log.push(e));
     // Profiles converted this session log their own creation entry, so only preloaded ones need one.
     if (this.state.profileStatus[p] !== 'active') {
-      const n = this.setupCandidates().length;
+      const n = this.propCharges(p).length;
       log.push({ k:'2026-01', by:'Admin', charge:'Fee Transparency',
         change:'Fee Transparency turned on · ' + n + ' charges added', level:p });
     }
@@ -433,14 +433,14 @@ class Component extends DCLogic {
     const n = p || this.state.property;
     const rows = this.state.profileFees[n];
     if (rows) return rows;
-    if (this.listingReadyProps().indexOf(n) >= 0) return this.listingReadyRows();
-    return this.seededProfiles().indexOf(n) >= 0 ? this.setupCandidates() : [];
+    if (this.listingReadyProps().indexOf(n) >= 0) return this.listingReadyRows(n);
+    return this.seededProfiles().indexOf(n) >= 0 ? this.propCharges(n) : [];
   }
   // The worked example: a property whose profile is finished — every charge carries its marketing
   // details and is included on listings — so the "done" state can be shown next to the properties
   // still missing fields. It has to be marketed on listings for any of that to be visible.
   listingReadyProps(){ return ['The Hamptons']; }
-  listingReadyRows(){
+  listingReadyRows(prop){
     // Resident-facing name and description per charge; everything else follows from the charge.
     const M = {
       RC:         ['Rent', 'Base monthly rent for the unit.'],
@@ -459,15 +459,16 @@ class Component extends DCLogic {
       PETDP:      ['Pet Deposit', 'Refundable deposit charged when a pet is added to the lease.'],
       EVCHG:      ['EV Charging', 'Access to the property’s EV charging stations.'],
       NSFFEE:     ['NSF Fee', 'Charged when a payment is returned for non-sufficient funds.'],
-      LC:         ['Late Fee', 'Charged when rent is received after the grace period.']
+      LC:         ['Late Fee', 'Charged when rent is received after the grace period.'],
+      HOLD:       ['Hold Fee', 'Fee to reserve a unit before the lease is signed.']
     };
     // Screening costs are collected with the application; deposits and prepaid rent at move-in.
     const dueAtApp = /^(ADMIN|APPFEE)$/;
     const dueAtMoveIn = /^(DP|LMR|KEY|PETDP)$/;
     const req = g => /^req/.test(g) ? 'Required' : /^opt/.test(g) ? 'Optional' : 'Situational';
-    // The hold fee is left off this property: its charge type has no MITS category, and inventing one
-    // would be the opposite of what this example is for.
-    return this.setupCandidates().filter(r => r.mits !== 'HOLD').map(r => {
+    // Every charge the property runs is in the finished example — the counts here are read against
+    // the same set the register and the tab banners read, so nothing may be quietly dropped.
+    return this.propCharges(prop || this.listingReadyProps()[0]).map(r => {
       const m = M[r.mits] || [r.name, ''];
       const oneTime = /-one$/.test(r.group || '');
       return Object.assign({}, r, { ils: true, listing: Object.assign({}, r.listing, {
@@ -483,7 +484,7 @@ class Component extends DCLogic {
   }
   // A property's charges: its Charges tab once Fee Transparency is on, otherwise the charges that already
   // exist in its operational setup (what the setup wizard would pull in).
-  propertyCharges(p){ const rows = this.profileRows(p); return rows.length ? rows : this.setupCandidates(); }
+  propertyCharges(p){ const rows = this.profileRows(p); return rows.length ? rows : this.propCharges(p || this.state.property); }
   setProfileRows(fn){
     const p = this.state.property;
     const base = this.profileRows(p).slice();
@@ -493,6 +494,54 @@ class Component extends DCLogic {
   // the single seed every count in the UI derives from.
   // Converted charges arrive with no listing configuration — ils stays false until the user
   // adds listing details on each charge, which is what the "Listing Details Added" column reflects.
+  // What each property actually runs. Charges every property has aren't listed; a property's entry
+  // names the charge types it doesn't run, so the register reads like fifteen different properties
+  // instead of one copied fifteen times. Explicit rather than random: these counts show up in the
+  // register, the tab banners, the setup wizard and the pricing preview, and they have to agree
+  // every time any of them reads them.
+  propChargePlan(){
+    return {
+      'Riverview Apartments':     [],                                  // the full set
+      'The Berkshires':           ['COVPARK','EVCHG','HOLD'],
+      'The Windermere':           ['SF','HOLD'],
+      'The Estates':              ['EVCHG'],
+      'Willow Creek':             ['COVPARK','SF','HOLD','KEY'],
+      'Greenbriar Village':       ['HOLD','EVCHG'],
+      'Oakwood Manor':            ['EVCHG','LMR'],
+      'Pinewood Place':           ['HOLD'],
+      'Cedar Ridge':              ['COVPARK','EVCHG','AMENFEE','HOLD'],
+      'The Highlands':            ['SF','EVCHG','PETFEE','PETDP','HOLD'],
+      'Valley Forge':             ['COVPARK','AMENFEE','EVCHG','SF','HOLD','KEY'],
+      'The Arbors':               ['EVCHG','HOLD','GARBAGEFEE'],
+      'Stonegate Village':        ['HOLD','EVCHG'],
+      'The Hamptons':             ['HOLD'],
+      // Manufactured housing: lot rent, utilities and the basics, none of the apartment add-ons.
+      'Clearcreek Condominiums':  ['COVPARK','AMENFEE','SF','EVCHG','HOLD','GARBAGEFEE']
+    };
+  }
+  // The same charge doesn't cost the same at every property, so flat amounts drift by property —
+  // deterministically from the name, in $1 steps, within ±20% of the reference amount. Rent follows
+  // the unit, and the property-specific NSF and late fees quote their amount in their own text, so
+  // those are left where they are.
+  propAmtDrift(prop, code, base){
+    const t = String(prop || '') + '|' + code;
+    let h = 0; for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) | 0;
+    const steps = [-0.2, -0.1, 0, 0.1, 0.2][Math.abs(h) % 5];
+    return Math.max(1, Math.round(base * (1 + steps)));
+  }
+  // A property's charges: the reference set minus what it doesn't run, with its own amounts.
+  propCharges(prop){
+    const skip = this.propChargePlan()[prop] || [];
+    const drift = /^(GARBAG|GARBAGEFEE|WATER|ADMIN|APPFEE|DP|KEY|SF|AMENFEE|COVPARK|HOLD|PETFEE|PETDP|EVCHG)$/;
+    const money = n => '$' + n.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
+    return this.setupCandidates().filter(r => skip.indexOf(r.mits) < 0).map(r => {
+      if (!drift.test(r.mits)) return r;
+      const flat = this.parseAmt(r.amount);
+      // A calculated or referenced amount carries its estimate instead of a figure of its own.
+      if (!flat) return r.est != null ? Object.assign({}, r, { est: this.propAmtDrift(prop, r.mits, r.est) }) : r;
+      return Object.assign({}, r, { amount: money(this.propAmtDrift(prop, r.mits, flat)) });
+    });
+  }
   setupCandidates(){
     const L = (level, target) => ({ level, target: target || '' });
     return [
@@ -532,7 +581,7 @@ class Component extends DCLogic {
     const base = { ADMIN:'Admin', AMENFEE:'Amenity', AMENITY:'Amenity', APPFEE:'Application', APPLICATION:'Application',
       CABLE:'Tech', CAM:'Service', CAMTAX:'Govt', CLEAN:'Clean', COVPARK:'Parking', DAMAGE:'Damage', DP:'Lease',
       ELEC:'Utility', GARAGE:'Parking', GARBAG:'Service', GARBAGEFEE:'Service', GAS:'Utility', H2O:'Utility',
-      HO4:'Insurance', HOA:'Service', KEY:'Key', LATE:'Violation', LC:'Violation', LMR:'Lease',
+      HO4:'Insurance', HOA:'Service', HOLD:'Admin', KEY:'Key', LATE:'Violation', LC:'Violation', LMR:'Lease',
       NSF:'Violation', NSFFEE:'Violation', PARK:'Parking', PETDP:'Pet',
       PETFEE:'Pet', PET:'Pet', RC:'Lease', RUBS:'Utility', SEWER:'Utility', SF:'Storage', STORAGE:'Storage',
       TRANSFER:'Transfer', TRASH:'Service', UTIL:'Utility', WATER:'Utility' };
@@ -1829,9 +1878,9 @@ class Component extends DCLogic {
       'Clearcreek Condominiums'];
   }
   // Charges for a converted property: either every marketing detail filled in, or the same charges
-  // as they arrive from setup, with details still missing. '' is not a real property, so setupRows
-  // gives back the generic discovered set rather than a worked example.
-  scenarioRows(complete){ return complete ? this.listingReadyRows() : this.setupRows('', true); }
+  // as they arrive from setup, with details still missing. Built from the property's own charge set,
+  // so a seeded scenario varies by property the same way a real portfolio does.
+  scenarioRows(name, complete){ return complete ? this.listingReadyRows(name) : this.setupRows(name, true); }
   scenarioPlan(key){
     const names = this.propertiesData().map(p => p.name);
     const ils = {};
@@ -1839,7 +1888,7 @@ class Component extends DCLogic {
     const plan = { ils, status:{}, fees:{}, published:{} };
     const convert = (n, complete, published) => {
       plan.status[n] = 'active';
-      plan.fees[n] = this.scenarioRows(complete);
+      plan.fees[n] = this.scenarioRows(n, complete);
       if (published) plan.published[n] = true;
     };
     if (key === 'mid') {
@@ -4312,7 +4361,7 @@ class Component extends DCLogic {
   // no legacy charges to pull in.
   discoveredCharges(prop){
     if ((this.state.newProps || []).some(x => x.name === prop)) return [];
-    return this.setupCandidates();
+    return this.propCharges(prop || this.state.property);
   }
   setupRows(prop, keepOri){
     // Setup only pulls property, unit type and unit charges — rentable items stay where they are, so
@@ -4326,7 +4375,7 @@ class Component extends DCLogic {
     // The new setup moves every discovered charge — nothing is excluded during setup; charges are
     // managed (or removed) on the Charges tab afterwards. No marketing detail is carried over or
     // guessed: only Charge Category, which comes from the charge type, fills itself in.
-    return noOri(this.setupCandidates()).map(blankMkt).map(r => {
+    return noOri(this.propCharges(prop || this.state.property)).map(blankMkt).map(r => {
       const req = (r.listing && r.listing.requirement) || '';
       const suffix = /-one$/.test(r.group) ? '-one' : '-rec';
       // No chosen requirement keeps the group the charge was discovered with, so required charges
