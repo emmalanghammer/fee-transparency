@@ -261,18 +261,8 @@ class Component extends DCLogic {
     if (/\b(optional|add-?on|valet|storage|parking|garage|reservation|locker|access)\b/.test(text)) return 'Optional';
     return 'Required';
   }
-  // The requirement chosen for a charge during setup (falls back to the inferred value).
-  // Blank until the user picks one — setup shouldn't guess a requirement on their behalf. Charges
-  // left unset land in the Individual Charges group and get flagged as missing the MITS field.
   // Which selected property step 2 is currently reviewing.
   setupCurProp(){ const c = this.state.setup; if (!c) return ''; return this.setupProps()[c.pi || 0] || ''; }
-  // Requirement comes from the charge's group when marketing details haven't been saved yet.
-  defaultRequirement(r){
-    const g = String(r.group || '');
-    // 'ind' means no requirement was ever chosen, so there's nothing to fall back on.
-    if (g.indexOf('ind') === 0) return '';
-    return g.indexOf('opt') === 0 ? 'Optional' : g.indexOf('sit') === 0 ? 'Situational' : 'Required';
-  }
   // ---------- Charges history ----------
   // Preloaded demo history, running up to today. Keyed to charge codes so it only surfaces for
   // charges the property actually has. Keys sort as 'YYYY-MM'; anything after this is tracked live.
@@ -401,7 +391,7 @@ class Component extends DCLogic {
     return {
       name: L.name,
       category: L.category || this.chargeCategoryFor(r.mits),
-      requirement: L.requirement || this.defaultRequirement(r),
+      requirement: L.requirement || '',
       feeDue: L.feeDue,
       schedule: /-one$/.test(r.group || '') ? '' : L.schedule,
       marketing: L.marketing,
@@ -1423,7 +1413,7 @@ class Component extends DCLogic {
     const id = this.state.nextFeeId;
     this.setProfileRows(rows => rows.concat([Object.assign({ id }, row)]));
     this.logChange(this.state.property, this.histLabelFor(row),
-      'Charge added · ' + row.amount + ' · ' + (row.listing.requirement || 'Required'), target || app, { chargeId: id });
+      'Charge added · ' + row.amount + ' · ' + (row.listing.requirement || 'No requirement'), target || app, { chargeId: id });
     if (keep) { this.setState(s => ({ nextFeeId: s.nextFeeId + 1 })); return true; }
     this.setState(s => ({ modal: null, nextFeeId: s.nextFeeId + 1 }));
     this.flash('Charge added');
@@ -4244,8 +4234,8 @@ class Component extends DCLogic {
     // freshly centralized property reads Incomplete Charges until someone adds them.
     const blankMkt = (r) => { const n2 = Object.assign({}, r); delete n2.listing; return n2; };
     // The new setup moves every discovered charge — nothing is excluded during setup; charges are
-    // managed (or removed) on the Charges tab afterwards. Charges that arrive with pulled-in
-    // marketing details (NSF, late fees) keep the requirement they came with.
+    // managed (or removed) on the Charges tab afterwards. No marketing detail is carried over or
+    // guessed: only Charge Category, which comes from the charge type, fills itself in.
     return noOri(this.setupCandidates()).map(blankMkt).map(r => {
       const req = (r.listing && r.listing.requirement) || '';
       const suffix = /-one$/.test(r.group) ? '-one' : '-rec';
@@ -5375,7 +5365,7 @@ class Component extends DCLogic {
     // check uses, so the display can't claim "no category" on a charge that reads as Listing Ready.
     const edCat = ed ? ((ed.listing && ed.listing.category) || catFor(ed.mits)) : '';
     const hasCode = !!(ed && ed.mits);
-    const req = (ed && ed.listing && ed.listing.requirement) || (ed ? this.defaultRequirement(ed) : '');
+    const req = (ed && ed.listing && ed.listing.requirement) || '';
     const refundable = ed && ed.listing && ed.listing.refundable !== undefined ? ed.listing.refundable : this.defaultRefundable(ed);
     const catBlock = `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">${lab('Charge Category',true)}
       <input type="hidden" id="m-cat" value="${esc(edCat)}">
