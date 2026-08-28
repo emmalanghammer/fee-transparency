@@ -2076,8 +2076,11 @@ class Component extends DCLogic {
       document.addEventListener('mouseup', up);
     };
     const resizer = (i) => `<span onmousedown="if(window.__ftColDrag)window.__ftColDrag(event,${i})" title="Drag to resize" style="position:absolute;top:0;bottom:0;right:-4px;width:9px;display:flex;align-items:center;justify-content:center;cursor:col-resize;z-index:2"><span style="width:1px;height:calc(100% - 7px);background:var(--rmx-line, #cedbe7)"></span></span>`;
+    // Centralized and Fee Transparent hold a tick or N/A rather than text, so the label centres over
+    // the column the same way the cells do.
+    const midCol = (i) => i === 1 || i === 2;
     const hc = (t, first, i) => `<span style="position:relative;display:flex;align-items:center;min-height:30px;box-sizing:border-box;padding:4px 8px 4px ${first?'16px':'8px'};font:500 12.6px Roboto,sans-serif;letter-spacing:1.134px;color:var(--rmx-brand-dark, #13314c)">
-      <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>${resizer(i)}</span>`;
+      <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${midCol(i)?'text-align:center;':''}">${t}</span>${resizer(i)}</span>`;
     const heads = ['Property','Centralized','Fee Transparent'].concat(grouped ? [] : ['Status'])
       .concat(['Total Charges','Listing Ready Charges','Incomplete Charges','Excluded Charges','Next Step']);
     const header = `<div data-ftheader="1" style="display:grid;grid-template-columns:var(--ftcols);background:#fff;border-bottom:1px solid var(--rmx-line, #cedbe7)">
@@ -2086,6 +2089,7 @@ class Component extends DCLogic {
     </div>`;
     const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:39px;box-sizing:border-box;padding:0 10px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
     const na = cell('<span style="font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">N/A</span>');
+    const naMid = cell('<span style="font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">N/A</span>', 'justify-content:center');
     const tick = `<span class="material-symbols-outlined" style="font-size:18px;color:var(--rmx-success, #6eb744);font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">check_circle</span>`;
     const mitem = (t, act, arg) => `<div data-act="${act}" data-arg="${esc(arg)}" style="padding:8px 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">${t}</div>`;
     const lozStyle = { green:'background:var(--rmx-success-bg, #e2f1da);color:#2f5d43', amber:'background:#fdf3e3;color:#7a5a2a',
@@ -2123,7 +2127,7 @@ class Component extends DCLogic {
       return `<div onmouseenter="this.style.background='#f7fafc'" onmouseleave="this.style.background='#fff'" style="display:grid;grid-template-columns:var(--ftcols);align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff">
         <a data-act="openFeeProfile" data-arg="${esc(r.name)}" style="display:flex;align-items:center;min-height:39px;box-sizing:border-box;padding:0 10px 0 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer">${r.name}</a>
         ${cell(st.centralized ? tick : '', 'justify-content:center')}
-        ${st.ft === 'na' ? na : cell(st.ft ? tick : '', 'justify-content:center')}
+        ${st.ft === 'na' ? naMid : cell(st.ft ? tick : '', 'justify-content:center')}
         ${grouped ? '' : `<span style="display:flex;align-items:center;min-height:39px;box-sizing:border-box;padding:0 10px"><span class="loz" style="${lozStyle[st.loz]};text-transform:none;letter-spacing:0;white-space:nowrap">${st.status}</span></span>`}
         ${dash ? cell('-') : cell(String(ch.total))}
         ${num(ch.ready)}${incCell}${num(ch.excluded)}
