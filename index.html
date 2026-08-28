@@ -6234,7 +6234,7 @@ class Component extends DCLogic {
       ${field('Contact Email', entry)}
       ${field('Contact Phone', entry)}
       ${field('Company Website', entry)}`);
-    const contact2 = card('Marketing Description', `
+    const contact2 = card('Contact Information', `
       <div style="flex:1;min-height:220px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px"></div>
       <span data-act="toast" data-arg="Refresh contact block" title="Refresh contact block" style="align-self:flex-start;display:inline-flex;cursor:pointer">
         <svg width="40" height="40" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -6254,10 +6254,10 @@ class Component extends DCLogic {
     const mkPub = !!this.state.publishedProps[mkProp];
     // Mock 2791-152711: once Fee Transparency is set up, the callout offers the unit pricing preview.
     const ftCallout = mkOn
-      ? `<div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;padding:11px 13px">
-          <span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,var(--rmx-brand, #008dd5));flex:none">info</span>
-          <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">With Fee Transparency set up, you can preview the pricing for an individual unit.</span>
-          <a data-act="pricePreviewOpen" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Preview Pricing</a>
+      ? `<div style="display:flex;align-items:flex-start;gap:10px;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;padding:11px 13px">
+          <span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,var(--rmx-brand, #008dd5));flex:none;margin-top:1px">info</span>
+          <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">This property has fee transparency, so you can preview pricing for an individual unit to view the total charges that would display on a listing.</span>
+          <a data-act="pricePreviewOpen" style="flex:none;margin-top:1px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Preview Pricing</a>
         </div>`
       : `<div style="display:flex;align-items:center;gap:14px;background:var(--rmx-brand-tint-bg, #ebf1f5);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:12px 14px;flex-wrap:wrap">
           <div style="flex:1;min-width:220px;display:flex;flex-direction:column;gap:3px">
@@ -6282,16 +6282,22 @@ class Component extends DCLogic {
         </div>
         <div style="flex:1;min-width:240px;display:flex;flex-direction:column;gap:12px">
           ${field('Laundry', { t:'' })}
-          ${field('Pets', { t:'' })}
+          <div style="display:flex;flex-direction:column;gap:4px">${lab('Pets')}
+            <div style="display:flex;align-items:flex-start;gap:10px;background:#fff;border:1px solid var(--rmx-attention, #f58220);border-radius:4px;padding:11px 13px">
+              <span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,var(--rmx-brand, #008dd5));flex:none;margin-top:1px">info</span>
+              <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Pet details can be added on any charges with a PET charge category.</span>
+              <a data-act="openFeeProfile" data-arg="${mkProp}" style="flex:none;margin-top:1px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">View Charges</a>
+            </div>
+          </div>
           ${field('Included Utilities', { t:'' })}
         </div>
-      </div>`, '', true);
+      </div>`);
     const uts = this.utData();
     const fpRow = (name, count, beds, baths) => `<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;padding:9px 4px;border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);font-size:14px;color:var(--rmx-brand-dark, #13314c)"><span>${name}</span><span>${name}</span><span>${count}</span><span>${beds}</span><span>${baths}</span></div>`;
     const floor = card('Floor Plans', `
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;padding:4px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);border-bottom:1px solid var(--rmx-line, #cedbe7)"><span>Name</span><span>Unit Type</span><span>Unit Count</span><span>Beds</span><span>Baths</span></div>
       ${uts.length ? uts.map(t => fpRow(t.name, t.units, (t.name.match(/^(\d)/)||[,'2'])[1], ((t.name.match(/(\d)B$/)||t.name.match(/\/ ?(\d)/)||[,'2'])[1]) + '.0')).join('') : fpRow('2B / 2B', 14, 2, '2.0') + fpRow('1B / 1B', 18, 1, '1.0')}`,
-      `<a data-act="toast" data-arg="Add Item" style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap"><span class="material-symbols-outlined" style="font-size:16px">add</span>Add Item</a>`, true);
+      `<a data-act="toast" data-arg="Add Item" style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap"><span class="material-symbols-outlined" style="font-size:16px">add</span>Add Item</a>`);
     return `<div style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:145">
       <div data-act="noop" style="width:calc(100vw - 24px);height:calc(100vh - 24px);background:var(--rmx-bg-subtle, #f5f8fa);border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;background:#fff;padding:13px 20px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
@@ -6313,10 +6319,8 @@ class Component extends DCLogic {
             <div style="flex:1"></div>
             <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Occupied Units: <strong>${P.occupied != null ? P.occupied : 30}</strong></span>
           </div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:16px;align-items:stretch">
-            ${contact1}${contact2}${listing}
-            ${features}${floor}
-          </div>
+          <div style="display:grid;grid-template-columns:repeat(3, minmax(0,1fr));gap:16px;align-items:stretch">${contact1}${contact2}${listing}</div>
+          <div style="display:grid;grid-template-columns:repeat(2, minmax(0,1fr));gap:16px;align-items:stretch">${features}${floor}</div>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:10px;background:#fff;border-top:1px solid var(--rmx-line, #cedbe7);padding:12px 20px;flex:none">
           <button data-act="mktAdvOpen" style="height:34px;min-height:34px;padding:0 20px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Advanced</button>
