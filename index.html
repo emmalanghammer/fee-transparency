@@ -1465,6 +1465,61 @@ class Component extends DCLogic {
   // Searchable single-select dropdown. options: array of strings OR {value,label}.
   // opt.act -> framework action (dispatched with data-arg=value on select); otherwise a hidden <input id> holds the value.
   // opt.js  -> extra inline JS run after select; `_v` holds the chosen value.
+  // ---------- resizable table columns ----------
+  // One mechanic for every register and table: a header row tagged with colHead() lets its right
+  // edges be grabbed, and the drag rewrites the grid tracks in pixels on the header and every row
+  // that shares them. Widths live on the instance, keyed per table, and colTracks() hands them back
+  // on the next render so nothing snaps back.
+  colTracks(key, cols){ return (this._colW || {})[key] || cols; }
+  // Shared table helpers get their key from the tracks they were handed, so every caller is keyed
+  // without having to name itself. Two tables built the same way share a width — which is what a
+  // reader would expect of two tables that look identical.
+  colKey(cols){ let h = 0; const t = String(cols); for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) | 0; return 'c' + (h >>> 0).toString(36); }
+  // Which column boundary the pointer is on, or -1. The last edge is left alone — dragging it would
+  // only push the table past its own width.
+  colEdgeAt(head, x){
+    const kids = Array.prototype.slice.call(head.children);
+    for (let i = 0; i < kids.length - 1; i++) {
+      if (Math.abs(x - kids[i].getBoundingClientRect().right) <= 5) return i;
+    }
+    return -1;
+  }
+  colDragInstall(){
+    window.__colHover = (ev, head) => { head.style.cursor = this.colEdgeAt(head, ev.clientX) >= 0 ? 'col-resize' : ''; };
+    window.__colGrab = (ev, key, head) => {
+      const idx = this.colEdgeAt(head, ev.clientX);
+      if (idx < 0) return;
+      ev.preventDefault(); ev.stopPropagation();
+      // The rows to resize are every element whose tracks match the header's — rows nested inside
+      // group wrappers included, and the second table of a pair that renders from the same tracks
+      // (the rent quote's recurring and one-time tables), which shares the header's saved width.
+      const sig = head.style.gridTemplateColumns;
+      const root = this.rootEl || document;
+      const grids = Array.prototype.slice.call(root.querySelectorAll('*'))
+        .filter(el => el.style.gridTemplateColumns === sig);
+      if (grids.indexOf(head) < 0) grids.push(head);
+      const widths = Array.prototype.slice.call(head.children).map(c => Math.round(c.getBoundingClientRect().width));
+      const startX = ev.clientX, startW = widths[idx], MIN = 40;
+      let last = null;
+      const apply = (w) => {
+        const next = widths.slice(); next[idx] = w;
+        last = next.map(x => x + 'px').join(' ');
+        grids.forEach(g => { g.style.gridTemplateColumns = last; });
+      };
+      const move = (e) => apply(Math.max(MIN, startW + (e.clientX - startX)));
+      const up = () => {
+        document.removeEventListener('mousemove', move);
+        document.removeEventListener('mouseup', up);
+        document.body.style.cursor = '';
+        if (last) { this._colW = this._colW || {}; this._colW[key] = last; }
+      };
+      document.body.style.cursor = 'col-resize';
+      document.addEventListener('mousemove', move);
+      document.addEventListener('mouseup', up);
+    };
+  }
+  // Attributes a header row needs to be resizable. The key names the table for saved widths.
+  colHead(key){ return `onmousemove="if(window.__colHover)window.__colHover(event,this)" onmousedown="if(window.__colGrab)window.__colGrab(event,'${key}',this)"`; }
   singleSelect(id, options, selected, opt){
     opt = opt || {};
     const act = opt.act || '', extraJs = opt.js || '', noSearch = !!opt.noSearch;
@@ -2125,10 +2180,13 @@ class Component extends DCLogic {
     </div>`; };
     const thc = (t, r) => `<span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);padding:7px 12px;${r?'text-align:right;':''}">${t}</span>`;
     const tdc = (t, r) => `<span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);padding:9px 12px;${r?'text-align:right;':''}overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t}</span>`;
+    // Tracks resolve through colTracks so a resized table keeps its widths; gRow is called with the
+    // same original tracks, so it has to resolve them the same way to stay lined up with the header.
+    const gTracks = (cols) => this.colTracks(this.colKey(cols), cols);
     const grid = (cols, head, rows, minW) => `<div style="overflow-x:auto"><div style="display:flex;flex-direction:column;${minW?`min-width:${minW}px`:''}">
-      <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7)">${head}</div>
+      <div ${this.colHead(this.colKey(cols))} style="display:grid;grid-template-columns:${gTracks(cols)};border-bottom:1px solid var(--rmx-line, #cedbe7)">${head}</div>
       ${rows}</div></div>`;
-    const gRow = (cols, cells, alt) => `<div style="display:grid;grid-template-columns:${cols};align-items:center;${alt?'background:var(--rmx-bg-subtle, #f5f8fa);':''}border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa)">${cells}</div>`;
+    const gRow = (cols, cells, alt) => `<div style="display:grid;grid-template-columns:${gTracks(cols)};align-items:center;${alt?'background:var(--rmx-bg-subtle, #f5f8fa);':''}border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa)">${cells}</div>`;
     const empty = (t, extra) => `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;font-size:14px;color:var(--rmx-text, #666666)">${t}${extra||''}</div>`;
 
     // ---- header card ----
@@ -2543,9 +2601,10 @@ class Component extends DCLogic {
       <div style="flex:1"></div>
       <button data-act="toast" data-arg="Update Listings Feed" class="btn-pri" style="display:inline-flex;align-items:center;gap:8px;height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px"><span class="material-symbols-outlined" style="font-size:18px">update</span>Update Listings Feed</button>
     </div>`;
-    const cols = '200fr 170fr 150fr 170fr 160fr 200fr 250fr 340fr 38px';
+    const colK = 'listings';
+    const cols = this.colTracks(colK, '200fr 170fr 150fr 170fr 160fr 200fr 250fr 340fr 38px');
     const hc = (t, first, right) => `<span style="display:flex;align-items:center;${right?'justify-content:flex-end;':''}gap:8px;height:26px;box-sizing:border-box;padding:0 ${first?'0 0 17px':'12px 0 12px'};font-size:14px;font-weight:600;color:#fff;white-space:nowrap;${first?'':'border-left:1px solid rgba(255,255,255,0.35)'}">${t}</span>`;
-    const header = `<div style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">
+    const header = `<div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">
       ${hc('Property', true)}${hc('Unit Floor Plan')}${hc('Unit Type')}${hc('Date Available')}${hc('Base Rent', false, true)}${hc('Total Monthly Price', false, true)}${hc('Pricing')}${hc('Errors')}
       <span style="display:flex;align-items:center;justify-content:center;height:26px;border-left:1px solid rgba(255,255,255,0.35)"><span class="material-symbols-outlined" style="font-size:18px;color:#fff">view_column</span></span>
     </div>`;
@@ -2620,12 +2679,13 @@ class Component extends DCLogic {
       <div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:18px 20px;display:flex;flex-direction:column;gap:16px">${inner}</div>
     </div>`;
     // Charge table: two columns, a kebab and the reorder handle on each row.
+    const spCols = this.colTracks('sysprefs', 'minmax(200px,1fr) minmax(200px,1fr) 88px');
     const chargeTable = (rows) => `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden;max-width:790px">
-      <div style="display:grid;grid-template-columns:minmax(200px,1fr) minmax(200px,1fr) 88px;background:#fff;border-bottom:1px solid var(--rmx-line, #cedbe7)">
+      <div ${this.colHead('sysprefs')} style="display:grid;grid-template-columns:${spCols};background:#fff;border-bottom:1px solid var(--rmx-line, #cedbe7)">
         <span style="padding:14px 16px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Charge Type</span>
         <span style="padding:14px 16px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Charge Source</span><span></span>
       </div>
-      ${rows.map(r => `<div style="display:grid;grid-template-columns:minmax(200px,1fr) minmax(200px,1fr) 88px;align-items:center;background:#fff">
+      ${rows.map(r => `<div style="display:grid;grid-template-columns:${spCols};align-items:center;background:#fff">
         <span style="padding:14px 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c)">${r[0]}</span>
         <span style="padding:14px 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c)">${r[1]}</span>
         <span style="display:flex;align-items:center;justify-content:flex-end;gap:14px;padding:0 16px">
@@ -2710,9 +2770,10 @@ class Component extends DCLogic {
     const rows = this.chargeTypeRows()
       .filter(r => this.state.ctShowInactive || r.active)
       .slice().sort((a, b) => a.code.localeCompare(b.code));
-    const cols = '110px minmax(180px,1.2fr) minmax(170px,1fr) 130px 120px 90px 150px 90px 44px';
+    const colK = 'ctypes';
+    const cols = this.colTracks(colK, '110px minmax(180px,1.2fr) minmax(170px,1fr) 130px 120px 90px 150px 90px 44px');
     const hc = (t, first, right) => `<span style="display:flex;align-items:center;${right?'justify-content:flex-end;':''}height:28px;box-sizing:border-box;padding:4px ${first?'8px 4px 16px':'8px'};font-size:14px;font-weight:500;letter-spacing:0.5px;color:#fff;white-space:nowrap;border-right:1px solid rgba(255,255,255,0.35)">${t}</span>`;
-    const header = `<div style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">
+    const header = `<div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">
       ${hc('Name', true)}${hc('Description')}${hc('GL Account')}${hc('Default Amount', false, true)}${hc('Prorate by Day?')}${hc('CRE')}${hc('Property')}${hc('Active')}
       <span style="display:flex;align-items:center;justify-content:center;height:28px"><span class="material-symbols-outlined" style="font-size:18px;color:#fff">view_column</span></span>
     </div>`;
@@ -2826,7 +2887,7 @@ class Component extends DCLogic {
              F.field('Charge Category', this.singleSelect('ctd-cat', this.chargeCategoryOptions(), r.category, { placeholder:'Select a category' }), true))
       + F.check('ctd-prorate', r.prorate, 'Prorate by Day')
       + F.check('ctd-cre', r.cre, 'CRE Charge Type'));
-    const invCols = 'minmax(120px,1fr) minmax(160px,1.6fr)';
+    const invCols = this.colTracks('ctinv', 'minmax(120px,1fr) minmax(160px,1.6fr)');
     const ih = (t) => `<span style="display:flex;align-items:center;min-height:30px;padding:5px 12px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span>`;
     const ic = (t) => `<span style="display:flex;align-items:center;min-height:34px;padding:5px 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c)">${t}</span>`;
     const invRows = r.inv && r.inv.length
@@ -2835,7 +2896,7 @@ class Component extends DCLogic {
     const invTile = tile('Inventory Items',
       `<span data-act="toast" data-arg="Link Existing Inventory Item" style="display:inline-flex;align-items:center;gap:4px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Link Existing Inventory Item<span class="material-symbols-outlined" style="font-size:18px">arrow_drop_down</span></span>`,
       `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
-         <div style="display:grid;grid-template-columns:${invCols};background:var(--rmx-bg-subtle, #f5f8fa)">${ih('Name')}${ih('Description')}</div>
+         <div ${this.colHead('ctinv')} style="display:grid;grid-template-columns:${invCols};background:var(--rmx-bg-subtle, #f5f8fa)">${ih('Name')}${ih('Description')}</div>
          ${invRows}
        </div>
        <div style="flex:1"></div>
@@ -2863,9 +2924,10 @@ class Component extends DCLogic {
   // ---------- Pet Types register + details ----------
   petTypesBody(){
     const money = n => (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const cols = 'minmax(140px,1fr) minmax(150px,1.1fr) 100fr 115fr 140fr 160fr 120fr 150fr 120fr 150fr 44px';
+    const colK = 'pettypes';
+    const cols = this.colTracks(colK, 'minmax(140px,1fr) minmax(150px,1.1fr) 100fr 115fr 140fr 160fr 120fr 150fr 120fr 150fr 44px');
     const hc = (t, first, right) => `<span style="display:flex;align-items:center;${right?'justify-content:flex-end;':''}height:28px;box-sizing:border-box;padding:4px ${first?'8px 4px 16px':'8px'};font-size:14px;font-weight:500;letter-spacing:0.5px;color:#fff;border-right:1px solid rgba(255,255,255,0.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>`;
-    const header = `<div style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">
+    const header = `<div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">
       ${hc('Name', true)}${hc('Description')}${hc('Max Pets')}${hc('Max Weight')}${hc('Recurring Amount', false, true)}${hc('Max Recurring Amount', false, true)}${hc('One Time Fee', false, true)}${hc('Max One Time Fee', false, true)}${hc('Pet Deposit', false, true)}${hc('Max Pet Deposit', false, true)}<span></span>
     </div>`;
     const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:0 8px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
@@ -2949,14 +3011,15 @@ class Component extends DCLogic {
     // In selection mode a checkbox column leads the grid and rows select instead of navigating.
     const bs = this.state.bulkSetup;
     const pickable = (n) => this.profStatus(n) !== 'active';
-    const cols = (bs ? '44px ' : '') + '10px minmax(180px,1.2fr) 120px minmax(200px,1.4fr) 150px minmax(230px,1.6fr) minmax(230px,1.6fr) 44px';
+    const colK = 'props' + (bs ? '-sel' : '');
+    const cols = this.colTracks(colK, (bs ? '44px ' : '') + '10px minmax(180px,1.2fr) 120px minmax(200px,1.4fr) 150px minmax(230px,1.6fr) minmax(230px,1.6fr) 44px');
     const hcell = (t) => `<span style="display:flex;align-items:center;height:28px;box-sizing:border-box;padding:4px 8px;font-size:14px;font-weight:500;letter-spacing:0.5px;color:#fff;border-right:1px solid rgba(255,255,255,0.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>`;
     const box = (on) => `<span style="width:18px;height:18px;border-radius:2px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${on?'background:var(--rmx-attention, #f58220);border:1px solid var(--rmx-attention, #f58220)':'background:#fff;border:1px solid var(--rmx-text-muted, #b3b3b3)'}">${on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span>`;
     const avail = this.bulkSetupCandidates().map(p => p.name);
     const allOn = bs && avail.length && avail.every(n => bs.sel[n]);
     const headBox = !bs ? '' : `<span data-act="bulkSetupAll" style="display:flex;align-items:center;justify-content:center;height:28px;cursor:pointer">${box(!!allOn)}</span>`;
     const heads = ['Name','Short Name','Email','Manager Name','Primary Address','Billing Address'];
-    const header = `<div style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">${headBox}<span></span>${heads.map(hcell).join('')}<span style="display:flex;align-items:center;justify-content:center;height:28px"><span class="material-symbols-outlined" style="font-size:20px;color:#fff">view_column</span></span></div>`;
+    const header = `<div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">${headBox}<span></span>${heads.map(hcell).join('')}<span style="display:flex;align-items:center;justify-content:center;height:28px"><span class="material-symbols-outlined" style="font-size:20px;color:#fff">view_column</span></span></div>`;
     const cell = (t, extra) => `<span style="padding:8px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
     // The whole row navigates, so the name is plain navy text rather than a link. The kebab keeps its
     // own data-act and wins the closest() lookup, so it stays independently clickable.
@@ -3061,7 +3124,7 @@ class Component extends DCLogic {
     const two=(a,b)=>`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px;align-items:stretch">${a}${b}</div>`;
     // Tables run edge to edge inside their tile, like the Units tile — the tile supplies the border,
     // so the table draws none of its own and the last row skips its divider.
-    const gtable=(cols,heads,rows)=>`<div style="overflow-x:auto"><div style="display:grid;grid-template-columns:${cols};background:var(--rmx-bg-subtle, #f5f8fa);border-bottom:1px solid var(--rmx-line, #cedbe7)">${heads.map((h,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:14px;font-weight:500;color:var(--rmx-text, #666666)">${h}</span>`).join('')}</div>${rows.map((r,ri)=>`<div style="display:grid;grid-template-columns:${cols};align-items:center;${ri===rows.length-1?'':'border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)'}">${r.map((c,ci)=>`<span class="td" style="border:none${ci===0?';padding-left:16px':''}">${c}</span>`).join('')}</div>`).join('')}</div>`;
+    const gtable=(cols,heads,rows)=>{const ck=this.colKey(cols),tr=this.colTracks(ck,cols);return `<div style="overflow-x:auto"><div ${this.colHead(ck)} style="display:grid;grid-template-columns:${tr};background:var(--rmx-bg-subtle, #f5f8fa);border-bottom:1px solid var(--rmx-line, #cedbe7)">${heads.map((h,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:14px;font-weight:500;color:var(--rmx-text, #666666)">${h}</span>`).join('')}</div>${rows.map((r,ri)=>`<div style="display:grid;grid-template-columns:${tr};align-items:center;${ri===rows.length-1?'':'border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)'}">${r.map((c,ci)=>`<span class="td" style="border:none${ci===0?';padding-left:16px':''}">${c}</span>`).join('')}</div>`).join('')}</div>`;};
     // Tile whose body is a table: no padding, with an optional padded note underneath.
     const tileT=(title,right,inner,note)=>`<div class="tile"><div class="thead2"><span class="ttl">${title}</span><div style="flex:1"></div>${right||''}</div>${inner}${note?`<div style="padding:12px 16px;font-size:14px;color:var(--rmx-text-muted, #b3b3b3)">${note}</div>`:''}</div>`;
 
@@ -3148,8 +3211,9 @@ class Component extends DCLogic {
 
   // Entry point 1 / resume / success banner shown atop a legacy property's General tab.
   propUnitsBody(){
-    const cols = '90px 130px 90px 110px minmax(140px,1fr) 120px 90px';
-    const head = `<div style="display:grid;grid-template-columns:${cols};background:var(--rmx-bg-subtle, #f5f8fa);border-bottom:1px solid var(--rmx-line, #cedbe7)">${['Unit','Unit type','Sq ft','Market rent','Tenant','Status',''].map((h,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:14px;font-weight:500;color:var(--rmx-text, #666666)">${h}</span>`).join('')}</div>`;
+    const colK = 'units';
+    const cols = this.colTracks(colK, '90px 130px 90px 110px minmax(140px,1fr) 120px 90px');
+    const head = `<div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};background:var(--rmx-bg-subtle, #f5f8fa);border-bottom:1px solid var(--rmx-line, #cedbe7)">${['Unit','Unit type','Sq ft','Market rent','Tenant','Status',''].map((h,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:14px;font-weight:500;color:var(--rmx-text, #666666)">${h}</span>`).join('')}</div>`;
     const body = this.units().map(u => `<div data-act="navUnit" data-arg="${u.u}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);cursor:pointer" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">
       <span class="td name" style="border:none;padding-left:16px;color:var(--ac,var(--rmx-brand, #008dd5))">${u.u}</span>
       <span class="td" style="border:none">${u.type}</span>
@@ -3522,7 +3586,8 @@ class Component extends DCLogic {
     const keys = this.chargeCols().filter(k => { const d = this.chargeColDef(k);
       return d && !(d.recOnly && !rec) && !(d.ilsOnly && !ils); });
     const widthOf = k => k === 'comment' ? cmt : (this.chargeColDef(k).w || '120px');
-    const cols = (bs ? '44px ' : '') + keys.map(widthOf).join(' ') + ' 40px';
+    const colK = 'chg-' + kind + '-' + keys.length + (bs ? '-sel' : '');
+    const cols = this.colTracks(colK, (bs ? '44px ' : '') + keys.map(widthOf).join(' ') + ' 40px');
     const minW = keys.reduce((n, k) => n + (k === 'comment' ? (tagged ? 260 : 160)
       : parseInt((String(this.chargeColDef(k).w || '120').match(/(\d+)/) || [0, 120])[1], 10)), 0) + 40 + (bs ? 44 : 0);
     const allIds = rows.map(r => r.id).join(',');
@@ -3565,7 +3630,7 @@ class Component extends DCLogic {
     const add = `<div data-act="addopen" data-arg="${group}" style="background:#f5f9fc;padding:9px 16px;cursor:pointer"><span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))"><span class="material-symbols-outlined" style="font-size:18px">add</span>Add ${rec?'Recurring':'One-Time'} Charge</span></div>`;
     return `${noLabel?'':`<div style="font-size:14px;color:var(--rmx-text, #666666);padding:12px 20px 8px">${rec?'Recurring':'One-Time'}</div>`}
       <div style="padding:${noLabel?'4px':'0'} 20px 0;overflow-x:auto"><div style="min-width:${minW}px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
-        <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7)">${selHead}${heads.map(hc).join('')}${colBtn}</div>
+        <div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7)">${selHead}${heads.map(hc).join('')}${colBtn}</div>
         ${body}${add}</div></div>`;
   }
   // A charge's requirement comes from its marketing details; charges that haven't had one selected
@@ -3809,7 +3874,8 @@ class Component extends DCLogic {
     const oriRow = isOri ? ((q.oris || [])[f.ori] || {}) : null;
     const rows = this.rqAmountSources();
     const money = n => (n || 0).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
-    const cols = 'minmax(0,1fr) 150px';
+    const colK = 'amtsel';
+    const cols = this.colTracks(colK, 'minmax(0,1fr) 150px');
     const hc = (t, right) => `<span style="display:flex;align-items:center;${right?'justify-content:flex-end;':''}min-height:32px;padding:5px 14px;font-size:14px;font-weight:600;color:#fff;white-space:nowrap">${t}</span>`;
     const rowHTML = (r, i) => `<div data-act="amtSelPick" data-arg="${r.id}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:${i % 2 ? 'var(--rmx-bg-subtle, #f5f8fa)' : '#fff'};cursor:pointer">
       <span style="display:flex;align-items:center;gap:10px;min-height:38px;padding:5px 14px;font-size:14px;color:var(--rmx-brand-dark, #13314c)">
@@ -3829,7 +3895,7 @@ class Component extends DCLogic {
           <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">The ${isOri ? 'amount' : 'rent'} will be created as a tenant-level recurring charge at move in.</span>
           <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);padding-bottom:8px">Charge Type: ${isOri ? (oriRow.ctype || '—') : 'RC'}</span>
           <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
-            <div style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">${hc('Source')}${hc('Amount', true)}</div>
+            <div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">${hc('Source')}${hc('Amount', true)}</div>
             ${rows.length ? rows.map(rowHTML).join('')
               : `<div style="padding:14px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">This property's Charges tab has no ${isOri ? (oriRow.ctype || 'matching') : 'rent'} charge to price from.</div>`}
           </div>
@@ -3872,7 +3938,8 @@ class Component extends DCLogic {
     const oriRow = isOri ? ((q.oris || [])[f.ori] || {}) : null;
     const propShown = isOri ? (oriRow.prop || '') : (q.prop || this.state.property);
     const rows = this.unitSelRows();
-    const cols = 'minmax(90px,1fr) minmax(110px,1fr) minmax(130px,1.2fr) minmax(130px,1.2fr) minmax(110px,1fr)';
+    const colK = 'unitsel';
+    const cols = this.colTracks(colK, 'minmax(90px,1fr) minmax(110px,1fr) minmax(130px,1.2fr) minmax(130px,1.2fr) minmax(110px,1fr)');
     const hc = (t) => `<span style="display:flex;align-items:center;min-height:30px;padding:5px 12px;font-size:14px;font-weight:600;color:#fff;white-space:nowrap">${t}</span>`;
     const cellS = (t, on) => `<span style="display:flex;align-items:center;min-height:36px;padding:5px 12px;font-size:14px;color:${on ? '#fff' : 'var(--rmx-brand-dark, #13314c)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>`;
     // The selected row fills with brand blue and its text turns white, the way Rent Manager marks a
@@ -3908,7 +3975,7 @@ class Component extends DCLogic {
           </div>
           <label style="display:inline-flex;align-items:center;gap:9px;align-self:flex-start;cursor:pointer"><input type="checkbox" data-act="unitSelVacant" ${f.vacantOnly === false ? '' : 'checked'} style="accent-color:var(--rmx-attention, #f58220);width:17px;height:17px;margin:0"><span style="font-size:14px;color:var(--rmx-text, #666666)">Show Vacant Units Only</span></label>
           <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
-            <div style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">${hc('Unit')}${hc('Status')}${hc('Next Move Out')}${hc('Next Occupant')}${hc('Unit Type')}</div>
+            <div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">${hc('Unit')}${hc('Status')}${hc('Next Move Out')}${hc('Next Occupant')}${hc('Unit Type')}</div>
             ${rows.length ? rows.map(rowHTML).join('') : `<div style="padding:14px 12px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">${isOri && !propShown ? 'Choose the property on the card first.' : 'No units match this filter.'}</div>`}
           </div>
         </div>
@@ -4147,7 +4214,8 @@ class Component extends DCLogic {
       </div>
     </div>`;
 
-    const cols = '44px 130px 150px minmax(0,1fr) 120px';
+    const colK = 'rqchg';
+    const cols = this.colTracks(colK, '44px 130px 150px minmax(0,1fr) 120px');
     const hc = (t, r) => `<span style="display:flex;align-items:center;${r?'justify-content:flex-end;':''}min-height:30px;padding:4px 12px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span>`;
     const cell = (t, r) => `<span style="display:flex;align-items:center;${r?'justify-content:flex-end;':''}min-height:34px;padding:4px 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t}</span>`;
     const groupLbl = (t) => `<span style="display:block;padding:8px 12px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span>`;
@@ -4176,7 +4244,7 @@ class Component extends DCLogic {
     const footStrip = (l, v) => `<div style="display:flex;align-items:center;gap:12px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:8px 12px"><div style="flex:1"></div><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${l}</span><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);min-width:96px;text-align:right">${v}</span></div>`;
 
     const recTable = `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
-      <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7)">
+      <div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7)">
         ${hc('')}${hc('Charge Level')}${hc('Charge Type')}${hc('Comment')}${hc('Amount', true)}
       </div>
       ${groupLbl('Primary Unit')}
@@ -4191,7 +4259,7 @@ class Component extends DCLogic {
     </div>`;
 
     const oneTable = `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
-      <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7)">
+      <div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7)">
         ${hc('')}${hc('Charge Level')}${hc('Charge Type')}${hc('Comment')}${hc('Amount', true)}
       </div>
       ${groupLbl('Primary Unit')}
@@ -4345,12 +4413,13 @@ class Component extends DCLogic {
       <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title}</span>
       <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.55">${body}</span></div>`;
     const table = (rows) => {
-      const cols = '130px minmax(200px,1fr) 120px 200px';
+      const colK = 'setup1';
+      const cols = this.colTracks(colK, '130px minmax(200px,1fr) 120px 200px');
       const heads = ['Charge Type','Comment','Amount','Charge Level'];
       const hc = (t) => `<span style="padding:8px 12px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;${/Amount/.test(t)?'justify-content:flex-end;display:flex;':''}">${t}</span>`;
       const cell = (t,extra) => `<span style="display:flex;align-items:center;min-height:36px;padding:6px 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
       return `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;margin:0 12px 12px;overflow:hidden">
-        <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7)">${heads.map(hc).join('')}</div>
+        <div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7)">${heads.map(hc).join('')}</div>
         ${rows.map((r,ri)=>`<div style="display:grid;grid-template-columns:${cols};align-items:center;${ri===rows.length-1?'':'border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa)'}">
           ${cell(r.mits)}${cell(r.desc||r.name)}
           ${cell(String(r.amount||'').replace(/^\$/,''),'justify-content:flex-end;text-align:right')}
@@ -4634,8 +4703,8 @@ class Component extends DCLogic {
     const money = n => '$' + n.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
 
     // One expandable row per charge; expanding lists every change recorded for that charge.
-    const acols = 'minmax(180px,1fr) 130px 110px 160px 140px 60px';
-    const ahead = `<div style="display:grid;grid-template-columns:${acols};background:var(--rmx-bg-subtle, #f5f8fa);border-bottom:1px solid var(--rmx-line, #cedbe7)">${['Charge','Charge Level','Current','Change over time','Last changed by',''].map((t,i)=>hc(t,i)).join('')}</div>`;
+    const acols = this.colTracks('proghist', 'minmax(180px,1fr) 130px 110px 160px 140px 60px');
+    const ahead = `<div ${this.colHead('proghist')} style="display:grid;grid-template-columns:${acols};background:var(--rmx-bg-subtle, #f5f8fa);border-bottom:1px solid var(--rmx-line, #cedbe7)">${['Charge','Charge Level','Current','Change over time','Last changed by',''].map((t,i)=>hc(t,i)).join('')}</div>`;
     const abody = rows.map(r => {
       const key = String(r.id);
       const open = !!h.exp[key];
@@ -4735,10 +4804,11 @@ class Component extends DCLogic {
       .filter(f=>!f.excluded && !/-one$/.test(f.group))
       .filter(f=>unit || f.level==='Property');
     const lvlMap={ 'Property':{c:'#1570ef',l:'Property'}, 'Unit type':{c:'#d92d20',l:'Unit Type'}, 'Unit Type':{c:'#d92d20',l:'Unit Type'}, 'Unit':{c:'#099250',l:'Unit'}, 'ORI':{c:'#6a4aa8',l:'ORI'}, 'Tenant':{c:'#98a2b3',l:'Tenant'} };
-    const recCols = two ? '32px 94px minmax(100px,1fr) minmax(120px,1fr) minmax(120px,1fr) 80px 92px 92px 110px' : '32px 94px minmax(110px,1fr) minmax(150px,1fr) 84px 96px 96px 124px';
+    const recColK = 'recchg-' + (two ? '2' : '1');
+    const recCols = this.colTracks(recColK, two ? '32px 94px minmax(100px,1fr) minmax(120px,1fr) minmax(120px,1fr) 80px 92px 92px 110px' : '32px 94px minmax(110px,1fr) minmax(150px,1fr) 84px 96px 96px 124px');
     const rh=(t,align)=>`<span style="display:flex;align-items:center;height:32px;box-sizing:border-box;padding:0 8px;font-size:14px;font-weight:500;letter-spacing:0.5px;color:var(--rmx-brand-dark, #13314c);background:#fff;border-bottom:1px solid var(--rmx-line, #cedbe7);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${align==='right'?'justify-content:flex-end;text-align:right':''}">${t}</span>`;
     const heads = two ? [['',''],['',''],['Charge Type',''],['Comment',''],['Comment',''],['Frequency','right'],['From Date',''],['To Date',''],['Amount','right']] : [['',''],['',''],['Charge Type',''],['Comment',''],['Frequency','right'],['From Date',''],['To Date',''],['Amount','right']];
-    const recHead=`<div style="display:grid;grid-template-columns:${recCols}">${heads.map(h=>rh(h[0],h[1])).join('')}</div>`;
+    const recHead=`<div ${this.colHead(recColK)} style="display:grid;grid-template-columns:${recCols}">${heads.map(h=>rh(h[0],h[1])).join('')}</div>`;
     const cell=(t,align,color)=>`<span style="display:flex;align-items:center;height:36px;box-sizing:border-box;padding:0 8px;font-size:14px;color:${color||'var(--rmx-brand-dark, #13314c)'};border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${align==='right'?'justify-content:flex-end;text-align:right':''}">${t}</span>`;
     const barFor=(c)=>`<span style="display:flex;justify-content:center;height:36px;box-sizing:border-box;border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)"><span style="width:10px;background:${c}"></span></span>`;
     const row=(idx,bar,level,code,comment,amount,commentColor,comment2)=>{
@@ -4832,9 +4902,10 @@ class Component extends DCLogic {
     // Once Fee Transparency is on, charges are added and selected on the Charges tab — this
     // overlay is read-only, so the Add button and the row selection column come off.
     const managed = this.profStatus(prop) === 'active';
-    const cols = managed
+    const colK = 'recview' + (managed ? '-m' : '');
+    const cols = this.colTracks(colK, managed
       ? '10px 110px 120px minmax(160px,1fr) 90px 100px 100px 110px 44px'
-      : '10px 44px 110px 120px minmax(160px,1fr) 90px 100px 100px 110px 44px';
+      : '10px 44px 110px 120px minmax(160px,1fr) 90px 100px 100px 110px 44px');
     const heads = (managed ? ['',''] : ['','',''])
       .concat(['Charge Type','Comment','Frequency','From Date','To Date','Amount','']);
     const hc = (t,i) => `<span style="display:flex;align-items:center;height:36px;box-sizing:border-box;padding:0 10px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;${/Amount|Frequency/.test(t)?'justify-content:flex-end;':''}">${t}</span>`;
@@ -4872,7 +4943,7 @@ class Component extends DCLogic {
         </div>`}
         <div style="display:flex;align-items:center;gap:24px;padding:14px 20px 10px">${cb('Past')}${cb('Future')}${cb('Exceptions')}</div>
         <div style="border-top:1px solid var(--rmx-line, #cedbe7);overflow-x:auto"><div style="min-width:1000px">
-          <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7)">${heads.map(hc).join('')}</div>
+          <div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7)">${heads.map(hc).join('')}</div>
           ${body}
         </div></div>
       </div>
@@ -4929,8 +5000,8 @@ class Component extends DCLogic {
     const contacts = `<div class="card">${cardHead('Contacts','Add Contact',true)}<div style="padding:16px;display:flex;flex-direction:column;gap:14px">${occupied?`
       <div style="display:flex;align-items:center;gap:12px"><span style="width:36px;height:36px;border-radius:50%;background:var(--rmx-brand-tint-bg, #ebf1f5);color:var(--rmx-brand-hover, #0071aa);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;flex:none">${initials}</span><div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${info.tenant} <span style="font-size:14px;color:var(--rmx-text-muted, #b3b3b3);font-weight:400">(Primary)</span></span><span style="font-size:14px;color:var(--rmx-text, #666666)">${(info.tenant||'').toLowerCase().replace(/[^a-z]/g,'.')}@email.com</span><span style="font-size:14px;color:var(--rmx-text, #666666)">(555) 555-5555</span></div></div>`:`<span style="font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No contacts.</span>`}</div></div>`;
     const txnRows = occupied ? [['07/17/26','Late Fees','50.00','1,470.00'],['07/01/26','Rent','1,350.00','1,420.00'],['07/01/26','Water & sewer','38.00','70.00'],['07/01/26','Trash','32.00','32.00']] : [];
-    const txnCols='104px 1fr 100px 104px';
-    const transactions = `<div class="card" style="grid-column:span 3">${cardHead('Transactions','Add Charge',true)}<div style="display:grid;grid-template-columns:${txnCols};background:var(--rmx-bg-subtle, #f5f8fa);border-bottom:1px solid var(--rmx-line, #cedbe7)">${['Date','Description','Amount','Balance'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:14px;font-weight:500;color:var(--rmx-text, #666666);${i>=2?'text-align:right':''}">${x}</span>`).join('')}</div>${txnRows.length?txnRows.map(r=>`<div style="display:grid;grid-template-columns:${txnCols};align-items:center;border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)"><span class="td" style="border:none;padding-left:16px">${r[0]}</span><span class="td" style="border:none">${r[1]}</span><span class="td num" style="border:none;text-align:right">${r[2]}</span><span class="td num" style="border:none;text-align:right;padding-right:16px">${r[3]}</span></div>`).join(''):`<div style="padding:16px;text-align:center;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No transactions.</div>`}</div>`;
+    const txnCols=this.colTracks('txn', '104px 1fr 100px 104px');
+    const transactions = `<div class="card" style="grid-column:span 3">${cardHead('Transactions','Add Charge',true)}<div ${this.colHead('txn')} style="display:grid;grid-template-columns:${txnCols};background:var(--rmx-bg-subtle, #f5f8fa);border-bottom:1px solid var(--rmx-line, #cedbe7)">${['Date','Description','Amount','Balance'].map((x,i)=>`<span style="padding:8px 12px${i===0?' 8px 16px':''};font-size:14px;font-weight:500;color:var(--rmx-text, #666666);${i>=2?'text-align:right':''}">${x}</span>`).join('')}</div>${txnRows.length?txnRows.map(r=>`<div style="display:grid;grid-template-columns:${txnCols};align-items:center;border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)"><span class="td" style="border:none;padding-left:16px">${r[0]}</span><span class="td" style="border:none">${r[1]}</span><span class="td num" style="border:none;text-align:right">${r[2]}</span><span class="td num" style="border:none;text-align:right;padding-right:16px">${r[3]}</span></div>`).join(''):`<div style="padding:16px;text-align:center;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No transactions.</div>`}</div>`;
     const serviceIssues = `<div class="card">${cardHead('Service Issues','Add Issue',true)}<div style="padding:28px 16px;text-align:center;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No open service issues.</div></div>`;
     const histRows = occupied ? [['07/17','System','Late fee posted — balance updated'],['03/12','Web Acc.','Flexible Rent status: Eligible'],['11/20','Survey','Survey sent to '+info.tenant]] : [];
     const historyNotes = `<div class="card">${cardHead('History / Notes','Add Note',true)}${histRows.length?`<div style="padding:8px 0">${histRows.map(r=>`<div style="display:flex;gap:12px;padding:8px 16px;border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)"><span style="font-size:14px;color:var(--rmx-text-muted, #b3b3b3);width:44px;flex:none">${r[0]}</span><span style="font-size:14px;color:var(--rmx-brand-hover, #0071aa);width:64px;flex:none">${r[1]}</span><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${r[2]}</span></div>`).join('')}</div>`:emptyGrid(['Date','Type','Note'])}</div>`;
@@ -5004,7 +5075,8 @@ class Component extends DCLogic {
     const unitMkt = a.mkt === 'unit';
     const srcRows = isCopy && a.copyFrom ? this.profileRows(a.copyFrom) : [];
     const chargeTable = (label, rows, rec) => {
-      const cols = rec ? '38px 110px minmax(140px,1fr) 80px 90px 50px 100px 90px' : '38px 110px minmax(140px,1fr) 100px 90px';
+      const colK = 'addprop-' + (rec ? 'rec' : 'one');
+      const cols = this.colTracks(colK, rec ? '38px 110px minmax(140px,1fr) 80px 90px 50px 100px 90px' : '38px 110px minmax(140px,1fr) 100px 90px');
       const heads = rec ? ['','Charge Type','Comment','Frequency','From','To','Amount','Charge Level'] : ['','Charge Type','Comment','Amount','Charge Level'];
       const allOn = rows.length && rows.every(r => a.sel[r.id]);
       const hc = (t,i) => i === 0
@@ -5013,7 +5085,7 @@ class Component extends DCLogic {
       const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:34px;padding:5px 8px;font-size:14px;color:var(--rmx-brand-dark, #13314c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
       return `<div style="font-size:14px;color:var(--rmx-text, #666666);padding:8px 0 4px">${label} (${rows.length})</div>
         <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
-        <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7);background:#fff">${heads.map(hc).join('')}</div>
+        <div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7);background:#fff">${heads.map(hc).join('')}</div>
         ${rows.map(r=>`<div data-act="addPropToggle" data-arg="${r.id}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);cursor:pointer;background:#fff">
           <span style="display:flex;align-items:center;justify-content:center;min-height:34px">${chk(!!a.sel[r.id],'')}</span>
           ${cell(r.mits)}${cell(r.desc||r.name)}${rec?(cell(this.freqNum(r)||'1')+cell(r.from||'—')+cell(r.to||'-')):''}
@@ -5708,8 +5780,9 @@ class Component extends DCLogic {
     const radio = (val, label, em) => `<label data-act="copyDup" data-arg="${val}" style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;color:var(--rmx-brand-dark, #13314c)"><span style="width:18px;height:18px;border-radius:50%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;border:1px solid ${c.dup===val?'var(--ac,var(--rmx-brand, #008dd5))':'var(--rmx-text-muted, #b3b3b3)'}">${c.dup===val?'<span style="width:10px;height:10px;border-radius:50%;background:var(--ac,var(--rmx-brand, #008dd5))"></span>':''}</span><span>${label}<i style="color:var(--rmx-ink-2, #424e5b)"> ${em}</i></span></label>`;
     const dupTip = this.infoTip(`<span style="display:block;white-space:normal">A duplicate is a charge matching one this profile already has; same charge type, frequency, and name, at the same level (property, unit type, or unit). For example, if both profiles have a recurring property Rent charge, that's a duplicate.</span>`, 330);
     const table = (label, list, isRec) => {
-      const cols = isRec ? '44px 120px minmax(150px,1fr) 90px 100px 90px 110px 110px'
-                         : '44px 120px minmax(150px,1fr) 100px 90px 110px 110px';
+      const colK = 'copy-' + (isRec ? 'rec' : 'one');
+      const cols = this.colTracks(colK, isRec ? '44px 120px minmax(150px,1fr) 90px 100px 90px 110px 110px'
+                         : '44px 120px minmax(150px,1fr) 100px 90px 110px 110px');
       const heads = isRec ? ['','Charge Type','Comment','Frequency','From','To','Amount','Charge Level']
                           : ['','Charge Type','Comment','From','To','Amount','Charge Level'];
       const allOn = list.length && list.every(r => c.sel[r.id]);
@@ -5718,7 +5791,7 @@ class Component extends DCLogic {
       const cell = (t,extra) => `<span style="display:flex;align-items:center;min-height:38px;padding:6px 10px;font-size:14px;color:var(--rmx-brand-dark, #13314c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
       return `<div style="font-size:14px;color:var(--rmx-text, #666666);padding:12px 0 6px">${label} (${list.length})</div>
         <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden"><div style="overflow-x:auto"><div style="min-width:${isRec?760:680}px">
-        <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7)">${heads.map(hc).join('')}</div>
+        <div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7)">${heads.map(hc).join('')}</div>
         ${list.length ? list.map(r=>`<div data-act="copyToggle" data-arg="${r.id}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);cursor:pointer">
           <span style="display:flex;align-items:center;justify-content:center;min-height:38px">${box(!!c.sel[r.id])}</span>
           ${cell(r.mits,'padding-left:14px')}${cell(r.desc||r.name)}
@@ -5945,7 +6018,8 @@ class Component extends DCLogic {
     // ---- Step 2: the charge-category register ----
     const head2 = `<div style="position:relative;background:var(--rmx-brand-dark, #13314c);padding:26px 32px;display:flex;align-items:center;flex:none;min-height:86px;box-sizing:border-box">
       ${closeX}<span style="font-size:20px;font-weight:600;color:#fff">Set up charge categories</span></div>`;
-    const cols = 'minmax(150px,1fr) minmax(220px,1.6fr) minmax(200px,1.4fr)';
+    const colK = 'kickoff';
+    const cols = this.colTracks(colK, 'minmax(150px,1fr) minmax(220px,1.6fr) minmax(200px,1.4fr)');
     const hc = (t,i) => `<span style="display:flex;align-items:center;padding:8px 12px${i===0?' 8px 16px':''};font-size:14px;font-weight:600;color:#fff;white-space:nowrap">${t}</span>`;
     const opts = this.chargeCategoryOptions();
     // Categories read uppercase here to match the mock, while the stored values stay Title Case so
@@ -5959,7 +6033,7 @@ class Component extends DCLogic {
       <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.5;flex:none">Assign a charge category below to any you use for listings. You can do this in bulk now, or later in Charge Types.</span>
       <div style="flex:1;min-height:160px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden;display:flex;flex-direction:column">
         <div style="flex:1;min-height:0;overflow:auto"><div style="min-width:640px">
-          <div style="position:sticky;top:0;z-index:1;display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">${['Charge Type Short Name','Description','Charge Category'].map(hc).join('')}</div>
+          <div ${this.colHead(colK)} style="position:sticky;top:0;z-index:1;display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">${['Charge Type Short Name','Description','Charge Category'].map(hc).join('')}</div>
           ${this.kickoffTypes().map(row).join('')}
         </div></div>
       </div>
@@ -6300,6 +6374,7 @@ class Component extends DCLogic {
   // ================= SCREENS =================
   screenHTML(){
     this._tid = 0;
+    this.colDragInstall();
     const s = this.state;
     let out = this.header();
     if (s.view === 'property') {
