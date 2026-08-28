@@ -808,7 +808,7 @@ class Component extends DCLogic {
       case 'spBannerDismiss': this.setState({ spBanner: false }); break;
       case 'petTypeOpen': this.setState({ petType: arg === 'new' ? 'new' : parseInt(arg, 10) }); break;
       case 'petTypeClose': this.setState({ petType: null }); break;
-      case 'ftHelpOpen': this.setState({ ftHelp: true }); break;
+      case 'ftHelpOpen': this.setState(s => ({ ftHelp: !s.ftHelp })); break;
       case 'ftHelpClose': this.setState({ ftHelp: false }); break;
       case 'amtSelOpen': this.rqCapture(); this.setState({ amtSel: { kind:'rent', pick: 'prop' } }); break;
       case 'oriAmtOpen': { this.rqCapture(); const i = parseInt(arg, 10);
@@ -1876,7 +1876,7 @@ class Component extends DCLogic {
       setup: null, setupExit: false, modal: null, bulk: null, bulkSel: null, bulkUpd: null,
       copyFees: null, bulkSetup: null, pricePreview: null, profMenu: null, profHist: null,
       recView: null, recViewNote: true, rowMenu: null, pubModal: null, ftSel: null,
-      mktSetup: false, mktAdv: false, petType: null, spBanner: true,
+      mktSetup: false, mktAdv: false, petType: null, spBanner: true, ftHelp: false,
       lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false
     });
     window.scrollTo(0, 0);
@@ -1955,7 +1955,7 @@ class Component extends DCLogic {
       ['Needs Attention', 'Converted, but charges are missing details, so some fees are not showing on listings right now.'],
       ['Complete', 'No setup left to do for this property.']
     ];
-    const keyCols = '170px minmax(0,1fr)';
+    const keyCols = '190px minmax(0,1fr)';
     const statusKey = `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
       ${keyRows.map((r, i) => `<div style="display:grid;grid-template-columns:${keyCols};align-items:start;background:${i % 2 ? 'var(--rmx-bg-subtle, #f5f8fa)' : '#fff'};${i ? 'border-top:1px solid var(--rmx-bg-subtle, #f5f8fa);' : ''}">
         <span style="display:flex;align-items:flex-start;padding:10px 12px">${this.ftHelpLoz(r[0])}</span>
@@ -1974,21 +1974,21 @@ class Component extends DCLogic {
     const columns = card(colRows.map(r => `<span style="display:flex;flex-direction:column;gap:3px">
       <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${r[0]}</span>${body(r[1])}</span>`).join(''));
 
-    return `<div data-act="ftHelpClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:150">
-      <div data-act="noop" style="width:560px;max-width:96vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
+    // A panel docked to the right of the page rather than a dialog over it: the register stays
+    // readable while the guide is open, so a status can be looked up against the row that raised the
+    // question. Starts below the page's context bar and runs to the bottom of the window.
+    return `<div data-act="noop" style="position:fixed;top:88px;right:0;bottom:0;width:534px;max-width:96vw;box-sizing:border-box;background:#fff;border-left:1px solid var(--rmx-line, #cedbe7);box-shadow:-6px 0 18px rgba(19,49,76,0.12);display:flex;flex-direction:column;overflow:hidden;z-index:150">
+        <div style="flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;height:48px;box-sizing:border-box;padding:10px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
           <span style="font-size:20px;color:var(--rmx-brand-dark, #13314c)">How does pricing setup work?</span>
-          <span data-act="ftHelpClose" class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">close</span>
+          <span data-act="ftHelpClose" class="material-symbols-outlined" style="font-size:24px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">close</span>
         </div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:16px">
           ${steps}
           <div style="display:flex;flex-direction:column;gap:8px">${heading('Status Key')}${statusKey}</div>
           <div style="display:flex;flex-direction:column;gap:8px">${heading('Column Descriptions')}${columns}</div>
+          <span data-act="toast" data-arg="Help article" style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;align-self:flex-start"><span class="material-symbols-outlined" style="font-size:18px">link</span>Learn more with the help article</span>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:12px 16px;flex:none">
-          <span data-act="toast" data-arg="Help article" style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><span class="material-symbols-outlined" style="font-size:18px">link</span>Learn more with the help article</span>
-        </div>
-      </div></div>`;
+      </div>`;
   }
   feeTransBody(){
     // One register of every property, in the order the work happens; Group by Status splits the same
