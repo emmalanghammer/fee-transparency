@@ -1273,7 +1273,7 @@ class Component extends DCLogic {
       case 'profMenuClose': this.setState({ profMenu: null }); break;
 
       // ---- pricing preview ----
-      case 'pricePreviewOpen': this.setState({ pricePreview: { prop: this.state.property, unit: (this.units()[1]||{}).u || '1B', term: '12 Months', opt: {}, sitOpen: true } }); break;
+      case 'pricePreviewOpen': this.setState({ pricePreview: { prop: this.state.property, unit: (this.units()[1]||{}).u || '1B', term: '12 Months', opt: this.ppSeedOpt(this.state.property), sitOpen: true } }); break;
       case 'pricePreviewClose': this.setState({ pricePreview: null }); break;
       case 'ppTerm': this.setState(s => ({ pricePreview: Object.assign({}, s.pricePreview, { term: arg }) })); break;
       case 'ppUnit': if (arg) this.setState(s => ({ pricePreview: Object.assign({}, s.pricePreview, { unit: arg }) })); break;
@@ -4613,6 +4613,17 @@ class Component extends DCLogic {
   leaseTermOffsets(){
     return { '6 Months': 75, '12 Months': 0, '18 Months': -25, '24 Months': -50, 'Month-to-Month': 200 };
   }
+  // A preview of a property that's ready to convert opens with its required charges ticked, so the
+  // right-hand breakdown starts on the real quote rather than an empty one. Anywhere else nothing is
+  // pre-ticked — required charges are always in the breakdown there.
+  ppSeedOpt(prop){
+    if (this.state.publishedProps[prop]) return {};
+    const rows = this.ilsOn(prop) ? this.appliedRows(prop).filter(r => r.ils) : this.appliedRows(prop);
+    if (!rows.length || !rows.every(r => this.mitsComplete(r))) return {};
+    const out = {};
+    rows.forEach(r => { if ((this.resolvedListing(r).requirement || '') === 'Required') out[r.id] = true; });
+    return out;
+  }
   pricePreviewHTML(){
     const p = this.state.pricePreview; if (!p) return '';
     // On a marketed property the preview mirrors exactly what publishes, so it honours Include on
@@ -4634,16 +4645,23 @@ class Component extends DCLogic {
     // converted property still previews a price instead of an empty breakdown.
     const of = pre => rows.filter(r => r.group.indexOf(pre) === 0 || (pre === 'req' && r.group.indexOf('ind') === 0));
     const optRows = of('opt'), sitRows = of('sit');
-    const monthly = of('req').filter(r => !/-one$/.test(r.group));
-    const oneTime = of('req').filter(r => /-one$/.test(r.group));
+    // Ready to convert — nothing publishes yet and every charge already has its listing fields — so
+    // the preview turns into a full picker: every charge listed, grouped the way the Charges tab
+    // groups them, with the required ones ticked and priced. Ticking is what the breakdown follows,
+    // so a leasing agent can see the quote with and without any one charge before converting.
+    const pickAll = !this.state.publishedProps[p.prop] && rows.length > 0 && rows.every(r => this.mitsComplete(r));
+    const picked = r => !!p.opt[r.id];
+    const monthly = pickAll ? rows.filter(r => !/-one$/.test(r.group) && picked(r)) : of('req').filter(r => !/-one$/.test(r.group));
+    const oneTime = pickAll ? rows.filter(r => /-one$/.test(r.group) && picked(r)) : of('req').filter(r => /-one$/.test(r.group));
     // One-time charges split by when they're actually collected, so a prospect can see what's due at
     // application versus at move-in. Anything without one of those two lands in a general group.
     const dueOf = r => (r.listing && r.listing.feeDue) || '';
     const atApp = oneTime.filter(r => dueOf(r) === 'At Application');
     const atMoveIn = oneTime.filter(r => dueOf(r) === 'Move-In');
     const otherOne = oneTime.filter(r => ['At Application','Move-In'].indexOf(dueOf(r)) < 0);
-    const chosenOpt = optRows.filter(r => p.opt[r.id] && !/-one$/.test(r.group));
-    const chosenOptOne = optRows.filter(r => p.opt[r.id] && /-one$/.test(r.group));
+    // In picker mode every ticked charge is already in the lists above, so there's nothing to add.
+    const chosenOpt = pickAll ? [] : optRows.filter(r => p.opt[r.id] && !/-one$/.test(r.group));
+    const chosenOptOne = pickAll ? [] : optRows.filter(r => p.opt[r.id] && /-one$/.test(r.group));
     // Pet add-ons can be taken more than once — one line per pet — so they carry a quantity.
     const isPet = r => this.chargeCategoryFor(r.mits) === 'Pet';
     const qtyOf = r => { const v = p.opt[r.id]; return v === true ? 1 : (v || 0); };
@@ -4656,8 +4674,8 @@ class Component extends DCLogic {
       const cap = petCap(r); return cap ? Math.min(t, cap) : t; };
     // True once the cap is what the resident actually pays, so the line can say why.
     const atCap = r => { const cap = petCap(r); return !!cap && amtOf(r) * Math.max(1, qtyOf(r)) > cap; };
-    const mTotal = monthly.reduce((n,r)=>n+amtOf(r),0) + chosenOpt.reduce((n,r)=>n+lineAmt(r),0);
-    const sum = rws => rws.reduce((n,r)=>n+amtOf(r),0);
+    const mTotal = monthly.reduce((n,r)=>n+lineAmt(r),0) + chosenOpt.reduce((n,r)=>n+lineAmt(r),0);
+    const sum = rws => rws.reduce((n,r)=>n+lineAmt(r),0);
     // A one-time add-on the prospect ticks is money due like any other one-time charge.
     const oTotal = sum(oneTime) + chosenOptOne.reduce((n,r)=>n+lineAmt(r),0);
     const line = (l,v,bold) => `<div style="display:flex;align-items:baseline;justify-content:space-between;padding:5px 0"><span style="font-size:14px;color:${bold?'var(--rmx-brand-dark, #13314c)':'var(--rmx-ink-2, #424e5b)'};${bold?'font-weight:600':''}">${l}</span><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);${bold?'font-weight:600':''}">${v}</span></div>`;
@@ -4666,6 +4684,14 @@ class Component extends DCLogic {
     // A fixed-width slot on every row keeps the steppers (and the amounts beside them) in line.
     const stepper = r => `<span style="display:inline-flex;align-items:center;justify-content:flex-end;gap:7px;width:80px;flex:none">${(!isPet(r) || !p.opt[r.id]) ? '' : `${step(r,-1,'remove')}<span style="min-width:14px;text-align:center;font-size:14px;color:var(--rmx-brand-dark, #13314c)">${qtyOf(r)}</span>${step(r,1,'add')}`}</span>`;
     const optCb = r => `<label data-act="ppOpt" data-arg="${r.id}" style="display:flex;align-items:center;gap:10px;padding:5px 0;cursor:pointer;font-size:14px;color:var(--rmx-brand-dark, #13314c)"><span style="width:18px;height:18px;border-radius:2px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${p.opt[r.id]?'background:var(--rmx-attention, #f58220);border:1px solid var(--rmx-attention, #f58220)':'background:#fff;border:1px solid var(--rmx-text-muted, #b3b3b3)'}">${p.opt[r.id]?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name}</span>${stepper(r)}<span style="width:112px;flex:none;text-align:right;font-size:14px;color:var(--rmx-ink-2, #424e5b);white-space:nowrap">${money(lineAmt(r))}${/-one$/.test(r.group)?'/one-time':'/mo'}</span></label>`;
+    // Every charge, split the way the Charges tab splits them. Required charges arrive ticked (see
+    // ppSeedOpt), so the breakdown opens on the price a prospect would be quoted.
+    const pickSection = (t, rws) => rws.length ? `<div style="display:flex;flex-direction:column;gap:2px;margin-top:2px">
+      <span style="font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">${t}</span>${rws.map(optCb).join('')}</div>` : '';
+    const chargePicker = `<div style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);padding-bottom:8px;margin-top:4px">Select Charges</div>
+      <span style="font-size:12px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3);line-height:1.5">Required charges are selected for you. Untick one to see the price without it.</span>
+      ${pickSection('Recurring', rows.filter(r => !/-one$/.test(r.group)))}
+      ${pickSection('One-Time', rows.filter(r => /-one$/.test(r.group)))}`;
     const info = this.propInfo(p.prop);
     return `<div data-act="pricePreviewClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:152">
       <div data-act="noop" style="width:940px;max-width:96vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
@@ -4683,12 +4709,12 @@ class Component extends DCLogic {
             </div>
             <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:14px;color:var(--rmx-text, #666666)">Unit</span>${this.singleSelect('pp-unit', this.units().map(u=>u.u), p.unit, { act:'ppUnit', noSearch:true })}</div>
             <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:14px;color:var(--rmx-text, #666666)">Lease Terms</span>${this.singleSelect('pp-term', Object.keys(this.leaseTermOffsets()), p.term || '12 Months', { act:'ppTerm', noSearch:true })}<span style="font-size:12px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3);margin-top:2px">Changes in rent amount come from the Lease Term Rent Offset.</span></div>
-            <div style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);padding-bottom:8px;margin-top:4px">Select Optional Fees</div>
+            ${pickAll ? chargePicker : `<div style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);padding-bottom:8px;margin-top:4px">Select Optional Fees</div>
             ${optRows.length ? optRows.map(optCb).join('') : '<span style="font-size:12px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No optional fees ' + (ilsProp ? 'set to show on listings yet.' : 'on this profile yet.') + '</span>'}
             <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden;margin-top:4px">
               <div data-act="ppSitToggle" style="display:flex;align-items:center;gap:8px;padding:12px 14px;cursor:pointer"><span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);flex:1">Situational</span><span class="material-symbols-outlined" style="font-size:20px;color:var(--rmx-text, #666666)">${p.sitOpen?'expand_less':'expand_more'}</span></div>
               ${p.sitOpen?`<div style="padding:0 14px 12px;display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3);line-height:1.5;margin-bottom:6px">Additional fees may apply in cases of late payments, lease violations, or other charges</span>${sitRows.length?'':'<span style="font-size:12px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No situational fees '+(ilsProp?'set to show on listings yet.':'on this profile yet.')+'</span>'}${(sitRows.length?sitRows:[]).map(r=>`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:14px;color:var(--rmx-ink-2, #424e5b)"><span>${r.name}</span><span>${money(this.parseAmt(r.amount))}/one-time</span></div>`).join('')}</div>`:''}
-            </div>
+            </div>`}
           </div>
           <div style="flex:1;min-width:320px;background:var(--rmx-bg-subtle, #f5f8fa);padding:16px 20px;box-sizing:border-box;display:flex;flex-direction:column;gap:10px">
             <div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
