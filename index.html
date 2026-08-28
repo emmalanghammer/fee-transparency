@@ -1096,14 +1096,24 @@ class Component extends DCLogic {
       case 'bulkUpdOpen': { if (!this.bulkSelRows().length) { this.flash('Select at least one charge'); break; }
         this.setState({ bulkUpd: { gen: true, mkt: true } }); break; }
       case 'bulkUpdClose': this.setState({ bulkUpd: null }); break;
-      case 'bulkUpdSave': { const v = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+      case 'bulkUpdSave': { const CLEAR = '__blank__';
+        const chkd = id => { const el = document.getElementById(id); return !!(el && el.checked); };
+        // A field changes when it has a value, when its dropdown picked (blank), or when Clear is
+        // ticked — and in the last two cases the value written is empty.
+        const raw = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+        const v = id => { const x = raw(id); return x === CLEAR ? '' : x; };
+        const cleared = id => raw(id) === CLEAR || chkd('bu-clear-' + String(id).replace('bu-', ''));
+        const set = id => cleared(id) || !!raw(id);
         const picked = this.bulkSelRows().map(r => r.id);
         const gen = { level: v('bu-level'), mits: v('bu-ctype').toUpperCase(), desc: v('bu-comment'),
           freq: v('bu-freq'), from: v('bu-from'), to: v('bu-to'), amtMethod: v('bu-amtm'), amount: v('bu-amt') };
-        const chkd = id => { const el = document.getElementById(id); return !!(el && el.checked); };
+        const genSet = { level: set('bu-level'), mits: set('bu-ctype'), desc: set('bu-comment'),
+          freq: set('bu-freq'), from: set('bu-from'), to: set('bu-to'), amtMethod: set('bu-amtm'), amount: set('bu-amt') };
         // Refundable only applies when it's ticked — blank means keep, like every other field here.
         const mkt = { marketing: v('bu-marketing'), requirement: v('bu-req'), feeDue: v('bu-due'), schedule: v('bu-sched'),
           refundable: chkd('bu-refund') || '' };
+        const mktSet = { marketing: set('bu-marketing'), requirement: set('bu-req'), feeDue: set('bu-due'),
+          schedule: set('bu-sched'), refundable: chkd('bu-refund') };
         // Name is either one typed value or one taken from each charge — so it resolves per row.
         const nameSrc = ((document.querySelector('input[name="bu-name-src"]:checked') || {}).value) || 'type';
         const typedName = v('bu-name');
@@ -1111,7 +1121,7 @@ class Component extends DCLogic {
           : nameSrc === 'ctdesc' ? this.chargeTypeDesc(r.mits)
           : typedName;
         const nameChanges = nameSrc !== 'type' || !!typedName;
-        const nGen = Object.keys(gen).filter(k => gen[k]).length, nMkt = Object.keys(mkt).filter(k => mkt[k]).length;
+        const nGen = Object.keys(genSet).filter(k => genSet[k]).length, nMkt = Object.keys(mktSet).filter(k => mktSet[k]).length;
         if (!nGen && !nMkt && !nameChanges) { this.flash('No changes to apply — every field kept its current value'); break; }
         // Same rule as the charge form: no two charges of one charge type may share a name at the same
         // charge level. Applying one set of values to many charges is the easiest way to break it, so
@@ -1119,8 +1129,8 @@ class Component extends DCLogic {
         // against the ones left alone.
         const applied = r => {
           const nr = Object.assign({}, r, { listing: Object.assign({}, r.listing) });
-          Object.keys(gen).forEach(k => { if (gen[k]) nr[k] = gen[k]; });
-          Object.keys(mkt).forEach(k => { if (mkt[k]) nr.listing[k] = mkt[k]; });
+          Object.keys(gen).forEach(k => { if (genSet[k]) nr[k] = gen[k]; });
+          Object.keys(mkt).forEach(k => { if (mktSet[k]) nr.listing[k] = mkt[k]; });
           const nm = nameFor(r); if (nm) nr.listing.name = nm;
           return nr;
         };
@@ -1152,10 +1162,10 @@ class Component extends DCLogic {
         this.setProfileRows(rows => rows.map(r => {
           if (picked.indexOf(r.id) < 0) return r;
           const nr = Object.assign({}, r);
-          Object.keys(gen).forEach(k => { if (gen[k]) nr[k] = gen[k]; });
+          Object.keys(gen).forEach(k => { if (genSet[k]) nr[k] = gen[k]; });
           if (gen.level && gen.level === 'Property') nr.target = '';
           if (nMkt || nameChanges) { nr.listing = Object.assign({}, nr.listing);
-            Object.keys(mkt).forEach(k => { if (mkt[k]) nr.listing[k] = mkt[k]; });
+            Object.keys(mkt).forEach(k => { if (mktSet[k]) nr.listing[k] = mkt[k]; });
             const nm = nameFor(r); if (nm) nr.listing.name = nm; }
           return nr;
         }));
@@ -3667,14 +3677,22 @@ class Component extends DCLogic {
     const txt = (id, icon) => `<div style="display:flex;align-items:center;gap:4px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><input id="${id}" placeholder="${KEEP}" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:italic 400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)" oninput="this.style.fontStyle=this.value?'normal':'italic'">${icon?`<span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,var(--rmx-brand, #008dd5))">${icon}</span>`:''}</div>`;
     const search = (id) => `<div style="display:flex;align-items:center;gap:6px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,var(--rmx-brand, #008dd5))">search</span><input id="${id}" placeholder="${KEEP}" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:italic 400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)" oninput="this.style.fontStyle=this.value?'normal':'italic'"></div>`;
     const dd = (id, opts) => this.singleSelect(id, opts, '', { noSearch: true, placeholder: KEEP });
+    // The charge form lets Charge Requirement, Fee Due and Charge Schedule be empty, so a bulk update
+    // can empty them too — otherwise there is no way to take a value back off many charges at once.
+    const CLEAR = '__blank__';
+    const ddBlank = (id, opts) => this.singleSelect(id, opts.concat([{ value: CLEAR, label: '(blank)' }]), '', { noSearch: true, placeholder: KEEP });
+    // Same for the free-text fields that are optional on a charge: tick Clear to empty them.
+    const labClear = (t, id) => `<span style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--rmx-ink-2, #424e5b)">${t}
+      <label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--rmx-text-muted, #b3b3b3);cursor:pointer"><input id="bu-clear-${id}" type="checkbox" onchange="var t=document.getElementById('bu-${id}');if(t){t.disabled=this.checked;t.style.opacity=this.checked?'0.45':'1';}" style="accent-color:var(--rmx-attention, #f58220);width:14px;height:14px;margin:0">Clear</label></span>`;
+    const fieldClear = (l, id, ctrl) => `<div style="display:flex;flex-direction:column;gap:5px">${labClear(l, id)}${ctrl}</div>`;
     const field = (l, ctrl, req) => `<div style="display:flex;flex-direction:column;gap:5px">${lab(l, req)}${ctrl}</div>`;
     const levels = anyCre ? ['Property','Unit Type','Unit'] : ['Property','Unit Type','Unit','ORI'];
     const genFields = [
       field('Charge Level', dd('bu-level', levels), true),
       field('Charge Type', search('bu-ctype'), true),
-      field('Comment', txt('bu-comment')),
+      fieldClear('Comment', 'comment', txt('bu-comment')),
       allRec ? field('Frequency', dd('bu-freq', ['Every Month','Every 2 Months','Every 3 Months','Every 6 Months','Every 12 Months']), true) : '',
-      `<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px">${field('From', txt('bu-from','calendar_today'))}${field('To', txt('bu-to','calendar_today'))}</div>`,
+      `<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px">${field('From', txt('bu-from','calendar_today'))}${fieldClear('To', 'to', txt('bu-to','calendar_today'))}</div>`,
       field('Amount Method', dd('bu-amtm', ['Flat','Reference','Calculation'])),
       field('Amount', txt('bu-amt','calculate'))
     ].filter(Boolean).join('');
@@ -3695,10 +3713,10 @@ class Component extends DCLogic {
           <span style="font-size:14px;color:var(--rmx-text, #666666)">Use existing Charge Type <strong style="color:var(--rmx-brand-dark, #13314c)">Description</strong> value</span>
         </label>
       </div>`,
-      field('Marketing Description', txt('bu-marketing')),
-      field('Charge Requirement', dd('bu-req', ['Required','Optional','Situational'])),
-      field('Fee Due', dd('bu-due', [{value:'At Application',label:'At Application'},{value:'Move-In',label:'At Move-In'},{value:'During Term',label:'During Term'}])),
-      allRec ? field('Charge Schedule', dd('bu-sched', ['Monthly','Weekly','Daily'])) : '',
+      fieldClear('Marketing Description', 'marketing', txt('bu-marketing')),
+      field('Charge Requirement', ddBlank('bu-req', ['Required','Optional','Situational'])),
+      field('Fee Due', ddBlank('bu-due', [{value:'At Application',label:'At Application'},{value:'Move-In',label:'At Move-In'},{value:'During Term',label:'During Term'},{value:'Move-Out',label:'At Move-Out'}])),
+      allRec ? field('Charge Schedule', ddBlank('bu-sched', ['Monthly','Weekly','Daily'])) : '',
       // Every other field keeps its current value when left blank, so an unticked box means the same:
       // ticking it marks all the selected charges refundable, leaving it clear changes nothing.
       `<div style="display:flex;flex-direction:column;gap:3px">
@@ -4221,14 +4239,14 @@ class Component extends DCLogic {
     // ORI charges are made by hand (or by switching a charge's level) after setup. keepOri is for the
     // seeded scenarios, where a property has been managing its charges since it converted.
     const noOri = rows => keepOri ? rows : rows.map(r => r.level === 'ORI' ? Object.assign({}, r, { level:'Property', target:'', oriType:undefined }) : r);
-    // The Hamptons' pulled-in charges already carry complete marketing details — it stays the
-    // worked example of a clean setup.
-    if (this.listingReadyProps().indexOf(prop) >= 0) return noOri(this.listingReadyRows());
     if (!this.discoveredCharges(prop).length) return [];
+    // Centralizing moves the charges and nothing else: every marketing detail arrives blank, so a
+    // freshly centralized property reads Incomplete Charges until someone adds them.
+    const blankMkt = (r) => { const n2 = Object.assign({}, r); delete n2.listing; return n2; };
     // The new setup moves every discovered charge — nothing is excluded during setup; charges are
     // managed (or removed) on the Charges tab afterwards. Charges that arrive with pulled-in
     // marketing details (NSF, late fees) keep the requirement they came with.
-    return noOri(this.setupCandidates()).map(r => {
+    return noOri(this.setupCandidates()).map(blankMkt).map(r => {
       const req = (r.listing && r.listing.requirement) || '';
       const suffix = /-one$/.test(r.group) ? '-one' : '-rec';
       // No chosen requirement keeps the group the charge was discovered with, so required charges
