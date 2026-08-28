@@ -1099,11 +1099,13 @@ class Component extends DCLogic {
           freq: v('bu-freq'), from: v('bu-from'), to: v('bu-to'), amtMethod: v('bu-amtm'), amount: v('bu-amt') };
         const genSet = { level: set('bu-level'), mits: set('bu-ctype'), desc: set('bu-comment'),
           freq: set('bu-freq'), from: set('bu-from'), to: set('bu-to'), amtMethod: set('bu-amtm'), amount: set('bu-amt') };
-        // Refundable only applies when it's ticked — blank means keep, like every other field here.
+        // Refundable is picked, not typed: only 'Refundable'/'Not Refundable' write, and the
+        // untouched dropdown keeps whatever each charge already had.
+        const rf = raw('bu-refund');
         const mkt = { marketing: v('bu-marketing'), requirement: v('bu-req'), feeDue: v('bu-due'), schedule: v('bu-sched'),
-          refundable: chkd('bu-refund') || '' };
+          refundable: rf === 'yes' };
         const mktSet = { marketing: set('bu-marketing'), requirement: set('bu-req'), feeDue: set('bu-due'),
-          schedule: set('bu-sched'), refundable: chkd('bu-refund') };
+          schedule: set('bu-sched'), refundable: rf === 'yes' || rf === 'no' };
         // Name is either one typed value or one taken from each charge — so it resolves per row.
         const nameSrc = ((document.querySelector('input[name="bu-name-src"]:checked') || {}).value) || 'type';
         const typedName = v('bu-name');
@@ -3670,7 +3672,9 @@ class Component extends DCLogic {
     // The charge form lets Charge Requirement, Fee Due and Charge Schedule be empty, so a bulk update
     // can empty them too — otherwise there is no way to take a value back off many charges at once.
     const CLEAR = '__blank__';
-    const ddBlank = (id, opts) => this.singleSelect(id, opts.concat([{ value: CLEAR, label: '(blank)' }]), '', { noSearch: true, placeholder: KEEP });
+    // Blank sits first and reads as an empty row (like the charge form's own blank option), so
+    // picking it leaves the field looking as empty as it will make the charges.
+    const ddBlank = (id, opts) => this.singleSelect(id, [{ value: CLEAR, label: '\u00a0' }].concat(opts), '', { noSearch: true, placeholder: KEEP });
     // Same for the free-text fields that are optional on a charge: tick Clear to empty them.
     const labClear = (t, id) => `<span style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--rmx-ink-2, #424e5b)">${t}
       <label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--rmx-text-muted, #b3b3b3);cursor:pointer"><input id="bu-clear-${id}" type="checkbox" onchange="var t=document.getElementById('bu-${id}');if(t){t.disabled=this.checked;t.style.opacity=this.checked?'0.45':'1';}" style="accent-color:var(--rmx-attention, #f58220);width:14px;height:14px;margin:0">Clear</label></span>`;
@@ -3707,12 +3711,9 @@ class Component extends DCLogic {
       field('Charge Requirement', ddBlank('bu-req', ['Required','Optional','Situational'])),
       field('Fee Due', ddBlank('bu-due', [{value:'At Application',label:'At Application'},{value:'Move-In',label:'At Move-In'},{value:'During Term',label:'During Term'},{value:'Move-Out',label:'At Move-Out'}])),
       allRec ? field('Charge Schedule', ddBlank('bu-sched', ['Monthly','Weekly','Daily'])) : '',
-      // Every other field keeps its current value when left blank, so an unticked box means the same:
-      // ticking it marks all the selected charges refundable, leaving it clear changes nothing.
-      `<div style="display:flex;flex-direction:column;gap:3px">
-        <label style="display:inline-flex;align-items:center;gap:9px;align-self:flex-start;cursor:pointer"><input id="bu-refund" type="checkbox" style="accent-color:var(--rmx-attention, #f58220);width:16px;height:16px;margin:0"><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Refundable</span></label>
-        <span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3);line-height:1.45">Leave clear to keep each charge's current setting.</span>
-      </div>`
+      // Refundable is a checkbox on a charge, so a bulk update needs a third state for "leave it
+      // alone" — a dropdown gives it one, and either setting can be applied to every selected charge.
+      field('Refundable', dd('bu-refund', [{ value:'yes', label:'Refundable' }, { value:'no', label:'Not Refundable' }]))
     ].filter(Boolean).join('');
     // Sections expand/collapse on the DOM so typed values survive — a re-render would wipe them.
     const sect = (key, title, open, inner) => `<div style="display:flex;flex-direction:column">
