@@ -1518,6 +1518,10 @@ class Component extends DCLogic {
       document.addEventListener('mouseup', up);
     };
   }
+  // The hairline between two header cells, marking where a column can be grabbed — same as the one
+  // on Pricing Setup. Purely visual: the drag itself comes off the header row's own mousedown, so
+  // this only needs to sit at the boundary and carry the cursor. The cell must be position:relative.
+  colDivider(){ return `<span title="Drag to resize" style="position:absolute;top:0;bottom:0;right:-4px;width:9px;display:flex;align-items:center;justify-content:center;cursor:col-resize;z-index:2"><span style="width:1px;height:calc(100% - 7px);background:var(--rmx-line, #cedbe7)"></span></span>`; }
   // Attributes a header row needs to be resizable. The key names the table for saved widths.
   colHead(key){ return `onmousemove="if(window.__colHover)window.__colHover(event,this)" onmousedown="if(window.__colGrab)window.__colGrab(event,'${key}',this)"`; }
   singleSelect(id, options, selected, opt){
@@ -3598,7 +3602,7 @@ class Component extends DCLogic {
     const heads = keys.map(k => this.chargeColLabel(k));
     // The last header cell opens Customize Column Setup.
     const colBtn = `<span data-act="colSetupOpen" title="Customize Column Setup" style="display:flex;align-items:center;justify-content:center;padding:8px 0;cursor:pointer"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,var(--rmx-brand, #008dd5))">view_column</span></span>`;
-    const hc = (t,i) => `<span style="display:flex;align-items:center;padding:8px 12px${i===0?' 8px 16px':''};font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;${keys[i]==='amount'?'justify-content:flex-end;':''}">${t}</span>`;
+    const hc = (t,i) => `<span style="position:relative;display:flex;align-items:center;padding:8px 12px${i===0?' 8px 16px':''};font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;${keys[i]==='amount'?'justify-content:flex-end;':''}">${t}${this.colDivider()}</span>`;
     const cell = (t,extra) => `<span style="display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:8px 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
     const body = rows.length ? rows.map(r => {
       const kebab = `<span data-act="rowMenu" data-arg="${r.id}" style="display:flex;align-items:center;justify-content:center;min-height:44px;cursor:pointer"><span class="material-symbols-outlined" style="font-size:20px;color:var(--ac,var(--rmx-brand, #008dd5))">more_vert</span></span>`;
