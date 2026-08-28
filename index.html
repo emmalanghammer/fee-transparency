@@ -4500,6 +4500,15 @@ class Component extends DCLogic {
     return `<span onmouseenter="${show}" onmouseleave="${hide}" onclick="event.stopPropagation()" style="display:inline-flex">${trigger}`
       + `<span class="tipf" style="display:none;position:fixed;left:0;top:0;width:${width||310}px;padding:${o.pad||'14px 16px'};background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:${o.shadow||'0 6px 20px rgba(0,0,0,0.18)'};font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5;z-index:400">${inner}</span></span>`;
   }
+  // A field tooltip: the field's name, a sentence or two on what it's for, and the values it can
+  // take where those need spelling out. Every help icon on the charge form reads the same way.
+  fieldHelp(title, body, terms){
+    const term = (t,d) => `<span style="display:block;font-size:14px;font-weight:400;color:var(--rmx-brand-dark, #13314c);white-space:normal"><strong style="font-weight:600">${t}</strong> — ${d}</span>`;
+    return this.infoTip(``
+      + `<span style="display:block;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);padding-bottom:9px;border-bottom:1px solid var(--rmx-line, #cedbe7)">${title}</span>`
+      + `<span style="display:block;font-size:12px;font-weight:400;color:var(--rmx-text, #666666);white-space:normal;padding:11px 0 ${(terms||[]).length?'12px':'2px'};line-height:1.5">${body}</span>`
+      + ((terms||[]).length ? `<span style="display:flex;flex-direction:column;gap:10px">${terms.map(t => term(t[0], t[1])).join('')}</span>` : ''));
+  }
   reqHelp(){
     const term = (t,d) => `<span style="display:block;font-size:14px;font-weight:400;color:var(--rmx-brand-dark, #13314c);white-space:normal"><strong style="font-weight:600">${t}</strong> — ${d}</span>`;
     return this.infoTip(``
@@ -5215,7 +5224,27 @@ class Component extends DCLogic {
     const specLabel = spec === 'NSF' ? 'NSF Fee' : spec === 'Late Charge' ? 'Late Fee' : spec;
     const title = ed ? `${kind} Charge Details${spec ? ' - ' + specLabel : ''}` : `Add ${kind} Charge`;
     const esc = s => (''+(s||'')).replace(/"/g,'&quot;');
-    const lab = (t,info) => `<span style="display:inline-flex;align-items:center;gap:4px;font-size:14px;color:var(--rmx-text, #666666)">${t}${info?`<span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,var(--rmx-brand, #008dd5))">info</span>`:''}</span>`;
+    // Second argument is a tooltip built with fieldHelp() — the icon only appears when there's
+    // something to say behind it.
+    const lab = (t,tip) => `<span style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--rmx-text, #666666)">${t}${tip||''}</span>`;
+    const help = {
+      level: this.fieldHelp('Charge Level', 'Where the charge applies.', [
+        ['Property', 'Every unit at the property.'],
+        ['Unit Type', 'Only the units of one floor plan.'],
+        ['Unit', 'One specific unit.'],
+        ['Rentable Item', 'An item rented on its own, like a garage or a storage unit.']]),
+      freq: this.fieldHelp('Frequency', 'How often the charge posts in Rent Manager. Charge Schedule, under Marketing Details, is what listings show — a recurring charge needs both.'),
+      name: this.fieldHelp('Name', 'What residents see this charge called on listings and in quotes. Use plain language rather than the charge code — "Trash Collection", not GARBAG.'),
+      category: this.fieldHelp('Charge Category', 'The category listings report this charge under. It comes from the charge type\'s setup, so it can\'t be edited here, and a charge without one can\'t go on a listing.'),
+      due: this.fieldHelp('Fee Due', 'When the charge is collected. Listings group one-time fees by this, so a prospect can see what\'s due before they apply and what\'s due to move in.', [
+        ['At Application', 'Collected with the application, like screening fees.'],
+        ['At Move-In', 'Collected before the resident moves in, like deposits and prepaid rent.'],
+        ['During Term', 'Charged while the resident lives there.'],
+        ['At Move-Out', 'Charged when the resident leaves.']]),
+      sched: this.fieldHelp('Charge Schedule', 'How often a recurring charge is billed, as listings state it — monthly, weekly or daily.'),
+      mktdesc: this.fieldHelp('Marketing Description', 'The short description shown with the charge on listings. Say what the resident gets and, when the amount varies, how it\'s worked out.'),
+      refund: this.fieldHelp('Refundable', 'Deposits come back to the resident at the end of the lease; fees don\'t. Listings show refundable amounts apart from fees, so a prospect can tell which is which.')
+    };
     const sect = (t,inner) => `<div style="display:flex;flex-direction:column;gap:10px"><span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span><div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:12px">${inner}</div></div>`;
     const dd = (id,opts,sel,o) => this.singleSelect(id,opts,sel,o);
     const cat = this.chargeCategoryMap();
@@ -5259,7 +5288,7 @@ class Component extends DCLogic {
     </div>`;
     const chargeApp = `<div style="display:flex;flex-direction:column;gap:12px">
       <div style="display:flex;gap:12px;align-items:flex-start">
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Level *')}${dd('m-app',['Property','Unit Type','Unit'].concat(cre ? [] : ['ORI']),app,{noSearch:true,js:appToggle})}</div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Level *', help.level)}${dd('m-app',['Property','Unit Type','Unit'].concat(cre ? [] : ['ORI']),app,{noSearch:true,js:appToggle})}</div>
         ${tgt('ut','Unit Type','Unit Type','m-appt-ut', app==='Unit Type'?(ed&&ed.target||''):'', '2BR/2BA', this.utData().map(t=>t.name))}
         ${tgt('unit','Unit','Unit','m-appt-unit', app==='Unit'?(ed&&ed.target||''):'', '2C', this.units().map(u=>u.u))}
       </div>
@@ -5391,7 +5420,7 @@ class Component extends DCLogic {
     // One-time charges have a date window too — they just don't repeat, so only Frequency is
     // recurring-only.
     const freqRow = `<div style="display:flex;gap:12px;align-items:flex-start">
-      ${isOne ? '' : `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Frequency *')}<input id="m-freq" class="fld" value="1" style="height:36px;box-sizing:border-box"></div>`}
+      ${isOne ? '' : `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Frequency *', help.freq)}<input id="m-freq" class="fld" value="1" style="height:36px;box-sizing:border-box"></div>`}
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('From')}${iconInput('m-from',ed?ed.from:'','mm/dd/yy','calendar_month')}</div>
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('To')}${iconInput('m-to',ed?ed.to:'','mm/dd/yy','calendar_month')}</div>
     </div>`;
@@ -5457,7 +5486,7 @@ class Component extends DCLogic {
     const hasCode = !!(ed && ed.mits);
     const req = (ed && ed.listing && ed.listing.requirement) || '';
     const refundable = ed && ed.listing && ed.listing.refundable !== undefined ? ed.listing.refundable : this.defaultRefundable(ed);
-    const catBlock = `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">${lab('Charge Category',true)}
+    const catBlock = `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">${lab('Charge Category', help.category)}
       <input type="hidden" id="m-cat" value="${esc(edCat)}">
       <span id="m-cat-ph" style="display:${hasCode?'none':'block'};font-size:12px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">Select a charge type to display a charge category.</span>
       <span id="m-cat-disp" style="display:${edCat?'block':'none'};font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${edCat}</span>
@@ -5634,16 +5663,16 @@ class Component extends DCLogic {
     </div>`;
     const attrSections = storSection + parkSection + petSection + petKindOv;
     const listing = `<div style="display:flex;gap:12px;align-items:flex-start">
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Name')}<input id="m-name" class="fld" value="${esc(ed&&ed.listing?ed.listing.name:'')}" oninput="if(window.__mitsRecheck)window.__mitsRecheck()" style="height:36px;box-sizing:border-box"></div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Name', help.name)}<input id="m-name" class="fld" value="${esc(ed&&ed.listing?ed.listing.name:'')}" oninput="if(window.__mitsRecheck)window.__mitsRecheck()" style="height:36px;box-sizing:border-box"></div>
         ${catBlock}
       </div>
-      <div style="display:flex;flex-direction:column;gap:4px">${lab('Marketing Description')}<textarea id="m-marketing" class="fld" style="height:56px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${ed&&ed.listing?(ed.listing.marketing||''):''}</textarea></div>
+      <div style="display:flex;flex-direction:column;gap:4px">${lab('Marketing Description', help.mktdesc)}<textarea id="m-marketing" class="fld" style="height:56px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${ed&&ed.listing?(ed.listing.marketing||''):''}</textarea></div>
       <div style="display:flex;gap:12px;align-items:flex-start">
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px"><span style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--rmx-text, #666666)">Charge Requirement${this.reqHelp()}</span>${dd('m-req',['Required','Optional','Situational'],req,{noSearch:true,blank:true,placeholder:' ',js:"document.getElementById('m-sitdesc-wrap').style.display=(_v==='Situational'?'flex':'none');if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Fee Due')}${dd('m-due',['At Application','Move-In','During Term','Move-Out'],(ed&&ed.listing&&ed.listing.feeDue)||'',{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>
-        ${isOne?'':`<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Schedule',true)}${dd('m-sched',['Monthly','Weekly','Daily'],(ed&&ed.listing&&ed.listing.schedule)||'',{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`}
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Fee Due', help.due)}${dd('m-due',['At Application','Move-In','During Term','Move-Out'],(ed&&ed.listing&&ed.listing.feeDue)||'',{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>
+        ${isOne?'':`<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Schedule', help.sched)}${dd('m-sched',['Monthly','Weekly','Daily'],(ed&&ed.listing&&ed.listing.schedule)||'',{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`}
       </div>
-      <label style="display:inline-flex;align-items:center;gap:8px;align-self:flex-start;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer"><input type="checkbox" id="m-refund" ${refundable?'checked':''} style="width:16px;height:16px;margin:0;accent-color:var(--rmx-attention, #f58220)">Refundable</label>
+      <span style="display:inline-flex;align-items:center;gap:5px;align-self:flex-start"><label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer"><input type="checkbox" id="m-refund" ${refundable?'checked':''} style="width:16px;height:16px;margin:0;accent-color:var(--rmx-attention, #f58220)">Refundable</label>${help.refund}</span>
       <div id="m-sitdesc-wrap" style="display:${req==='Situational'?'flex':'none'};flex-direction:column;gap:4px">${lab('Situational Charge Description')}<textarea id="m-sitdesc" class="fld" style="height:48px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${esc(ed?ed.cond:'')}</textarea></div>
       ${attrSections}`;
 
