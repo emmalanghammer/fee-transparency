@@ -1973,10 +1973,41 @@ class Component extends DCLogic {
     const cols = grouped
       ? 'minmax(140px,215fr) minmax(78px,105fr) minmax(96px,125fr) minmax(72px,110fr) minmax(90px,140fr) minmax(88px,135fr) minmax(84px,130fr) minmax(140px,180fr) 38px'
       : 'minmax(140px,215fr) minmax(78px,105fr) minmax(96px,125fr) minmax(126px,150fr) minmax(72px,110fr) minmax(90px,140fr) minmax(88px,135fr) minmax(84px,130fr) minmax(140px,180fr) 38px';
-    const resizer = `<span style="position:absolute;top:3.5px;bottom:3.5px;right:0;width:1px;background:var(--rmx-line, #cedbe7)"></span>`;
-    const hc = (t, first) => `<span style="position:relative;display:flex;align-items:center;min-height:30px;box-sizing:border-box;padding:4px 8px 4px ${first?'16px':'8px'};font:500 12.6px Roboto,sans-serif;letter-spacing:1.134px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}${resizer}</span>`;
-    const header = `<div style="display:grid;grid-template-columns:${cols};background:#fff;border-top:1px solid var(--rmx-line, #cedbe7);border-bottom:1px solid var(--rmx-line, #cedbe7)">
-      ${hc('Property', true)}${hc('Centralized')}${hc('Fee Transparent')}${grouped ? '' : hc('Status')}${hc('Total Charges')}${hc('Listing Ready Charges')}${hc('Incomplete Charges')}${hc('Excluded Charges')}${hc('Next Step')}
+    // Drag a header's right edge to resize that column. Every grid on the page — the header and each
+    // row, in each section — sizes from one custom property, so a drag rewrites a single value, and
+    // the widths survive a re-render on the instance, keyed by whether the page is grouped.
+    const widthKey = grouped ? 'g' : 'f';
+    const savedCols = (this._ftColW || {})[widthKey];
+    window.__ftColDrag = (ev, idx) => {
+      ev.preventDefault(); ev.stopPropagation();
+      const page = this.q('#ft-page'); if (!page) return;
+      const head = page.querySelector('[data-ftheader]'); if (!head) return;
+      const widths = Array.prototype.slice.call(head.children).map(c => Math.round(c.getBoundingClientRect().width));
+      const startX = ev.clientX, startW = widths[idx], MIN = 56;
+      let last = null;
+      const apply = (w) => {
+        const next = widths.slice(); next[idx] = w;
+        last = next.map((x, i) => i === next.length - 1 ? '38px' : x + 'px').join(' ');
+        page.style.setProperty('--ftcols', last);
+      };
+      const move = (e) => apply(Math.max(MIN, startW + (e.clientX - startX)));
+      const up = () => {
+        document.removeEventListener('mousemove', move);
+        document.removeEventListener('mouseup', up);
+        document.body.style.cursor = '';
+        if (last) { this._ftColW = this._ftColW || {}; this._ftColW[widthKey] = last; }
+      };
+      document.body.style.cursor = 'col-resize';
+      document.addEventListener('mousemove', move);
+      document.addEventListener('mouseup', up);
+    };
+    const resizer = (i) => `<span onmousedown="if(window.__ftColDrag)window.__ftColDrag(event,${i})" title="Drag to resize" style="position:absolute;top:0;bottom:0;right:-4px;width:9px;display:flex;align-items:center;justify-content:center;cursor:col-resize;z-index:2"><span style="width:1px;height:calc(100% - 7px);background:var(--rmx-line, #cedbe7)"></span></span>`;
+    const hc = (t, first, i) => `<span style="position:relative;display:flex;align-items:center;min-height:30px;box-sizing:border-box;padding:4px 8px 4px ${first?'16px':'8px'};font:500 12.6px Roboto,sans-serif;letter-spacing:1.134px;color:var(--rmx-brand-dark, #13314c)">
+      <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>${resizer(i)}</span>`;
+    const heads = ['Property','Centralized','Fee Transparent'].concat(grouped ? [] : ['Status'])
+      .concat(['Total Charges','Listing Ready Charges','Incomplete Charges','Excluded Charges','Next Step']);
+    const header = `<div data-ftheader="1" style="display:grid;grid-template-columns:var(--ftcols);background:#fff;border-top:1px solid var(--rmx-line, #cedbe7);border-bottom:1px solid var(--rmx-line, #cedbe7)">
+      ${heads.map((t, i) => hc(t, i === 0, i)).join('')}
       <span style="display:flex;align-items:center;justify-content:center"><span class="material-symbols-outlined" style="font-size:18px;color:var(--ac,var(--rmx-brand, #008dd5))">view_column</span></span>
     </div>`;
     const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:39px;box-sizing:border-box;padding:0 10px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
@@ -2015,7 +2046,7 @@ class Component extends DCLogic {
         + (st.key === 'ready' ? mitem('Convert to Fee Transparency','pubOpen',r.name) : '')
         + (st.ft === 'na' && !this.ilsOn(r.name) ? mitem('Enable for Online Listings','ilsEnable',r.name) : ''));
       const menuPos = `event.stopPropagation();var t=document.getElementById('${menuId}');if(t.style.display==='block'){t.style.display='none';}else{t.style.display='block';var r=this.getBoundingClientRect();var w=t.offsetWidth,h=t.offsetHeight;var l=r.right-w;if(l<8)l=8;var y=r.bottom+4;if(y+h>window.innerHeight-8)y=r.top-h-4;t.style.left=l+'px';t.style.top=y+'px';}`;
-      return `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff">
+      return `<div style="display:grid;grid-template-columns:var(--ftcols);align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff">
         <a data-act="openFeeProfile" data-arg="${esc(r.name)}" style="display:flex;align-items:center;min-height:39px;box-sizing:border-box;padding:0 10px 0 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer">${r.name}</a>
         ${cell(st.centralized ? tick : '', 'justify-content:center')}
         ${st.ft === 'na' ? na : cell(st.ft ? tick : '', 'justify-content:center')}
@@ -2031,7 +2062,7 @@ class Component extends DCLogic {
         </span>
       </div>`;
     };
-    const table = (list, key) => `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${header}${list.map((r, i) => rowHTML(r, i, key)).join('')}</div>`;
+    const table = (list, key) => `<div style="overflow-x:auto;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px">${header}${list.map((r, i) => rowHTML(r, i, key)).join('')}</div>`;
 
     // ---- grouped by status: a section per status, spine coloured to match its lozenge ----
     const spine = { none:'var(--rmx-ink-2, #424e5b)', short:'var(--rmx-attention, #f58220)',
@@ -2052,7 +2083,7 @@ class Component extends DCLogic {
       </div>`;
     };
 
-    return `<div style="padding:16px 24px 24px;display:flex;flex-direction:column;gap:16px">
+    return `<div id="ft-page" style="--ftcols:${savedCols || cols};padding:16px 24px 24px;display:flex;flex-direction:column;gap:16px">
       ${toolbar}
       ${this.state.ftGroup
         ? `<div style="display:flex;flex-direction:column;gap:14px">${['none','short','ready','attention','complete'].map(section).join('')}</div>`
