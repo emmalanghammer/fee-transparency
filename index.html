@@ -239,6 +239,9 @@ class Component extends DCLogic {
     if (!from) return [];
     const types = this.utData().map(t => t.name);
     return this.profileRows(from).filter(r => {
+      // NSF and late fees are pulled from each property's own setup, so copying them would be
+      // copying a value the destination already has of its own.
+      if (r.propSpecific) return false;
       const lvl = String(r.level || 'Property');
       if (lvl === 'Property') return true;
       if (/^unit type$/i.test(lvl)) return !r.target || types.indexOf(r.target) >= 0;
@@ -492,7 +495,7 @@ class Component extends DCLogic {
     return this.propCharges(prop || this.listingReadyProps()[0]).map(r => {
       const m = M[r.mits] || [r.name, ''];
       const oneTime = /-one$/.test(r.group || '');
-      return Object.assign({}, r, { ils: true, listing: Object.assign({}, r.listing, {
+      return Object.assign({}, r, { ils: !r.propSpecific, listing: Object.assign({}, r.listing, {
         name: m[0],
         // EV charging has no mapped category on purpose, so this example spells its own out.
         category: this.chargeCategoryFor(r.mits) || (r.mits === 'EVCHG' ? 'Utility' : ''),
@@ -590,11 +593,13 @@ class Component extends DCLogic {
       // absent from chargeCategoryMap so the Charge Category error state is always demoable.
       Object.assign({ id:18, group:'opt-rec', mits:'EVCHG',      name:'EV charging',       desc:'EV charging station access',   freq:'Every Month', from:'01/01/2026', to:'', amount:'$35.00', amtMethod:'Flat', ils:true }, L('Property')),
       // Property specific charges. Every field is pulled from the property's own setup, so only the
-      // marketing details are editable — they exist in the profile so they can be shown on listings.
-      Object.assign({ id:16, group:'sit-one', mits:'NSFFEE', name:'NSF Fee', desc:'NSF fee', from:'01/01/2026', to:'', amount:'$25.00', amtMethod:'Flat', ils:true,
+      // marketing details are editable. They arrive off listings — a returned payment or a late
+      // payment isn't part of the price a listing advertises — and they can't be copied between
+      // properties, since each property has its own.
+      Object.assign({ id:16, group:'sit-one', mits:'NSFFEE', name:'NSF Fee', desc:'NSF fee', from:'01/01/2026', to:'', amount:'$25.00', amtMethod:'Flat', ils:false,
         propSpecific:'NSF', cond:'Charged 25.00 for non-sufficient funds.',
         listing:{ name:'NSF Fee', category:'Violation', marketing:'', requirement:'Situational', feeDue:'During Term' } }, L('Property')),
-      Object.assign({ id:17, group:'sit-one', mits:'LC', name:'Late Fee', desc:'Late fee', from:'01/01/2026', to:'', amount:'$100.00', amtMethod:'Flat', ils:true,
+      Object.assign({ id:17, group:'sit-one', mits:'LC', name:'Late Fee', desc:'Late fee', from:'01/01/2026', to:'', amount:'$100.00', amtMethod:'Flat', ils:false,
         propSpecific:'Late Charge', cond:'Charged 100.00 for paying late.',
         listing:{ name:'Late Fee', category:'Violation', marketing:'', requirement:'Situational', feeDue:'During Term' } }, L('Property'))
     ];
