@@ -349,7 +349,8 @@ class Component extends DCLogic {
     cmp('Amount Distribution', a.creDist, b.creDist);
     cmp('Divide', a.creDivide, b.creDivide);
     cmp('User Defined Field', a.creUdf, b.creUdf);
-    if (!!la.refundable !== !!lb.refundable) out.push('Refundable turned ' + (lb.refundable ? 'on' : 'off'));
+    if (la.refundable !== lb.refundable) out.push(lb.refundable === undefined ? 'Refundable cleared'
+      : 'Refundable set to ' + (lb.refundable ? 'Refundable' : 'Not Refundable'));
     if (!!a.ils !== !!b.ils) out.push(b.ils ? 'Included on listings' : 'Excluded from listings');
     return out;
   }
@@ -406,10 +407,12 @@ class Component extends DCLogic {
     }
     return log;
   }
-  // Deposits come back to the resident, fees don't. Pre-ticks the box for the deposit codes so the
-  // common case is right without asking; not a required MITS field since a checkbox always has a value.
-  defaultRefundable(r){
-    return /^(DP|PETDP|SECDEP|HOLD)/.test(String(r && r.mits || '').toUpperCase());
+  // Refundable is a three-state field on the form: unpicked stays unpicked, so a charge never reads
+  // as "not refundable" just because nobody said. undefined means unanswered, not false.
+  refundVal(){
+    const el = this.q('#m-refund');
+    const v = el ? String(el.value || '') : '';
+    return v === 'Refundable' ? true : v === 'Not Refundable' ? false : undefined;
   }
   // The listing values as the charge details overlay shows them — unset fields fall back to the
   // dropdown defaults. Diffing against these keeps the history from reporting a default being
@@ -423,7 +426,7 @@ class Component extends DCLogic {
       feeDue: L.feeDue,
       schedule: /-one$/.test(r.group || '') ? '' : L.schedule,
       marketing: L.marketing,
-      refundable: L.refundable !== undefined ? L.refundable : this.defaultRefundable(r)
+      refundable: L.refundable
     };
   }
   mitsMissing(r){
@@ -493,7 +496,10 @@ class Component extends DCLogic {
         marketing: m[1],
         requirement: req(r.group),
         feeDue: dueAtApp.test(r.mits) ? 'At Application' : (dueAtMoveIn.test(r.mits) ? 'Move-In' : 'During Term'),
-        schedule: oneTime ? '' : 'Monthly'
+        schedule: oneTime ? '' : 'Monthly',
+        // Every detail is answered on this property, Refundable included: the deposits come back to
+        // the resident, everything else doesn't.
+        refundable: /^(DP|PETDP|KEY|HOLD)$/.test(r.mits)
       }) });
     });
   }
@@ -1396,7 +1402,7 @@ class Component extends DCLogic {
       const nm = v('m-name'); const ilsOn = v('m-ils') === '1';
       const req = v('m-req') || 'Situational';
       const patch = { ils: ilsOn, cond: v('m-sitdesc') || specEd.cond,
-        listing: Object.assign({}, specEd.listing, { name: nm, category: this.chargeCategoryFor(specEd.mits), marketing: v('m-marketing'), requirement: req, feeDue: v('m-due') || 'During Term', refundable: chkd('m-refund') }) };
+        listing: Object.assign({}, specEd.listing, { name: nm, category: this.chargeCategoryFor(specEd.mits), marketing: v('m-marketing'), requirement: req, feeDue: v('m-due') || 'During Term', refundable: this.refundVal() }) };
       const id = specEd.id;
       this.setProfileRows(rows => rows.map(f => String(f.id) === String(id) ? Object.assign({}, f, patch) : f));
       this.logChargeEdit(specEd, Object.assign({}, specEd, patch));
@@ -1480,7 +1486,7 @@ class Component extends DCLogic {
         // Pet specifics live on the Pet Type now — the charge just records which type it follows.
         if (cc === 'Pet') return { petType: v('m-at-pettype'), petKind: v('m-at-petkind') };
         return undefined; })(),
-      listing: { name, category: this.chargeCategoryFor(code), marketing: v('m-marketing'), requirement: req, feeDue: v('m-due'), schedule: isOne ? '' : v('m-sched'), refundable: chkd('m-refund') }
+      listing: { name, category: this.chargeCategoryFor(code), marketing: v('m-marketing'), requirement: req, feeDue: v('m-due'), schedule: isOne ? '' : v('m-sched'), refundable: this.refundVal() }
     };
     if (m.edit) {
       const id = m.edit.id;
@@ -3813,7 +3819,7 @@ class Component extends DCLogic {
         sched: (i) => cell(L.schedule || '—', pad(i)),
         mktdesc: (i) => cell(L.marketing || '—', pad(i)),
         method: (i) => cell(r.amtMethod || '—', pad(i)),
-        refund: (i) => cell(L.refundable ? 'Yes' : 'No', pad(i))
+        refund: (i) => cell(L.refundable === undefined ? '—' : (L.refundable ? 'Refundable' : 'Not Refundable'), pad(i))
       };
       return `<div data-act="${bs?'bulkSelToggle':'rowDetails'}" data-arg="${r.id}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);cursor:pointer" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background=''">
         ${selCell(r)}${keys.map((k, i) => render[k] ? render[k](i) : cell('—')).join('')}${kebab}</div>`;
@@ -5676,7 +5682,7 @@ class Component extends DCLogic {
     const edCat = ed ? ((ed.listing && ed.listing.category) || catFor(ed.mits)) : '';
     const hasCode = !!(ed && ed.mits);
     const req = (ed && ed.listing && ed.listing.requirement) || '';
-    const refundable = ed && ed.listing && ed.listing.refundable !== undefined ? ed.listing.refundable : this.defaultRefundable(ed);
+    const refundable = ed && ed.listing && ed.listing.refundable !== undefined ? (ed.listing.refundable ? 'Refundable' : 'Not Refundable') : '';
     const catBlock = `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">${lab('Charge Category', help.category)}
       <input type="hidden" id="m-cat" value="${esc(edCat)}">
       <span id="m-cat-ph" style="display:${hasCode?'none':'block'};font-size:12px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">Select a charge type to display a charge category.</span>
@@ -5863,7 +5869,7 @@ class Component extends DCLogic {
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Fee Due')}${dd('m-due',['At Application','Move-In','During Term','Move-Out'],(ed&&ed.listing&&ed.listing.feeDue)||'',{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>
         ${isOne?'':`<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Schedule', help.sched)}${dd('m-sched',['Monthly','Weekly','Daily'],(ed&&ed.listing&&ed.listing.schedule)||'',{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`}
       </div>
-      <label style="display:inline-flex;align-items:center;gap:8px;align-self:flex-start;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer"><input type="checkbox" id="m-refund" ${refundable?'checked':''} style="width:16px;height:16px;margin:0;accent-color:var(--rmx-attention, #f58220)">Refundable</label>
+      <div style="display:flex;flex-direction:column;gap:4px;max-width:240px">${lab('Refundable')}${dd('m-refund',['Refundable','Not Refundable'],refundable,{noSearch:true,blank:true,placeholder:' '})}</div>
       <div id="m-sitdesc-wrap" style="display:${req==='Situational'?'flex':'none'};flex-direction:column;gap:4px">${lab('Situational Charge Description')}<textarea id="m-sitdesc" class="fld" style="height:48px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${esc(ed?ed.cond:'')}</textarea></div>
       ${attrSections}`;
 
