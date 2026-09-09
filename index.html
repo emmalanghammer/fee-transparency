@@ -20,6 +20,26 @@
     a { color: var(--rmx-brand, #008dd5); text-decoration: none; }
     a:hover { color: var(--rmx-brand-hover, #0071aa); text-decoration: underline; }
     .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20; user-select:none; }
+    /* RMX draws its own checkboxes and radios — a checked box is icon-attention orange with a white
+       tick, a radio is a brand-blue dot. The tick is sized in percentages so a box set to 14-18px
+       inline still gets the right shape. The inputs stay real inputs, so .checked keeps working. */
+    input[type=checkbox], input[type=radio] {
+      appearance:none; -webkit-appearance:none; box-sizing:border-box; width:16px; height:16px;
+      margin:0; flex:none; cursor:pointer; background:#fff; position:relative;
+      border:1px solid var(--rmx-text-muted, #b3b3b3); border-radius:2px;
+    }
+    input[type=radio] { border-radius:50%; }
+    input[type=checkbox]:checked { background:var(--rmx-attention, #f58220); border-color:var(--rmx-attention, #f58220); }
+    input[type=checkbox]:checked::after {
+      content:""; position:absolute; left:28%; top:14%; width:26%; height:50%;
+      border:solid #fff; border-width:0 2px 2px 0; transform:rotate(45deg);
+    }
+    input[type=radio]:checked {
+      border-color:var(--ac, #008dd5);
+      background:radial-gradient(circle at 50% 50%, var(--ac, #008dd5) 0 42%, #fff 44%);
+    }
+    input[type=checkbox]:disabled, input[type=radio]:disabled { background-color:var(--rmx-bg-muted, #f2f2f2); cursor:default; }
+    input[type=checkbox]:focus-visible, input[type=radio]:focus-visible { outline:2px solid var(--ac, #008dd5); outline-offset:1px; }
     .th { padding:8px 12px; text-align:left; font-size:14px; font-weight:500; color:var(--rmx-text, #666666); background:var(--rmx-bg-subtle, #f5f8fa); border-bottom:1px solid var(--rmx-line, #cedbe7); white-space:nowrap; }
     .td { padding:var(--row-py,10px) 12px; border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5); color:var(--rmx-text, #666666); font-size:14px; }
     .name { color:var(--rmx-brand-dark, #13314c); font-weight:500; }
@@ -39,13 +59,9 @@
     .loz-dep { background:#e0f0f0; color:#2a7d7d; }
     .loz { border-radius:4px; font-size:14px; font-weight:400; padding:2px 10px; letter-spacing:0.03em; text-transform:uppercase; }
     /* Orange checkboxes render a white checkmark (native accent-color can't set the tick color). */
-    input[type="checkbox"][style*="f58220"] { -webkit-appearance:none; appearance:none; box-sizing:border-box; border:1px solid var(--rmx-text-muted, #b3b3b3); border-radius:2px; background:#fff; position:relative; cursor:pointer; }
-    input[type="checkbox"][style*="f58220"]:checked { background:var(--rmx-attention, #f58220); border-color:var(--rmx-attention, #f58220); }
-    input[type="checkbox"][style*="f58220"]:checked::after { content:""; position:absolute; left:5px; top:2px; width:4px; height:8px; border:solid #fff; border-width:0 2px 2px 0; transform:rotate(45deg); }
     .btn-out { background:#fff; color:var(--ac,var(--rmx-brand, #008dd5)); border:1px solid var(--ac,var(--rmx-brand, #008dd5)); border-radius:4px; padding:6px 14px; font:500 13px Roboto,sans-serif; cursor:pointer; }
     .btn-pri { background:var(--ac,var(--rmx-brand, #008dd5)); color:#fff; border:none; border-radius:4px; padding:6px 14px; font:500 13px Roboto,sans-serif; cursor:pointer; }
     .fld { padding:7px 10px; border:1px solid var(--rmx-line, #cedbe7); background:var(--rmx-bg-subtle, #f5f8fa); border-radius:4px; font:400 14px Roboto,sans-serif; color:var(--rmx-ink-2, #424e5b); width:100%; box-sizing:border-box; }
-    input[type="checkbox"] { accent-color:var(--rmx-attention, #f58220); }
     .flabel { font-size:14px; color:var(--rmx-text, #666666); }
     .eyebrow { font-size:12px; font-weight:500; color:var(--rmx-text-muted, #b3b3b3); text-transform:uppercase; letter-spacing:0.06em; }
     .icon-edit { font-size:16px; color:var(--ac,var(--rmx-brand, #008dd5)); cursor:pointer; }
@@ -1495,7 +1511,7 @@ class Component extends DCLogic {
     return `<span data-act="tog" data-arg="${id}" data-def="${def?1:0}" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;box-sizing:border-box;border-radius:2px;cursor:pointer;vertical-align:middle;${on?`background:${color};border:1px solid ${color}`:'background:#fff;border:1px solid var(--rmx-text-muted, #b3b3b3)'}">${on?'<span class="material-symbols-outlined" style="font-size:14px;color:#fff;font-weight:600">check</span>':''}</span>`;
   }
   statusLoz(s, c){ const m = { green:'background:var(--rmx-success-bg, #e2f1da);color:var(--rmx-success, #6eb744)', amber:'background:#fdeedd;color:var(--rmx-attention, #f58220)', gray:'background:var(--rmx-bg-muted, #f2f2f2);color:var(--rmx-text, #666666)' }; return `<span class="loz" style="${m[c]};text-transform:none;letter-spacing:0">${s}</span>`; }
-  ptOpts(selected){ return ['Single Family','Multi Family','Manufactured Housing','Commercial','Storage','Apartment','Duplex','Association','RV / Campground','Short Term Rental'].map(t=>`<option${t===selected?' selected':''}>${t}</option>`).join(''); }
+  propertyTypes(){ return ['Single Family','Multi Family','Manufactured Housing','Commercial','Storage','Apartment','Duplex','Association','RV / Campground','Short Term Rental']; }
   parseAmt(v){ if(!v) return 0; const m=(''+v).replace(/[, ]/g,'').match(/\$?(\d+(?:\.\d+)?)/); return m?parseFloat(m[1]):0; }
   // Frequency is the multiplier, not the period — "Every Month" is every 1 month. The period itself
   // lives in Charge Schedule, so the column shows the number on its own.
@@ -3187,7 +3203,9 @@ class Component extends DCLogic {
     const P=this.propInfo(p);
     const lab=(t,link)=>`<div style="display:flex;align-items:center;gap:8px"><span style="font-size:14px;color:var(--rmx-text, #666666)">${t}</span>${link?`<div style="flex:1"></div><a data-act="toast" data-arg="${link}" style="font-size:14px">${link}</a>`:''}</div>`;
     const input=(t,v,link)=>`<div style="display:flex;flex-direction:column;gap:4px;min-width:0">${lab(t,link)}<input class="fld" value="${v||''}" style="height:34px;box-sizing:border-box"></div>`;
-    const select=(t,v)=>`<div style="display:flex;flex-direction:column;gap:4px;min-width:0">${lab(t)}<select class="fld" style="height:34px"><option>${v}</option></select></div>`;
+    // RMX never uses a native select: a dropdown is an input-shaped trigger plus a floating panel,
+    // which is what singleSelect draws. These carry one value each, the same as the option they had.
+    const select=(t,v)=>`<div style="display:flex;flex-direction:column;gap:4px;min-width:0">${lab(t)}${this.singleSelect('pg-' + t.toLowerCase().replace(/[^a-z0-9]+/g,'-'), [v], v, { noSearch:true })}</div>`;
     const check=(t,on)=>`<label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--rmx-ink-2, #424e5b);cursor:pointer"><input type="checkbox" ${on?'checked':''} style="accent-color:var(--rmx-attention, #f58220);width:16px;height:16px;margin:0">${t}</label>`;
     const tile=(title,right,inner)=>`<div class="tile"><div class="thead2"><span class="ttl">${title}</span><div style="flex:1"></div>${right||''}</div><div style="padding:16px;display:flex;flex-direction:column;gap:12px">${inner}</div></div>`;
     // Tiles in a row stretch to the tallest one rather than keeping ragged heights.
@@ -3212,7 +3230,7 @@ class Component extends DCLogic {
     const general = tile(`General <span class="material-symbols-outlined" style="font-size:16px;color:var(--ac,var(--rmx-brand, #008dd5));vertical-align:-3px">info</span>`,'',
       `<div style="${gcols}">${input('Full Name', p)}${input('Short Name',P.short)}${select('Display Color','Apartment Complex')}</div>
        <div style="${gcols}">${input('Manager',P.manager)}${input('Email',P.email,'Manage Subscriptions')}
-         <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end"><div style="display:flex;flex-direction:column;gap:4px;min-width:0"><span style="font-size:14px;color:var(--rmx-text, #666666)">Property Type</span><select class="fld" style="height:34px">${this.ptOpts('Apartment')}</select></div><div style="padding-bottom:8px">${check('Active',true)}</div></div>
+         <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end"><div style="display:flex;flex-direction:column;gap:4px;min-width:0"><span style="font-size:14px;color:var(--rmx-text, #666666)">Property Type</span>${this.singleSelect('pg-property-type', this.propertyTypes(), 'Apartment', { noSearch:true })}</div><div style="padding-bottom:8px">${check('Active',true)}</div></div>
        </div>`);
 
     const address = tile('Primary Address', `<span data-act="toast" data-arg="Open addresses" class="material-symbols-outlined" style="font-size:18px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">open_in_new</span>`,
@@ -6043,10 +6061,15 @@ class Component extends DCLogic {
       const code = ((this.q('#m-ctype') || {}).value || '').toUpperCase();
       const ct = this.q('#m-catadd-ct'); if (ct) ct.textContent = code || '—';
       const sel = this.q('#m-catadd-sel'); if (sel) sel.value = '';
+      // singleSelect keeps the value on a hidden input, so the trigger's own text resets with it.
+      const disp = this.q('#m-catadd-sel-disp');
+      if (disp) { disp.textContent = 'Select a charge category'; disp.style.color = 'var(--rmx-text-muted, #b3b3b3)'; disp.style.fontStyle = 'italic'; }
+      const lst = this.q('#m-catadd-sel-lst');
+      if (lst) lst.querySelectorAll('[data-v]').forEach(r => { r.setAttribute('data-sel','0'); r.style.background = '#fff'; r.style.color = 'var(--rmx-brand-dark, #13314c)'; });
       const ov = this.q('#m-catadd'); if (ov) ov.style.display = 'flex';
     };
     window.__catAssign = (code, cat) => { this._catAdds = Object.assign({}, this._catAdds, { [code]: cat }); };
-    const opts = this.chargeCategoryOptions().map(c => `<option value="${c}">${c}</option>`).join('');
+    const opts = this.chargeCategoryOptions();
     // Applies the choice to the field behind, records it against the charge type, then re-checks the
     // MITS fields so the listings toggle unlocks if this was the last thing missing.
     const add = "var s=document.getElementById('m-catadd-sel');var cc=s.value;if(!cc)return;"
@@ -6072,7 +6095,7 @@ class Component extends DCLogic {
           </div>
           <div style="display:flex;flex-direction:column;gap:4px">
             <span style="font-size:14px;color:var(--rmx-text, #666666)">Charge Category</span>
-            <select id="m-catadd-sel" class="fld" style="height:36px"><option value="">Select a charge category</option>${opts}</select>
+            ${this.singleSelect('m-catadd-sel', opts, '', { noSearch:true, placeholder:'Select a charge category' })}
           </div>
           <span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3);line-height:1.45">The category added will display for all charges using this charge type.</span>
         </div>
@@ -6143,7 +6166,7 @@ class Component extends DCLogic {
     const row = (r) => `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)">
       <span style="display:flex;align-items:center;min-height:44px;padding:8px 12px 8px 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${r[0]}</span>
       <span style="display:flex;align-items:center;padding:6px 12px"><input class="fld" value="${r[1]}" style="height:34px;box-sizing:border-box;width:100%"></span>
-      <span style="display:flex;align-items:center;padding:6px 12px"><select id="kc-${r[0]}" class="fld" style="height:34px;width:100%;text-transform:uppercase">${opts.map(o=>`<option value="${o}" ${o===r[2]?'selected':''}>${o}</option>`).join('')}</select></span>
+      <span style="display:flex;align-items:center;padding:6px 12px;min-width:0"><span style="flex:1;min-width:0">${this.singleSelect('kc-' + r[0], opts.map(o => ({ value:o, label:o.toUpperCase() })), r[2], { noSearch:true })}</span></span>
     </div>`;
     const body2 = `<div style="display:flex;flex-direction:column;gap:14px;min-height:0;flex:1">
       <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.5;flex:none">Assign a charge category below to any you use for listings. You can do this in bulk now, or later in Charge Types.</span>
