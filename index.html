@@ -2293,13 +2293,16 @@ class Component extends DCLogic {
     const rowHTML = (r, i, key) => {
       const st = this.ftStatus(r.name);
       const ch = this.ftCharges(r.name);
-      const dash = !st.centralized;                 // nothing to count until the charges are centralized
-      const naCounts = st.ft === 'na';              // listings columns mean nothing without fee transparency
-      const num = (v) => dash ? cell('-') : (naCounts ? na : cell(String(v)));
+      // A dash means a number could land here and hasn't yet; N/A means one never will. So the
+      // listings columns read N/A for a property that doesn't market online, centralized or not,
+      // while Total Charges — which every property gets — dashes until the charges are centralized.
+      const dash = !st.centralized;
+      const naCounts = st.ft === 'na';
+      const num = (v) => naCounts ? na : (dash ? cell('-') : cell(String(v)));
       const incNum = st.key === 'attention' ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-brand-dark, #13314c)';
       const incTrigger = `<span style="display:inline-flex;align-items:center;gap:7px;font-size:14px;color:${incNum};cursor:default">${ch.incomplete}${st.key === 'attention' ? incWarn : ''}</span>`;
       const incHover = this.infoTip(incTipHTML(r.name), 324, { pad:'16px', shadow:'0 3px 3px rgba(0,0,0,0.1)', trigger:incTrigger });
-      const incCell = dash ? cell('-') : naCounts ? na
+      const incCell = naCounts ? na : dash ? cell('-')
         : (ch.incomplete ? `<span style="display:flex;align-items:center;min-height:39px;box-sizing:border-box;padding:0 10px;white-space:nowrap">${incHover}</span>` : cell('0'));
       const menuId = `ft${key}${i}-pnl`;
       const items = (!st.centralized ? mitem('Centralize Charges','setupOpen',r.name) : mitem('View Charges','openFeeProfile',r.name)
