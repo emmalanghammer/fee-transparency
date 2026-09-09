@@ -1925,14 +1925,15 @@ class Component extends DCLogic {
   }
 
   // opts.badge = { '<tab name>': 'New' } renders a teal pill after that tab's label.
-  // The active tab is a 2px brand-blue underline on a transparent ground: one colour carries every
-  // interactive state in RMX, tabs included, and a fill would hide the underline.
+  // The active tab is a 2px attention-orange underline on a transparent ground. This is a deliberate
+  // house choice for this prototype — the RMX guidance is brand blue for tabs, and pass 2 of the
+  // conformance clean-up changed it before being asked to put it back. Leave it orange.
   tabRow(tabs, active, act, opts){
     const badge = (opts && opts.badge) || {};
     return `<div style="display:flex;align-items:flex-start;padding:0 24px;flex:none;overflow-x:auto">${tabs.map(t => {
       const on = t === active;
       const b = badge[t] ? `<span style="margin-left:8px;background:#d7efe8;color:#1a7f64;border-radius:12px;padding:1px 9px;font-size:12px;font-weight:500">${badge[t]}</span>` : '';
-      return `<span data-act="${act}" data-arg="${t}" style="display:inline-flex;align-items:center;justify-content:center;min-width:153px;box-sizing:border-box;padding:16px 8px;font-size:14px;white-space:nowrap;cursor:pointer;${on?'font-weight:600;color:var(--rmx-brand-dark, #13314c);border-bottom:2px solid var(--ac,var(--rmx-brand, #008dd5))':'font-weight:400;color:var(--rmx-text, #666666);border-bottom:2px solid transparent'}">${t}${b}</span>`;
+      return `<span data-act="${act}" data-arg="${t}" style="display:inline-flex;align-items:center;justify-content:center;min-width:153px;box-sizing:border-box;padding:16px 8px;font-size:14px;white-space:nowrap;cursor:pointer;${on?'font-weight:600;color:var(--rmx-brand-dark, #13314c);border-bottom:2px solid var(--rmx-attention, #f58220)':'font-weight:400;color:var(--rmx-text, #666666);border-bottom:2px solid transparent'}">${t}${b}</span>`;
     }).join('')}</div>`;
   }
 
