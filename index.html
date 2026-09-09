@@ -1290,7 +1290,7 @@ class Component extends DCLogic {
       case 'addPropMkt': this.setState(s => ({ addProp: Object.assign({}, s.addProp, { mkt: arg }) })); break;
       case 'addPropClose': this.setState({ addProp: null }); break;
       case 'addPropNav': this.setState(s => ({ addProp: Object.assign({}, s.addProp, { nav: arg }) })); break;
-      case 'addPropFee': this.setState(s => ({ addProp: Object.assign({}, s.addProp, { fee: arg, copyFrom: arg === 'copy' ? (s.addProp.copyFrom || this.copyableProfiles()[0] || '') : s.addProp.copyFrom }) })); break;
+      case 'addPropFee': this.setState(s => ({ addProp: Object.assign({}, s.addProp, { fee: arg }) })); break;
       // A new source starts with nothing picked, the same as Copy Charges from Property.
       case 'addPropCopyFrom': this.setState(s => ({ addProp: Object.assign({}, s.addProp, { copyFrom: arg, sel: {} }) })); break;
       case 'addPropToggle': this.setState(s => { const sel = Object.assign({}, s.addProp.sel); if (sel[arg]) delete sel[arg]; else sel[arg] = true; return { addProp: Object.assign({}, s.addProp, { sel }) }; }); break;
@@ -5338,8 +5338,8 @@ class Component extends DCLogic {
         </div>`;
     };
     const copyBlock = !isCopy ? '' : `<div style="display:flex;flex-direction:column;gap:6px;padding-left:24px">
-        <div style="max-width:340px">${this.singleSelect('ap-copy', copyable.length?copyable:['No properties with a profile'], a.copyFrom, { act:'addPropCopyFrom' })}</div>
-        <span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">Copy recurring and one-time charges from properties that already have Fee Transparency turned on.</span>
+        <div style="max-width:340px">${this.singleSelect('ap-copy', copyable.length?copyable:['No properties with a profile'], a.copyFrom, { act:'addPropCopyFrom', placeholder:'Select a property' })}</div>
+        <span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">Copy recurring and one-time charges from a property that has charges centralized.</span>
         ${srcRows.length?`<div style="margin-top:6px;display:flex;flex-direction:column;gap:2px">
           <div style="display:flex;align-items:baseline;gap:10px"><span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Select Recurring and One-Time Charges to Include</span><div style="flex:1"></div><span style="font-size:12px;color:var(--rmx-ink-2, #424e5b)">${srcRows.filter(r=>a.sel[r.id]).length} of ${srcRows.length} selected</span></div>
           <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;background:var(--rmx-bg-subtle, #f5f8fa);padding:10px 12px;max-height:260px;overflow-y:auto">
