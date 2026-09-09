@@ -2683,11 +2683,11 @@ class Component extends DCLogic {
     // A half-published mix only makes sense mid-conversion, so they sit out the other scenarios.
     if ((this.state.scenario || 'on') !== 'mid') return port;
     return [
-      { prop:'Clearcreek Condominiums', plan:'CC1141', type:'2B / 2B', avail:'12/31/2026', base:1150.00, total:1254.75, fixed:{ pill:'Price + Fees', total:true } },
+      { prop:'Clearcreek Condominiums', plan:'CC1141', type:'2B / 2B', avail:'12/31/2026', base:1150.00, total:1254.75, fixed:{ pill:'Fee Transparent', total:true } },
       { prop:'1127 Blackwell',          plan:'2',      type:'SFH',     avail:'12/31/2026', base:null, rmErrors:6 },
-      { prop:'Kirby',                   plan:'3',      type:'2B / 2B', avail:'12/31/2026', base:1300.00, tzErrors:2, fixed:{ pill:'Price', warn:'Fee Transparency Issue - 12 charges need details' } },
-      { prop:'Timber Trail',            plan:'Timber', type:'SFH',     avail:'12/31/2026', base:2350.00, total:2500.00, fixed:{ pill:'Price + Fees', total:true } },
-      { prop:'Sheehan',                 plan:'2',      type:'2B / 2B', avail:'12/31/2026', base:750.00, fixed:{ pill:'Price', legacy:true } }
+      { prop:'Kirby',                   plan:'3',      type:'2B / 2B', avail:'12/31/2026', base:1300.00, tzErrors:2, fixed:{ pill:'Legacy', warn:'Fee Transparency Issue - 12 charges need details' } },
+      { prop:'Timber Trail',            plan:'Timber', type:'SFH',     avail:'12/31/2026', base:2350.00, total:2500.00, fixed:{ pill:'Fee Transparent', total:true } },
+      { prop:'Sheehan',                 plan:'2',      type:'2B / 2B', avail:'12/31/2026', base:750.00, fixed:{ pill:'Legacy', legacy:true } }
     ].concat(port);
   }
   // Required recurring charges that ride on top of base rent in the total monthly price.
@@ -2700,11 +2700,12 @@ class Component extends DCLogic {
   ltStatus(p){
     const st = this.ftStatus(p);
     const published = !!this.state.publishedProps[p];
-    // Anything not publishing complete pricing — including unconverted properties — advertises Price only.
-    if (st.key === 'none' || st.ft === 'na') return { pill: 'Price', legacy: true };
+    // Anything not publishing complete pricing — including unconverted properties — is priced the
+    // legacy way: rent only, with fees left off the listing.
+    if (st.key === 'none' || st.ft === 'na') return { pill: 'Legacy', legacy: true };
     const short = st.issues || 0;
-    if (short) return { pill: 'Price', converted: true, warn: `Fee Transparency Issue - ${short} charge${short===1?'':'s'} need${short===1?'s':''} details` };
-    return published ? { pill: 'Price + Fees', total: true, converted: true } : { pill: 'Price', converted: true };
+    if (short) return { pill: 'Legacy', converted: true, warn: `Fee Transparency Issue - ${short} charge${short===1?'':'s'} need${short===1?'s':''} details` };
+    return published ? { pill: 'Fee Transparent', total: true, converted: true } : { pill: 'Legacy', converted: true };
   }
   // Everything the Errors column counts, split the way the popup groups it. Only feed-level problems
   // belong here: a charge missing its details keeps complete pricing from publishing at all, so it
