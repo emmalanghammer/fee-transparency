@@ -210,6 +210,15 @@ class Component extends DCLogic {
 
   // ---------- properties (the top-level entity; fee profiles hang off these) ----------
   propertiesData(){
+    const all = this.portfolioData();
+    if (this.scenarioKey() !== 'happy') return all;
+    // Happy Path is a walkthrough portfolio: only the simplified properties, plus anything added
+    // during the walkthrough, so the flow can be demoed without scrolling past fifteen properties.
+    const keep = this.happyPathCharges();
+    const added = (this.state.newProps || []).map(x => x.name);
+    return all.filter(x => keep[x.name] || added.indexOf(x.name) >= 0);
+  }
+  portfolioData(){
     return (this.state.newProps || []).concat([
       { name:'Riverview Apartments', short:'RIVER', email:'stewart@riverviewapts.com', manager:'Stewart Chandler', addr:'1492 Loveland-Madeira Road, Loveland, OH 45140', billing:'1492 Loveland-Madeira Road, Loveland, OH 45140', color:'#1570ef', loc:'Loveland, OH', units:50, occupied:30, owner:'Thompson Family Trust', logo:'assets/logo-riverview.png' },
       { name:'The Berkshires', short:'BERK', email:'malik@theberkshires.com', manager:'Malik Roberson', addr:'4321 Loveland-Miamiville Rd, Loveland, OH 45140', billing:'9876 Socialville-Fosters Rd, Mason, OH 45040', color:'#1570ef', loc:'Loveland, OH', units:64, occupied:58 },
@@ -249,6 +258,9 @@ class Component extends DCLogic {
     });
   }
   propNames(){ return this.propertiesData().map(p => p.name); }
+  // The register footer counts against the whole company, not the page of properties on screen. The
+  // walkthrough portfolio is the whole company, so there it counts what's actually there.
+  portfolioTotal(){ return this.scenarioKey() === 'happy' ? this.propertiesData().length : 42; }
   propInfo(name){ const n = name || this.state.property; return this.propertiesData().find(p => p.name === n) || this.propertiesData()[0]; }
   properties(){ return this.propertiesData(); }
 
@@ -526,7 +538,33 @@ class Component extends DCLogic {
   // instead of one copied fifteen times. Explicit rather than random: these counts show up in the
   // register, the tab banners, the setup wizard and the pricing preview, and they have to agree
   // every time any of them reads them.
+  // Which scenario the plan is being read for. scenarioApply sets it before building the next
+  // portfolio, so the charges come from the scenario being entered, not the one being left.
+  scenarioKey(){ return this._scenFor || this.state.scenario || 'on'; }
+  // Happy Path: a four-property portfolio, each property cut down to one or two recurring and one or
+  // two one-time charges, so a walkthrough can configure a whole property's marketing details in a
+  // couple of minutes. Three of them advertise on online listings, so fee transparency applies and
+  // the charges have to be listing ready; Oakwood Manor doesn't, so centralizing is the whole job.
+  happyPathCharges(){
+    return {
+      'Riverview Apartments': ['RC','GARBAG','ADMIN','DP'],
+      'The Berkshires':       ['RC','DP'],
+      'The Windermere':       ['RC','PETFEE','APPFEE'],
+      'Oakwood Manor':        ['RC','ADMIN']
+    };
+  }
   propChargePlan(){
+    const base = this.propChargePlanBase();
+    if (this.scenarioKey() !== 'happy') return base;
+    // The plan names what a property doesn't run, so a keep list becomes everything else — the
+    // property-specific NSF and late fees included, which keeps the one-time section to the keeps.
+    const all = this.setupCandidates().map(r => r.mits);
+    const simple = this.happyPathCharges();
+    const out = Object.assign({}, base);
+    Object.keys(simple).forEach(n => { out[n] = all.filter(c => simple[n].indexOf(c) < 0); });
+    return out;
+  }
+  propChargePlanBase(){
     return {
       'Riverview Apartments':     [],                                  // the full set
       'The Berkshires':           ['COVPARK','EVCHG','HOLD'],
@@ -1868,12 +1906,30 @@ class Component extends DCLogic {
         </div>
       </div></div>`;
   }
+  // Prototype-only: the Test Feature State picker is hidden during a walkthrough, so a demo doesn't
+  // open with a control that isn't part of the product. Clicking the Rent Manager logo shows or hides
+  // it; ?test=1 on the URL starts with it showing.
+  scenShow(){
+    if (this._scenShow == null) this._scenShow = /[?&]test=1/.test(String(location.search || ''));
+    return this._scenShow;
+  }
+  // Toggled straight on the DOM rather than through state: the header sits over every screen, and a
+  // re-render here would wipe anything typed into a form that hasn't been saved yet.
+  scenPeekInstall(){
+    window.__scenPeek = () => {
+      this._scenShow = !this.scenShow();
+      const w = this.q('#scen-wrap');
+      if (w) w.style.display = this._scenShow ? 'flex' : 'none';
+      const pnl = document.getElementById('scen-pnl');
+      if (pnl && !this._scenShow) pnl.style.display = 'none';
+    };
+  }
   // Shared "Add Exception" / "Exception details" modal shell (matches Figma).
   header(){
     // Prototype-only control: swaps the whole portfolio between conversion states.
     const sc = this.state.scenario || 'on';
     const srow = (o, i) => `<div data-act="scenSet" data-arg="${o.key}" style="padding:9px 12px;font-size:14px;white-space:nowrap;cursor:pointer;${i?'border-top:1px solid var(--rmx-line, #cedbe7);':''}${sc===o.key?'background:var(--rmx-brand, #008dd5);color:#fff':'color:var(--rmx-brand-dark, #13314c)'}"${sc===o.key?'':` onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''"`}>${o.label}</div>`;
-    const scen = `<span style="position:relative;display:flex;align-items:center;gap:8px;flex:none">
+    const scen = `<span id="scen-wrap" style="position:relative;display:${this.scenShow() ? 'flex' : 'none'};align-items:center;gap:8px;flex:none">
       <span style="font-size:14px;color:#fff;white-space:nowrap">Test Feature State</span>
       <span onclick="var p=document.getElementById('scen-pnl');p.style.display=(p.style.display==='block'?'none':'block')" style="display:flex;align-items:center;gap:6px;width:150px;height:32px;box-sizing:border-box;background:#fff;border-radius:4px;padding:0 10px;cursor:pointer">
         <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${this.scenarioLabel()}</span>
@@ -1885,7 +1941,7 @@ class Component extends DCLogic {
     </span>`;
     return `<div style="background:var(--rmx-brand-dark, #13314c);display:flex;align-items:center;padding:8px 16px;flex:none">
       <div style="flex:0 0 auto;display:flex;align-items:center;gap:16px">
-        <img src="assets/logo-rentmanager-white.svg" alt="Rent Manager" style="height:32px;width:175px;object-fit:contain;object-position:left;flex:none">
+        <img src="assets/logo-rentmanager-white.svg" alt="Rent Manager" onclick="window.__scenPeek&&window.__scenPeek()" style="height:32px;width:175px;object-fit:contain;object-position:left;flex:none">
         ${scen}
       </div>
       <div style="flex:1"></div>
@@ -1994,6 +2050,7 @@ class Component extends DCLogic {
   scenarioList(){
     return [
       { key:'on',    label:'On Rollout' },
+      { key:'happy', label:'Happy Path' },
       { key:'mid',   label:'Mid Conversion' },
       { key:'post',  label:'Post Conversion' },
       { key:'noils', label:'On Rollout, No ILS' }
@@ -2043,10 +2100,11 @@ class Component extends DCLogic {
     }
     // 'on' and 'noils' are launch day — nothing is converted yet.
     plan.view = key === 'mid' ? 'feetrans' : key === 'post' ? 'listings' : 'register';
-    plan.announce = key === 'on' || key === 'noils';
+    plan.announce = key === 'on' || key === 'noils' || key === 'happy';
     return plan;
   }
   scenarioApply(key){
+    this._scenFor = key;
     const p = this.scenarioPlan(key);
     this._resetScroll = true;
     this.setState({
@@ -3289,7 +3347,7 @@ class Component extends DCLogic {
       </div>
       <div style="display:flex;flex-direction:column;gap:8px">
         <div style="overflow-x:auto"><div style="min-width:1060px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${header}${body}</div></div>
-        <div style="display:flex;justify-content:flex-end"><span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">${rows.length} of 42 Properties</span></div>
+        <div style="display:flex;justify-content:flex-end"><span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">${rows.length} of ${this.portfolioTotal()} Properties</span></div>
       </div></div>`;
   }
   propScoreboard(){
@@ -6649,6 +6707,7 @@ class Component extends DCLogic {
     this._tid = 0;
     this.colDragInstall();
     this.icoSwapInstall();
+    this.scenPeekInstall();
     const s = this.state;
     let out = this.header();
     if (s.view === 'property') {
