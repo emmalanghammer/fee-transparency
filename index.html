@@ -63,7 +63,10 @@
     /* Orange checkboxes render a white checkmark (native accent-color can't set the tick color). */
     .btn-out { background:#fff; color:var(--ac,var(--rmx-brand, #008dd5)); border:1px solid var(--ac,var(--rmx-brand, #008dd5)); border-radius:4px; padding:6px 14px; font:500 13px Roboto,sans-serif; cursor:pointer; }
     .btn-pri { background:var(--ac,var(--rmx-brand, #008dd5)); color:#fff; border:none; border-radius:4px; padding:6px 14px; font:500 13px Roboto,sans-serif; cursor:pointer; }
-    .fld { padding:7px 10px; border:1px solid var(--rmx-line, #cedbe7); background:var(--rmx-bg-subtle, #f5f8fa); border-radius:4px; font:400 14px Roboto,sans-serif; color:var(--rmx-ink-2, #424e5b); width:100%; box-sizing:border-box; }
+    .fld { padding:7px 10px; border:1px solid var(--rmx-line, #cedbe7); background:var(--rmx-bg-subtle, #f5f8fa); border-radius:4px; font:400 14px Roboto,sans-serif; color:var(--rmx-brand-dark, #13314c); width:100%; box-sizing:border-box; }
+    /* What someone typed is content, so it reads navy; what they haven't typed stays muted. */
+    input, textarea { color:var(--rmx-brand-dark, #13314c); }
+    input::placeholder, textarea::placeholder { color:var(--rmx-text-muted, #b3b3b3); opacity:1; }
     .flabel { font-size:14px; color:var(--rmx-text, #666666); }
     .eyebrow { font-size:12px; font-weight:500; color:var(--rmx-text-muted, #b3b3b3); text-transform:uppercase; letter-spacing:0.06em; }
     .icon-edit { font-size:16px; color:var(--ac,var(--rmx-brand, #008dd5)); cursor:pointer; }
@@ -4417,7 +4420,7 @@ class Component extends DCLogic {
     const bare = (id, val, ph, extra) => `<input id="${id}" value="${esc(val)}" placeholder="${esc(ph||'')}" style="flex:1;min-width:0;border:none;background:transparent;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);outline:none;${extra||''}">`;
     const search = (id, val) => wrap(glyph('search') + bare(id, val));
     const dated = (id, val) => wrap(bare(id, val, 'mm/dd/yy') + glyph('calendar_today', 'var(--rmx-text, #666666)'));
-    const muted = (id, val) => `<div style="display:flex;align-items:center;gap:6px;background:var(--rmx-bg-muted, #f2f2f2);border:1px solid var(--rmx-line-soft, #ebf1f5);border-radius:4px;height:36px;box-sizing:border-box;padding:0 4px 0 10px"><input id="${id}" value="${esc(val)}" placeholder="mm/dd/yy" style="flex:1;min-width:0;border:none;background:transparent;font:400 14px Roboto,sans-serif;color:var(--rmx-text-muted, #b3b3b3);outline:none"><svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-text, #666666)"><path d="M480-360 280-559h400L480-360Z"/></svg></div>`;
+    const muted = (id, val) => `<div style="display:flex;align-items:center;gap:6px;background:var(--rmx-bg-muted, #f2f2f2);border:1px solid var(--rmx-line-soft, #ebf1f5);border-radius:4px;height:36px;box-sizing:border-box;padding:0 4px 0 10px"><input id="${id}" value="${esc(val)}" placeholder="mm/dd/yy" style="flex:1;min-width:0;border:none;background:transparent;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);outline:none"><svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-text, #666666)"><path d="M480-360 280-559h400L480-360Z"/></svg></div>`;
     const unitBtn = `<svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="unitSelOpen" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;flex:none;background:var(--ac,var(--rmx-brand, #008dd5));color:#fff;border-radius:4px;cursor:pointer"><path d="M120-120v-555h165v-165h390v330h165v390H533v-165H427v165H120Zm60-60h105v-105H180v105Zm0-165h105v-105H180v105Zm0-165h105v-105H180v105Zm165 165h105v-105H345v105Zm0-165h105v-105H345v105Zm0-165h105v-105H345v105Zm165 330h105v-105H510v105Zm0-165h105v-105H510v105Zm0-165h105v-105H510v105Zm165 495h105v-105H675v105Zm0-165h105v-105H675v105Z"/></svg>`;
     // Nothing to price from until the card names a charge type, so the button waits for one.
     const oriAmtBtn = (o, i) => o.ctype
