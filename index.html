@@ -1398,10 +1398,13 @@ class Component extends DCLogic {
       case 'ppUnit': if (arg) this.setState(s => ({ pricePreview: Object.assign({}, s.pricePreview, { unit: arg }) })); break;
       case 'ppOpt': this.setState(s => { const o = Object.assign({}, s.pricePreview.opt); if (o[arg]) delete o[arg]; else o[arg] = true; return { pricePreview: Object.assign({}, s.pricePreview, { opt: o }) }; }); break;
       case 'ppQty': { const [id, d] = String(arg).split(':');
+        const pv = this.state.pricePreview || {};
+        const row = this.appliedRows(pv.prop).filter(r => String(r.id) === id)[0];
+        const petMax = this.ppPetMax(row, pv.prop);
         this.setState(s => { const o = Object.assign({}, s.pricePreview.opt);
           const cur = o[id] === true ? 1 : (o[id] || 0);
           const next = cur + parseInt(d, 10);
-          if (next <= 0) delete o[id]; else o[id] = next;
+          if (next <= 0) delete o[id]; else o[id] = petMax ? Math.min(next, petMax) : next;
           return { pricePreview: Object.assign({}, s.pricePreview, { opt: o }) }; }); break; }
       case 'ppSitToggle': this.setState(s => ({ pricePreview: Object.assign({}, s.pricePreview, { sitOpen: !s.pricePreview.sitOpen }) })); break;
 
@@ -3029,6 +3032,15 @@ class Component extends DCLogic {
   }
   // Pet types available on a property — a type with no property list applies everywhere.
   petTypeByName(n){ return this.state.petTypes.filter(t => t.name === String(n || '').trim())[0] || null; }
+  // A pet type's Max Allowed caps how many pets a pet charge can be taken for. A charge that names a
+  // pet type takes that type's limit; one that doesn't applies to whatever pets the property allows,
+  // so it takes the largest limit among them. 0 means no limit is set, and the count is open-ended.
+  ppPetMax(r, prop){
+    if (!r) return 0;
+    const named = this.petTypeByName((r.attrs || {}).petType);
+    if (named) return named.maxPets || 0;
+    return this.petTypesFor(prop).reduce((n, t) => Math.max(n, t.maxPets || 0), 0);
+  }
   petTypesFor(prop){ const p = prop || this.state.property;
     return this.state.petTypes.filter(t => !t.props || t.props.indexOf(p) >= 0); }
   // ---------- Charge Types register (mock 2219-2405) ----------
@@ -4946,8 +4958,13 @@ class Component extends DCLogic {
     const line = (l,v,bold) => `<div style="display:flex;align-items:baseline;justify-content:space-between;padding:5px 0"><span style="font-size:14px;color:${bold?'var(--rmx-brand-dark, #13314c)':'var(--rmx-ink-2, #424e5b)'};${bold?'font-weight:600':''}">${l}</span><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);${bold?'font-weight:600':''}">${v}</span></div>`;
     const grp = (t, rws, suffix, subLabel) => rws.length ? `<div style="padding:12px 0;border-top:1px solid var(--rmx-bg-subtle, #f5f8fa)"><div style="font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3);margin-bottom:4px">${t}</div>${rws.map(r=>line(r.name + (isPet(r) && qtyOf(r) > 1 ? ` &times; ${qtyOf(r)}` : '') + (atCap(r) ? ` <span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">(max)</span>` : ''), money(lineAmt(r))+(suffix||''))).join('')}${subLabel?line(subLabel, money(rws.reduce((n,r)=>n+lineAmt(r),0)), true):''}</div>` : '';
     const step = (r, d, icon) => `<span data-act="ppQty" data-arg="${r.id}:${d}" style="display:flex;align-items:center;justify-content:center;width:22px;height:22px;border:1px solid var(--rmx-line, #cedbe7);border-radius:2px;background:#fff;cursor:pointer" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background='#fff'">${this.ico(icon, 14, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>`;
+    // The pet type's Max Allowed is the ceiling, so the last pet the property allows is where adding
+    // stops. No action on the disabled control — nothing to press means nothing to explain.
+    const stepOff = (icon) => `<span style="display:flex;align-items:center;justify-content:center;width:22px;height:22px;border:1px solid var(--rmx-line-soft, #ebf1f5);border-radius:2px;background:var(--rmx-bg-subtle, #f5f8fa);cursor:default">${this.ico(icon, 14, 'color:var(--rmx-text-muted, #b3b3b3)')}</span>`;
     // A fixed-width slot on every row keeps the steppers (and the amounts beside them) in line.
-    const stepper = r => `<span style="display:inline-flex;align-items:center;justify-content:flex-end;gap:7px;width:80px;flex:none">${(!isPet(r) || !p.opt[r.id]) ? '' : `${step(r,-1,'remove')}<span style="min-width:14px;text-align:center;font-size:14px;color:var(--rmx-brand-dark, #13314c)">${qtyOf(r)}</span>${step(r,1,'add')}`}</span>`;
+    const stepper = r => { const mx = this.ppPetMax(r, p.prop), n = qtyOf(r);
+      const count = `<span style="min-width:20px;text-align:center;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${n}${mx ? `<span style="color:var(--rmx-text-muted, #b3b3b3)">/${mx}</span>` : ''}</span>`;
+      return `<span style="display:inline-flex;align-items:center;justify-content:flex-end;gap:6px;width:80px;flex:none">${(!isPet(r) || !p.opt[r.id]) ? '' : `${step(r,-1,'remove')}${count}${mx && n >= mx ? stepOff('add') : step(r,1,'add')}`}</span>`; };
     const optCb = r => `<label data-act="ppOpt" data-arg="${r.id}" style="display:flex;align-items:center;gap:10px;padding:5px 0;cursor:pointer;font-size:14px;color:var(--rmx-brand-dark, #13314c)"><span style="width:18px;height:18px;border-radius:2px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${p.opt[r.id]?'background:var(--rmx-attention, #f58220);border:1px solid var(--rmx-attention, #f58220)':'background:#fff;border:1px solid var(--rmx-text-muted, #b3b3b3)'}">${p.opt[r.id]?'<svg class="ico" width="14" height="14" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:#fff"><path d="M378-246 154-470l43-43 181 181 384-384 43 43-427 427Z"/></svg>':''}</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name}</span>${stepper(r)}<span style="width:112px;flex:none;text-align:right;font-size:14px;color:var(--rmx-ink-2, #424e5b);white-space:nowrap">${money(lineAmt(r))}${/-one$/.test(r.group)?'/one-time':'/mo'}</span></label>`;
     // Every charge, split the way the Charges tab splits them. Required charges arrive ticked (see
     // ppSeedOpt), so the breakdown opens on the price a prospect would be quoted.
