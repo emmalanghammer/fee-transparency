@@ -1065,6 +1065,11 @@ class Component extends DCLogic {
       }
       case 'tenanttab': this.setState({ tenantTab: arg }); break;
       case 'txnViewOpen': this.setState({ txnView: true }); break;
+      // Adding a charge from a tenant's transactions opens the one-time charge form, cut to General
+      // Details. The charge is posted to the account rather than added to the property's profile.
+      case 'txnAddOpen': this.setState({ modal: { group:'req-one', generalOnly:true },
+        toggles: Object.assign({}, this.state.toggles, { modalIls: false }) }); break;
+      case 'txnAddSave': this.setState({ modal: null }); this.flash('Charge added'); break;
       case 'txnViewClose': this.setState({ txnView: false }); break;
       case 'proptab':
         if (arg === 'General' || arg === 'Charges') { this._resetScroll = true; this.setState({ propTab: arg }); }
@@ -5711,7 +5716,7 @@ class Component extends DCLogic {
       ${trail ? '' : icon('search')}<span style="flex:1;min-width:0;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3);white-space:nowrap;overflow:hidden">${ph}</span>${trail ? icon('calendar_month') : ''}</div>`;
     const sqBtn = (n) => `<span data-act="toast" data-arg="Date options" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;flex:none;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;cursor:pointer">${this.ico(n, 20, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>`;
     const cb = (label) => `<label data-act="toast" data-arg="${label}" style="display:inline-flex;align-items:center;gap:9px;cursor:pointer;white-space:nowrap"><span style="width:18px;height:18px;border-radius:2px;box-sizing:border-box;border:1px solid var(--ac,var(--rmx-brand, #008dd5));background:#fff;flex:none"></span><span style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))">${label}</span></label>`;
-    const btn = (t, ico) => `<button data-act="toast" data-arg="${t}" class="btn-pri" style="height:36px;min-height:36px;padding:0 18px;border-radius:4px;font-size:14px;white-space:nowrap;display:inline-flex;align-items:center;gap:8px">${ico ? this.ico(ico, 18, 'color:#fff') : ''}${t}</button>`;
+    const btn = (t, ico, act) => `<button data-act="${act || 'toast'}"${act ? '' : ` data-arg="${t}"`} class="btn-pri" style="height:36px;min-height:36px;padding:0 18px;border-radius:4px;font-size:14px;white-space:nowrap;display:inline-flex;align-items:center;gap:8px">${ico ? this.ico(ico, 18, 'color:#fff') : ''}${t}</button>`;
 
     // Register, drawn the way the full-page registers are: gray header band, white rows, a kebab
     // on every row.
@@ -5750,7 +5755,7 @@ class Component extends DCLogic {
             </div>
             <div style="display:flex;align-items:center;gap:22px;padding-bottom:8px">${cb('Collapse Invoices')}${cb('View Open Receivables Only')}</div>
             <div style="flex:1"></div>
-            <div style="display:flex;align-items:center;gap:10px">${btn('Add Charge')}${btn('Add Payment')}${btn('Print List', 'print')}</div>
+            <div style="display:flex;align-items:center;gap:10px">${btn('Add Charge', '', 'txnAddOpen')}${btn('Add Payment')}${btn('Print List', 'print')}</div>
           </div>
           <div style="flex:1;min-height:0;display:flex;flex-direction:column;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
             <div style="flex:1;min-height:0;overflow:auto"><div style="min-width:980px">
@@ -5927,7 +5932,7 @@ class Component extends DCLogic {
     // Bulk Update Charges hosts the same form in its own chrome, so the standalone overlay stands down.
     if (this.state.bulk) return '';
     const f = this.chargeForm(m);
-    return `<div data-act="addclose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:${this.state.profHist?130:100}">
+    return `<div data-act="addclose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:${this.state.profHist?130:(m.generalOnly?140:100)}">
       <div data-act="noop" style="width:700px;max-width:94vw;max-height:92vh;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 3px 12px rgba(0,0,0,0.2);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;height:48px;box-sizing:border-box;padding:8px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
           <span style="font-size:20px;line-height:28px;color:var(--rmx-brand-dark, #13314c)">${f.title}</span>
@@ -5937,7 +5942,7 @@ class Component extends DCLogic {
         <div style="display:flex;align-items:center;gap:12px;padding:8px 16px;border-top:1px solid var(--rmx-line, #cedbe7);background:var(--rmx-bg-subtle, #f5f8fa);flex:none">
           <span id="m-err" style="display:none;align-items:center;gap:6px;color:var(--rmx-error, #eb343c);font-size:14px"><svg class="ico" width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M503.5-289.48q9.5-9.48 9.5-23.5t-9.48-23.52q-9.48-9.5-23.5-9.5t-23.52 9.48q-9.5 9.48-9.5 23.5t9.48 23.52q9.48 9.5 23.5 9.5t23.52-9.48ZM453-433h60v-253h-60v253Zm27.27 353q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg><span id="m-err-txt"></span></span>
           <div style="flex:1"></div>
-          <button data-act="addsave" class="btn-pri" style="height:36px;padding:8px 20px;font-size:14px;border-radius:4px">Save</button>
+          <button data-act="${m.generalOnly?'txnAddSave':'addsave'}" class="btn-pri" style="height:36px;padding:8px 20px;font-size:14px;border-radius:4px">Save</button>
           <button data-act="addclose" class="btn-out" style="height:36px;padding:8px 20px;font-size:14px;border-radius:4px;box-sizing:border-box">Cancel</button>
         </div>
       </div></div>${this.catAddHTML()}${this.utConfHTML(!!(m && m.edit))}`;
@@ -6509,6 +6514,9 @@ class Component extends DCLogic {
           </div>
         </div>
       </div>`;
+    // Opened from a tenant's transactions, the charge is a one-off posting rather than a charge on
+    // the property's profile, so only General Details applies — no marketing details, no exceptions.
+    if (m.generalOnly) return { title, body: `${specNote}${sect('General Details', spec ? specGeneral : general)}` };
     return { title, body: `
       ${specNote}
       ${sect('General Details', spec ? specGeneral : general)}
