@@ -4291,6 +4291,9 @@ class Component extends DCLogic {
     // A charge only reaches this quote if its level points at the unit being quoted. ORI charges are
     // handled per rentable item, so they stay out of the primary unit's list.
     const applies = (r) => {
+      // A returned payment or a late payment isn't part of the price being quoted, so the property's
+      // NSF and late fees stay off the quote — the same reason they stay off listings.
+      if (r.propSpecific) return false;
       if (r.level === 'ORI') return false;
       if (r.level === 'Unit') return !!(unit && r.target === q.unit);
       if (r.level === 'Unit Type') return !!(unit && r.target === unit.type);
