@@ -1250,9 +1250,9 @@ class Component extends DCLogic {
         const cleared = id => raw(id) === CLEAR || chkd('bu-clear-' + String(id).replace('bu-', ''));
         const set = id => cleared(id) || !!raw(id);
         const picked = this.bulkSelRows().map(r => r.id);
-        const gen = { level: v('bu-level'), mits: v('bu-ctype').toUpperCase(), desc: v('bu-comment'),
+        const gen = { mits: v('bu-ctype').toUpperCase(), desc: v('bu-comment'),
           freq: v('bu-freq'), from: v('bu-from'), to: v('bu-to'), amtMethod: v('bu-amtm'), amount: v('bu-amt') };
-        const genSet = { level: set('bu-level'), mits: set('bu-ctype'), desc: set('bu-comment'),
+        const genSet = { mits: set('bu-ctype'), desc: set('bu-comment'),
           freq: set('bu-freq'), from: set('bu-from'), to: set('bu-to'), amtMethod: set('bu-amtm'), amount: set('bu-amt') };
         // Refundable is picked, not typed: only 'Refundable'/'Not Refundable' write, and the
         // untouched dropdown keeps whatever each charge already had.
@@ -1310,7 +1310,6 @@ class Component extends DCLogic {
           if (picked.indexOf(r.id) < 0) return r;
           const nr = Object.assign({}, r);
           Object.keys(gen).forEach(k => { if (genSet[k]) nr[k] = gen[k]; });
-          if (gen.level && gen.level === 'Property') nr.target = '';
           if (nMkt || nameChanges) { nr.listing = Object.assign({}, nr.listing);
             Object.keys(mkt).forEach(k => { if (mktSet[k]) nr.listing[k] = mkt[k]; });
             const nm = nameFor(r); if (nm) nr.listing.name = nm; }
@@ -4031,7 +4030,6 @@ class Component extends DCLogic {
       <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">All selected charges still need: <strong>${shared.join(', ')}</strong>.</span>
     </div>`;
     const allRec = sel.length > 0 && sel.every(r => !/-one$/.test(r.group));
-    const anyCre = sel.some(r => r.cre);
     const KEEP = 'Keep current value';
     const lab = (t, req) => `<span style="font-size:14px;color:var(--rmx-ink-2, #424e5b)">${t}${req?' *':''}</span>`;
     const txt = (id, icon) => `<div style="display:flex;align-items:center;gap:4px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><input id="${id}" placeholder="${KEEP}" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:italic 400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)" oninput="this.style.fontStyle=this.value?'normal':'italic'">${icon?`${this.ico(icon, 18, 'color:var(--ac,var(--rmx-brand, #008dd5))')}`:''}</div>`;
@@ -4048,9 +4046,10 @@ class Component extends DCLogic {
       <label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--rmx-text-muted, #b3b3b3);cursor:pointer"><input id="bu-clear-${id}" type="checkbox" onchange="var t=document.getElementById('bu-${id}');if(t){t.disabled=this.checked;t.style.opacity=this.checked?'0.45':'1';}" style="accent-color:var(--rmx-attention, #f58220);width:14px;height:14px;margin:0">Clear</label></span>`;
     const fieldClear = (l, id, ctrl) => `<div style="display:flex;flex-direction:column;gap:5px">${labClear(l, id)}${ctrl}</div>`;
     const field = (l, ctrl, req) => `<div style="display:flex;flex-direction:column;gap:5px">${lab(l, req)}${ctrl}</div>`;
-    const levels = anyCre ? ['Property','Unit Type','Unit'] : ['Property','Unit Type','Unit','ORI'];
+    // Charge Level is deliberately absent: it says what a charge attaches to — this property, a unit
+    // type, one unit, a rentable item — so one value applied to a whole selection would re-point
+    // charges at things they were never about. It stays on the individual charge.
     const genFields = [
-      field('Charge Level', dd('bu-level', levels), true),
       field('Charge Type', search('bu-ctype'), true),
       fieldClear('Comment', 'comment', txt('bu-comment')),
       allRec ? field('Frequency', dd('bu-freq', ['Every Month','Every 2 Months','Every 3 Months','Every 6 Months','Every 12 Months']), true) : '',
