@@ -5151,10 +5151,7 @@ class Component extends DCLogic {
     const two = !!opts.twoComment;
     const rec = this.propertyCharges()
       .filter(f=>!f.excluded && !/-one$/.test(f.group))
-      .filter(f=>unit || f.level==='Property')
-      // On a tenant, rent is charged at the tenant level (appended below), so the property's rent
-      // charge isn't listed twice.
-      .filter(f=>!opts.tenant || f.mits!=='RC');
+      .filter(f=>unit || f.level==='Property');
     const lvlMap={ 'Property':{c:'#1570ef',l:'Property'}, 'Unit type':{c:'#d92d20',l:'Unit Type'}, 'Unit Type':{c:'#d92d20',l:'Unit Type'}, 'Unit':{c:'#099250',l:'Unit'}, 'ORI':{c:'#6a4aa8',l:'ORI'}, 'Tenant':{c:'#98a2b3',l:'Tenant'} };
     const recColK = 'recchg-' + (two ? '2' : '1');
     const recCols = this.colTracks(recColK, two ? '32px 94px minmax(100px,1fr) minmax(120px,1fr) minmax(120px,1fr) 80px 92px 92px 110px' : '32px 94px minmax(110px,1fr) minmax(150px,1fr) 84px 96px 96px 124px');
@@ -5171,10 +5168,6 @@ class Component extends DCLogic {
     let idx=0;
     // Property-level charges (shown everywhere).
     let recRows=rec.map((f)=>{ const lv=lvlMap[f.level]||lvlMap['Property']; return row(idx++, lv.c, lv.l, f.mits, f.desc, f.amount); }).join('');
-    if(opts.tenant){
-      const money = n => '$' + n.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
-      recRows += row(idx++, lvlMap['Tenant'].c, 'Tenant', 'RC', 'Rent', money(this.tenantRent()));
-    }
     if(unit){
       // Unit type charge trickles down.
       recRows += row(idx++, lvlMap['Unit type'].c, 'Unit Type', 'UTILITY', 'Additional trash valet', '$4.00');
@@ -5429,10 +5422,11 @@ class Component extends DCLogic {
     const openIcon = (t) => `<span data-act="toast" data-arg="${t}" style="display:inline-flex;flex:none;cursor:pointer">${this.ico('open_in_new', 17)}</span>`;
     const kebab = (t) => `<span data-act="toast" data-arg="${t}" style="display:inline-flex;flex:none;cursor:pointer">${this.ico('more_vert', 18)}</span>`;
     const cb = (label, on) => `<label style="display:inline-flex;align-items:center;gap:9px;cursor:pointer"><input type="checkbox"${on?' checked':''} style="width:16px;height:16px;margin:0;flex:none"><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${label}</span></label>`;
-    // Grid tiles carry an orange header rule, form tiles a blue one — the same split as the prospect page.
+    // Every tile's header rule is brand blue, bar the two the mock draws in a 60% success green.
     const tile = (title, right, body, opt) => { const o = opt || {};
+      const rule = o.rule === 'green' ? '#a8d48f' : 'var(--ac,var(--rmx-brand, #008dd5))';
       return `<div class="tile" style="${o.span?`grid-column:span ${o.span};`:''}display:flex;flex-direction:column;min-width:0">
-      <div style="display:flex;align-items:center;gap:14px;padding:8px 14px;border-bottom:2px solid ${o.grid?'var(--rmx-attention, #f58220)':'var(--ac,var(--rmx-brand, #008dd5))'};flex:none">
+      <div style="display:flex;align-items:center;gap:14px;padding:8px 14px;border-bottom:2px solid ${rule};flex:none">
         <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${title}</span>
         ${o.mid || ''}<div style="flex:1"></div>${right || ''}
       </div>
@@ -5446,6 +5440,23 @@ class Component extends DCLogic {
       ${rows}</div></div>`;
     const gRow = (cols, cells, alt) => `<div style="display:grid;grid-template-columns:${gTracks(cols)};align-items:center;${alt?'background:var(--rmx-bg-subtle, #f5f8fa);':''}border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa)">${cells}</div>`;
     const foot = (t) => `<div style="display:flex;align-items:center;gap:14px;justify-content:flex-end;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:7px 14px;font-size:14px;color:var(--rmx-brand-dark, #13314c)">${t}</div>`;
+    // The money tables are drawn the way the mock draws them, which is not how the registers
+    // elsewhere are drawn: the column headers sit on white over a 2px pale rule, and the rows are
+    // 36px, striped, and separated by a hairline rather than the register's tint line.
+    const mHead = (key, cols, cells) => `<div ${this.colHead(key)} style="display:grid;grid-template-columns:${this.colTracks(key, cols)};background:#fff;border-bottom:2px solid var(--rmx-bg-subtle, #f5f8fa)">${cells}</div>`;
+    const mRow = (key, cols, cells, alt) => `<div style="display:grid;grid-template-columns:${this.colTracks(key, cols)};align-items:center;background:${alt?'var(--rmx-bg-subtle, #f5f8fa)':'#fff'};border-bottom:1px solid #f0f4f7">${cells}</div>`;
+    const mh = (t, r) => `<span style="display:flex;align-items:center;height:30px;box-sizing:border-box;padding:0 12px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${r?'justify-content:flex-end':''}">${t}</span>`;
+    const mc = (t, r, color) => `<span style="display:flex;align-items:center;height:36px;box-sizing:border-box;padding:0 12px;font-size:14px;color:${color||'var(--rmx-brand-dark, #13314c)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${r?'justify-content:flex-end':''}">${t}</span>`;
+
+    // The charges the tenant is billed each month, and what they leave outstanding. The Transactions
+    // ledger, the Recurring Charges tile and the scoreboard's Balance Due all read this one set, so
+    // the three always agree.
+    const recRows = this.tenantRecurring();
+    const charges = [{ t:'Rent Charge', a:this.tenantRent() }]
+      .concat(recRows.map(f => ({ t:this.chargeTypeDesc(f.mits) || f.name, a:this.tenantAmt(f) })));
+    const recTotal = charges.reduce((n, c) => n + c.a, 0);
+    let bal = 0;
+    const ledger = charges.map(c => { bal += c.a; return { d:'03/01/2026', t:c.t, a:money(c.a), b:money(bal) }; }).reverse();
 
     // ---- header card ----
     const chip = (t) => `<span style="display:inline-flex;align-items:center;gap:7px;background:var(--rmx-success-bg, #e2f1da);border-radius:4px;padding:4px 11px;font-size:14px;color:#2f5d43;white-space:nowrap"><span style="width:7px;height:7px;border-radius:50%;background:var(--rmx-success, #6eb744);flex:none"></span>${t}</span>`;
@@ -5472,7 +5483,7 @@ class Component extends DCLogic {
           </div>
         </div>
         <div style="display:flex;flex-direction:column;gap:10px;flex:none">
-          <div style="display:flex;align-items:center;gap:14px">${stat('Balance Due:', '0.00')}${splitBtn('Add Charge')}</div>
+          <div style="display:flex;align-items:center;gap:14px">${stat('Balance Due:', money(recTotal))}${splitBtn('Add Charge')}</div>
           <div style="display:flex;align-items:center;gap:14px">${stat('Security Deposit:', money(this.tenantDeposit()))}${splitBtn('Refund Deposit')}</div>
         </div>
       </div>
@@ -5533,31 +5544,37 @@ class Component extends DCLogic {
     const history = tile('History / Notes', ddLink('Add Note') + openIcon('History / Notes'),
       grid(hCols, thc('Date') + thc('Type') + thc('Note'),
         notes.map((n, i) => gRow(hCols, tdc(n[0]) + tdc(n[1]) + tdc(n[2]), i % 2 === 1)).join(''), 560)
-      + '<div style="flex:1"></div>', { span:2, grid:true, flush:true, minH:230 });
+      + '<div style="flex:1"></div>', { span:2, flush:true, minH:230 });
 
     // ---- Transactions ----
-    // The ledger is built from the charges the tenant actually runs, so the month's charges add up to
-    // the recurring total in the next tile and the payment clears the balance the scoreboard shows.
-    const recRows = this.tenantRecurring();
-    const charges = [{ t:'Rent Charge', a:this.tenantRent() }]
-      .concat(recRows.map(f => ({ t:this.chargeTypeDesc(f.mits) || f.name, a:this.tenantAmt(f) })));
-    const recTotal = charges.reduce((n, c) => n + c.a, 0);
-    let bal = 0;
-    const posted = charges.map(c => { bal += c.a; return { d:'03/01/2026', t:c.t, a:money(c.a), b:money(bal) }; });
-    const ledger = [{ d:'03/02/2026', t:'Payment', a:'(' + money(recTotal) + ')', b:'0.00' }]
-      .concat(posted.slice().reverse());
-    const tCols = '110px minmax(0,1fr) 110px 120px';
+    // Newest first, each row carrying the balance as at that charge, the way the mock reads.
+    const tKey = 'tnt-txn', tCols = '244px minmax(0,1fr) 152px 245px';
     const transactions = tile('Transactions', link('Add Payment') + link('Add Charge') + openIcon('Transactions'),
-      grid(tCols, thc('Date') + thc('Type') + thc('Amount', true) + thc('Balance', true),
-        ledger.map((r, i) => gRow(tCols, tdc(r.d) + tdc(r.t) + tdc(r.a, true) + tdc(r.b, true), i % 2 === 1)).join(''), 460)
-      + '<div style="flex:1"></div>', { span:3, grid:true, flush:true, minH:250 });
+      `<div style="overflow-x:auto"><div style="display:flex;flex-direction:column;min-width:620px">
+        ${mHead(tKey, tCols, mh('Date') + mh('Type') + mh('Type', true) + mh('Note', true))}
+        ${ledger.map((r, i) => mRow(tKey, tCols, mc(r.d) + mc(r.t) + mc(r.a, true) + mc(r.b, true), i % 2 === 1)).join('')}
+      </div></div><div style="flex:1"></div>`, { span:3, rule:'green', flush:true, minH:250 });
 
     // ---- Recurring Charges ----
+    // Same charges as the ledger above: the property's recurring charges, then rent, which is
+    // charged on the tenant. Frequency is the number of periods, as the mock has it, and a charge
+    // with no end date leaves To Date empty.
+    const barOf = (lvl) => lvl === 'Tenant' ? 'var(--rmx-text-muted, #b3b3b3)' : 'var(--ac,var(--rmx-brand, #008dd5))';
+    const rKey = 'tnt-rec', rCols = '32px 94px minmax(110px,1fr) minmax(150px,1fr) 84px 96px 96px 124px';
+    const rRow = (lvl, code, comment, amt, i) => mRow(rKey, rCols,
+      `<span style="display:flex;justify-content:center;height:36px;box-sizing:border-box"><span style="width:10px;background:${barOf(lvl)}"></span></span>`
+      + mc(lvl) + mc(code) + mc(comment, false, 'var(--rmx-text, #666666)') + mc('1', true) + mc('01/01/2026') + mc('') + mc(amt, true), i % 2 === 1);
+    const recLines = recRows.map((f, i) => rRow('Property', f.mits, f.desc || '', money(this.tenantAmt(f)), i))
+      .concat([rRow('Tenant', 'RC', 'Rent', money(this.tenantRent()), recRows.length)]).join('');
+    // The footer quotes the total the way the mock does — dollars, and cents only when there are any.
+    const loose = (n) => n.toLocaleString('en-US', { minimumFractionDigits:0, maximumFractionDigits:2 });
     const recurring = tile('Recurring Charges', link('Add Charge') + link('Add CRE') + openIcon('Recurring Charges'),
-      this.recChargesTableHTML({ scope:'property', tenant:true, edge:true })
-      + '<div style="flex:1"></div>'
-      + foot(`${recRows.length + 1} of ${recRows.length + 1} Recurring Charges<span style="font-weight:600">$${money(recTotal)}</span>`),
-      { span:3, grid:true, flush:true, minH:250 });
+      `<div style="overflow-x:auto"><div style="display:flex;flex-direction:column;min-width:780px">
+        ${mHead(rKey, rCols, mh('') + mh('') + mh('Charge Type') + mh('Comment') + mh('Frequency', true) + mh('From Date') + mh('To Date') + mh('Amount', true))}
+        ${recLines}
+      </div></div><div style="flex:1"></div>`
+      + foot(`${recRows.length + 1} of ${recRows.length + 1} Recurring Charges<span style="font-weight:600">$${loose(recTotal)}</span>`),
+      { span:3, flush:true, minH:250 });
 
     // ---- Service Issues ----
     const labelPill = (on) => `<span data-act="toast" data-arg="Service issue filter" style="display:inline-flex;align-items:center;height:26px;padding:0 14px;border-radius:4px;font-size:14px;cursor:pointer;background:#fff;border:1px solid ${on?'var(--ac,var(--rmx-brand, #008dd5))':'var(--rmx-line, #cedbe7)'};color:${on?'var(--rmx-brand-dark, #13314c)':'var(--rmx-text, #666666)'}">Label</span>`;
@@ -5573,14 +5590,14 @@ class Component extends DCLogic {
       grid(sCols, thc('') + thc('#') + thc('Issue') + thc('Due') + thc('Category') + thc('Priority'),
         issues.map((r, i) => gRow(sCols, caret + tdc(r[0]) + tdc(r[1]) + tdc(r[2]) + tdc(r[3]) + tdc(r[4]), i % 2 === 1)).join(''), 540)
       + '<div style="flex:1"></div>',
-      { span:2, grid:true, flush:true, minH:250,
+      { span:2, flush:true, minH:250,
         mid:`<span style="display:inline-flex;align-items:center;gap:8px">${labelPill(true)}${labelPill(false)}</span>` });
 
     // ---- UDFs ----
     const uCols = 'minmax(0,1fr) minmax(0,1fr)';
     const udfs = tile('UDFs', openIcon('UDFs'),
       grid(uCols, thc('Name') + thc('Value'), gRow(uCols, tdc('Vendor Confirmation') + tdc('Yes')), 320)
-      + '<div style="flex:1"></div>', { span:2, grid:true, flush:true, minH:250 });
+      + '<div style="flex:1"></div>', { span:2, flush:true, minH:250 });
 
     // ---- Pets ----
     const petRow = (l, v) => `<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);border-top:1px solid var(--rmx-bg-subtle, #f5f8fa)">${tdc(l)}${tdc(v || '&nbsp;')}</div>`;
@@ -5628,7 +5645,7 @@ class Component extends DCLogic {
         ${cb("Don't Accept Payments")}${cb("Don't Send AR Automation Notifications")}
         ${cb("Don't Allow TWA Payments")}
       </div>
-      <div style="flex:1"></div>`, { span:2 });
+      <div style="flex:1"></div>`, { span:2, rule:'green' });
 
     const standard = `<div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;align-items:stretch">
         ${leases}${contacts}${history}
