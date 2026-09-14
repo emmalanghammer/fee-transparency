@@ -555,7 +555,9 @@ class Component extends DCLogic {
   // the charges have to be listing ready; Oakwood Manor doesn't, so centralizing is the whole job.
   happyPathCharges(){
     return {
-      'Riverview Apartments': ['RC','GARBAG','ADMIN','DP'],
+      // GARBAGEFEE is the one unit-type charge in the seed, so Riverview keeps it and the walkthrough
+      // still has a charge that reaches some units and not others.
+      'Riverview Apartments': ['RC','GARBAG','GARBAGEFEE','ADMIN','DP'],
       'The Berkshires':       ['RC','DP'],
       'The Windermere':       ['RC','PETFEE','APPFEE'],
       'Oakwood Manor':        ['RC','ADMIN']
@@ -5147,22 +5149,44 @@ class Component extends DCLogic {
         <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="recViewNoteDismiss" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;flex:none"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
       </div>`;
     })();
+    const managed = this.profStatus() === 'active';
     return `<div class="tile">
       <div class="thead2"><span class="ttl">Recurring Charges</span><div style="flex:1"></div>${link}<svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="recViewOpen" data-arg="${scope}" title="View recurring charges" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="M180-120q-24 0-42-18t-18-42v-600q0-24 18-42t42-18h279v60H180v600h600v-279h60v279q0 24-18 42t-42 18H180Zm202-219-42-43 398-398H519v-60h321v321h-60v-218L382-339Z"/></svg></div>
       ${callout}
-      ${this.recChargesTableHTML({scope, edge:true})}
+      ${managed ? this.chargesManagedNote() : ''}
+      ${this.recChargesTableHTML({scope, edge:true, managed})}
     </div>`;
   }
   // Shared Recurring Charges table.
   // opts.scope 'property' (default) shows property-level charges only; 'unit' also shows
   // unit-type and unit charges (they trickle down), including an override example.
+  // The recurring charges that actually reach one unit: the property's own, the ones written for its
+  // unit type, and the ones written against the unit itself. A charge aimed at another unit or
+  // another unit type isn't charged here, and an ORI charge belongs to the rentable item.
+  unitRecurring(u){
+    const unitNo = u || this.state.unit;
+    const info = this.unitInfo(unitNo) || {};
+    return this.propertyCharges()
+      .filter(f => !f.excluded && !/-one$/.test(f.group))
+      .filter(f => {
+        const lvl = String(f.level || 'Property');
+        if (lvl === 'Property') return true;
+        if (/^unit type$/i.test(lvl)) return !f.target || f.target === info.type;
+        if (lvl === 'Unit') return f.target === unitNo;
+        return false;
+      });
+  }
   recChargesTableHTML(opts){
     opts=opts||{};
     const unit = opts.scope==='unit';
     const two = !!opts.twoComment;
-    const rec = this.propertyCharges()
+    const rec = unit ? this.unitRecurring() : this.propertyCharges()
       .filter(f=>!f.excluded && !/-one$/.test(f.group))
-      .filter(f=>unit || f.level==='Property');
+      .filter(f=>f.level==='Property');
+    // A unit-level charge for a charge type the property also charges is an override: the unit's
+    // amount is what's billed, so the row says so instead of the two reading as separate charges.
+    const propAmt = {};
+    rec.forEach(f => { if (String(f.level||'Property') === 'Property') propAmt[f.mits] = f.amount; });
     const lvlMap={ 'Property':{c:'#1570ef',l:'Property'}, 'Unit type':{c:'#d92d20',l:'Unit Type'}, 'Unit Type':{c:'#d92d20',l:'Unit Type'}, 'Unit':{c:'#099250',l:'Unit'}, 'ORI':{c:'#6a4aa8',l:'ORI'}, 'Tenant':{c:'#98a2b3',l:'Tenant'} };
     const recColK = 'recchg-' + (two ? '2' : '1');
     const recCols = this.colTracks(recColK, two ? '32px 94px minmax(100px,1fr) minmax(120px,1fr) minmax(120px,1fr) 80px 92px 92px 110px' : '32px 94px minmax(110px,1fr) minmax(150px,1fr) 84px 96px 96px 124px');
@@ -5171,22 +5195,24 @@ class Component extends DCLogic {
     const recHead=`<div ${this.colHead(recColK)} style="display:grid;grid-template-columns:${recCols}">${heads.map(h=>rh(h[0],h[1])).join('')}</div>`;
     const cell=(t,align,color)=>`<span style="display:flex;align-items:center;height:36px;box-sizing:border-box;padding:0 8px;font-size:14px;color:${color||'var(--rmx-brand-dark, #13314c)'};border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${align==='right'?'justify-content:flex-end;text-align:right':''}">${t}</span>`;
     const barFor=(c)=>`<span style="display:flex;justify-content:center;height:36px;box-sizing:border-box;border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)"><span style="width:10px;background:${c}"></span></span>`;
+    // Once the property is converted these charges are written on the Charges tab and only there, so
+    // every row says so rather than looking like something to edit in place.
+    const lock = !opts.managed ? '' : `<span title="Managed on the Charges tab" style="display:inline-flex;margin-left:6px;flex:none">${this.ico('lock', 14, 'color:var(--rmx-text-muted, #b3b3b3)')}</span>`;
     const row=(idx,bar,level,code,comment,amount,commentColor,comment2)=>{
       const rowBg = (idx%2===1) ? 'var(--rmx-bg-subtle, #f5f8fa)' : '#fff';
       const mid = two ? `${cell(comment,'',commentColor||'var(--rmx-text, #666666)')}${cell(comment2||'','',commentColor||'var(--rmx-text, #666666)')}` : cell(comment,'',commentColor||'var(--rmx-text, #666666)');
-      return `<div style="display:grid;grid-template-columns:${recCols};background:${rowBg}">${barFor(bar)}${cell(level)}${cell(code)}${mid}${cell('Monthly','right')}${cell('01/01/2026')}${cell('—','','var(--rmx-text-muted, #b3b3b3)')}${cell(amount,'right')}</div>`;
+      return `<div style="display:grid;grid-template-columns:${recCols};background:${rowBg}">${barFor(bar)}${cell(level + lock)}${cell(code)}${mid}${cell('Monthly','right')}${cell('01/01/2026')}${cell('—','','var(--rmx-text-muted, #b3b3b3)')}${cell(amount,'right')}</div>`;
     };
+    const ovrPill=`<span style="margin-left:8px;background:#fdeedd;color:var(--rmx-attention, #f58220);border-radius:4px;padding:1px 8px;font-size:14px">Override</span>`;
+    const ovrAmt=(was,now)=>`<s style="color:var(--rmx-text-muted, #b3b3b3);font-size:14px">${was}</s> <span style="color:var(--rmx-text-muted, #b3b3b3)">→</span> <span style="font-weight:600;color:var(--rmx-attention, #f58220)">${now}</span>`;
     let idx=0;
-    // Property-level charges (shown everywhere).
-    let recRows=rec.map((f)=>{ const lv=lvlMap[f.level]||lvlMap['Property']; return row(idx++, lv.c, lv.l, f.mits, f.desc, f.amount); }).join('');
-    if(unit){
-      // Unit type charge trickles down.
-      recRows += row(idx++, lvlMap['Unit type'].c, 'Unit Type', 'UTILITY', 'Additional trash valet', '$4.00');
-      // Unit-level override example.
-      const cmt=`Trash service<span style="margin-left:8px;background:#fdeedd;color:var(--rmx-attention, #f58220);border-radius:4px;padding:1px 8px;font-size:14px">Override</span>`;
-      const amt=`<s style="color:var(--rmx-text-muted, #b3b3b3);font-size:14px">$28.00</s> <span style="color:var(--rmx-text-muted, #b3b3b3)">→</span> <span style="font-weight:600;color:var(--rmx-attention, #f58220)">$32.00</span>`;
-      recRows += row(idx++, lvlMap['Unit'].c, 'Unit', 'UTILITY', cmt, amt);
-    }
+    let recRows=rec.map((f)=>{
+      const lv=lvlMap[f.level]||lvlMap['Property'];
+      // An override only reads as one where the unit's amount actually differs from the property's.
+      const was = String(f.level||'Property')==='Unit' ? propAmt[f.mits] : null;
+      const over = !!was && was !== f.amount;
+      return row(idx++, lv.c, lv.l, f.mits, (f.desc||'') + (over?ovrPill:''), over?ovrAmt(was,f.amount):f.amount);
+    }).join('');
     if(opts.exclusion){
       const excLv = unit ? lvlMap['Unit'] : lvlMap['Property'];
       const excPill=`<span style="margin-left:8px;background:var(--rmx-bg-subtle, #f5f8fa);color:var(--rmx-text-muted, #b3b3b3);border-radius:4px;padding:1px 8px;font-size:14px">Excluded</span>`;
@@ -5199,6 +5225,16 @@ class Component extends DCLogic {
   // "View Recurring Charges" modal opened from the property tile's pop-out icon (Figma 2385-32329).
   // Legacy "View Recurring Charges" overlay (pre-conversion): full charge register + convert callout.
   // Setup callout for the overlay (mock 2627-31642): text left, actions right, dismiss top-right.
+  // Where charges live once a property is converted. The tile and the View Recurring Charges overlay
+  // both say it, so they say it the same way.
+  chargesManagedNote(prop, margin){
+    const p = prop || this.state.property;
+    return `<div style="margin:${margin||'12px 16px 4px'};display:flex;align-items:center;gap:12px;background:var(--rmx-brand-tint-bg, #ebf1f5);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:12px 16px">
+      ${this.ico('info', 20, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}
+      <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">Charges are managed on this property's Charges tab. Add, edit or remove them there and the change applies everywhere it's charged.</span>
+      <a data-act="openFeeProfile" data-arg="${p}" style="display:inline-flex;align-items:center;gap:5px;flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Open Charges tab${this.ico('open_in_new', 16)}</a>
+    </div>`;
+  }
   recViewCallout(){
     const p = this.state.property;
     // Once the property runs on a profile this view is read-only, so it says where the charges live
