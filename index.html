@@ -2111,21 +2111,39 @@ class Component extends DCLogic {
   // as they arrive from setup, with details still missing. Built from the property's own charge set,
   // so a seeded scenario varies by property the same way a real portfolio does.
   scenarioRows(name, complete){ return complete ? this.listingReadyRows(name) : this.setupRows(name, true); }
+  // Converting is gated on every charge being listing ready, so a converted property can only be
+  // short of details by drifting afterwards — a charge edited, or one added since. Blanking a
+  // required field on a couple of charges is that story, and the only way the state can legitimately
+  // arise. Rent is left alone: a listing without it isn't drift, it's broken.
+  scenarioDrift(rows, n){
+    let left = n;
+    return rows.map(r => {
+      if (left <= 0 || r.mits === 'RC' || !r.ils || !r.listing) return r;
+      left--;
+      const L = Object.assign({}, r.listing);
+      // Two different gaps, because that is what drift looks like — not one field blanked in bulk.
+      if (left) L.feeDue = ''; else L.requirement = '';
+      return Object.assign({}, r, { listing: L });
+    });
+  }
   scenarioPlan(key){
     const names = this.propertiesData().map(p => p.name);
     const ils = {};
     if (key !== 'noils') this.scenarioMarketed().forEach(n => { ils[n] = true; });
     const plan = { ils, status:{}, fees:{}, published:{} };
-    const convert = (n, complete, published) => {
+    const convert = (n, complete, published, drift) => {
       plan.status[n] = 'active';
-      plan.fees[n] = this.scenarioRows(n, complete);
+      const rows = this.scenarioRows(n, complete);
+      plan.fees[n] = drift ? this.scenarioDrift(rows, drift) : rows;
       if (published) plan.published[n] = true;
     };
     if (key === 'mid') {
-      // Mid-conversion is the mixed portfolio: published, published before every detail was filled in,
-      // converted but still short, ready to publish, done because they don't advertise, and untouched.
+      // Mid-conversion is the mixed portfolio: converted, converted and since drifted, centralized but
+      // still short, ready to convert, done because they don't advertise, and untouched.
       ['Riverview Apartments','Greenbriar Village'].forEach(n => convert(n, true, true));
-      convert('The Windermere', false, true);
+      // Converted with every detail in place, then two charges drifted — which is the only way a
+      // converted property can need attention, since the conversion itself is gated on being ready.
+      convert('The Windermere', true, true, 2);
       ['The Estates','Willow Creek','Pinewood Place'].forEach(n => convert(n, false, false));
       ['The Hamptons','Stonegate Village'].forEach(n => convert(n, true, false));
       // Not enabled for listings, so centralizing the charges is all there is to do.
@@ -2816,9 +2834,15 @@ class Component extends DCLogic {
     // Anything not publishing complete pricing — including unconverted properties — is priced the
     // legacy way: rent only, with fees left off the listing.
     if (st.key === 'none' || st.ft === 'na') return { pill: 'Legacy', legacy: true };
+    // The pill says how the listing is priced. A property that hasn't converted advertises rent the
+    // legacy way, however far along its charges are — that is the same thing Pricing Setup says
+    // about it. A converted one stays Fee Transparent, and if it has since drifted it carries the
+    // reason beside the pill rather than dropping back to Legacy and contradicting the hub.
+    if (!published) return { pill: 'Legacy' };
     const short = st.issues || 0;
-    if (short) return { pill: 'Legacy', converted: true, warn: `Fee Transparency Issue - ${short} charge${short===1?'':'s'} need${short===1?'s':''} details` };
-    return published ? { pill: 'Fee Transparent', total: true, converted: true } : { pill: 'Legacy', converted: true };
+    return short
+      ? { pill: 'Fee Transparent', warn: `Fee Transparency Issue - ${short} charge${short===1?'':'s'} need${short===1?'s':''} details` }
+      : { pill: 'Fee Transparent', total: true };
   }
   // Everything the Errors column counts, split the way the popup groups it. Only feed-level problems
   // belong here: a charge missing its details keeps complete pricing from publishing at all, so it
@@ -2877,8 +2901,8 @@ class Component extends DCLogic {
     const needsFT = all.some(l => { const st = l.fixed || this.ltStatus(l.prop); return !st.total || !!st.warn; });
     const banner = `<div style="display:flex;align-items:center;gap:12px;background:#fef4e8;border:1px solid #f6b26b;border-radius:4px;padding:12px 16px">
       <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-attention, #f58220);flex:none"><path d="m40-120 440-760 440 760H40Zm104-60h672L480-760 144-180Zm361.5-65.68q8.5-8.67 8.5-21.5 0-12.82-8.68-21.32-8.67-8.5-21.5-8.5-12.82 0-21.32 8.68-8.5 8.67-8.5 21.5 0 12.82 8.68 21.32 8.67 8.5 21.5 8.5 12.82 0 21.32-8.68ZM454-348h60v-224h-60v224Zm26-122Z"/></svg>
-      <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">To comply with federal fee transparency requirements, ensure all required monthly fees are included in the price or clearly disclosed in the description. You can do this by centralizing your charges on each property with our new Fee Transparency feature.</span>
-      <a data-act="navFeeTrans" style="flex:none;display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap;cursor:pointer">Centralize Charges<svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="m560-242-43-42 168-168H160v-60h525L516-681l43-42 241 241-240 240Z"/></svg></a>
+      <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">A growing number of states require advertised rent to include every required fee, and listing sites are asking for the same. Centralize a property's charges, then convert it to fee transparency, and its listings advertise a total monthly price instead of rent alone.</span>
+      <a data-act="navFeeTrans" style="flex:none;display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap;cursor:pointer">Go to Pricing Setup<svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="m560-242-43-42 168-168H160v-60h525L516-681l43-42 241 241-240 240Z"/></svg></a>
     </div>`;
     const fopt = (v, t) => `<div data-act="ltPropSet" data-arg="${v}" style="padding:7px 14px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">${t}</div>`;
     const toolbar = `<div style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap">
@@ -2919,10 +2943,14 @@ class Component extends DCLogic {
       const st = l.fixed || live;
       const basePrice = l.base == null ? '-' : money(l.base);
       // Total monthly price is only known once the property's charges are centralized.
+      // Only a property that has published complete pricing advertises a total; everything else
+      // advertises base rent, which is what its listing actually says today.
       const total = l.fixed
         ? (l.total != null ? money(l.total) : '-')
-        : (live.converted && l.base != null ? money(l.base + this.ltMonthlyFees(l.prop)) : '-');
-      const pricing = l.base == null ? '<span style="color:var(--rmx-brand-dark, #13314c)">-</span>' : pill(st.pill, st.total);
+        : (!!this.state.publishedProps[l.prop] && l.base != null ? money(l.base + this.ltMonthlyFees(l.prop)) : '-');
+      const warn = st.warn ? `<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#7a5a2a;line-height:1.35">${this.ico('warning', 14, 'color:var(--rmx-attention, #f58220);flex:none')}${st.warn}</span>` : '';
+      const pricing = l.base == null ? '<span style="color:var(--rmx-brand-dark, #13314c)">-</span>'
+        : (warn ? `<span style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:6px 0">${pill(st.pill, st.total)}${warn}</span>` : pill(st.pill, st.total));
       // One icon and a count — the popup is where the errors themselves live.
       const nErr = this.ltErrCount(l);
       const err = nErr
@@ -2933,7 +2961,7 @@ class Component extends DCLogic {
         ${cell(l.plan)}${cell(l.type)}${cell(l.avail)}
         ${cell(basePrice, 'justify-content:flex-end;text-align:right')}
         ${cell(total, 'justify-content:flex-end;text-align:right')}
-        <span style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px">${pricing}</span>
+        <span style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:4px 12px;white-space:normal">${pricing}</span>
         <span ${nErr?`data-act="ltErrOpen" data-arg="${all.indexOf(l)}"`:''} style="display:flex;align-items:center;gap:8px;min-height:35px;box-sizing:border-box;padding:0 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;${nErr?'cursor:pointer':''}">${err}</span>
         <span data-act="toast" data-arg="Listing actions" style="display:flex;align-items:center;justify-content:center;min-height:35px;cursor:pointer"><svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5))"><path d="M479.86-160Q460-160 446-174.14t-14-34Q432-228 446.14-242t34-14Q500-256 514-241.86t14 34Q528-188 513.86-174t-34 14Zm0-272Q460-432 446-446.14t-14-34Q432-500 446.14-514t34-14Q500-528 514-513.86t14 34Q528-460 513.86-446t-34 14Zm0-272Q460-704 446-718.14t-14-34Q432-772 446.14-786t34-14Q500-800 514-785.86t14 34Q528-732 513.86-718t-34 14Z"/></svg></span>
       </div>`;
