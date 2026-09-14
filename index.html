@@ -3441,6 +3441,9 @@ class Component extends DCLogic {
         </div>
         <div style="display:flex;align-items:center;gap:32px">
           <div style="display:flex;flex-direction:column;gap:10px;font-size:16px;white-space:nowrap">
+            <!-- Conversion state was only legible on Pricing Setup; this is the screen someone
+                 actually opens for a property, so it says where the property stands and goes there. -->
+            <span data-act="navFeeTrans" title="Open Pricing Setup" style="display:inline-flex;align-items:baseline;justify-content:flex-end;gap:20px;cursor:pointer"><span style="font-size:14px;color:var(--rmx-text, #666666)">Pricing Setup:</span>${this.ftHelpLoz(this.ftStatus(this.state.property).status)}</span>
             <span style="display:inline-flex;align-items:baseline;justify-content:flex-end;gap:20px"><span style="color:var(--rmx-text, #666666)">Occupied Units:</span><span style="font-weight:600;color:var(--rmx-brand-dark, #13314c)">${P.occupied}</span></span>
             <span style="display:inline-flex;align-items:baseline;justify-content:flex-end;gap:20px"><span style="color:var(--rmx-text, #666666)">Total Units:</span><span style="font-weight:600;color:var(--rmx-brand-dark, #13314c)">${P.units}</span></span>
           </div>
@@ -4939,6 +4942,7 @@ class Component extends DCLogic {
         ${stat(rows.length + ' Charges', rec + ' recurring, ' + (rows.length - rec) + ' one-time')}
         ${stat(units + ' Units Affected', 'Across ' + (one ? props[0] : props.length + ' properties'))}
       </div>
+      <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">These units are charged from the property from now on. Tenants already in them keep the charges on their account as they are.</span>
       <div style="height:1px;background:var(--rmx-line, #cedbe7);margin-top:4px"></div>
       <div data-act="setupAck" style="display:flex;gap:10px;align-items:center;cursor:pointer;padding-bottom:4px">
         ${box}<span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.45">I understand this permanently changes how ${who} manage${one?'s':''} charges and cannot be undone.</span>
@@ -5475,9 +5479,11 @@ class Component extends DCLogic {
   // A charge's figure, falling back to its estimate when the amount is calculated or referenced.
   tenantAmt(f){ return this.parseAmt(f.amount) || f.est || 0; }
   // What the tenant is billed each month, in the order the charges post.
+  // A charge is named the way the Charges tab names it — its comment, with its charge type beside
+  // it — so one charge doesn't read as three different things across the tenant's tiles.
   tenantMonthCharges(){
-    return [{ t:'Rent Charge', a:this.tenantRent() }]
-      .concat(this.tenantRecurring().map(f => ({ t:this.chargeTypeDesc(f.mits) || f.name, a:this.tenantAmt(f) })));
+    return [{ t:'Rent', code:'RC', a:this.tenantRent() }]
+      .concat(this.tenantRecurring().map(f => ({ t:f.desc || f.name || this.chargeTypeDesc(f.mits), code:f.mits, a:this.tenantAmt(f) })));
   }
   tenantMonthTotal(){ return this.tenantMonthCharges().reduce((n, c) => n + c.a, 0); }
   // The account's activity, newest first, each row carrying the balance as at that entry: last
@@ -5487,10 +5493,10 @@ class Component extends DCLogic {
   tenantLedger(){
     const charges = this.tenantMonthCharges();
     const out = []; let bal = 0;
-    const post = (d) => charges.forEach(c => { bal += c.a; out.push({ d, dShort:d.replace('/20', '/'), desc:c.t, amt:c.a, bal }); });
+    const post = (d) => charges.forEach(c => { bal += c.a; out.push({ d, dShort:d.replace('/20', '/'), desc:c.t, code:c.code, amt:c.a, bal }); });
     post('02/01/2026');
     bal -= this.tenantMonthTotal();
-    out.push({ d:'02/03/2026', dShort:'02/03/26', desc:'Payment', amt:-this.tenantMonthTotal(), bal });
+    out.push({ d:'02/03/2026', dShort:'02/03/26', desc:'Payment', code:'', amt:-this.tenantMonthTotal(), bal });
     post('03/01/2026');
     return out.reverse();
   }
@@ -5664,11 +5670,13 @@ class Component extends DCLogic {
 
     // ---- Transactions ----
     // Newest first, each row carrying the balance as at that charge, the way the mock reads.
+    // What a ledger row is called: the charge's comment, with its charge type beside it.
+    const named = (r) => r.desc + (r.code ? ` <span style="color:var(--rmx-text-muted, #b3b3b3)">${r.code}</span>` : '');
     const tKey = 'tnt-txn', tCols = '244px minmax(0,1fr) 152px 245px';
     const transactions = tile('Transactions', link('Add Payment') + link('Add Charge') + openIconAct('txnViewOpen', 'View Transactions'),
       `<div style="overflow-x:auto"><div style="display:flex;flex-direction:column;min-width:620px">
-        ${mHead(tKey, tCols, mh('Date') + mh('Type') + mh('Type', true) + mh('Note', true))}
-        ${ledger.map((r, i) => mRow(tKey, tCols, mc(r.d) + mc(r.desc) + mc(money(r.amt), true) + mc(money(r.bal), true), i % 2 === 1)).join('')}
+        ${mHead(tKey, tCols, mh('Date') + mh('Description') + mh('Amount', true) + mh('Balance', true))}
+        ${ledger.map((r, i) => mRow(tKey, tCols, mc(r.d) + mc(named(r)) + mc(money(r.amt), true) + mc(money(r.bal), true), i % 2 === 1)).join('')}
       </div></div><div style="flex:1"></div>`, { span:3, rule:'green', flush:true, minH:250 });
 
     // ---- Recurring Charges ----
@@ -5822,7 +5830,7 @@ class Component extends DCLogic {
     const kebab = `<span data-act="toast" data-arg="Transaction actions" style="display:flex;align-items:center;justify-content:center;height:44px;cursor:pointer">${this.ico('more_vert', 20)}</span>`;
     const amt = (n) => n < 0 ? '(' + money(-n) + ')' : money(n);
     const body = rows.map(r => `<div style="display:grid;grid-template-columns:${cols};align-items:center;background:#fff;border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)">
-      ${cell(r.dShort)}${cell('')}${cell(r.desc)}${cell('')}${cell(amt(r.amt), true)}${cell(money(r.bal), true)}${kebab}
+      ${cell(r.dShort)}${cell(r.code || '')}${cell(r.desc)}${cell('')}${cell(amt(r.amt), true)}${cell(money(r.bal), true)}${kebab}
     </div>`).join('');
 
     return `<div data-act="txnViewClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:120">
