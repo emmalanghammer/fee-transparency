@@ -6170,14 +6170,29 @@ class Component extends DCLogic {
       const sw = this.q('#m-stor-wrap'), pw = this.q('#m-park-wrap'), tw = this.q('#m-pet-wrap');
       const lw = this.q('#m-lease-wrap');
       if (lw) lw.style.display = (cc === 'Lease') ? 'flex' : 'none';
+      if (window.__nameMode) window.__nameMode(cc === 'Lease' ? this.leaseRoleVal() : '');
       if (sw) sw.style.display = (cc === 'Storage') ? 'flex' : 'none';
       if (pw) pw.style.display = (cc === 'Parking') ? 'flex' : 'none';
       if (tw) tw.style.display = (cc === 'Pet') ? 'flex' : 'none';
     };
     // Choosing base rent where another charge at this level already holds it is a decision, not a
     // silent swap, so it asks first — and cancelling puts the radio back where it was.
+    // The Name control follows the role: a list for the rent or the deposit, free text otherwise.
+    // What was typed is kept, so flipping through the roles and back doesn't lose it.
+    window.__nameMode = (role) => {
+      const t = this.q('#m-name-text'), r = this.q('#m-name-rent'), d = this.q('#m-name-dep'), nm = this.q('#m-name');
+      if (!t || !r || !d || !nm) return;
+      if (t.style.display !== 'none') t.setAttribute('data-typed', nm.value);
+      t.style.display = role ? 'none' : 'block';
+      r.style.display = role === 'rent' ? 'block' : 'none';
+      d.style.display = role === 'deposit' ? 'block' : 'none';
+      const pick = (id) => { const e = this.q('#' + id); return e ? e.value : ''; };
+      nm.value = role === 'rent' ? pick('m-name-rent-sel') : role === 'deposit' ? pick('m-name-dep-sel') : (t.getAttribute('data-typed') || '');
+      if (window.__mitsRecheck) window.__mitsRecheck();
+    };
     window.__leaseRole = (el) => {
       this._leaseTake = null;
+      window.__nameMode(el.value);
       if (el.value !== 'rent') return;
       const lvl = ((this.q('#m-app') || {}).value) || 'Property';
       const other = this.baseRentAt(lvl, ed ? ed.id : null);
@@ -6191,8 +6206,10 @@ class Component extends DCLogic {
     window.__leaseConf = (ok) => {
       const w = this.q('#m-leaseconf'); if (w) w.style.display = 'none';
       if (ok) { this._leaseTake = this._leasePend; return; }
-      const prev = this.q(`input[name="m-lease-role"][value="${this.leaseRoleOf(ed) || ''}"]`);
+      const back = this.leaseRoleOf(ed) || '';
+      const prev = this.q(`input[name="m-lease-role"][value="${back}"]`);
       if (prev) prev.checked = true;
+      window.__nameMode(back);
       this._leaseTake = null;
     };
     // Charge types that can sit on a rentable item — the only ones offered at the ORI level.
@@ -6548,12 +6565,26 @@ class Component extends DCLogic {
     // Base rent and the security deposit are the two charges a listing reads differently from the
     // rest, and both are Lease-category charges — so the question is only asked of those.
     const role0 = this.leaseRoleOf(ed);
+    // Base rent and the security deposit are named from a short list rather than typed: a listing
+    // has to recognise which line is the rent, and free text is where that goes wrong.
+    const nameOpts = { rent:['Rent','Monthly Rent','Flat Monthly Rent','Standard Rent'], deposit:['Security Deposit','Deposit'] };
+    const nm0 = (ed && ed.listing && ed.listing.name) || '';
+    const rentSel = nameOpts.rent.indexOf(nm0) >= 0 ? nm0 : nameOpts.rent[0];
+    const depSel = nameOpts.deposit.indexOf(nm0) >= 0 ? nm0 : nameOpts.deposit[0];
+    // Whichever control is showing, the answer lands on #m-name — the one field save and the
+    // readiness check read.
+    const nameJs = "var t=document.getElementById('m-name');if(t)t.value=_v;if(window.__mitsRecheck)window.__mitsRecheck();";
+    const nameNow = role0 === 'rent' ? rentSel : role0 === 'deposit' ? depSel : nm0;
     const roleRadio = (v, l) => `<label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;white-space:nowrap">
       <input type="radio" name="m-lease-role" value="${v}"${role0 === v ? ' checked' : ''} onclick="if(window.__leaseRole)window.__leaseRole(this)" style="width:17px;height:17px;margin:0;flex:none">
       <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${l}</span></label>`;
     const leaseSection = `<div id="m-lease-wrap" style="display:${cat0 === 'Lease' ? 'flex' : 'none'};align-items:center;gap:24px;flex-wrap:wrap">${roleRadio('', 'Regular charge')}${roleRadio('rent', 'Base rent')}${roleRadio('deposit', 'Security deposit')}</div>`;
     const listing = `<div style="display:flex;gap:12px;align-items:flex-start">
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Name')}<input id="m-name" class="fld" value="${esc(ed&&ed.listing?ed.listing.name:'')}" oninput="if(window.__mitsRecheck)window.__mitsRecheck()" style="height:36px;box-sizing:border-box"></div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Name')}
+          <div id="m-name-text" data-typed="${esc(nm0)}" style="display:${role0 ? 'none' : 'block'}"><input id="m-name" class="fld" value="${esc(nameNow)}" oninput="if(window.__mitsRecheck)window.__mitsRecheck()" style="height:36px;box-sizing:border-box"></div>
+          <div id="m-name-rent" style="display:${role0 === 'rent' ? 'block' : 'none'}">${this.singleSelect('m-name-rent-sel', nameOpts.rent, rentSel, { noSearch:true, js:nameJs })}</div>
+          <div id="m-name-dep" style="display:${role0 === 'deposit' ? 'block' : 'none'}">${this.singleSelect('m-name-dep-sel', nameOpts.deposit, depSel, { noSearch:true, js:nameJs })}</div>
+        </div>
         ${catBlock}
       </div>
       ${leaseSection}
