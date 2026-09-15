@@ -445,9 +445,29 @@ class Component extends DCLogic {
   // The listing values as the charge details overlay shows them — unset fields fall back to the
   // dropdown defaults. Diffing against these keeps the history from reporting a default being
   // persisted as if the user had changed it.
+  // Listings have to know which charge is the rent and which is the deposit — the two a renter reads
+  // differently from every other fee. Only a Lease-category charge can be either. Charges that have
+  // never been told carry the obvious answer: a rent charge is the rent, a deposit is the deposit.
+  leaseRoleOf(r){
+    if (!r) return '';
+    const L = r.listing || {};
+    if (L.leaseRole != null) return L.leaseRole;
+    if ((L.category || this.chargeCategoryFor(r.mits)) !== 'Lease') return '';
+    return r.mits === 'RC' ? 'rent' : r.mits === 'DP' ? 'deposit' : '';
+  }
+  leaseRoleLabel(k){ return k === 'rent' ? 'Base Rent' : k === 'deposit' ? 'Security Deposit' : ''; }
+  leaseRoleVal(){ const el = this.q('input[name="m-lease-role"]:checked'); return el ? el.value : ''; }
+  // One base rent per charge level: a property can charge rent at the property level and again for a
+  // unit type, but not twice at the same level, or there is no single answer to what the rent is.
+  baseRentAt(level, exceptId){
+    const lvl = String(level || 'Property');
+    return this.profileRows().filter(r => String(r.level || 'Property') === lvl
+      && String(r.id) !== String(exceptId) && this.leaseRoleOf(r) === 'rent')[0] || null;
+  }
   resolvedListing(r){
     const L = (r && r.listing) || {};
     return {
+      leaseRole: this.leaseRoleOf(r),
       name: L.name,
       category: L.category || this.chargeCategoryFor(r.mits),
       requirement: L.requirement || '',
@@ -1571,17 +1591,25 @@ class Component extends DCLogic {
         // Pet specifics live on the Pet Type now — the charge just records which type it follows.
         if (cc === 'Pet') return { petType: v('m-at-pettype'), petKind: v('m-at-petkind') };
         return undefined; })(),
-      listing: { name, category: this.chargeCategoryFor(code), marketing: v('m-marketing'), requirement: req, feeDue: v('m-due'), schedule: isOne ? '' : v('m-sched'), refundable: this.refundVal() }
+      listing: { name, category: this.chargeCategoryFor(code), marketing: v('m-marketing'), requirement: req, feeDue: v('m-due'), schedule: isOne ? '' : v('m-sched'), refundable: this.refundVal(),
+        leaseRole: this.chargeCategoryFor(code) === 'Lease' ? this.leaseRoleVal() : '' }
     };
+    // Base rent confirmed as moving off another charge: it has to be cleared in the same write, since
+    // setProfileRows reads the rows as they stand when it's called.
+    const take = row.listing.leaseRole === 'rent' ? this._leaseTake : null;
+    const unRent = (f) => Object.assign({}, f, { listing: Object.assign({}, f.listing, { leaseRole: '' }) });
+    this._leaseTake = null;
     if (m.edit) {
       const id = m.edit.id;
-      this.setProfileRows(rows => rows.map(f => String(f.id) === String(id) ? Object.assign({}, f, row) : f));
+      this.setProfileRows(rows => rows.map(f => String(f.id) === String(id) ? Object.assign({}, f, row)
+        : (take && String(f.id) === String(take) ? unRent(f) : f)));
       this.logChargeEdit(m.edit, Object.assign({}, m.edit, row));
       if (keep) return true;
       this.setState({ modal: null }); this.flash('Charge updated'); return true;
     }
     const id = this.state.nextFeeId;
-    this.setProfileRows(rows => rows.concat([Object.assign({ id }, row)]));
+    this.setProfileRows(rows => rows.map(f => take && String(f.id) === String(take) ? unRent(f) : f)
+      .concat([Object.assign({ id }, row)]));
     this.logChange(this.state.property, this.histLabelFor(row),
       'Charge added · ' + row.amount + ' · ' + (row.listing.requirement || 'No requirement'), target || app, { chargeId: id });
     if (keep) { this.setState(s => ({ nextFeeId: s.nextFeeId + 1 })); return true; }
@@ -5021,7 +5049,11 @@ class Component extends DCLogic {
     // A one-time add-on the prospect ticks is money due like any other one-time charge.
     const oTotal = sum(oneTime) + chosenOptOne.reduce((n,r)=>n+lineAmt(r),0);
     const line = (l,v,bold) => `<div style="display:flex;align-items:baseline;justify-content:space-between;padding:5px 0"><span style="font-size:14px;color:${bold?'var(--rmx-brand-dark, #13314c)':'var(--rmx-ink-2, #424e5b)'};${bold?'font-weight:600':''}">${l}</span><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);${bold?'font-weight:600':''}">${v}</span></div>`;
-    const grp = (t, rws, suffix, subLabel) => rws.length ? `<div style="padding:12px 0;border-top:1px solid var(--rmx-bg-subtle, #f5f8fa)"><div style="font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3);margin-bottom:4px">${t}</div>${rws.map(r=>line(r.name + (isPet(r) && qtyOf(r) > 1 ? ` &times; ${qtyOf(r)}` : '') + (atCap(r) ? ` <span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">(max)</span>` : ''), money(lineAmt(r))+(suffix||''))).join('')}${subLabel?line(subLabel, money(rws.reduce((n,r)=>n+lineAmt(r),0)), true):''}</div>` : '';
+    // Base rent and the security deposit are the two lines a renter reads differently from the rest,
+    // so the preview names them instead of leaving them among the fees.
+    const roleTag = (r) => { const k = this.leaseRoleOf(r); return k
+      ? ` <span style="display:inline-flex;align-items:center;border-radius:4px;padding:1px 7px;font-size:12px;white-space:nowrap;${k==='rent'?'background:var(--rmx-brand-tint-bg, #ebf1f5);color:var(--rmx-brand-hover, #0071aa)':'background:#e0f0f0;color:#2a7d7d'}">${this.leaseRoleLabel(k)}</span>` : ''; };
+    const grp = (t, rws, suffix, subLabel) => rws.length ? `<div style="padding:12px 0;border-top:1px solid var(--rmx-bg-subtle, #f5f8fa)"><div style="font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3);margin-bottom:4px">${t}</div>${rws.map(r=>line(r.name + roleTag(r) + (isPet(r) && qtyOf(r) > 1 ? ` &times; ${qtyOf(r)}` : '') + (atCap(r) ? ` <span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">(max)</span>` : ''), money(lineAmt(r))+(suffix||''))).join('')}${subLabel?line(subLabel, money(rws.reduce((n,r)=>n+lineAmt(r),0)), true):''}</div>` : '';
     const step = (r, d, icon) => `<span data-act="ppQty" data-arg="${r.id}:${d}" style="display:flex;align-items:center;justify-content:center;width:22px;height:22px;border:1px solid var(--rmx-line, #cedbe7);border-radius:2px;background:#fff;cursor:pointer" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background='#fff'">${this.ico(icon, 14, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>`;
     // The pet type's Max Allowed is the ceiling, so the last pet the property allows is where adding
     // stops. No action on the disabled control — nothing to press means nothing to explain.
@@ -5030,7 +5062,7 @@ class Component extends DCLogic {
     const stepper = r => { const mx = this.ppPetMax(r, p.prop), n = qtyOf(r);
       const count = `<span style="min-width:20px;text-align:center;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${n}${mx ? `<span style="color:var(--rmx-text-muted, #b3b3b3)">/${mx}</span>` : ''}</span>`;
       return `<span style="display:inline-flex;align-items:center;justify-content:flex-end;gap:6px;width:80px;flex:none">${(!isPet(r) || !p.opt[r.id]) ? '' : `${step(r,-1,'remove')}${count}${mx && n >= mx ? stepOff('add') : step(r,1,'add')}`}</span>`; };
-    const optCb = r => `<label data-act="ppOpt" data-arg="${r.id}" style="display:flex;align-items:center;gap:10px;padding:5px 0;cursor:pointer;font-size:14px;color:var(--rmx-brand-dark, #13314c)"><span style="width:18px;height:18px;border-radius:2px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${p.opt[r.id]?'background:var(--rmx-attention, #f58220);border:1px solid var(--rmx-attention, #f58220)':'background:#fff;border:1px solid var(--rmx-text-muted, #b3b3b3)'}">${p.opt[r.id]?'<svg class="ico" width="14" height="14" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:#fff"><path d="M378-246 154-470l43-43 181 181 384-384 43 43-427 427Z"/></svg>':''}</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name}</span>${stepper(r)}<span style="width:112px;flex:none;text-align:right;font-size:14px;color:var(--rmx-ink-2, #424e5b);white-space:nowrap">${money(lineAmt(r))}${/-one$/.test(r.group)?'/one-time':'/mo'}</span></label>`;
+    const optCb = r => `<label data-act="ppOpt" data-arg="${r.id}" style="display:flex;align-items:center;gap:10px;padding:5px 0;cursor:pointer;font-size:14px;color:var(--rmx-brand-dark, #13314c)"><span style="width:18px;height:18px;border-radius:2px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${p.opt[r.id]?'background:var(--rmx-attention, #f58220);border:1px solid var(--rmx-attention, #f58220)':'background:#fff;border:1px solid var(--rmx-text-muted, #b3b3b3)'}">${p.opt[r.id]?'<svg class="ico" width="14" height="14" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:#fff"><path d="M378-246 154-470l43-43 181 181 384-384 43 43-427 427Z"/></svg>':''}</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name}${roleTag(r)}</span>${stepper(r)}<span style="width:112px;flex:none;text-align:right;font-size:14px;color:var(--rmx-ink-2, #424e5b);white-space:nowrap">${money(lineAmt(r))}${/-one$/.test(r.group)?'/one-time':'/mo'}</span></label>`;
     // Every charge, split the way the Charges tab splits them. Required charges arrive ticked (see
     // ppSeedOpt), so the breakdown opens on the price a prospect would be quoted.
     const pickSection = (t, rws) => rws.length ? `<div style="display:flex;flex-direction:column;gap:2px;margin-top:2px">
@@ -6048,7 +6080,7 @@ class Component extends DCLogic {
           <button data-act="${m.generalOnly?'txnAddSave':'addsave'}" class="btn-pri" style="height:36px;padding:8px 20px;font-size:14px;border-radius:4px">Save</button>
           <button data-act="addclose" class="btn-out" style="height:36px;padding:8px 20px;font-size:14px;border-radius:4px;box-sizing:border-box">Cancel</button>
         </div>
-      </div></div>${this.catAddHTML()}${this.utConfHTML(!!(m && m.edit))}`;
+      </div></div>${this.catAddHTML()}${this.utConfHTML(!!(m && m.edit))}${this.leaseConfHTML()}`;
   }
   // The charge form itself — General Details, the CRE sections and Marketing Details — shared by the
   // Charge Details overlay and by Bulk Update Charges, which frames it differently.
@@ -6136,9 +6168,32 @@ class Component extends DCLogic {
     window.__attrCheck = () => {
       const cc = ((this.q('#m-cat') || {}).value) || '';
       const sw = this.q('#m-stor-wrap'), pw = this.q('#m-park-wrap'), tw = this.q('#m-pet-wrap');
+      const lw = this.q('#m-lease-wrap');
+      if (lw) lw.style.display = (cc === 'Lease') ? 'flex' : 'none';
       if (sw) sw.style.display = (cc === 'Storage') ? 'flex' : 'none';
       if (pw) pw.style.display = (cc === 'Parking') ? 'flex' : 'none';
       if (tw) tw.style.display = (cc === 'Pet') ? 'flex' : 'none';
+    };
+    // Choosing base rent where another charge at this level already holds it is a decision, not a
+    // silent swap, so it asks first — and cancelling puts the radio back where it was.
+    window.__leaseRole = (el) => {
+      this._leaseTake = null;
+      if (el.value !== 'rent') return;
+      const lvl = ((this.q('#m-app') || {}).value) || 'Property';
+      const other = this.baseRentAt(lvl, ed ? ed.id : null);
+      if (!other) return;
+      const nm = (other.listing && other.listing.name) || other.name || other.mits;
+      const t = this.q('#m-leaseconf-txt');
+      if (t) t.innerHTML = `<strong style="color:var(--rmx-brand-dark, #13314c)">${nm}</strong> is already the base rent at the ${String(lvl).toLowerCase()} level. Only one charge per charge level can be the base rent, so continuing makes this charge the base rent and leaves ${nm} a regular charge.`;
+      this._leasePend = other.id;
+      const w = this.q('#m-leaseconf'); if (w) w.style.display = 'flex';
+    };
+    window.__leaseConf = (ok) => {
+      const w = this.q('#m-leaseconf'); if (w) w.style.display = 'none';
+      if (ok) { this._leaseTake = this._leasePend; return; }
+      const prev = this.q(`input[name="m-lease-role"][value="${this.leaseRoleOf(ed) || ''}"]`);
+      if (prev) prev.checked = true;
+      this._leaseTake = null;
     };
     // Charge types that can sit on a rentable item — the only ones offered at the ORI level.
     const ctItems = this.chargeTypesFor().map(t => [t.code, t.desc]).map(([c,d2]) => `<div data-cat="${catFor(c)}" data-code="${c}" data-ct="${(c+' '+d2).toLowerCase()}" onmousedown="document.getElementById('m-ctype').value='${c}';document.getElementById('m-ctype-desc').value='${d2.replace(/'/g,"")}';${setCat}document.getElementById('m-ctype-panel').style.display='none'" style="padding:8px 12px;cursor:pointer" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''"><div style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${c}</div><div style="font-size:14px;color:var(--rmx-text-muted, #b3b3b3)">${d2}</div></div>`).join('');
@@ -6490,10 +6545,21 @@ class Component extends DCLogic {
       </div>
     </div>`;
     const attrSections = storSection + parkSection + petSection + petKindOv;
+    // Base rent and the security deposit are the two charges a listing reads differently from the
+    // rest, and both are Lease-category charges — so the question is only asked of those.
+    const role0 = this.leaseRoleOf(ed);
+    const roleRadio = (v, l) => `<label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;white-space:nowrap">
+      <input type="radio" name="m-lease-role" value="${v}"${role0 === v ? ' checked' : ''} onclick="if(window.__leaseRole)window.__leaseRole(this)" style="width:17px;height:17px;margin:0;flex:none">
+      <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${l}</span></label>`;
+    const leaseSection = `<div id="m-lease-wrap" style="display:${cat0 === 'Lease' ? 'flex' : 'none'};flex-direction:column;gap:7px">
+      ${lab('Charge Role', this.fieldHelp('Charge Role', 'Which of a lease\'s two headline figures this charge is, if either. Listings show base rent as the rent and the security deposit separately from the monthly price. One charge per charge level can be the base rent.'))}
+      <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">${roleRadio('', 'Regular charge')}${roleRadio('rent', 'Base rent')}${roleRadio('deposit', 'Security deposit')}</div>
+    </div>`;
     const listing = `<div style="display:flex;gap:12px;align-items:flex-start">
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Name')}<input id="m-name" class="fld" value="${esc(ed&&ed.listing?ed.listing.name:'')}" oninput="if(window.__mitsRecheck)window.__mitsRecheck()" style="height:36px;box-sizing:border-box"></div>
         ${catBlock}
       </div>
+      ${leaseSection}
       <div style="display:flex;flex-direction:column;gap:4px">${lab('Marketing Description')}<textarea id="m-marketing" class="fld" style="height:56px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${ed&&ed.listing?(ed.listing.marketing||''):''}</textarea></div>
       <div style="display:flex;gap:12px;align-items:flex-start">
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px"><span style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--rmx-text, #666666)">Charge Requirement${this.reqHelp()}</span>${dd('m-req',['Required','Optional','Situational'],req,{noSearch:true,blank:true,placeholder:' ',js:"document.getElementById('m-sitdesc-wrap').style.display=(_v==='Situational'?'flex':'none');if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>
@@ -6779,6 +6845,24 @@ class Component extends DCLogic {
   // discard anything typed there. The assignment is remembered for the whole charge type.
   // Confirmation before a unit type charge is saved. Rendered inline and toggled on the DOM, so opening
   // it never re-renders (and clears) the charge form.
+  // Warns before base rent moves from one charge to another (only one per charge level).
+  leaseConfHTML(){
+    return `<div id="m-leaseconf" style="display:none;position:fixed;inset:0;background:rgba(19,49,76,0.45);align-items:center;justify-content:center;z-index:200">
+      <div onclick="event.stopPropagation()" style="width:520px;max-width:92vw;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:12px;padding:13px 20px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
+          <span style="font-size:20px;color:var(--rmx-brand-dark, #13314c)">Change the base rent charge?</span><div style="flex:1"></div>
+          ${this.ico('close', 20, 'color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer').replace('<svg ', '<svg onclick="if(window.__leaseConf)window.__leaseConf(false)" ')}
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:12px;padding:20px 24px 22px">
+          ${this.ico('warning', 20, 'color:var(--rmx-attention, #f58220);flex:none;margin-top:1px')}
+          <span id="m-leaseconf-txt" style="flex:1;min-width:0;font-size:14px;color:var(--rmx-text, #666666);line-height:1.55"></span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:14px 20px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7)">
+          <button onclick="if(window.__leaseConf)window.__leaseConf(true)" class="btn-pri" style="height:38px;min-height:38px;padding:0 22px;border-radius:4px;font-size:14px">Make this the base rent</button>
+          <button onclick="if(window.__leaseConf)window.__leaseConf(false)" style="height:38px;min-height:38px;padding:0 22px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Cancel</button>
+        </div>
+      </div></div>`;
+  }
   utConfHTML(isEdit){
     const props = this.utTypeProps();
     return `<div id="m-utconf" style="display:none;position:fixed;inset:0;background:rgba(19,49,76,0.45);align-items:center;justify-content:center;z-index:200">
@@ -6886,7 +6970,7 @@ class Component extends DCLogic {
       <span style="display:flex;flex-direction:column;gap:14px;min-width:0;flex:1">
         <span style="align-self:flex-start;background:var(--rmx-attention, #f58220);color:#fff;font-size:12px;font-weight:600;letter-spacing:0.06em;border-radius:12px;padding:4px 11px">COMING SOON</span>
         <span style="font-size:24px;font-weight:600;color:#fff;line-height:1.2">Get ready for Fee Transparency</span>
-        <span style="font-size:14px;color:#e8eef4;line-height:1.6">Fee Transparency is coming soon to Rent Manager, giving you the option to bring every charge a property collects onto one page, while also letting your listings show renters a complete monthly price.</span>
+        <span style="font-size:14px;color:#e8eef4;line-height:1.6">Fee Transparency is coming soon to Rent Manager. It brings every charge a property collects onto one page, and for properties you market online it lets those listings advertise a complete monthly price instead of rent alone.</span>
       </span>
       <span style="flex:none;width:74px;height:74px;border-radius:50%;border:2px solid var(--ac,var(--rmx-brand, #008dd5));display:flex;align-items:center;justify-content:center">
         <img src="assets/logo-rentmanager-mark-white.svg" alt="" style="width:42px;height:42px">
@@ -6898,9 +6982,10 @@ class Component extends DCLogic {
     const body1 = `<div style="display:flex;flex-direction:column;gap:14px">
       <span style="display:flex;flex-direction:column;gap:4px">
         <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Optional, but helpful</span>
-        <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.6">Listing sites group fees by predetermined categories, for example parking, utility, pet, etc. Assigning a Charge Category to your charge types now means less cleanup later.</span>
+        <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.6">Listing sites group fees by predetermined categories — parking, utility, pet, and so on. Assigning a Charge Category to your charge types now means less cleanup later.</span>
       </span>
-      ${note('verified',"It's required on charges for properties that have Fee Transparency turned on and are enabled for online listings.")}
+      ${note('verified',"Charges only need one on a property that runs on Fee Transparency and is enabled for online listings — that's where the category decides how a fee is grouped on the listing.")}
+      ${note('label','Use <strong>Lease</strong> for the charge types you use for base rent and for security deposits. Those two are what a listing quotes as the rent and holds apart from the monthly price, so it needs to tell them from the rest.')}
       ${note('help','Charge categories are labels only, so they have no effect on charges, tenants, or your current listings.')}
       <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:13px 16px;font-size:12px;color:var(--rmx-text, #666666);line-height:1.5">You can set these anytime under <strong style="color:var(--rmx-brand-dark, #13314c)">Charge Types &gt; Charge Type Details &gt; Charge Category.</strong></div>
     </div>`;
