@@ -721,7 +721,13 @@ class Component extends DCLogic {
   chargeTypeProps(code){
     const ori = { COVPARK:1, GARAGE:1, PARK:1, SF:1, STORAGE:1, EVCHG:1 };
     if (!ori[code]) return null;
-    return Object.keys(this.oriChargeTypes()).filter(n => this.oriTypesFor(n).indexOf(code) >= 0);
+    const names = Object.keys(this.oriChargeTypes()).filter(n => this.oriTypesFor(n).indexOf(code) >= 0);
+    // A property that already charges for the thing has to be able to pick its charge type — the
+    // rentable-item list says who rents the item out, which isn't the same question.
+    this.propertiesData().forEach(p => {
+      if (names.indexOf(p.name) < 0 && this.propCharges(p.name).some(r => r.mits === code)) names.push(p.name);
+    });
+    return names;
   }
   chargeTypeInv(code){
     if (code === 'DAMAGE') return [ { name:'Carpet', desc:'Beige carpet - in sq. ft.' }, { name:'Laminate', desc:'in sq. ft.' },
@@ -6523,7 +6529,7 @@ class Component extends DCLogic {
           ${attrField('Handicapped Parking', dd('m-at-hc', spaceOpts, at.handicapped||'', { noSearch:true, blank:true, placeholder:' ' }))}
           ${attrField('Electric Parking', dd('m-at-elec', spaceOpts, at.electric||'', { noSearch:true, blank:true, placeholder:' ' }))}
         </div>
-        <div style="display:flex;flex-direction:column;gap:4px">${lab('Parking Description')}${attrInput('m-at-desc', at.desc, 'E.g. 50 spaces in the surface lot, including 5 designated handicapped spaces, and 10 EV charging spaces')}</div>
+        <div style="display:flex;flex-direction:column;gap:4px">${lab('Parking Description')}${attrInput('m-at-desc', at.desc, 'E.g. 50 surface spaces, 5 handicapped, 10 EV')}</div>
       </div>
     </div>`;
     // Pet Details (mock 2865-80885): pet-category charges carry their own optional attributes, and can
