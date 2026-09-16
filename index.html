@@ -7011,14 +7011,13 @@ class Component extends DCLogic {
     // properties are unaffected, and that should be the first thing read.
     const cond = (t) => `<span style="display:inline-flex;align-items:center;gap:7px;background:var(--rmx-brand-tint-bg, #ebf1f5);border-radius:16px;padding:5px 13px;font-size:14px;color:var(--rmx-brand-hover, #0071aa);white-space:nowrap">${this.ico('check_circle', 16, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}${t}</span>`;
     const body1 = `<div style="display:flex;flex-direction:column;gap:14px">
-      <div style="display:flex;flex-direction:column;gap:10px;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;padding:14px 16px">
-        <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Only matters for properties that are</span>
-        <span style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">${cond('Enabled for online listings')}${cond('Available for Fee Transparency')}</span>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">Only for properties that are:</span>
+        ${cond('Enabled for online listings')}${cond('Available for Fee Transparency')}
       </div>
       <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.6">Listing sites group fees into set categories — parking, utility, pet. Setting a Charge Category now means less cleanup later.</span>
       ${note('label','Use <strong>Lease</strong> for your base rent and security deposit charge types.')}
       ${note('help','Labels only — nothing changes for charges, tenants or your current listings.')}
-      <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:13px 16px;font-size:12px;color:var(--rmx-text, #666666);line-height:1.5">You can set these anytime under <strong style="color:var(--rmx-brand-dark, #13314c)">Charge Types &gt; Charge Type Details &gt; Charge Category.</strong></div>
     </div>`;
 
     // ---- Step 2: the charge-category register ----
@@ -7036,13 +7035,14 @@ class Component extends DCLogic {
       <span style="display:flex;align-items:center;padding:6px 12px;min-width:0"><span style="flex:1;min-width:0">${this.singleSelect('kc-' + r[0], opts.map(o => ({ value:o, label:o.toUpperCase() })), r[2], { noSearch:true })}</span></span>
     </div>`;
     const body2 = `<div style="display:flex;flex-direction:column;gap:14px;min-height:0;flex:1">
-      <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.5;flex:none">Assign a charge category below to any you use for listings. You can do this in bulk now, or later in Charge Types.</span>
+      <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.5;flex:none">Assign a charge category below to any you use for listings.</span>
       <div style="flex:1;min-height:160px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden;display:flex;flex-direction:column">
         <div style="flex:1;min-height:0;overflow:auto"><div style="min-width:640px">
           <div ${this.colHead(colK)} style="position:sticky;top:0;z-index:1;display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">${['Charge Type Short Name','Description','Charge Category'].map(hc).join('')}</div>
           ${this.kickoffTypes().map(row).join('')}
         </div></div>
       </div>
+      <div style="flex:none;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:13px 16px;font-size:12px;color:var(--rmx-text, #666666);line-height:1.5">You can set these anytime under <strong style="color:var(--rmx-brand-dark, #13314c)">Charge Types &gt; Charge Type Details &gt; Charge Category.</strong></div>
     </div>`;
 
     const nextBtn = step === 1
