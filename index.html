@@ -148,6 +148,7 @@ class Component extends DCLogic {
     // listing impact. The opt-in itself only surfaces once a profile exists.
     // The Hamptons is the finished example — marketed, with every charge listing-ready.
     ilsProps: { 'Clearcreek Condominiums': true, 'Riverview Apartments': true, 'The Berkshires': true, 'The Windermere': true,
+      'Oakwood Manor': true,
       'The Estates': true, 'Willow Creek': true, 'Greenbriar Village': true, 'Pinewood Place': true,
       'The Highlands': true, 'Stonegate Village': true, 'The Hamptons': true },
     profileStatus: {},
@@ -171,9 +172,9 @@ class Component extends DCLogic {
     announce: true,
     announceStep: 1,     // the announcement walks three steps
     // How far through conversion the whole prototype is showing (nav bar "Test Feature State").
-    // Happy Path by default: a walkthrough opens on the four simplified properties with nothing
-    // converted yet, which is the same launch-day state as On Rollout on a smaller portfolio. The
-    // seeded ilsProps above already match it — the three that list online, and Oakwood Manor left off.
+    // Happy Path by default: a walkthrough opens on the four simplified properties, all of them
+    // marketed online, three already centralized and waiting to convert and one still on legacy
+    // charges. seededProfiles/listingReadyProps carry the three; ilsProps above carries all four.
     scenario: 'happy',
     // Changes made while using the prototype. The seeded history stops at today, so everything in
     // here is something the user did this session.
@@ -279,10 +280,15 @@ class Component extends DCLogic {
   // ---------- per-property Fee Transparency ----------
   // Properties that already have Fee Transparency on — the register's "Fee Transparency"
   // column. Opening one of these lands on the populated profile; the rest land on pre-setup.
+  // Happy Path opens part-way through: three of the four properties are already centralized with
+  // every marketing detail in place, so Pricing Setup has properties waiting to convert on the first
+  // screen and one still to centralize.
+  happyReadyProps(){ return ['The Berkshires','The Windermere','Oakwood Manor']; }
   seededProfiles(){
-    // Nobody starts set up — the tracker opens with every property at Not Set Up so the demo walks
-    // the real first-run journey. Setting up a property writes profileStatus/profileFees.
-    return [];
+    // Outside Happy Path nobody starts set up — the tracker opens with every property at Not Set Up
+    // so the demo walks the real first-run journey. Setting up a property writes
+    // profileStatus/profileFees.
+    return this.scenarioKey() === 'happy' ? this.happyReadyProps() : [];
   }
   usingProfile(p){ return this.profStatus(p) === 'active'; }
   profStatus(p){
@@ -505,7 +511,7 @@ class Component extends DCLogic {
   // The worked example: a property whose profile is finished — every charge carries its marketing
   // details and is included on listings — so the "done" state can be shown next to the properties
   // still missing fields. It has to be marketed on listings for any of that to be visible.
-  listingReadyProps(){ return ['The Hamptons']; }
+  listingReadyProps(){ return this.scenarioKey() === 'happy' ? this.happyReadyProps() : ['The Hamptons']; }
   listingReadyRows(prop){
     // Resident-facing name and description per charge; everything else follows from the charge.
     const M = {
@@ -573,8 +579,8 @@ class Component extends DCLogic {
   scenarioKey(){ return this._scenFor || this.state.scenario || 'on'; }
   // Happy Path: a four-property portfolio, each property cut down to one or two recurring and one or
   // two one-time charges, so a walkthrough can configure a whole property's marketing details in a
-  // couple of minutes. Three of them advertise on online listings, so fee transparency applies and
-  // the charges have to be listing ready; Oakwood Manor doesn't, so centralizing is the whole job.
+  // couple of minutes. All four advertise on online listings, so fee transparency applies to every
+  // one of them and their charges have to be listing ready.
   happyPathCharges(){
     return {
       // GARBAGEFEE is the one unit-type charge in the seed, so Riverview keeps it and the walkthrough
@@ -2272,7 +2278,9 @@ class Component extends DCLogic {
   scenarioPlan(key){
     const names = this.propertiesData().map(p => p.name);
     const ils = {};
-    if (key !== 'noils') this.scenarioMarketed().forEach(n => { ils[n] = true; });
+    // Every Happy Path property advertises online, so fee transparency is on the table for all of them.
+    if (key === 'happy') this.propertiesData().forEach(x => { ils[x.name] = true; });
+    else if (key !== 'noils') this.scenarioMarketed().forEach(n => { ils[n] = true; });
     const plan = { ils, status:{}, fees:{}, published:{} };
     const convert = (n, complete, published, drift) => {
       plan.status[n] = 'active';
@@ -2294,6 +2302,11 @@ class Component extends DCLogic {
       // Listed, but on MH Village — centralized is as far as it goes.
       convert('Clearcreek Condominiums', true, false);
       // The Berkshires, The Highlands, Valley Forge and The Arbors are still on legacy charges.
+    } else if (key === 'happy') {
+      // The walkthrough opens with one property still on legacy charges and the rest waiting to
+      // convert, so both halves of the job are on screen from the first look at Pricing Setup.
+      ['The Berkshires','The Windermere','Oakwood Manor'].forEach(n => convert(n, true, false));
+      // Riverview Apartments is the one left to centralize.
     } else if (key === 'post') {
       // Steady state: every property is converted, and every marketed one publishes complete pricing.
       names.forEach(n => convert(n, true, !!ils[n] && !this.mhOn(n)));
