@@ -1201,6 +1201,11 @@ class Component extends DCLogic {
       case 'announceSetup':
         this.go('feetrans', { announce: false });
         break;
+      // Happy Path walks the property-first route: the announcement hands you back to Properties, and
+      // the charge callout on a property is what sends you into centralizing.
+      case 'announceProps':
+        this.go('register', { announce: false });
+        break;
       // Applies each row's category to its charge type, the same store the Add Charge Category
       // overlay writes to, so the choices made here show up on charges everywhere.
       case 'kickoffSave': {
@@ -7351,9 +7356,11 @@ class Component extends DCLogic {
       </div>
     </div>`;
 
+    const done = this.scenarioKey() === 'happy'
+      ? ['announceProps', 'Go to Properties'] : ['announceSetup', 'Go to Pricing Setup'];
     const cta = step < 3
       ? `<button data-act="announceNext" class="btn-pri" style="height:34px;min-height:34px;padding:0 20px;border-radius:4px;font-size:14px">Next</button>`
-      : `<button data-act="announceSetup" class="btn-pri" style="height:34px;min-height:34px;padding:0 20px;border-radius:4px;font-size:14px">Go to Pricing Setup</button>`;
+      : `<button data-act="${done[0]}" class="btn-pri" style="height:34px;min-height:34px;padding:0 20px;border-radius:4px;font-size:14px">${done[1]}</button>`;
     return `<div data-act="announceClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:145">
       <div data-act="noop" style="width:660px;max-width:96vw;height:${step === 3 ? 525 : 625}px;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         ${step === 1 ? head1 : head(step === 2 ? 'How it works' : 'What happens next')}
