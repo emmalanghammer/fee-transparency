@@ -1122,7 +1122,7 @@ class Component extends DCLogic {
         if (arg === 'General' || arg === 'Charges') { this._resetScroll = true; this.setState({ propTab: arg }); }
         else this.flash(arg + ' tab is out of scope for this prototype');
         break;
-      case 'openFeeProfile': this.setState({ recView: null, mktSetup: false, mktAdv: false }); this.go('property', { property: arg || this.state.property, propTab: 'Charges' }); break;
+      case 'openFeeProfile': this.setState({ recView: null, mktSetup: false, mktAdv: false, setup: null }); this.go('property', { property: arg || this.state.property, propTab: 'Charges' }); break;
 
       // ---- row menu ----
       case 'rowMenu': { const r = el.getBoundingClientRect(); this.setState({ rowMenu: { id: arg, x: r.right, y: r.bottom + 4 } }); break; }
@@ -5102,13 +5102,16 @@ class Component extends DCLogic {
   setupDoneFoot(){
     const per = (this.state.setup || {}).done || [];
     const keys = per.map(x => this.ftStatus(x.p).key);
-    const short = per.filter((x, i) => keys[i] === 'short');
     const btn = (label, act, arg, pri) => `<button data-act="${act}"${arg?` data-arg="${arg}"`:''} class="${pri?'btn-pri':'btn-out'}" style="height:36px;min-height:36px;padding:0 ${pri?'22px':'20px'};border-radius:4px;font-size:14px">${label}</button>`;
+    // One property: both ways out land on its Charges tab, which is where the work is.
+    if (per.length === 1) {
+      const p = per[0].p, tab = btn('Done', 'openFeeProfile', p, false);
+      return keys[0] === 'short' ? btn('Add Charge Details', 'openFeeProfile', p, true) + tab
+        : btn('Go to Charges Tab', 'openFeeProfile', p, true) + btn('Done', 'setupClose', '', false);
+    }
     const done = btn('Done', 'setupClose', '', false);
     // Nothing outstanding anywhere: closing is the action, and the hub is the afterthought.
     if (!keys.some(k => k === 'short' || k === 'ready')) return btn('Done', 'setupClose', '', true) + btn('Go to Pricing Setup', 'navFeeTrans', '', false);
-    if (per.length === 1 && keys[0] === 'short') return btn('Add Charge Details', 'openFeeProfile', per[0].p, true) + done;
-    if (short.length === 1 && per.length === 1) return btn('Add Charge Details', 'openFeeProfile', short[0].p, true) + done;
     return btn('Go to Pricing Setup', 'navFeeTrans', '', true) + done;
   }
   // Step 3 "Confirm Setup": the irreversible-action warning, what lands, what to do after, and the
