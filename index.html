@@ -1120,7 +1120,22 @@ class Component extends DCLogic {
         if (arg === 'General' || arg === 'Charges') { this._resetScroll = true; this.setState({ propTab: arg }); }
         else this.flash(arg + ' tab is out of scope for this prototype');
         break;
-      case 'openFeeProfile': this.setState({ recView: null, mktSetup: false, mktAdv: false, setup: null }); this.go('property', { property: arg || this.state.property, propTab: 'Charges' }); break;
+      case 'openFeeProfile': {
+        const prop = arg || this.state.property;
+        // Read before the close: setState lands before the branch below would see it.
+        const fromSetup = !!this.state.setup;
+        this.setState({ recView: null, mktSetup: false, mktAdv: false, setup: null });
+        // Coming out of the setup wizard, the two overlays would cross on screen. Land on the property
+        // first, then bring Charges up over it.
+        if (fromSetup) {
+          this.go('property', { property: prop, propTab: 'General' });
+          clearTimeout(this._chgT);
+          this._chgT = setTimeout(() => this.setState({ propTab: 'Charges' }), 320);
+        } else {
+          this.go('property', { property: prop, propTab: 'Charges' });
+        }
+        break;
+      }
 
       // ---- row menu ----
       case 'rowMenu': { const r = el.getBoundingClientRect(); this.setState({ rowMenu: { id: arg, x: r.right, y: r.bottom + 4 } }); break; }
