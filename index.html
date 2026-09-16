@@ -1495,6 +1495,7 @@ class Component extends DCLogic {
       // ---- recurring charges overlay ----
       case 'recViewOpen': this.setState({ recView: (arg === 'unit' ? 'unit' : 'property') }); break;
       case 'recViewClose': this.setState({ recView: null }); break;
+      case 'chargesClose': this.setState({ propTab: 'General' }); break;
 
       // ---- fee row mutations ----
       case 'feeils': { const r = this.profileRows().find(f => f.id === +arg);
@@ -2213,12 +2214,28 @@ class Component extends DCLogic {
     }).join('')}</div>`;
   }
 
+  // The Charges tab, over the property rather than in place of it. It sits below the charge form and
+  // the setup wizard, so those still open on top of it.
+  chargesOverlay(){
+    return `<div data-act="chargesClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;padding:60px 20px 20px;box-sizing:border-box;z-index:95">
+      <div data-act="noop" style="flex:1;min-width:0;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.28);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:12px;height:56px;box-sizing:border-box;padding:0 16px 0 24px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
+          <span style="font-size:18px;color:var(--rmx-brand-dark, #13314c)">Charges</span>
+          <span style="display:inline-flex;align-items:center;border-radius:12px;padding:1px 10px;background:var(--rmx-success-bg, #e2f1da);color:#2f5d43;font-size:12px">New</span>
+          <span style="font-size:14px;color:var(--rmx-text, #666666);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${this.state.property}</span>
+          <div style="flex:1"></div>
+          ${this.ico('close', 24, 'color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer').replace('<svg ', '<svg data-act="chargesClose" ')}
+        </div>
+        <div style="flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden">${this.feeProfileTab()}</div>
+      </div></div>`;
+  }
   // Right-hand quick-action rail on property details (mock 2475-38346).
   rail(){
     const btn = (icon, label) => `<span data-act="toast" data-arg="${label}" title="${label}" style="display:flex;align-items:center;justify-content:center;width:40px;height:34px;cursor:pointer" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background=''">${this.ico(icon, 20, 'color:#fff')}</span>`;
     const copyBtn = `<span style="position:relative;display:flex">
       <span onclick="var p=document.getElementById('rail-copy-pnl');p.style.display=(p.style.display==='block'?'none':'block')" title="Copy" style="display:flex;align-items:center;justify-content:center;width:40px;height:34px;cursor:pointer" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background=''"><svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:#fff"><path d="M300-200q-24 0-42-18t-18-42v-560q0-24 18-42t42-18h440q24 0 42 18t18 42v560q0 24-18 42t-42 18H300Zm0-60h440v-560H300v560ZM180-80q-24 0-42-18t-18-42v-620h60v620h500v60H180Zm120-180v-560 560Z"/></svg></span>
       <div id="rail-copy-pnl" style="display:none;position:absolute;right:44px;top:0;z-index:1000;min-width:190px;background:#fff;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);padding:4px 0">
+        <div data-act="proptab" data-arg="Charges" style="padding:9px 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">Charges</div>
         <div data-act="mktOpen" style="padding:9px 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">Marketing Setup</div>
       </div>
     </span>`;
@@ -7618,13 +7635,12 @@ class Component extends DCLogic {
       out += this.ctx('Property', [{ label: s.property }], '125 of 255', 'navRegister');
       let inner = this.propScoreboard();
       inner += this.tabRow(['General','Leasing','Documents','Charges'], s.propTab, 'proptab', { badge: { 'Charges':'New' } });
-      if (s.propTab === 'Charges') {
-        inner += `<div style="flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden">${this.feeProfileTab()}</div>`;
-      } else {
-        inner += `<div style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column"><div style="flex:1;min-width:0;padding:16px;display:flex;flex-direction:column;gap:16px;width:100%;box-sizing:border-box">${this.propGeneralBody()}</div></div>`;
-        inner += this.footer('Save property');
-      }
+      // Charges is a workspace rather than a tab of fields, so it opens over the property instead of
+      // replacing it — the property stays behind, the way View Recurring Charges works.
+      inner += `<div style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column"><div style="flex:1;min-width:0;padding:16px;display:flex;flex-direction:column;gap:16px;width:100%;box-sizing:border-box">${this.propGeneralBody()}</div></div>`;
+      inner += this.footer('Save property');
       out += `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden"><div style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden">${inner}</div>${this.rail()}</div>`;
+      if (s.propTab === 'Charges') out += this.chargesOverlay();
     } else if (s.view === 'sysprefs') {
       out += `<div style="height:44px;background:var(--ac,var(--rmx-brand, #008dd5));display:flex;align-items:center;padding:0 16px;gap:14px;color:#fff;flex:none">
         <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="navRegister" style="cursor:pointer"><path d="M453-241 213-481l240-240 42 42-198 198 198 198-42 42Zm253 0L466-481l240-240 42 42-198 198 198 198-42 42Z"/></svg>
