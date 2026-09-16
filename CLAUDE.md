@@ -18,6 +18,9 @@ The prototype ships to two places, and a change is not finished until both have 
 
 Do both, in that order, every time — the user should not have to ask for the republish.
 
+When the user says **"sync"**, they mean the artifact has fallen behind `main` — changes were
+made outside a session. Republish it from the current working tree; nothing else is implied.
+
 ## Things that will bite
 
 - **Vendored runtime.** `support.js` loads React, ReactDOM and Babel from unpkg by default. A
