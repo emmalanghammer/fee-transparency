@@ -5025,68 +5025,87 @@ class Component extends DCLogic {
   }
   // Closing step: confirms what landed, then the two things to do next. A bulk run also lists every
   // property, so it doesn't end on a vanished overlay.
+  // The finish line reuses the announcement's 1-2-3 breakdown: the same three steps, with the
+  // properties that were just centralized standing on the step each one is actually waiting at.
+  // A property that doesn't list online never reaches steps 2 and 3, so it closes the panel instead.
   setupDone(){
     const c = this.state.setup;
     const per = c.done || [];
     const n = per.length;
-    // Centralizing leaves a property in exactly one of three states, so the overlay reports the one it
-    // landed in rather than reciting the same two steps to everybody. Converting hasn't happened yet,
-    // so Needs Attention can't arise here.
+    const total = per.reduce((a, x) => a + x.count, 0);
     const bucket = { short: [], ready: [], complete: [] };
     per.forEach(x => { const k = this.ftStatus(x.p).key; (bucket[k] || bucket.complete).push(x); });
-    const fact = (x) => {
-      const k = this.ftStatus(x.p).key, ch = this.ftCharges(x.p);
-      if (k === 'short') return ch.incomplete + ' of ' + ch.total + ' charges need details';
-      if (k === 'ready') return ch.ready + ' charge' + (ch.ready === 1 ? '' : 's') + ' ready';
-      return this.ftApplicable(x.p) ? x.count + ' charges centralized'
-        : (this.mhOn(x.p) ? 'Listed on MH Village' : 'Not listed online');
-    };
-    const loz = (t) => this.ftHelpLoz(t);
+
     const arrow = this.ico('arrow_right_alt', 18);
-    const link = (label, act, arg) => `<span data-act="${act}"${arg?` data-arg="${arg}"`:''} style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${label}${arrow}</span>`;
-    const tile = (inner) => `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${inner}</div>`;
-    const thead = (left, right) => `<div style="display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:2px solid var(--ac,var(--rmx-brand, #008dd5))">${left}<div style="flex:1"></div>${right||''}</div>`;
-    const note = (t) => `<div style="padding:12px 16px 2px;font-size:14px;color:var(--rmx-text, #666666);line-height:1.45">${t}</div>`;
-    const prow = (x, first) => `<div style="display:flex;align-items:center;gap:16px;padding:10px 16px;${first?'':'border-top:1px solid var(--rmx-brand-tint-bg, #ebf1f5)'}">
+    const link = (label, act, arg) => `<span data-act="${act}" data-arg="${arg}" style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${label}${arrow}</span>`;
+    const grid = (list, fact, action) => !list.length ? '' : `<div style="margin-top:9px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${list.map((x, i) => `<div style="display:flex;align-items:center;gap:16px;padding:10px 14px;${i?'border-top:1px solid var(--rmx-brand-tint-bg, #ebf1f5)':''}">
         <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${x.p}</span>
         <span style="font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap">${fact(x)}</span>
-      </div>`;
-    const count = (list) => list.length + ' propert' + (list.length === 1 ? 'y' : 'ies');
+        ${action ? action(x) : ''}
+      </div>`).join('')}</div>`;
 
-    // One property gets the one thing to do next in full; a bulk run groups by the status each landed
-    // in, so it's clear which properties need which step.
-    let body;
-    if (n === 1) {
-      const x = per[0], st = this.ftStatus(x.p), ch = this.ftCharges(x.p);
-      const applies = this.ftApplicable(x.p);
-      const headline = st.key === 'short'
-        ? `${ch.incomplete} of its ${ch.total} charges are missing fields listings need.`
-        : st.key === 'ready' ? 'Every charge has what listings need.' : 'Nothing else to set up.';
-      const sentence = st.key === 'short'
-        ? 'Add a name, category, requirement, fee due and schedule to each one on the Charges tab.'
-        : st.key === 'ready'
-          ? 'Convert from Pricing Setup when you\'re ready and this property\'s listings show a total monthly price.'
-          : (applies ? 'Its charges are in one place, and every quote, move-in and renewal uses them from here.'
-            : `${this.mhOn(x.p) ? 'It advertises through MH Village, which doesn\'t carry complete pricing' : 'It isn\'t listed online'}, so fee transparency doesn\'t apply. Its charges are in one place, and every quote, move-in and renewal uses them from here.`);
-      body = tile(thead(loz(st.status), `<span style="font-size:14px;color:var(--rmx-text, #666666)">${st.key === 'complete' ? 'Nothing else to set up' : 'Next step'}</span>`)
-        + `<div style="padding:14px 16px;display:flex;flex-direction:column;gap:5px">
-            <span style="font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c);line-height:1.4">${headline}</span>
-            <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.5">${sentence}</span>
-          </div>`);
-    } else {
-      const group = (list, status, right, why) => !list.length ? '' : tile(
-        thead(`${loz(status)}<span style="font-size:14px;color:var(--rmx-text, #666666)">${count(list)}</span>`, right)
-        + (why ? note(why) : '')
-        + list.map((x, i) => prow(x, !why && i === 0)).join(''));
-      body = group(bucket.short, 'Incomplete Charges',
-          link('Add charge details', bucket.short.length === 1 ? 'openFeeProfile' : 'navFeeTrans', bucket.short.length === 1 ? bucket.short[0].p : ''),
-          'Add the fields listings need to each charge. Until then these can\'t convert.')
-        + group(bucket.ready, 'Ready to Convert',
-          link(bucket.ready.length === 1 ? 'Convert' : 'Convert all ' + bucket.ready.length,
-            bucket.ready.length === 1 ? 'pubOpen' : 'navFeeTrans', bucket.ready.length === 1 ? bucket.ready[0].p : ''))
-        + group(bucket.complete, 'Complete', '<span style="font-size:14px;color:var(--rmx-text, #666666)">Nothing else to set up</span>');
-    }
-    return `<div style="display:flex;flex-direction:column;gap:14px;padding-bottom:4px">${body}</div>`;
+    const tick = `<span style="width:24px;height:24px;border-radius:50%;background:var(--rmx-success, #6eb744);display:flex;align-items:center;justify-content:center;flex:none">${this.ico('check', 15, 'color:#fff')}</span>`;
+    const dot = (state, num) => state === 'done' ? tick
+      : state === 'now'
+      ? `<span style="width:24px;height:24px;border-radius:50%;background:var(--ac,var(--rmx-brand, #008dd5));box-shadow:0 0 0 4px rgba(0,141,213,0.18);color:#fff;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:none">${num}</span>`
+      : `<span style="width:24px;height:24px;border-radius:50%;background:#fff;border:2px solid var(--rmx-line, #cedbe7);box-sizing:border-box;color:var(--rmx-text-muted, #b3b3b3);font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:none">${num}</span>`;
+    const doneCap = `<span style="font-size:14px;color:var(--rmx-success, #6eb744)">Done</span>`;
+    const nextCap = `<span style="display:inline-flex;align-items:center;border-radius:4px;padding:2px 10px;background:#fdf3e3;color:#7a5a2a;font-size:14px;white-space:nowrap">Do this next</span>`;
+    const laterCap = (t) => `<span style="font-size:14px;color:var(--rmx-text-muted, #b3b3b3)">${t}</span>`;
+    // One rung of the rail: the marker and its connector on the left, everything else on the right.
+    const rung = (marker, title, state, cap, body, extra, pill, last) => `<div style="display:flex;gap:14px">
+      <div style="width:24px;flex:none;display:flex;flex-direction:column;align-items:center">
+        ${marker}
+        ${last ? '' : `<span style="flex:1;width:0;${state === 'done' ? 'border-left:2px dashed #a6d68c;margin:4px 0' : 'border-left:2px solid var(--rmx-line, #cedbe7);margin:8px 0 0'}"></span>`}
+      </div>
+      <div style="flex:1;min-width:0;${last ? '' : 'padding-bottom:20px;'}display:flex;flex-direction:column;gap:5px">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span style="font-size:16px;font-weight:600;color:${state === 'later' ? 'var(--rmx-ink-2, #424e5b)' : 'var(--rmx-brand-dark, #13314c)'}">${title}</span>
+          ${pill || ''}<div style="flex:1"></div>${cap}
+        </div>
+        <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.5">${body}</span>
+        ${extra || ''}
+      </div></div>`;
+    const step = (num, title, state, cap, body, extra, pill, last) => rung(dot(state, num), title, state, cap, body, extra, pill, last);
+
+    // Step 1 always just happened. Steps 2 and 3 are live when properties are standing on them.
+    const s1 = step(1, 'Centralize Charges', 'done', doneCap,
+      `${total} charge${total === 1 ? '' : 's'} moved onto ${n === 1 ? 'the Charges tab' : n + ' Charges tabs'}. Quotes, move-ins and renewals read from ${n === 1 ? 'it' : 'them'} now.`);
+
+    const s2 = bucket.short.length
+      ? step(2, 'Add Charge Details', 'now', nextCap,
+          'Give each charge a name, category, requirement, fee due and schedule. Until then these can\'t convert.',
+          grid(bucket.short, x => { const ch = this.ftCharges(x.p); return ch.incomplete + ' of ' + ch.total + ' charges need details'; },
+            x => link('Add details', 'openFeeProfile', x.p)))
+      : bucket.ready.length
+      ? step(2, 'Add Charge Details', 'done', doneCap,
+          'Every charge already carries the fields listings need, so there was nothing to fill in.')
+      // Nothing here advertises online, so the listing fields were never the point.
+      : step(2, 'Add Charge Details', 'later', laterCap('Not needed'),
+          'Listing fields only matter for a property that advertises online.');
+
+    const pill3 = `<span style="display:inline-flex;align-items:center;border-radius:12px;padding:3px 12px;background:#d9ecf9;color:var(--rmx-brand-dark, #13314c);font-size:14px;white-space:nowrap">If you list online &amp; fee transparency is available</span>`;
+    const s3 = bucket.ready.length
+      ? step(3, 'Convert to Fee Transparency', 'now', nextCap,
+          'Converting puts a total monthly price on a property\'s listings.',
+          grid(bucket.ready, x => this.ftCharges(x.p).ready + ' charges ready', x => link('Convert', 'pubOpen', x.p)),
+          pill3, true)
+      : step(3, 'Convert to Fee Transparency', 'later',
+          laterCap(bucket.short.length ? 'After step 2' : 'Nothing to convert'),
+          bucket.short.length
+            ? 'Once every charge is complete a property turns Ready to Convert on Pricing Setup, and converting puts a total monthly price on its listings.'
+            : 'None of these properties list online with fee transparency available.',
+          '', pill3, true);
+
+    // Properties that don't advertise online never reach steps 2 and 3 — centralizing was the job, so
+    // they close out below the rail rather than sitting on a step they will never leave.
+    const doneList = !bucket.complete.length ? '' : `<div style="height:1px;background:var(--rmx-line, #cedbe7);margin:2px 0 18px"></div>
+      ${rung(tick, 'Complete', 'done', doneCap,
+        `Fee transparency doesn\'t apply to ${bucket.complete.length === 1 ? 'this property' : 'these properties'}, so centralizing was the whole job.`,
+        grid(bucket.complete, x => this.mhOn(x.p) ? 'Listed on MH Village' : 'Not listed online',
+          x => link('View charges', 'openFeeProfile', x.p)), '', true)}`;
+
+    return `<div style="display:flex;flex-direction:column;padding:2px 0 4px">${s1}${s2}${s3}${doneList}</div>`;
   }
   // What the done step offers to do next: the immediate action, then Done.
   setupDoneFoot(){
