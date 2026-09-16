@@ -1637,12 +1637,12 @@ class Component extends DCLogic {
   money(n){ return '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
   feeIcon(kind,size){ const src={ property:'assets/icon-fee-property.svg', unittype:'assets/icon-fee-unittype.svg', unit:'assets/icon-fee-unit.svg' }[kind]; return `<img src="${src}" alt="" style="width:${size}px;height:${size}px;object-fit:contain;flex:none;display:block">`; }
   // Reusable multi-select checklist dropdown (summary + overlay panel with search, select-all, checkboxes).
-  multiSelect(id, options, selected){
+  multiSelect(id, options, selected, extraJs){
     const listId=id+'-list', panelId=id+'-panel', sumId=id+'-sum', cntId=id+'-cnt';
     const O = options.map(o => (o && typeof o === 'object') ? { v:''+o.value, l:''+(o.label!=null?o.label:o.value), sub:o.sub||'' } : { v:''+o, l:''+o, sub:'' });
     const total=O.length, nSel=selected.length;
     const summary = nSel===total ? `All ${total} selected` : (nSel ? `${nSel} selected` : 'Select…');
-    const upd=`var l=document.getElementById('${listId}');var n=l.querySelectorAll('input:checked').length;var t=l.querySelectorAll('input').length;document.getElementById('${sumId}').textContent=(n===t?('All '+t+' selected'):(n?(n+' selected'):'Select…'));document.getElementById('${cntId}').textContent=(n+' of '+t+' selected');var sa=document.getElementById('${id}-all');if(sa)sa.checked=(n===t)`;
+    const upd=`var l=document.getElementById('${listId}');var n=l.querySelectorAll('input:checked').length;var t=l.querySelectorAll('input').length;document.getElementById('${sumId}').textContent=(n===t?('All '+t+' selected'):(n?(n+' selected'):'Select…'));document.getElementById('${cntId}').textContent=(n+' of '+t+' selected');var sa=document.getElementById('${id}-all');if(sa)sa.checked=(n===t);${extraJs||''}`;
     const selAll=`var l=document.getElementById('${listId}');var c=this.checked;l.querySelectorAll('input').forEach(function(x){x.checked=c});${upd}`;
     const filter=`var q=this.value.toLowerCase();document.getElementById('${listId}').querySelectorAll('label').forEach(function(l){l.style.display=(l.textContent.toLowerCase().indexOf(q)>=0?'flex':'none')})`;
     const rows=O.map(o=>`<label style="display:flex;align-items:center;gap:10px;padding:6px 2px;cursor:pointer;font-size:14px;color:var(--rmx-brand-dark, #13314c)"><input type="checkbox" value="${o.v}" ${selected.includes(o.v)?'checked':''} onchange="${upd}" style="accent-color:var(--rmx-attention, #f58220);width:16px;height:16px;margin:0;flex:none"><span style="display:flex;flex-direction:column;min-width:0;line-height:1.25">${o.l}${o.sub?`<span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">${o.sub}</span>`:''}</span></label>`).join('');
@@ -1879,7 +1879,8 @@ class Component extends DCLogic {
     const box = `<span id="${prefix}-prop-box" style="width:18px;height:18px;border-radius:2px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;margin-top:1px;${on?'background:var(--rmx-attention, #f58220);border:1px solid var(--rmx-attention, #f58220)':'background:#fff;border:1px solid var(--rmx-text-muted, #b3b3b3)'}">${tick}</span>`;
     const js = `var h=document.getElementById('${prefix}-prop');var v=h.value==='1'?'0':'1';h.value=v;`
       + `var b=document.getElementById('${prefix}-prop-box');b.style.background=v==='1'?'var(--rmx-attention, #f58220)':'#fff';b.style.borderColor=v==='1'?'var(--rmx-attention, #f58220)':'var(--rmx-text-muted, #b3b3b3)';b.firstElementChild.style.display=v==='1'?'block':'none';`
-      + `var u=document.getElementById('${prefix}-units-wrap');if(u)u.style.display=v==='1'?'none':'flex';`;
+      + `var u=document.getElementById('${prefix}-units-wrap');if(u)u.style.display=v==='1'?'none':'flex';`
+      + `if(window.__exclSync)window.__exclSync('${prefix}');`;
     return `<input type="hidden" id="${prefix}-prop" value="${on?'1':'0'}">
       <div onclick="${js}" style="display:flex;gap:10px;align-items:flex-start;cursor:pointer">${box}
         <span style="display:flex;flex-direction:column;gap:3px;min-width:0">
@@ -1901,6 +1902,80 @@ class Component extends DCLogic {
       : this.units().map(u => u.u);
   }
   exclCount(r){ const e = this.exclOf(r); return e.types.length + e.units.length + (e.prop ? 1 : 0); }
+  // What this charge reaches, in words. The unit list is a page of the property's units, so a ratio
+  // against the property's total would read as precision the prototype doesn't have.
+  exclScope(r){
+    return (r && r.level === 'Unit Type' && r.target)
+      ? `every ${r.target} unit at ${this.state.property}`
+      : `every unit at ${this.state.property}`;
+  }
+  // An exception as rows: what was excluded, and how many units each one accounts for. A unit already
+  // inside an excluded unit type is marked rather than counted twice — that is the question the two
+  // separate pickers never answered.
+  exclRowsFor(e, r){
+    if (e.prop) return [{ kind:'Property', name:this.state.property, every:true }];
+    const covered = (u) => { const i = this.units().filter(x => x.u === u)[0]; return !!i && e.types.indexOf(i.type) >= 0; };
+    return e.types.map(t => ({ kind:'Unit Type', name:t, count:this.utUnitCount(t) || 0 }))
+      .concat(e.units.map(u => ({ kind:'Unit', name:u, count:1, dup:covered(u) })));
+  }
+  // How many units an exception takes out. A unit already inside an excluded unit type isn't counted
+  // twice — that is the question the two separate pickers never answered.
+  exclImpact(e, r){
+    return { units: this.exclRowsFor(e, r).reduce((n, x) => n + (x.dup ? 0 : (x.count || 0)), 0) };
+  }
+  // The sentence that opens the section: what this charge reaches today, before anything is picked.
+  exclHeadline(r){
+    const named = (r && r.listing && r.listing.name) || (r && (r.desc || r.name)) || '';
+    // A charge being added has no name to use yet, so it speaks about itself.
+    const lead = named ? `${named} is charged on` : 'This charge will be charged on';
+    return `${lead} ${this.exclScope(r)}. An exception stops it for the unit types or units you pick. Existing tenant charges aren't affected.`;
+  }
+  // The register of what's excluded, and what that leaves. Rebuilt in place as the pickers change.
+  exclRegisterInner(prefix, e, r){
+    const rows = this.exclRowsFor(e, r), imp = this.exclImpact(e, r);
+    const cls = { 'Unit Type':'lvl-ut', 'Unit':'lvl-unit', 'Property':'lvl-prop' };
+    const head = `<div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:2px solid var(--ac,var(--rmx-brand, #008dd5))"><span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Excluded${rows.length ? ' (' + rows.length + ')' : ''}</span></div>`;
+    if (!rows.length) return head + `<div style="padding:18px 14px;text-align:center;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3);line-height:1.5">Nothing excluded yet. This charge applies to ${this.exclScope(r)}.</div>`;
+    const cell = (t, extra) => `<span style="padding:9px 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
+    const row = (x, i) => {
+      const drop = x.kind === 'Property' ? '<span></span>'
+        : `<span onclick="if(window.__exclDrop)window.__exclDrop('${prefix}','${x.kind === 'Unit Type' ? 'types' : 'units'}','${String(x.name).replace(/'/g, "\\'")}')" title="Remove" style="display:flex;align-items:center;justify-content:center;cursor:pointer">${this.ico('close', 18, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>`;
+      return `<div style="display:grid;grid-template-columns:96px minmax(0,1fr) 84px 32px;align-items:center;${i % 2 ? 'background:var(--rmx-bg-subtle, #f5f8fa);' : ''}border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)">
+        <span style="padding:0 0 0 14px"><span class="lvl ${cls[x.kind]}">${x.kind}</span></span>
+        ${cell(x.name)}
+        ${cell(x.every ? 'every unit' : (x.dup ? 'covered' : x.count + (x.count === 1 ? ' unit' : ' units')), 'color:var(--rmx-text, #666666);text-align:right;padding:9px 4px')}
+        ${drop}
+      </div>`;
+    };
+    const foot = `<div style="display:flex;align-items:center;justify-content:flex-end;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:9px 14px;font-size:14px;color:var(--rmx-brand-dark, #13314c)">${e.prop ? 'Not charged at this property' : 'Charged everywhere else · ' + imp.units + ' unit' + (imp.units === 1 ? '' : 's') + ' excluded'}</div>`;
+    return head + rows.map(row).join('') + foot;
+  }
+  // The one-line answer in the collapsed header.
+  exclNoteInner(e, r){
+    const pill = (t) => `<span class="loz" style="background:#f1f3f5;color:#5c6b7a;text-transform:none;letter-spacing:0">${t}</span>`;
+    if (e.prop) return pill('Not charged at this property');
+    if (!(e.types.length + e.units.length)) return `<span style="font-size:14px;color:var(--rmx-text-muted, #b3b3b3)">Charged on ${this.exclScope(r)}</span>`;
+    return pill(this.exclSummary(e) + ' excluded');
+  }
+  // The register and the summary follow the pickers without a re-render, which would wipe the rest of
+  // the form. Both surfaces install this against their own prefix.
+  exclSyncInstall(prefix, r){
+    this._exclCtx = Object.assign({}, this._exclCtx, { [prefix]: r || null });
+    window.__exclSync = (p) => {
+      const row = (this._exclCtx || {})[p];
+      const e = this.readExclFields(p) || { types: [], units: [], prop: false };
+      const reg = this.q('#' + p + '-reg'); if (reg) reg.innerHTML = this.exclRegisterInner(p, e, row);
+      const note = this.q('#' + p + '-note'); if (note) note.innerHTML = this.exclNoteInner(e, row);
+    };
+    window.__exclDrop = (p, which, val) => {
+      const list = this.q('#' + p + '-' + which + '-list');
+      if (list) [...list.querySelectorAll('input')].forEach(i => {
+        // Dispatching the change is what keeps the picker's own summary and select-all in step.
+        if (i.value === val && i.checked) { i.checked = false; i.dispatchEvent(new Event('change', { bubbles: true })); }
+      });
+      window.__exclSync(p);
+    };
+  }
   // "2BR/2BA", "3 units", "1 unit type and 2 units" — reads the same in the tag, the log and the toast.
   exclSummary(e){
     // A unit-type charge can have an exception for the whole property, which supersedes the unit list.
@@ -1943,12 +2018,13 @@ class Component extends DCLogic {
     const isUt = r.level === 'Unit Type';
     // Both pickers are multi-select dropdowns, the same control the charge form's Exceptions use.
     const field = (label, id, opts, sel, wrapId, hidden) => !opts.length ? '' : `<div${wrapId?` id="${wrapId}"`:''} style="display:${hidden?'none':'flex'};flex:1;min-width:200px;flex-direction:column;gap:4px">
-        <span style="font-size:14px;color:var(--rmx-text, #666666)">${label}</span>${this.multiSelect(id, opts, sel)}
+        <span style="font-size:14px;color:var(--rmx-text, #666666)">${label}</span>${this.multiSelect(id, opts, sel, "if(window.__exclSync)window.__exclSync('x-excl')")}
       </div>`;
+    this.exclSyncInstall('x-excl', r);
     return `<div data-act="exclClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:170">
       <div data-act="noop" style="width:560px;max-width:94vw;max-height:88vh;background:#fff;border-radius:4px;border:1px solid var(--rmx-line, #cedbe7);box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="flex:none;display:flex;align-items:center;gap:12px;padding:13px 20px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
-          <span style="font-size:20px;color:var(--rmx-brand-dark, #13314c)">Add Exception</span><div style="flex:1"></div>
+          <span style="font-size:20px;color:var(--rmx-brand-dark, #13314c)">${this.exclCount(r) ? 'Edit Exceptions' : 'Add Exception'}</span><div style="flex:1"></div>
           <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="exclClose" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
         </div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:18px 20px;display:flex;flex-direction:column;gap:16px">
@@ -1959,12 +2035,19 @@ class Component extends DCLogic {
             <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${r.amount||''}</span>
             ${this.chargeLevelPill(r)}
           </div>
-          <span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3);line-height:1.45">Pick anything this charge shouldn't apply to. It keeps applying everywhere else at the ${String(r.level||'').toLowerCase()} level, and existing tenant charges aren't affected.</span>
-          ${isUt ? this.exclPropRow('x-excl', this.state.property, saved.prop) : ''}
-          <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
-            ${field('Unit types', 'x-excl-types', types, saved.types)}
-            ${field('Units', 'x-excl-units', units, saved.units, 'x-excl-units-wrap', isUt && saved.prop)}
+          <div style="display:flex;align-items:flex-start;gap:10px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:12px 14px">
+            ${this.ico('info', 20, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none;margin-top:1px')}
+            <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">${this.exclHeadline(r)}</span>
           </div>
+          ${isUt ? this.exclPropRow('x-excl', this.state.property, saved.prop) : ''}
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
+              ${field('Exclude unit types', 'x-excl-types', types, saved.types)}
+              ${field('Exclude units', 'x-excl-units', units, saved.units, 'x-excl-units-wrap', isUt && saved.prop)}
+            </div>
+            <span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3);line-height:1.45">Both lists apply. Picking a unit type excludes every unit of that type, so you only need to name a unit that isn't already covered.</span>
+          </div>
+          <div id="x-excl-reg" style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${this.exclRegisterInner('x-excl', saved, r)}</div>
         </div>
         <div style="flex:none;display:flex;align-items:center;gap:12px;padding:14px 20px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7)">
           <div style="flex:1"></div>
@@ -6693,23 +6776,31 @@ class Component extends DCLogic {
     const exOn = ed ? !ed.propSpecific : true;
     const exLvl = (ed && ed.level) || app;
     const exField = (label, id, opts, saved, wrapId, hidden) => !opts.length ? '' : `<div${wrapId?` id="${wrapId}"`:''} style="flex:1;min-width:180px;display:${hidden?'none':'flex'};flex-direction:column;gap:4px">
-        <span style="font-size:14px;color:var(--rmx-text, #666666)">${label}</span>${this.multiSelect(id, opts, saved)}
+        <span style="font-size:14px;color:var(--rmx-text, #666666)">${label}</span>${this.multiSelect(id, opts, saved, "if(window.__exclSync)window.__exclSync('m-excl')")}
       </div>`;
-    const exToggleJs = "var b=document.getElementById('m-excl-body');var c=document.getElementById('m-excl-caret');var open=b.style.display==='none';b.style.display=open?'flex':'none';c.textContent=open?'arrow_drop_down':'arrow_right'";
+    this.exclSyncInstall('m-excl', ed);
+    const exToggleJs = "var b=document.getElementById('m-excl-body');var c=document.getElementById('m-excl-caret');var open=b.style.display==='none';b.style.display=open?'flex':'none';if(window.__icoSwap)window.__icoSwap(c,open?'arrow_drop_down':'arrow_right')";
     const exclSection = !exOn ? '' : `<div id="m-excl-sect" style="display:${(exLvl==='Property'||exLvl==='Unit Type')?'block':'none'};flex:none;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
         <div onclick="${exToggleJs}" style="display:flex;align-items:center;gap:8px;padding:11px 14px;cursor:pointer;background:var(--rmx-bg-subtle, #f5f8fa)">
           <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" id="m-excl-caret" style="color:var(--rmx-text, #666666)"><path d="M400-280v-400l200 200-200 200Z"/></svg>
           <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Exceptions</span>
           <div style="flex:1"></div>
-          <span id="m-excl-note" style="font-size:14px;color:var(--rmx-text-muted, #b3b3b3)">${this.exclCount(ed) ? 'Exception: ' + this.exclSummary(exSaved) : 'Applies everywhere at the ' + String(exLvl||'').toLowerCase() + ' level'}</span>
+          <span id="m-excl-note">${this.exclNoteInner(exSaved, ed)}</span>
         </div>
         <div id="m-excl-body" style="display:none;flex-direction:column;gap:14px;padding:14px">
-          <span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3);line-height:1.45">Anything selected here won't be charged, quoted or listed for that unit type or unit; existing tenant charges aren't affected.</span>
-          <div id="m-excl-prop-row" style="display:${exLvl==='Unit Type'?'flex':'none'};flex-direction:column">${this.exclPropRow('m-excl', this.state.property, exSaved.prop)}</div>
-          <div style="display:flex;gap:12px;align-items:flex-start">
-            ${exField('Unit types', 'm-excl-types', this.exclOptions(ed,'Unit Type'), exSaved.types, 'm-excl-types-wrap', exLvl !== 'Property')}
-            ${exField('Units', 'm-excl-units', this.exclOptions(ed,'Unit'), exSaved.units, 'm-excl-units-wrap', exLvl === 'Unit Type' && exSaved.prop)}
+          <div style="display:flex;align-items:flex-start;gap:10px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:12px 14px">
+            ${this.ico('info', 20, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none;margin-top:1px')}
+            <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">${this.exclHeadline(ed)}</span>
           </div>
+          <div id="m-excl-prop-row" style="display:${exLvl==='Unit Type'?'flex':'none'};flex-direction:column">${this.exclPropRow('m-excl', this.state.property, exSaved.prop)}</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;gap:12px;align-items:flex-start">
+              ${exField('Exclude unit types', 'm-excl-types', this.exclOptions(ed,'Unit Type'), exSaved.types, 'm-excl-types-wrap', exLvl !== 'Property')}
+              ${exField('Exclude units', 'm-excl-units', this.exclOptions(ed,'Unit'), exSaved.units, 'm-excl-units-wrap', exLvl === 'Unit Type' && exSaved.prop)}
+            </div>
+            <span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3);line-height:1.45">Both lists apply. Picking a unit type excludes every unit of that type, so you only need to name a unit that isn't already covered.</span>
+          </div>
+          <div id="m-excl-reg" style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${this.exclRegisterInner('m-excl', exSaved, ed)}</div>
         </div>
       </div>`;
     // Opened from a tenant's transactions, the charge is a one-off posting rather than a charge on
