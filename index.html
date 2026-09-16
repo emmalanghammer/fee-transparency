@@ -7611,7 +7611,9 @@ class Component extends DCLogic {
       // Full-width blue bar first; the action rail starts right under it and runs to the bottom.
       out += this.ctx('Property', [{ label: s.property }], '125 of 255', 'navRegister');
       let inner = this.propScoreboard();
-      inner += this.tabRow(['General','Leasing','Documents','Charges'], s.propTab, 'proptab', { badge: { 'Charges':'New' } });
+      // Charges is not a tab any more — it opens as an overlay from the action rail, so the strip
+      // only carries the tabs that render in the page.
+      inner += this.tabRow(['General','Leasing','Documents'], s.propTab, 'proptab');
       // Charges is a workspace rather than a tab of fields, so it opens over the property instead of
       // replacing it — the property stays behind, the way View Recurring Charges works.
       inner += `<div style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column"><div style="flex:1;min-width:0;padding:16px;display:flex;flex-direction:column;gap:16px;width:100%;box-sizing:border-box">${this.propGeneralBody()}</div></div>`;
