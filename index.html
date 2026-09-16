@@ -176,7 +176,7 @@ class Component extends DCLogic {
     kickoffStep: 1,
     // The "Introducing Fee Transparency" launch announcement, also opened from the nav menu. It
     // starts open because the default "Happy Path" scenario is the day the feature ships.
-    announce: true,
+    announce: false,
     announceStep: 1,     // the announcement walks three steps
     // How far through conversion the whole prototype is showing (nav bar "Test Feature State").
     // Happy Path by default: a walkthrough opens on the four simplified properties, all of them
@@ -1289,13 +1289,11 @@ class Component extends DCLogic {
         this.setState({ bulkUpd: { gen: true, mkt: true } }); break; }
       case 'bulkUpdClose': this.setState({ bulkUpd: null }); break;
       case 'bulkUpdSave': { const CLEAR = '__blank__';
-        const chkd = id => { const el = document.getElementById(id); return !!(el && el.checked); };
-        // A field changes when it has a value, when its dropdown picked (blank), or when Clear is
-        // ticked — and in the last two cases the value written is empty.
+        // A field changes because its row is ticked — nothing else. A ticked row left empty writes an
+        // empty value, which is how a value comes back off many charges at once.
         const raw = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
         const v = id => { const x = raw(id); return x === CLEAR ? '' : x; };
-        const cleared = id => raw(id) === CLEAR || chkd('bu-clear-' + String(id).replace('bu-', ''));
-        const set = id => cleared(id) || !!raw(id);
+        const set = id => { const c = document.getElementById('bu-on-' + String(id).replace('bu-', '')); return !!(c && c.checked); };
         const picked = this.bulkSelRows().map(r => r.id);
         const gen = { mits: v('bu-ctype').toUpperCase(), desc: v('bu-comment'),
           freq: v('bu-freq'), from: v('bu-from'), to: v('bu-to'), amtMethod: v('bu-amtm'), amount: v('bu-amt') };
@@ -1303,20 +1301,19 @@ class Component extends DCLogic {
           freq: set('bu-freq'), from: set('bu-from'), to: set('bu-to'), amtMethod: set('bu-amtm'), amount: set('bu-amt') };
         // Refundable is picked, not typed: only 'Refundable'/'Not Refundable' write, and the
         // untouched dropdown keeps whatever each charge already had.
-        const rf = raw('bu-refund');
         const mkt = { marketing: v('bu-marketing'), requirement: v('bu-req'), feeDue: v('bu-due'), schedule: v('bu-sched'),
-          refundable: rf === 'yes' };
+          refundable: raw('bu-refund') === 'yes' };
         const mktSet = { marketing: set('bu-marketing'), requirement: set('bu-req'), feeDue: set('bu-due'),
-          schedule: set('bu-sched'), refundable: rf === 'yes' || rf === 'no' };
+          schedule: set('bu-sched'), refundable: set('bu-refund') };
         // Name is either one typed value or one taken from each charge — so it resolves per row.
         const nameSrc = ((document.querySelector('input[name="bu-name-src"]:checked') || {}).value) || 'type';
         const typedName = v('bu-name');
         const nameFor = (r) => nameSrc === 'comment' ? String(r.desc || '').trim()
           : nameSrc === 'ctdesc' ? this.chargeTypeDesc(r.mits)
           : typedName;
-        const nameChanges = nameSrc !== 'type' || !!typedName;
+        const nameChanges = set('bu-name');
         const nGen = Object.keys(genSet).filter(k => genSet[k]).length, nMkt = Object.keys(mktSet).filter(k => mktSet[k]).length;
-        if (!nGen && !nMkt && !nameChanges) { this.flash('No changes to apply — every field kept its current value'); break; }
+        if (!nGen && !nMkt && !nameChanges) { this.flash('Tick a field to change it'); break; }
         // Same rule as the charge form: no two charges of one charge type may share a name at the same
         // charge level. Applying one set of values to many charges is the easiest way to break it, so
         // the collision is caught before anything is written — against the other selected charges and
@@ -2331,7 +2328,8 @@ class Component extends DCLogic {
     }
     // 'on' and 'noils' are launch day — nothing is converted yet.
     plan.view = key === 'mid' ? 'feetrans' : key === 'post' ? 'listings' : 'register';
-    plan.announce = key === 'on' || key === 'noils' || key === 'happy';
+    // The announcement is opened deliberately from the nav, not thrown at the user on load.
+    plan.announce = false;
     return plan;
   }
   scenarioApply(key){
@@ -4211,99 +4209,108 @@ class Component extends DCLogic {
   // ---------- Update Charges dialog (mock 2790-141830) ----------
   // Bulk-edits the selected charges. Every field starts at "Keep current value" and only the ones
   // the user actually fills get applied; fields not shared by every selected charge don't show.
+  // ---------- Update Charges dialog (mock 2790-141830) ----------
+  // One row per field: a checkbox, the field's name, and the field's own control. A row is read-only
+  // until it is ticked, so "unchanged" is a state you can see rather than a placeholder to decode —
+  // and a ticked row left empty clears the field, which is how a value comes back off many charges.
   bulkUpdHTML(){
     const u = this.state.bulkUpd;
     if (!u) return '';
     const sel = this.bulkSelRows();
-    // When every selected charge is missing the same required listing fields, say so up front —
-    // it's the usual reason for reaching for a bulk update in the first place.
+    const allRec = sel.length > 0 && sel.every(r => !/-one$/.test(r.group));
+    // When every selected charge is missing the same listing fields, those fields lead the list —
+    // filling them is the usual reason for reaching for a bulk update at all.
     const missLists = this.ilsOn() ? sel.map(r => this.mitsMissing(r)) : [];
     const shared = missLists.length ? missLists.reduce((acc, m) => acc.filter(f => m.indexOf(f) >= 0)) : [];
-    const sharedNote = !shared.length ? '' : `<div style="display:flex;align-items:flex-start;gap:10px;background:#fef4e8;border:1px solid #f6d9ac;border-radius:4px;padding:11px 14px;margin-bottom:14px">
-      <svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-attention, #f58220);flex:none;margin-top:1px"><path d="M503.5-289.48q9.5-9.48 9.5-23.5t-9.48-23.52q-9.48-9.5-23.5-9.5t-23.52 9.48q-9.5 9.48-9.5 23.5t9.48 23.52q9.48 9.5 23.5 9.5t23.52-9.48ZM453-433h60v-253h-60v253Zm27.27 353q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg>
-      <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">All selected charges still need: <strong>${shared.join(', ')}</strong>.</span>
+
+    const txt = (id, icon) => `<div style="flex:1;min-width:0;display:flex;align-items:center;gap:4px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><input id="${id}" oninput="if(window.__buCount)window.__buCount()" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">${icon?this.ico(icon, 18, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none'):''}</div>`;
+    const search = (id) => `<div style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px">${this.ico('search', 18, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}<input id="${id}" oninput="if(window.__buCount)window.__buCount()" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)"></div>`;
+    const dd = (id, opts) => `<span style="flex:1;min-width:0">${this.singleSelect(id, opts, '', { noSearch:true, blank:true, placeholder:' ', js:"if(window.__buCount)window.__buCount()" })}</span>`;
+
+    // Every field the dialog can set, in the order it reads. Charge Level is deliberately absent: it
+    // says what a charge attaches to, so one value across a selection would re-point charges at things
+    // they were never about. It stays on the individual charge.
+    const fields = [
+      { k:'name',      label:'Name',                  ctrl:() => txt('bu-name') },
+      { k:'req',       label:'Charge Requirement',    ctrl:() => dd('bu-req', ['Required','Optional','Situational']) },
+      { k:'due',       label:'Fee Due',               ctrl:() => dd('bu-due', [{value:'At Application',label:'At Application'},{value:'Move-In',label:'At Move-In'},{value:'During Term',label:'During Term'},{value:'Move-Out',label:'At Move-Out'}]) },
+      allRec ? { k:'sched', label:'Charge Schedule',  ctrl:() => dd('bu-sched', ['Monthly','Weekly','Daily']) } : null,
+      { k:'marketing', label:'Marketing Description', ctrl:() => txt('bu-marketing') },
+      { k:'refund',    label:'Refundable',            ctrl:() => dd('bu-refund', [{value:'yes',label:'Refundable'},{value:'no',label:'Not Refundable'}]) },
+      { k:'ctype',     label:'Charge Type',           ctrl:() => search('bu-ctype') },
+      { k:'comment',   label:'Comment',               ctrl:() => txt('bu-comment') },
+      allRec ? { k:'freq', label:'Frequency',         ctrl:() => dd('bu-freq', ['Every Month','Every 2 Months','Every 3 Months','Every 6 Months','Every 12 Months']) } : null,
+      { k:'from',      label:'From',                  ctrl:() => txt('bu-from','calendar_today') },
+      { k:'to',        label:'To',                    ctrl:() => txt('bu-to','calendar_today') },
+      { k:'amtm',      label:'Amount Method',         ctrl:() => dd('bu-amtm', ['Flat','Reference','Calculation']) },
+      { k:'amt',       label:'Amount',                ctrl:() => txt('bu-amt','calculate') }
+    ].filter(Boolean);
+
+    // Ticking a row is the only thing that makes it editable, and the only thing the save reads.
+    const toggleJs = (k) => `var w=document.getElementById('bu-ctl-${k}');var l=document.getElementById('bu-lab-${k}');var on=this.checked;` +
+      `w.style.opacity=on?'1':'0.5';w.style.pointerEvents=on?'auto':'none';` +
+      `l.style.color=on?'var(--rmx-brand-dark, #13314c)':'var(--rmx-text-muted, #b3b3b3)';` +
+      (`var x=document.getElementById('bu-name-src');if(x&&'${k}'==='name')x.style.display=on?'flex':'none';`) +
+      `if(window.__buCount)window.__buCount()`;
+    // Name can also be taken from each charge's own Comment or its charge type's description, so its
+    // row carries those two alternatives once it is switched on.
+    const nameSrc = `<div id="bu-name-src" style="display:none;flex-direction:column;gap:6px;padding:8px 0 2px 32px">
+      <label style="display:flex;align-items:center;gap:9px;cursor:pointer"><input type="radio" name="bu-name-src" value="type" checked style="width:16px;height:16px;margin:0;flex:none;accent-color:var(--ac,var(--rmx-brand, #008dd5))"><span style="font-size:14px;color:var(--rmx-text, #666666)">Use the name typed above</span></label>
+      <label style="display:flex;align-items:center;gap:9px;cursor:pointer"><input type="radio" name="bu-name-src" value="comment" style="width:16px;height:16px;margin:0;flex:none;accent-color:var(--ac,var(--rmx-brand, #008dd5))"><span style="font-size:14px;color:var(--rmx-text, #666666)">Use each charge&rsquo;s own <strong style="color:var(--rmx-brand-dark, #13314c)">Comment</strong></span></label>
+      <label style="display:flex;align-items:center;gap:9px;cursor:pointer"><input type="radio" name="bu-name-src" value="ctdesc" style="width:16px;height:16px;margin:0;flex:none;accent-color:var(--ac,var(--rmx-brand, #008dd5))"><span style="font-size:14px;color:var(--rmx-text, #666666)">Use each charge type&rsquo;s <strong style="color:var(--rmx-brand-dark, #13314c)">Description</strong></span></label>
     </div>`;
-    const allRec = sel.length > 0 && sel.every(r => !/-one$/.test(r.group));
-    const KEEP = 'Keep current value';
-    const lab = (t, req) => `<span style="font-size:14px;color:var(--rmx-ink-2, #424e5b)">${t}${req?' *':''}</span>`;
-    const txt = (id, icon) => `<div style="display:flex;align-items:center;gap:4px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><input id="${id}" placeholder="${KEEP}" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:italic 400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)" oninput="this.style.fontStyle=this.value?'normal':'italic'">${icon?`${this.ico(icon, 18, 'color:var(--ac,var(--rmx-brand, #008dd5))')}`:''}</div>`;
-    const search = (id) => `<div style="display:flex;align-items:center;gap:6px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5))"><path d="M796-121 533-384q-30 26-70 40.5T378-329q-108 0-183-75t-75-181q0-106 75-181t182-75q106 0 180.5 75T632-585q0 43-14 83t-42 75l264 262-44 44ZM377-389q81 0 138-57.5T572-585q0-81-57-138.5T377-781q-82 0-139.5 57.5T180-585q0 81 57.5 138.5T377-389Z"/></svg><input id="${id}" placeholder="${KEEP}" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:italic 400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)" oninput="this.style.fontStyle=this.value?'normal':'italic'"></div>`;
-    const dd = (id, opts) => this.singleSelect(id, opts, '', { noSearch: true, placeholder: KEEP });
-    // The charge form lets Charge Requirement, Fee Due and Charge Schedule be empty, so a bulk update
-    // can empty them too — otherwise there is no way to take a value back off many charges at once.
-    const CLEAR = '__blank__';
-    // Blank sits first and reads as an empty row (like the charge form's own blank option), so
-    // picking it leaves the field looking as empty as it will make the charges.
-    const ddBlank = (id, opts) => this.singleSelect(id, [{ value: CLEAR, label: '\u00a0' }].concat(opts), '', { noSearch: true, placeholder: KEEP });
-    // Same for the free-text fields that are optional on a charge: tick Clear to empty them.
-    const labClear = (t, id) => `<span style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--rmx-ink-2, #424e5b)">${t}
-      <label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--rmx-text-muted, #b3b3b3);cursor:pointer"><input id="bu-clear-${id}" type="checkbox" onchange="var t=document.getElementById('bu-${id}');if(t){t.disabled=this.checked;t.style.opacity=this.checked?'0.45':'1';}" style="accent-color:var(--rmx-attention, #f58220);width:14px;height:14px;margin:0">Clear</label></span>`;
-    const fieldClear = (l, id, ctrl) => `<div style="display:flex;flex-direction:column;gap:5px">${labClear(l, id)}${ctrl}</div>`;
-    const field = (l, ctrl, req) => `<div style="display:flex;flex-direction:column;gap:5px">${lab(l, req)}${ctrl}</div>`;
-    // Charge Level is deliberately absent: it says what a charge attaches to — this property, a unit
-    // type, one unit, a rentable item — so one value applied to a whole selection would re-point
-    // charges at things they were never about. It stays on the individual charge.
-    const genFields = [
-      field('Charge Type', search('bu-ctype'), true),
-      fieldClear('Comment', 'comment', txt('bu-comment')),
-      allRec ? field('Frequency', dd('bu-freq', ['Every Month','Every 2 Months','Every 3 Months','Every 6 Months','Every 12 Months']), true) : '',
-      `<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px">${field('From', txt('bu-from','calendar_today'))}${fieldClear('To', 'to', txt('bu-to','calendar_today'))}</div>`,
-      field('Amount Method', dd('bu-amtm', ['Flat','Reference','Calculation'])),
-      field('Amount', txt('bu-amt','calculate'))
-    ].filter(Boolean).join('');
-    const mktFields = [
-      // Name can be typed, or taken from each charge's own Comment or its charge type's description.
-      `<div style="display:flex;flex-direction:column;gap:8px">
-        ${lab('Name')}
-        <div style="display:flex;align-items:center;gap:10px">
-          <input type="radio" name="bu-name-src" value="type" checked style="width:17px;height:17px;margin:0;flex:none;accent-color:var(--ac,var(--rmx-brand, #008dd5))">
-          ${txt('bu-name')}
-        </div>
-        <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
-          <input type="radio" name="bu-name-src" value="comment" style="width:17px;height:17px;margin:0;flex:none;accent-color:var(--ac,var(--rmx-brand, #008dd5))">
-          <span style="font-size:14px;color:var(--rmx-text, #666666)">Use existing Charge <strong style="color:var(--rmx-brand-dark, #13314c)">Comment</strong> value</span>
-        </label>
-        <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
-          <input type="radio" name="bu-name-src" value="ctdesc" style="width:17px;height:17px;margin:0;flex:none;accent-color:var(--ac,var(--rmx-brand, #008dd5))">
-          <span style="font-size:14px;color:var(--rmx-text, #666666)">Use existing Charge Type <strong style="color:var(--rmx-brand-dark, #13314c)">Description</strong> value</span>
-        </label>
-      </div>`,
-      fieldClear('Marketing Description', 'marketing', txt('bu-marketing')),
-      field('Charge Requirement', ddBlank('bu-req', ['Required','Optional','Situational'])),
-      field('Fee Due', ddBlank('bu-due', [{value:'At Application',label:'At Application'},{value:'Move-In',label:'At Move-In'},{value:'During Term',label:'During Term'},{value:'Move-Out',label:'At Move-Out'}])),
-      allRec ? field('Charge Schedule', ddBlank('bu-sched', ['Monthly','Weekly','Daily'])) : '',
-      // Refundable is a checkbox on a charge, so a bulk update needs a third state for "leave it
-      // alone" — a dropdown gives it one, and either setting can be applied to every selected charge.
-      field('Refundable', dd('bu-refund', [{ value:'', label:KEEP }, { value:'yes', label:'Refundable' }, { value:'no', label:'Not Refundable' }]))
-    ].filter(Boolean).join('');
-    // Sections expand/collapse on the DOM so typed values survive — a re-render would wipe them.
-    const sect = (key, title, open, inner) => `<div style="display:flex;flex-direction:column">
-      <div onclick="var b=document.getElementById('bu-sect-${key}');var c=this.querySelector('.ico');var on=b.style.display!=='none';b.style.display=on?'none':'flex';window.__icoSwap(c,on?'keyboard_arrow_down':'keyboard_arrow_up')" style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;cursor:pointer;border-top:1px solid var(--rmx-brand-tint-bg, #ebf1f5)">
-        <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title}</span>
-        ${this.ico(open?'keyboard_arrow_up':'keyboard_arrow_down', 20, 'color:var(--rmx-text, #666666)')}
+
+    const row = (f, first) => `<div style="padding:11px 14px;${first?'':'border-top:1px solid var(--rmx-brand-tint-bg, #ebf1f5)'}">
+      <div style="display:flex;align-items:center;gap:14px">
+        <input id="bu-on-${f.k}" type="checkbox" onchange="${toggleJs(f.k)}" style="width:18px;height:18px;margin:0;flex:none;accent-color:var(--rmx-attention, #f58220)">
+        <span id="bu-lab-${f.k}" style="width:168px;flex:none;font-size:14px;color:var(--rmx-text-muted, #b3b3b3)">${f.label}</span>
+        <span id="bu-ctl-${f.k}" style="flex:1;min-width:0;display:flex;opacity:0.5;pointer-events:none">${f.ctrl()}</span>
       </div>
-      <div id="bu-sect-${key}" style="display:${open?'flex':'none'};border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:14px;flex-direction:column;gap:12px;margin-bottom:12px">${inner}</div>
+      ${f.k === 'name' ? nameSrc : ''}
     </div>`;
+
+    const gapKeys = fields.filter(f => shared.indexOf(f.label) >= 0);
+    const rest = fields.filter(f => shared.indexOf(f.label) < 0);
+    const list = (rows) => `<div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${rows.map((f, i) => row(f, i === 0)).join('')}</div>`;
+    const gapGroup = !gapKeys.length ? '' : `<div style="display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;align-items:center;gap:8px">
+        ${this.ico('error', 18, 'color:var(--rmx-attention, #f58220);flex:none')}
+        <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Needed before these can convert</span>
+        <div style="flex:1"></div>
+        <span onclick="${gapKeys.map(f => `(function(c){if(!c.checked){c.checked=true;c.onchange.call(c);}})(document.getElementById('bu-on-${f.k}'));`).join('')}" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Tick all ${gapKeys.length}</span>
+      </div>
+      ${list(gapKeys)}
+    </div>`;
+
+    // The footer counts ticked rows, so the dialog says what it is about to do before it does it.
+    window.__buCount = () => {
+      const el = this.q('#bu-count'); if (!el) return;
+      const n = fields.filter(f => { const c = this.q('#bu-on-' + f.k); return c && c.checked; }).length;
+      el.textContent = n ? n + ' field' + (n === 1 ? '' : 's') + ' will change' : 'Nothing selected';
+      el.style.color = n ? 'var(--rmx-text, #666666)' : 'var(--rmx-text-muted, #b3b3b3)';
+    };
     return `<div style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:135">
-      <div data-act="noop" style="width:540px;max-width:94vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+      <div data-act="noop" style="width:660px;max-width:94vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
-          <span style="font-size:18px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Update Charges</span>
-          <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="bulkUpdClose" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
+          <span style="font-size:18px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Update ${sel.length} Charge${sel.length===1?'':'s'}</span>
+          ${this.ico('close', 20, 'color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer').replace('<svg ', '<svg data-act="bulkUpdClose" ')}
         </div>
-        <div style="flex:1;min-height:0;overflow-y:auto;padding:14px 18px 4px">
-          <div style="font-size:12px;color:var(--rmx-text, #666666);line-height:1.5;margin-bottom:14px">Select the fields you want to update. Only fields that all selected charges share will display.</div>
-          ${sharedNote}
-          <div id="bu-err" style="display:none;align-items:flex-start;gap:10px;background:#fbe9e9;border:1px solid var(--rmx-error, #eb343c);border-radius:4px;padding:11px 14px;margin-bottom:14px">
-            <svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-error, #eb343c);flex:none;margin-top:1px"><path d="M503.5-289.48q9.5-9.48 9.5-23.5t-9.48-23.52q-9.48-9.5-23.5-9.5t-23.52 9.48q-9.5 9.48-9.5 23.5t9.48 23.52q9.48 9.5 23.5 9.5t23.52-9.48ZM453-433h60v-253h-60v253Zm27.27 353q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg>
+        <div style="flex:1;min-height:0;overflow-y:auto;padding:14px 18px 16px;background:var(--rmx-bg-ui-2, #f3f4f8);display:flex;flex-direction:column;gap:16px">
+          <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.5">Tick a field to change it on all ${sel.length} charges. Anything you leave unticked stays as it is.</span>
+          <div id="bu-err" style="display:none;align-items:flex-start;gap:10px;background:#fbe9e9;border:1px solid var(--rmx-error, #eb343c);border-radius:4px;padding:11px 14px">
+            ${this.ico('error', 18, 'color:var(--rmx-error, #eb343c);flex:none;margin-top:1px')}
             <span id="bu-err-txt" style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5"></span>
           </div>
-          <div style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3);margin-bottom:3px">Charges</div>
-          <div style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);margin-bottom:14px">${sel.length} charge${sel.length===1?'':'s'} selected</div>
-          ${sect('gen','General Details', u.gen, genFields)}
-          ${sect('mkt','Marketing Details', u.mkt, mktFields)}
+          ${gapGroup}
+          <div style="display:flex;flex-direction:column;gap:8px">
+            ${gapKeys.length ? '<span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Everything else</span>' : ''}
+            ${list(rest)}
+          </div>
         </div>
-        <div style="display:flex;justify-content:flex-end;gap:10px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:12px 18px;flex:none">
-          <button data-act="bulkUpdSave" class="btn-pri" style="height:34px;min-height:34px;padding:0 22px;border-radius:4px;font-size:14px">Save</button>
+        <div style="display:flex;align-items:center;gap:10px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:12px 18px;flex:none">
+          <span id="bu-count" style="font-size:14px;color:var(--rmx-text-muted, #b3b3b3)">Nothing selected</span>
+          <div style="flex:1"></div>
+          <button data-act="bulkUpdSave" class="btn-pri" style="height:34px;min-height:34px;padding:0 22px;border-radius:4px;font-size:14px">Update ${sel.length} Charge${sel.length===1?'':'s'}</button>
           <button data-act="bulkUpdClose" style="height:34px;min-height:34px;padding:0 18px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Cancel</button>
         </div>
       </div>
