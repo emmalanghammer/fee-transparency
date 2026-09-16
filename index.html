@@ -4221,11 +4221,15 @@ class Component extends DCLogic {
     const sel = this.bulkSelRows();
     const allRec = sel.length > 0 && sel.every(r => !/-one$/.test(r.group));
 
-    const txt = (id, icon) => `<div style="flex:1;min-width:0;display:flex;align-items:center;gap:4px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><input id="${id}" oninput="if(window.__buCount)window.__buCount()" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">${icon?this.ico(icon, 18, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none'):''}</div>`;
-    const search = (id) => `<div style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px">${this.ico('search', 18, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}<input id="${id}" oninput="if(window.__buCount)window.__buCount()" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)"></div>`;
+    // Input Field anatomy: 36px box, --component-input-default fill, 1px --border-primary, 4px radius,
+    // and an italic --text-disabled placeholder — the one place italic grey is right.
+    const fieldBox = (inner) => `<div style="flex:1;min-width:0;display:flex;align-items:center;gap:6px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px">${inner}</div>`;
+    const inputEl = (id, ph) => `<input id="${id}"${ph?` placeholder="${ph}"`:''} oninput="this.style.fontStyle=this.value?'normal':'italic';if(window.__buCount)window.__buCount()" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:${ph?'italic ':''}400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">`;
+    const txt = (id, icon, ph) => fieldBox(`${inputEl(id, ph)}${icon?this.ico(icon, 18, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none'):''}`);
+    const search = (id) => fieldBox(`${this.ico('search', 18, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}${inputEl(id)}`);
     const dd = (id, opts) => `<span style="flex:1;min-width:0">${this.singleSelect(id, opts, '', { noSearch:true, blank:true, placeholder:' ', js:"if(window.__buCount)window.__buCount()" })}</span>`;
     // From and To are one decision, so they share a row and a tick.
-    const dates = `<span style="flex:1;min-width:0;display:flex;gap:12px">${txt('bu-from','calendar_today')}${txt('bu-to','calendar_today')}</span>`;
+    const dates = `<span style="flex:1;min-width:0;display:flex;gap:12px">${txt('bu-from','calendar_today','mm/dd/yyyy')}${txt('bu-to','calendar_today','mm/dd/yyyy')}</span>`;
 
     // [key, label, control, required for listings]
     const GENERAL = [
@@ -4246,9 +4250,14 @@ class Component extends DCLogic {
     ].filter(Boolean);
     const all = GENERAL.concat(MARKETING);
 
-    const toggleJs = (k) => `var w=document.getElementById('bu-ctl-${k}');var l=document.getElementById('bu-lab-${k}');var on=this.checked;` +
+    // Checkbox, State=Default: 20x20, 2px --icon-disabled border, and an --icon-attention fill with a
+    // white tick when checked. A native box is a default form control, which RMX never shows.
+    const tick = this.ico('check', 14, 'color:#fff');
+    const boxEl = (k) => `<span id="bu-box-${k}" style="width:20px;height:20px;flex:none;border-radius:2px;box-sizing:border-box;border:2px solid var(--rmx-text-muted, #b3b3b3);background:#fff;display:inline-flex;align-items:center;justify-content:center"><span id="bu-tick-${k}" style="display:none">${tick}</span></span>`;
+    const toggleJs = (k) => `var w=document.getElementById('bu-ctl-${k}');var l=document.getElementById('bu-lab-${k}');var b=document.getElementById('bu-box-${k}');var t=document.getElementById('bu-tick-${k}');var on=this.checked;` +
       `w.style.opacity=on?'1':'0.5';w.style.pointerEvents=on?'auto':'none';` +
       `l.style.color=on?'var(--rmx-brand-dark, #13314c)':'var(--rmx-text-muted, #b3b3b3)';` +
+      `b.style.background=on?'var(--rmx-attention, #f58220)':'#fff';b.style.borderColor=on?'var(--rmx-attention, #f58220)':'var(--rmx-text-muted, #b3b3b3)';t.style.display=on?'inline-flex':'none';` +
       `var x=document.getElementById('bu-name-src');if(x&&'${k}'==='name')x.style.display=on?'flex':'none';` +
       `if(window.__buCount)window.__buCount()`;
     // Name can also be taken from each charge's own Comment or its charge type's description.
@@ -4261,8 +4270,11 @@ class Component extends DCLogic {
 
     const row = (f, first) => `<div style="padding:10px 16px;${first?'':'border-top:1px solid var(--rmx-line, #cedbe7)'}">
       <div style="display:flex;align-items:center;gap:12px">
-        <input id="bu-on-${f[0]}" type="checkbox" onchange="${toggleJs(f[0])}" style="width:18px;height:18px;margin:0;flex:none;accent-color:var(--rmx-attention, #f58220)">
-        <span id="bu-lab-${f[0]}" style="width:190px;flex:none;font-size:14px;color:var(--rmx-text-muted, #b3b3b3)">${f[1]}</span>
+        <label style="display:inline-flex;align-items:center;gap:8px;flex:none;cursor:pointer">
+          <input id="bu-on-${f[0]}" type="checkbox" onchange="${toggleJs(f[0])}" style="position:absolute;width:0;height:0;opacity:0;margin:0">
+          ${boxEl(f[0])}
+          <span id="bu-lab-${f[0]}" style="width:190px;font-size:14px;color:var(--rmx-text-muted, #b3b3b3)">${f[1]}</span>
+        </label>
         <span style="width:150px;flex:none">${f[3] ? reqTag : ''}</span>
         <span id="bu-ctl-${f[0]}" style="flex:1;min-width:0;display:flex;opacity:0.5;pointer-events:none">${f[2]()}</span>
       </div>
