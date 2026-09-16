@@ -449,11 +449,9 @@ class Component extends DCLogic {
   // differently from every other fee. Only a Lease-category charge can be either. Charges that have
   // never been told carry the obvious answer: a rent charge is the rent, a deposit is the deposit.
   leaseRoleOf(r){
-    if (!r) return '';
-    const L = r.listing || {};
-    if (L.leaseRole != null) return L.leaseRole;
-    if ((L.category || this.chargeCategoryFor(r.mits)) !== 'Lease') return '';
-    return r.mits === 'RC' ? 'rent' : r.mits === 'DP' ? 'deposit' : '';
+    // Nothing is inferred: a charge is a regular charge until someone says it is the base rent or the
+    // security deposit, even when its charge type makes the answer look obvious.
+    return (r && r.listing && r.listing.leaseRole) || '';
   }
   leaseRoleLabel(k){ return k === 'rent' ? 'Base Rent' : k === 'deposit' ? 'Security Deposit' : ''; }
   leaseRoleVal(){ const el = this.q('input[name="m-lease-role"]:checked'); return el ? el.value : ''; }
@@ -3739,7 +3737,12 @@ class Component extends DCLogic {
     // One missing field is named outright; more than one needs the hover to list them.
     if (missing.length === 1) return pill('Needs ' + missing[0]);
     if (missing.length) {
-      return `<span class="tipw" style="display:inline-flex">${pill(missing.length + ' needed')}<span class="tip" style="left:auto;right:-4px;top:26px;width:auto;min-width:190px;max-width:280px;padding:14px 16px"><span style="display:block;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);padding-bottom:9px;border-bottom:1px solid var(--rmx-line, #cedbe7)">${missing.length} fields still required:</span><span style="display:flex;flex-direction:column;gap:10px;padding-top:11px">${missing.map(n=>`<span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${n}</span>`).join('')}</span></span></span>`;
+      // The register scrolls and clips, so this one is placed against the window rather than the cell
+      // — the same panel the form's help icons use, which is why it can't be cut off.
+      return this.infoTip(
+        `<span style="display:block;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);padding-bottom:9px;border-bottom:1px solid var(--rmx-line, #cedbe7)">${missing.length} fields still required:</span>`
+        + `<span style="display:flex;flex-direction:column;gap:10px;padding-top:11px">${missing.map(n=>`<span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${n}</span>`).join('')}</span>`,
+        230, { trigger: pill(missing.length + ' needed') });
     }
     // Every field is in place; Include on listings decides whether the charge actually goes out.
     if (!r.ils) {
