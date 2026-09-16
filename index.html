@@ -583,8 +583,8 @@ class Component extends DCLogic {
   // one of them and their charges have to be listing ready.
   happyPathCharges(){
     return {
-      // GARBAGEFEE is the one unit-type charge in the seed, so Riverview keeps it and the walkthrough
-      // still has a charge that reaches some units and not others.
+      // GARBAGEFEE sits on a single unit, so Riverview keeps it and the walkthrough still has a charge
+      // that reaches one unit and not the rest.
       'Riverview Apartments': ['RC','GARBAG','GARBAGEFEE','ADMIN','DP'],
       'The Berkshires':       ['RC','DP'],
       'The Windermere':       ['RC','APPFEE'],
@@ -651,7 +651,7 @@ class Component extends DCLogic {
       Object.assign({ id:1,  group:'req-rec', mits:'RC',         name:'Rent',              desc:'Base rent',                    freq:'Every Month', from:'01/01/2026', to:'', amount:'Market Rent', amtMethod:'Reference', est:1350, ils:true  }, L('Property')),
       Object.assign({ id:2,  group:'req-rec', mits:'GARBAG',     name:'Trash collection',  desc:'Trash collection',             freq:'Every Month', from:'01/01/2026', to:'', amount:'$28.00',      amtMethod:'Flat',      ils:true  }, L('Property')),
       Object.assign({ id:3,  group:'req-rec', mits:'WATER',      name:'Water service',     desc:'RUBS billing',                 freq:'Every Month', from:'01/01/2026', to:'', amount:'Calculated',  amtMethod:'Calculation', est:38, ils:true }, L('Property')),
-      Object.assign({ id:4,  group:'req-rec', mits:'GARBAGEFEE', name:'Trash valet',       desc:'Additional trash valet',       freq:'Every Month', from:'01/01/2026', to:'', amount:'$4.00',       amtMethod:'Flat',      ils:true  }, L('Unit Type','2BR/2BA')),
+      Object.assign({ id:4,  group:'req-rec', mits:'GARBAGEFEE', name:'Trash valet',       desc:'Additional trash valet',       freq:'Every Month', from:'01/01/2026', to:'', amount:'$4.00',       amtMethod:'Flat',      ils:true  }, L('Unit','4C')),
       Object.assign({ id:5,  group:'req-one', mits:'ADMIN',      name:'Administrative fee',desc:'Administrative fee',           from:'01/01/2026', to:'', amount:'$150.00',   amtMethod:'Flat', ils:true  }, L('Property')),
       Object.assign({ id:6,  group:'req-one', mits:'APPFEE',     name:'Application fee',   desc:'Application fee, per applicant',from:'01/01/2026', to:'', amount:'$50.00',   amtMethod:'Flat', ils:true  }, L('Property')),
       Object.assign({ id:7,  group:'req-one', mits:'DP',         name:'Security deposit',  desc:'Security deposit',             from:'01/01/2026', to:'', amount:'$500.00',   amtMethod:'Flat', ils:true }, L('Property')),
@@ -5078,14 +5078,11 @@ class Component extends DCLogic {
           ? 'Convert from Pricing Setup when you\'re ready and this property\'s listings show a total monthly price.'
           : (applies ? 'Its charges are in one place, and every quote, move-in and renewal uses them from here.'
             : `${this.mhOn(x.p) ? 'It advertises through MH Village, which doesn\'t carry complete pricing' : 'It isn\'t listed online'}, so fee transparency doesn\'t apply. Its charges are in one place, and every quote, move-in and renewal uses them from here.`);
-      const after = st.key !== 'short' || !applies ? '' : tile(
-        thead(loz('Ready to Convert'), '<span style="font-size:14px;color:var(--rmx-text, #666666)">After that</span>').replace('border-bottom:2px solid var(--ac,var(--rmx-brand, #008dd5))', 'border-bottom:1px solid var(--rmx-line, #cedbe7)')
-        + `<div style="padding:14px 16px;font-size:14px;color:var(--rmx-text, #666666);line-height:1.5">Once every charge is complete this property turns Ready to Convert on Pricing Setup. Converting is what puts a total monthly price on its listings.</div>`);
       body = tile(thead(loz(st.status), `<span style="font-size:14px;color:var(--rmx-text, #666666)">${st.key === 'complete' ? 'Nothing else to set up' : 'Next step'}</span>`)
         + `<div style="padding:14px 16px;display:flex;flex-direction:column;gap:5px">
             <span style="font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c);line-height:1.4">${headline}</span>
             <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.5">${sentence}</span>
-          </div>`) + after;
+          </div>`);
     } else {
       const group = (list, status, right, why) => !list.length ? '' : tile(
         thead(`${loz(status)}<span style="font-size:14px;color:var(--rmx-text, #666666)">${count(list)}</span>`, right)
