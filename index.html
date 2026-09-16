@@ -5072,7 +5072,10 @@ class Component extends DCLogic {
     const s1 = step(1, 'Centralize Charges', 'done', doneCap,
       `${total} charge${total === 1 ? '' : 's'} moved onto ${n === 1 ? 'the Charges tab' : n + ' Charges tabs'}. Quotes, move-ins and renewals read from ${n === 1 ? 'it' : 'them'} now.`);
 
-    const s2 = bucket.short.length
+    // Nothing in the run advertises online, so steps 2 and 3 are not part of anyone's story here:
+    // the rail is centralizing, then done.
+    const onlyComplete = !bucket.short.length && !bucket.ready.length;
+    const s2 = onlyComplete ? '' : bucket.short.length
       ? step(2, 'Add Charge Details', 'now', nextCap,
           'Give each charge a name, category, requirement, fee due and schedule. Until then these can\'t convert.',
           grid(bucket.short, x => { const ch = this.ftCharges(x.p); return ch.incomplete + ' of ' + ch.total + ' charges need details'; },
@@ -5085,7 +5088,7 @@ class Component extends DCLogic {
           'Listing fields only matter for a property that advertises online.');
 
     const pill3 = `<span style="display:inline-flex;align-items:center;border-radius:12px;padding:3px 12px;background:#d9ecf9;color:var(--rmx-brand-dark, #13314c);font-size:14px;white-space:nowrap">If you list online &amp; fee transparency is available</span>`;
-    const s3 = bucket.ready.length
+    const s3 = onlyComplete ? '' : bucket.ready.length
       ? step(3, 'Convert to Fee Transparency', 'now', nextCap,
           'Converting puts a total monthly price on a property\'s listings.',
           grid(bucket.ready, x => this.ftCharges(x.p).ready + ' charges ready', x => link('Convert', 'pubOpen', x.p)),
@@ -5099,7 +5102,7 @@ class Component extends DCLogic {
 
     // Properties that don't advertise online never reach steps 2 and 3 — centralizing was the job, so
     // they close out below the rail rather than sitting on a step they will never leave.
-    const doneList = !bucket.complete.length ? '' : `<div style="height:1px;background:var(--rmx-line, #cedbe7);margin:2px 0 18px"></div>
+    const doneList = !bucket.complete.length ? '' : `${onlyComplete ? '' : '<div style="height:1px;background:var(--rmx-line, #cedbe7);margin:2px 0 18px"></div>'}
       ${rung(tick, 'Complete', 'done', doneCap,
         `Fee transparency doesn\'t apply to ${bucket.complete.length === 1 ? 'this property' : 'these properties'}, so centralizing was the whole job.`,
         grid(bucket.complete, x => this.mhOn(x.p) ? 'Listed on MH Village' : 'Not listed online',
