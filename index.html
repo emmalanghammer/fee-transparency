@@ -923,6 +923,7 @@ class Component extends DCLogic {
       case 'navPetTypes': this.go('pettypes'); break;
       case 'navChargeTypes': this.go('chargetypes'); break;
       case 'ctInactiveToggle': this.setState(s => ({ ctShowInactive: !s.ctShowInactive })); break;
+      case 'regInactiveToggle': this.setState(s => ({ regShowInactive: !s.regShowInactive })); break;
       case 'ctAddOpen': this.setState({ ctAdd: { code:'', desc:'', gl:'', amount:'0.00', props:null, category:'', active:true } }); break;
       case 'ctAddClose': this.setState({ ctAdd: null }); break;
       case 'ctAddSave': { const v = id => ((this.q('#' + id) || {}).value || '').trim();
@@ -1733,6 +1734,31 @@ class Component extends DCLogic {
   // ligature font shows every icon as its own word until it arrives, and forever offline. Names
   // ending -fill are the filled cut, used where a glyph reads better solid (status ticks, warnings).
   // expand_more / expand_less are the old names for the chevrons and resolve to the current ones.
+  // Saved Filters is one control in RMX (RMX-Pages 1979-27407), not a picker with a blue square beside
+  // it: the filter button shares the field's border and closes off its right end.
+  savedFilterBox(){
+    return `<div style="display:flex;flex-direction:column;gap:4px;width:248px;flex:none">
+      <span style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))">Saved Filters</span>
+      <div style="display:flex;align-items:stretch;height:36px">
+        <div data-act="toast" data-arg="Saved Filters" style="flex:1;min-width:0;display:flex;align-items:center;gap:8px;box-sizing:border-box;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-right:none;border-radius:4px 0 0 4px;padding:0 8px;cursor:pointer">
+          <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">&lt; No Filter &gt;</span>
+          ${this.ico('arrow_drop_down', 20, 'color:var(--rmx-text, #666666);flex:none')}
+        </div>
+        <span data-act="toast" data-arg="Filters" style="display:inline-flex;align-items:center;justify-content:center;width:28px;flex:none;box-sizing:border-box;background:var(--ac,var(--rmx-brand, #008dd5));border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:0 4px 4px 0;cursor:pointer">${this.ico('tune', 20, 'color:#fff')}</span>
+      </div>
+    </div>`;
+  }
+  // The checkbox that sits above a register (RMX-Pages 1979-27409): a blue outline when clear, solid
+  // blue with a white check when set. The native input stays for the click, just out of sight.
+  regCheck(label, act, checked){
+    const box = checked
+      ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;box-sizing:border-box;flex:none;background:var(--ac,var(--rmx-brand, #008dd5));border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:2px">${this.ico('check', 18, 'color:#fff')}</span>`
+      : `<span style="display:inline-block;width:20px;height:20px;box-sizing:border-box;flex:none;background:#fff;border:2px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:2px"></span>`;
+    return `<label style="display:inline-flex;align-items:center;gap:8px;height:36px;cursor:pointer;white-space:nowrap">
+      <input type="checkbox" data-act="${act}" ${checked?'checked':''} style="position:absolute;width:0;height:0;opacity:0;margin:0">
+      ${box}<span style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))">${label}</span>
+    </label>`;
+  }
   ico(name, size, style, cls){
     const d = this.iconPaths()[String(name)] || '';
     const s = size || 20;
@@ -2430,11 +2456,7 @@ class Component extends DCLogic {
           <svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-text, #666666)"><path d="M480-344 240-584l43-43 197 197 197-197 43 43-240 240Z"/></svg>
         </div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:4px;width:200px">
-        <span style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))">Saved Filters</span>
-        <div style="display:flex;align-items:center;height:34px;box-sizing:border-box;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:0 8px"><span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c)">&lt; No Filter &gt;</span><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-text, #666666)"><path d="M480-360 280-559h400L480-360Z"/></svg></div>
-      </div>
-      <span data-act="toast" data-arg="Filters" style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;box-sizing:border-box;background:var(--ac,var(--rmx-brand, #008dd5));border-radius:2px;cursor:pointer"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:#fff"><path d="M440-160q-17 0-28.5-11.5T400-200v-240L161-745q-14-17-4-36t31-19h584q21 0 31 19t-4 36L560-440v240q0 17-11.5 28.5T520-160h-80Zm40-276 240-304H240l240 304Zm0 0Z"/></svg></span>
+      ${this.savedFilterBox()}
       <div style="display:flex;flex-direction:column;gap:4px;width:200px">
         <span style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))">Status</span>
         <span style="position:relative;display:flex">
@@ -2444,10 +2466,7 @@ class Component extends DCLogic {
           </div>
         </span>
       </div>
-      <label style="display:inline-flex;align-items:center;gap:9px;height:34px;margin-left:8px;cursor:pointer;white-space:nowrap">
-        <input type="checkbox" data-act="ftGroupToggle" ${this.state.ftGroup?'checked':''} style="accent-color:var(--rmx-attention, #f58220);width:16px;height:16px;margin:0">
-        <span style="font-size:14px;color:var(--rmx-text, #666666)">Group by Status</span>
-      </label>
+      <span style="margin-left:8px">${this.regCheck('Group by Status', 'ftGroupToggle', this.state.ftGroup)}</span>
       <div style="flex:1"></div>
       <span data-act="ftHelpOpen" style="display:inline-flex;align-items:center;gap:6px;height:34px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M511-258q11-11 11-27t-11-27q-11-11-27-11t-27 11q-11 11-11 27t11 27q11 11 27 11t27-11Zm-62-135h59q0-26 6.5-47.5T555-490q31-26 44-51t13-55q0-53-34.5-85T486-713q-49 0-86.5 24.5T345-621l53 20q11-28 33-43.5t52-15.5q34 0 55 18.5t21 47.5q0 22-13 41.5T508-512q-30 26-44.5 51.5T449-393Zm31 313q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 31.5-156t86-127Q252-817 325-848.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 82-31.5 155T763-197.5q-54 54.5-127 86T480-80Zm0-60q142 0 241-99.5T820-480q0-142-99-241t-241-99q-141 0-240.5 99T140-480q0 141 99.5 240.5T480-140Zm0-340Z"/></svg>How does pricing setup work?</span>
       ${convertable.length ? `<button data-act="ftSelOpen" data-arg="pub" class="btn-out" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Bulk Convert to Fee Transparency</button>` : ''}
@@ -3152,7 +3171,7 @@ class Component extends DCLogic {
     const blueBanner = (title) => !this.state.spBanner ? '' : `<div style="position:relative;background:#e8f4fb;border-radius:4px;padding:16px 20px;display:flex;flex-direction:column;gap:12px">
       <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="spBannerDismiss" style="position:absolute;top:12px;right:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
       <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title}</span>
-      <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5;padding-right:30px">Fee Transparency moves your charges, deposits, and pricing on the property's Charges tab, simplifying setup, move-ins, and quotes. If you publish listings, complete pricing comes ready-made.</span>
+      <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5;padding-right:30px">Start by centralizing: your charges, deposits, and pricing move onto each property's Charges tab, so setup, move-ins, and quotes all read from one place. Fee transparency comes after &mdash; converting a property puts a total monthly price on its listings.</span>
       <span style="display:flex;align-items:center;gap:20px">
         <button data-act="navFeeTransBulk" class="btn-pri" style="height:36px;min-height:36px;padding:0 18px;border-radius:4px;font-size:14px">Centralize Charges</button>
         <a data-act="announceOpen" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Learn More</a>
@@ -3257,15 +3276,11 @@ class Component extends DCLogic {
         <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5))"><path d="M796-121 533-384q-30 26-70 40.5T378-329q-108 0-183-75t-75-181q0-106 75-181t182-75q106 0 180.5 75T632-585q0 43-14 83t-42 75l264 262-44 44ZM377-389q81 0 138-57.5T572-585q0-81-57-138.5T377-781q-82 0-139.5 57.5T180-585q0 81 57.5 138.5T377-389Z"/></svg>
         <span style="flex:1;min-width:0;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">Find a charge type</span>
       </div></div>`;
-    const savedFilters = `<div style="display:flex;flex-direction:column;gap:4px;width:200px">
-      <span style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))">Saved Filters</span>
-      <div style="display:flex;align-items:center;height:36px;box-sizing:border-box;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:0 8px"><span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c)">&lt; No Filter &gt;</span><svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-text, #666666)"><path d="M480-360 280-559h400L480-360Z"/></svg></div>
-    </div>`;
+    const savedFilters = this.savedFilterBox();
     return `<div style="padding:12px 24px 24px;display:flex;flex-direction:column;gap:12px;flex:1;min-height:0">
       <div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
         ${searchBox}${savedFilters}
-        <span data-act="toast" data-arg="Filters" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;box-sizing:border-box;background:var(--ac,var(--rmx-brand, #008dd5));border-radius:2px;cursor:pointer"><svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:#fff"><path d="M440-160q-17 0-28.5-11.5T400-200v-240L161-745q-14-17-4-36t31-19h584q21 0 31 19t-4 36L560-440v240q0 17-11.5 28.5T520-160h-80Zm40-276 240-304H240l240 304Zm0 0Z"/></svg></span>
-        <label style="display:inline-flex;align-items:center;gap:9px;height:36px;cursor:pointer;white-space:nowrap"><input type="checkbox" data-act="ctInactiveToggle" ${this.state.ctShowInactive?'checked':''} style="accent-color:var(--rmx-attention, #f58220);width:16px;height:16px;margin:0"><span style="font-size:14px;color:var(--rmx-text, #666666)">Show Inactive</span></label>
+        ${this.regCheck('Show Inactive', 'ctInactiveToggle', this.state.ctShowInactive)}
         <div style="flex:1"></div>
         <button data-act="ctAddOpen" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M453-280h60v-166h167v-60H513v-174h-60v174H280v60h173v166Zm27.27 200q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg>Add Charge Type</button>
         <button data-act="toast" data-arg="Merge charge types" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="m256-120-42-42 196-196q24-24 32-44t8-59v-265l-90 90-42-42 162-162 162 162-42 42-90-90v265q0 39 8 59t32 44l196 196-42 42-224-224-224 224Z"/></svg>Merge</button>
@@ -3527,12 +3542,8 @@ class Component extends DCLogic {
               <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-text, #666666);flex:none"><path d="M480-344 240-584l43-43 197 197 197-197 43 43-240 240Z"/></svg>
             </div>
           </div>
-          <div style="display:flex;flex-direction:column;gap:4px;width:200px">
-            <span style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))">Saved Filters</span>
-            <div style="display:flex;align-items:center;gap:4px;height:36px;box-sizing:border-box;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:0 8px"><span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c)">&lt; No Filter &gt;</span><svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-text, #666666)"><path d="M480-344 240-584l43-43 197 197 197-197 43 43-240 240Z"/></svg></div>
-          </div>
-          <span data-act="toast" data-arg="Filters" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;box-sizing:border-box;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;background:#fff;cursor:pointer"><svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5))"><path d="M427-120v-225h60v83h353v60H487v82h-60Zm-307-82v-60h247v60H120Zm187-166v-82H120v-60h187v-84h60v226h-60Zm120-82v-60h413v60H427Zm166-165v-225h60v82h187v60H653v83h-60Zm-473-83v-60h413v60H120Z"/></svg></span>
-          <label style="display:inline-flex;align-items:center;gap:8px;height:36px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><input type="checkbox" style="width:18px;height:18px;accent-color:var(--rmx-attention, #f58220);margin:0">Show Inactive</label>
+          ${this.savedFilterBox()}
+          ${this.regCheck('Show Inactive', 'regInactiveToggle', this.state.regShowInactive)}
           <!-- data-act sits on the input, not the label: a label click activates the input too, which
                would run the action twice and cancel itself out. -->
         </div>
@@ -4284,7 +4295,7 @@ class Component extends DCLogic {
     return `<div style="display:flex;align-items:flex-start;gap:12px;background:var(--rmx-brand-tint-bg, #ebf1f5);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:16px 18px">
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
         <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">This property has ${n} charges. Manage them in one place.</span>
-        <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">Fee Transparency centralizes your charges, deposits, and pricing on the property's Charges tab, simplifying setup, move-ins, and quotes. If you publish listings, complete pricing comes ready-made. Current tenant charges are unaffected.</span>
+        <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">Start by centralizing: this property's charges, deposits, and pricing move onto its Charges tab, so setup, move-ins, and quotes all read from one place. Fee transparency comes after &mdash; once every charge is complete, converting puts a total monthly price on its listings. Current tenant charges are unaffected.</span>
         <div style="display:flex;align-items:center;gap:16px;margin-top:6px">
           <button data-act="setupOpen" class="btn-pri" style="height:34px;padding:0 16px;border-radius:4px;font-size:14px">Centralize Charges</button>
           <a data-act="toast" data-arg="Opens contextual help" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Learn More</a>
@@ -5361,7 +5372,7 @@ class Component extends DCLogic {
       return `<div style="margin:12px 16px 4px;display:flex;align-items:flex-start;gap:16px;background:var(--rmx-brand-tint-bg, #ebf1f5);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:14px 16px;flex-wrap:wrap">
         <div style="flex:1;min-width:260px;display:flex;flex-direction:column;gap:4px">
           <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">This property has ${n} charges. Manage them in one place.</span>
-          <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">Fee Transparency centralizes your charges, deposits, and pricing on the property's Charges tab, simplifying setup, move-ins, and quotes. If you publish listings, complete pricing comes ready-made. Current tenant charges are unaffected.</span>
+          <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">Start by centralizing: this property's charges, deposits, and pricing move onto its Charges tab, so setup, move-ins, and quotes all read from one place. Fee transparency comes after &mdash; once every charge is complete, converting puts a total monthly price on its listings. Current tenant charges are unaffected.</span>
         </div>
         <div style="display:flex;align-items:center;gap:16px;flex:none;padding-top:2px">
           <button data-act="setupOpen" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Centralize Charges</button>
@@ -5475,7 +5486,7 @@ class Component extends DCLogic {
     return `<div style="margin:12px 20px 0;display:flex;align-items:flex-start;gap:16px;background:var(--rmx-brand-tint-bg, #ebf1f5);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:16px 18px">
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
         <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">This property has ${n} charges. Manage them in one place.</span>
-        <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">Fee Transparency centralizes your charges, deposits, and pricing on the property's Charges tab, simplifying setup, move-ins, and quotes. If you publish listings, complete pricing comes ready-made. Current tenant charges are unaffected.</span>
+        <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">Start by centralizing: this property's charges, deposits, and pricing move onto its Charges tab, so setup, move-ins, and quotes all read from one place. Fee transparency comes after &mdash; once every charge is complete, converting puts a total monthly price on its listings. Current tenant charges are unaffected.</span>
       </div>
       <div style="display:flex;align-items:center;gap:16px;flex:none;padding-top:2px">
         <button data-act="setupOpen" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Centralize Charges</button>
