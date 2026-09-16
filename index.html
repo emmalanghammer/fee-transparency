@@ -5118,17 +5118,14 @@ class Component extends DCLogic {
   setupDoneFoot(){
     const per = (this.state.setup || {}).done || [];
     const keys = per.map(x => this.ftStatus(x.p).key);
-    const btn = (label, act, arg, pri) => `<button data-act="${act}"${arg?` data-arg="${arg}"`:''} class="${pri?'btn-pri':'btn-out'}" style="height:36px;min-height:36px;padding:0 ${pri?'22px':'20px'};border-radius:4px;font-size:14px">${label}</button>`;
-    // One property: both ways out land on its Charges tab, which is where the work is.
+    const btn = (label, act, arg) => `<button data-act="${act}"${arg?` data-arg="${arg}"`:''} class="btn-pri" style="height:36px;min-height:36px;padding:0 22px;border-radius:4px;font-size:14px">${label}</button>`;
+    // One action, and the X to leave: a Done button only asked the user to agree the step had ended.
+    // For one property that action is its Charges tab, where the work is; for a run, the hub.
     if (per.length === 1) {
-      const p = per[0].p, tab = btn('Done', 'openFeeProfile', p, false);
-      return keys[0] === 'short' ? btn('Add Charge Details', 'openFeeProfile', p, true) + tab
-        : btn('Go to Charges Tab', 'openFeeProfile', p, true) + btn('Done', 'setupClose', '', false);
+      const p = per[0].p;
+      return btn(keys[0] === 'short' ? 'Add Charge Details' : 'Go to Charges Tab', 'openFeeProfile', p);
     }
-    // Nothing outstanding anywhere: the process is finished, so there is nothing for a Done button to
-    // acknowledge — the hub is the only thing left to offer.
-    if (!keys.some(k => k === 'short' || k === 'ready')) return btn('Go to Pricing Setup', 'navFeeTrans', '', true);
-    return btn('Go to Pricing Setup', 'navFeeTrans', '', true) + btn('Done', 'setupClose', '', false);
+    return btn('Go to Pricing Setup', 'navFeeTrans', '');
   }
   // Step 3 "Confirm Setup": the irreversible-action warning, what lands, what to do after, and the
   // acknowledgement that gates Save.
