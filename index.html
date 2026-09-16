@@ -100,9 +100,6 @@ window.__resources = {
     .lvl-ori { background:#f0e8fb; color:#6a4aa8; }
     /* Level selector: label left, count right-aligned in a fixed-width card; selected is an
        accented outline on white rather than a fill. */
-    .chip { display:inline-flex; align-items:center; gap:10px; min-width:150px; box-sizing:border-box; background:#fff; border:1px solid var(--rmx-line, #cedbe7); border-radius:4px; padding:9px 14px; cursor:pointer; font-size:14px; color:var(--rmx-brand-dark, #13314c); white-space:nowrap; }
-    .chip.on { border-color:var(--ac,var(--rmx-brand, #008dd5)); background:#fff; box-shadow:inset 0 0 0 1px var(--ac,var(--rmx-brand, #008dd5)); }
-    .chip .cnt { margin-left:auto; font-size:14px; font-weight:600; color:var(--rmx-brand-dark, #13314c); }
     /* Command Launch gives up width first when the nav bar runs out of room: it shrinks, then drops to
        an icon-only button, then hides — so the logo, the scenario picker and the icons never clip. */
     .cmdlaunch { display:flex; align-items:center; gap:8px; box-sizing:border-box; height:32px;
@@ -851,10 +848,9 @@ class Component extends DCLogic {
 
 
   // ---------- theming ----------
-  setRoot = (el) => { this.rootEl = el; this.applyVars(); this.fitToolbar();
+  setRoot = (el) => { this.rootEl = el; this.applyVars();
     if (el && !this._dropAway) {
       this._dropAway = true;
-      window.addEventListener('resize', () => this.fitToolbar());
       // Close any open dropdown panel when clicking outside it and its trigger.
       document.addEventListener('mousedown', (e) => {
         document.querySelectorAll('[id$="-pnl"],[id$="-panel"]').forEach((p) => {
@@ -885,23 +881,12 @@ class Component extends DCLogic {
   }
   componentDidUpdate() {
     this.applyVars();
-    this.fitToolbar();
     // A charge that already follows a pet type opens with its amount locked, not just after a change.
     // Reopening applies the kind already saved on the charge — it must not re-ask.
     if (window.__petApply) { const pk = this.q('#m-at-petkind'); if (pk) window.__petApply(pk.value); }
     const snap = this._scrollSnap; this._scrollSnap = null;
     if (this._resetScroll) { this._resetScroll = false; return; }
     if (snap) { const panes = this.scrollPanes(); snap.forEach((v,i)=>{ if(panes[i]) panes[i].scrollTop = v; }); }
-  }
-  // The Charges tab toolbar stays on one line: when the level chips would push it past the edge, they
-  // collapse into a single dropdown of the same five choices. Narrower still, the row scrolls
-  // sideways rather than clipping the actions off the end.
-  fitToolbar(){
-    const row = this.q('#pf-toolbar'); if (!row) return;
-    const chips = this.q('#pf-lvl-chips'), dd = this.q('#pf-lvl-dd');
-    if (!chips || !dd) return;
-    chips.style.display = 'flex'; dd.style.display = 'none';
-    if (row.scrollWidth > row.clientWidth + 1) { chips.style.display = 'none'; dd.style.display = 'inline-flex'; }
   }
   applyVars() {
     const el = this.rootEl; if (!el) return;
@@ -3854,34 +3839,23 @@ class Component extends DCLogic {
     if (f.past) n++; if (f.future) n++; if (f.exc) n++;
     return n;
   }
-  levelCountChip(label, count, key, icon){
-    const on = this.state.lvlSel === key;
-    return `<span data-act="lvlSel" data-arg="${key}" class="chip${on?' on':''}">${icon?`${this.ico(icon, 18, 'color:var(--ac,var(--rmx-brand, #008dd5))')}`:''}${label}<span class="cnt">${count}</span></span>`;
+  // The charge levels as an RMX tab row (RMX-Components 244-2547): 14px SemiBold, a 2px brand
+  // underline under the selected one, sitting on the 1px rule the rest share.
+  levelTabs(){
+    const c = this.levelCounts();
+    const levels = [['Total Charges', c.all, 'all'], ['Property Charges', c['Property'], 'Property'],
+      ['Unit Type Charges', c['Unit Type'], 'Unit Type'], ['Unit Charges', c['Unit'], 'Unit'],
+      ['ORI Charges', c['ORI'], 'ORI']];
+    const sel = this.state.lvlSel || 'all';
+    return `<div style="display:flex;align-items:stretch;gap:16px;padding:0 16px;flex:none;overflow-x:auto;border-bottom:1px solid var(--rmx-line, #cedbe7)">${levels.map(l => {
+      const on = l[2] === sel;
+      return `<span data-act="lvlSel" data-arg="${l[2]}" style="display:inline-flex;align-items:center;gap:8px;box-sizing:border-box;padding:16px 8px;margin-bottom:-1px;font-size:14px;font-weight:600;white-space:nowrap;cursor:pointer;${on ? 'color:var(--rmx-brand-dark, #13314c);border-bottom:2px solid var(--ac,var(--rmx-brand, #008dd5))' : 'color:var(--rmx-text, #666666);border-bottom:2px solid transparent'}">${l[0]}<span style="display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;box-sizing:border-box;padding:0 6px;border-radius:10px;font-size:12px;${on ? 'background:var(--rmx-brand-tint-bg, #ebf1f5);color:var(--rmx-brand-hover, #0071aa)' : 'background:var(--rmx-bg-muted, #f2f2f2);color:var(--rmx-text, #666666)'}">${l[1]}</span></span>`;
+    }).join('')}</div>`;
   }
   feeProfileToolbar(){
-    const c = this.levelCounts();
     const on = this.state.groupByReq;
     const cb = (label) => `<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;box-sizing:border-box;border-radius:2px;${on?'background:var(--ac,var(--rmx-brand, #008dd5));border:1px solid var(--ac,var(--rmx-brand, #008dd5))':'background:#fff;border:1px solid var(--rmx-text-muted, #b3b3b3)'}">${on?'<svg class="ico" width="14" height="14" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:#fff"><path d="M378-246 154-470l43-43 181 181 384-384 43 43-427 427Z"/></svg>':''}</span><span style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))">${label}</span>`;
-    // The chips and the dropdown are the same five choices; fitToolbar() picks whichever fits on one line.
-    const levels = [['Total Charges', c.all, 'all', ''], ['Property Charges', c['Property'], 'Property', 'home'],
-      ['Unit Type Charges', c['Unit Type'], 'Unit Type', 'holiday_village'], ['Unit Charges', c['Unit'], 'Unit', 'apartment'],
-      ['ORI Charges', c['ORI'], 'ORI', 'inventory_2']];
-    const selLvl = levels.filter(l => l[2] === (this.state.lvlSel || 'all'))[0] || levels[0];
-    const lvlRow = (l) => `<div data-act="lvlSel" data-arg="${l[2]}" style="display:flex;align-items:center;gap:8px;padding:9px 14px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap;${l[2]===selLvl[2]?'background:var(--rmx-brand-tint-bg, #ebf1f5)':''}" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background='${l[2]===selLvl[2]?'var(--rmx-brand-tint-bg, #ebf1f5)':''}'">${l[3]?`${this.ico(l[3], 18, 'color:var(--ac,var(--rmx-brand, #008dd5))')}`:'<span style="width:18px"></span>'}<span style="flex:1">${l[0]}</span><span style="color:var(--rmx-text, #666666)">${l[1]}</span></div>`;
-    const lvlDd = `<span id="pf-lvl-dd" style="display:none;position:relative;flex:none">
-      <div onclick="var p=document.getElementById('pf-lvl-pnl');if(p.style.display==='block'){p.style.display='none';return}var r=this.getBoundingClientRect();p.style.left=r.left+'px';p.style.top=(r.bottom+4)+'px';p.style.display='block'" style="display:flex;align-items:center;gap:8px;height:36px;box-sizing:border-box;padding:0 6px 0 12px;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;cursor:pointer;white-space:nowrap">
-        ${selLvl[3]?`${this.ico(selLvl[3], 18, 'color:var(--ac,var(--rmx-brand, #008dd5))')}`:''}
-        <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${selLvl[0]}</span>
-        <span class="cnt">${selLvl[1]}</span>
-        <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-text, #666666)"><path d="M480-360 280-559h400L480-360Z"/></svg>
-      </div>
-      <div id="pf-lvl-pnl" style="display:none;position:fixed;z-index:1000;min-width:250px;background:#fff;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);overflow:hidden;padding:4px 0">${levels.map(lvlRow).join('')}</div>
-    </span>`;
     return `<div id="pf-toolbar" style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;padding-bottom:2px">
-      <span id="pf-lvl-chips" style="display:flex;align-items:center;gap:8px;flex:none">
-        ${levels.map(l => this.levelCountChip(l[0], l[1], l[2], l[3])).join('')}
-      </span>
-      ${lvlDd}
       <label data-act="groupByReq" style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;margin-left:4px;flex:none">${cb('Group by Requirement')}</label>
       <div style="flex:1"></div>
       ${(() => { const n = this.activeFilterCount(); const on = !!this.state.pfFilter || n > 0;
@@ -4224,12 +4198,15 @@ class Component extends DCLogic {
         <button ${nSel?'data-act="bulkUpdOpen"':''} style="height:34px;min-height:34px;padding:0 18px;border-radius:4px;font:400 14px Roboto,sans-serif;color:#fff;background:rgba(255,255,255,${nSel?'0.2':'0.08'});border:1px solid rgba(255,255,255,${nSel?'0.65':'0.3'});cursor:${nSel?'pointer':'default'}">Update Charges</button>
         <svg class="ico" width="24" height="24" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="bulkSelCancel" style="color:#fff;cursor:pointer"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
       </div>`;
-    return `<div style="flex:1;min-height:0;overflow-y:auto"><div style="padding:16px;display:flex;flex-direction:column;gap:16px;width:100%;box-sizing:border-box">
-      ${selBar}
-      ${this.feeProfileToolbar()}
-      ${this.mitsBanner()}
-      ${sections}
-    </div></div>`;
+    return `<div style="flex:1;min-height:0;display:flex;flex-direction:column">
+      ${this.levelTabs()}
+      <div style="flex:1;min-height:0;overflow-y:auto"><div style="padding:16px;display:flex;flex-direction:column;gap:16px;width:100%;box-sizing:border-box">
+        ${selBar}
+        ${this.feeProfileToolbar()}
+        ${this.mitsBanner()}
+        ${sections}
+      </div></div>
+    </div>`;
   }
   // ---------- Update Charges dialog (mock 2790-141830) ----------
   // Bulk-edits the selected charges. Every field starts at "Keep current value" and only the ones
