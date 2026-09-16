@@ -462,7 +462,10 @@ class Component extends DCLogic {
     return (r && r.listing && r.listing.leaseRole) || '';
   }
   leaseRoleLabel(k){ return k === 'rent' ? 'Base Rent' : k === 'deposit' ? 'Security Deposit' : ''; }
-  leaseRoleVal(){ const el = this.q('input[name="m-lease-role"]:checked'); return el ? el.value : ''; }
+  // The base rent / security deposit control is switched off for now: nothing sets a role, so every
+  // charge reads as a regular charge and the Name field stays a plain text input. The rest of the
+  // machinery below is left in place for when it comes back.
+  leaseRoleVal(){ return ''; }
   // One base rent per charge level: a property can charge rent at the property level and again for a
   // unit type, but not twice at the same level, or there is no single answer to what the rent is.
   baseRentAt(level, exceptId){
@@ -6346,21 +6349,20 @@ class Component extends DCLogic {
       </div>
       <div id="m-orit-pnl" style="display:none;position:fixed;z-index:1000;border-radius:4px;background:#fff;box-shadow:0 6px 20px rgba(0,0,0,0.18);overflow:hidden"><div id="m-orit-lst" style="max-height:220px;overflow-y:auto">${oriProp ? this.oriItemTypes(oriProp).map(oriItemRow).join('') : ''}</div></div>
     </div>`;
-    const chargeApp = `<div style="display:flex;flex-direction:column;gap:12px">
-      <div style="display:flex;gap:12px;align-items:flex-start">
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Level *')}${dd('m-app',['Property','Unit Type','Unit'].concat(cre ? [] : ['ORI']),app,{noSearch:true,js:appToggle})}</div>
-        ${tgt('ut','Unit Type','Unit Type','m-appt-ut', app==='Unit Type'?(ed&&ed.target||''):'', '2BR/2BA', this.utData().map(t=>t.name))}
-        ${tgt('unit','Unit','Unit','m-appt-unit', app==='Unit'?(ed&&ed.target||''):'', '2C', this.units().map(u=>u.u))}
-      </div>
-      <div id="m-ut-warn" style="display:${app==='Unit Type'?'flex':'none'};gap:10px;align-items:flex-start;background:#fdf3e3;border:1px solid #f6d9ac;border-radius:4px;padding:10px 14px">
+    // Charge Level leads the top row of General Details; the charge type and comment finish it, and
+    // a level target slots in between when the level has one.
+    const levelFields = `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Level *')}${dd('m-app',['Property','Unit Type','Unit'].concat(cre ? [] : ['ORI']),app,{noSearch:true,js:appToggle})}</div>
+      ${tgt('ut','Unit Type','Unit Type','m-appt-ut', app==='Unit Type'?(ed&&ed.target||''):'', '2BR/2BA', this.utData().map(t=>t.name))}
+      ${tgt('unit','Unit','Unit','m-appt-unit', app==='Unit'?(ed&&ed.target||''):'', '2C', this.units().map(u=>u.u))}`;
+    // What the level row can pull in under it: the unit-type reach warning, and the ORI pair.
+    const chargeApp = `<div id="m-ut-warn" style="display:${app==='Unit Type'?'flex':'none'};gap:10px;align-items:flex-start;background:#fdf3e3;border:1px solid #f6d9ac;border-radius:4px;padding:10px 14px">
         <svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:#e59f2e;flex:none"><path d="m40-120 440-760 440 760H40Zm104-60h672L480-760 144-180Zm361.5-65.68q8.5-8.67 8.5-21.5 0-12.82-8.68-21.32-8.67-8.5-21.5-8.5-12.82 0-21.32 8.68-8.5 8.67-8.5 21.5 0 12.82 8.68 21.32 8.67 8.5 21.5 8.5 12.82 0 21.32-8.68ZM454-348h60v-224h-60v224Zm26-122Z"/></svg>
         <span id="m-ut-warn-txt" style="font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">${this.utWarnText(app === 'Unit Type' ? (ed && ed.target) || '' : '')}</span>
       </div>
       ${cre ? '' : `<div id="m-ori-row" style="display:${app==='ORI'?'flex':'none'};gap:12px;align-items:flex-start">
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Property *')}${dd('m-appt-ori', this.propNames(), oriProp, { placeholder:'Select a property', js:"if(window.__oriPropPick)window.__oriPropPick(_v);if(window.__ctFilter)window.__ctFilter()" })}</div>
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('ORI Type *')}${oriTypeCtl}</div>
-      </div>`}
-    </div>`;
+      </div>`}`;
 
     // ---- Charge Type typeahead; selecting one derives the Charge Category below ----
     const setCat = "var cc=this.getAttribute('data-cat');var d=document.getElementById('m-cat-disp');var e=document.getElementById('m-cat-err');var ph=document.getElementById('m-cat-ph');document.getElementById('m-cat').value=cc||'';ph.style.display='none';if(cc){d.textContent=cc;d.style.display='block';e.style.display='none';}else{d.style.display='none';e.style.display='flex';}if(window.__attrCheck)window.__attrCheck();if(window.__mitsRecheck)window.__mitsRecheck();";
@@ -6544,11 +6546,12 @@ class Component extends DCLogic {
       <span style="display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-brand-dark, #13314c)"><path d="M220-80q-24.75 0-42.37-17.63Q160-115.25 160-140v-434q0-24.75 17.63-42.38Q195.25-634 220-634h70v-96q0-78.85 55.61-134.42Q401.21-920 480.11-920q78.89 0 134.39 55.58Q670-808.85 670-730v96h70q24.75 0 42.38 17.62Q800-598.75 800-574v434q0 24.75-17.62 42.37Q764.75-80 740-80H220Zm0-60h520v-434H220v434Zm314.5-162.03Q557-324.06 557-355q0-30-22.67-54.5t-54.5-24.5q-31.83 0-54.33 24.5t-22.5 55q0 30.5 22.67 52.5t54.5 22q31.83 0 54.33-22.03ZM350-634h260v-96q0-54.17-37.88-92.08-37.88-37.92-92-37.92T388-822.08q-38 37.91-38 92.08v96ZM220-140v-434 434Z"/></svg>This charge cannot be edited.</span>
       <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">${spec==='NSF'?'Only the marketing details can be edited here, NSF fee details are pulled from the property details.':'Only the marketing details can be edited here, late fees are property specific and have special circumstances.'}</span>
     </div>`;
-    const general = `${chargeApp}
-      <div style="display:flex;gap:12px;align-items:flex-start">
+    const general = `<div style="display:flex;gap:12px;align-items:flex-start">
+        ${levelFields}
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Type *')}${ctypeField}</div>
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Comment')}<div style="display:flex;align-items:center;gap:4px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><input id="m-comment" value="${esc(ed?ed.desc:'')}" placeholder="Internal only" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-text-muted, #b3b3b3)"><path d="M120-240v-60h480v60H120Zm0-210v-60h720v60H120Zm0-210v-60h720v60H120Z"/></svg></div></div>
       </div>
+      ${chargeApp}
       ${freqRow}
       ${amount}`;
 
@@ -6778,7 +6781,7 @@ class Component extends DCLogic {
     const roleRadio = (v, l) => `<label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;white-space:nowrap">
       <input type="radio" name="m-lease-role" value="${v}"${role0 === v ? ' checked' : ''} onclick="if(window.__leaseRole)window.__leaseRole(this)" style="width:17px;height:17px;margin:0;flex:none">
       <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${l}</span></label>`;
-    const leaseSection = `<div id="m-lease-wrap" style="display:${cat0 === 'Lease' ? 'flex' : 'none'};align-items:center;gap:24px;flex-wrap:wrap">${roleRadio('', 'Regular charge')}${roleRadio('rent', 'Base rent')}${roleRadio('deposit', 'Security deposit')}</div>`;
+    const leaseSection = '';
     const listing = `<div style="display:flex;gap:12px;align-items:flex-start">
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Name')}
           <div id="m-name-text" data-typed="${esc(nm0)}" style="display:${role0 ? 'none' : 'block'}"><input id="m-name" class="fld" value="${esc(nameNow)}" oninput="if(window.__mitsRecheck)window.__mitsRecheck()" style="height:36px;box-sizing:border-box"></div>
