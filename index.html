@@ -5043,8 +5043,7 @@ class Component extends DCLogic {
     const bucket = { short: [], ready: [], complete: [] };
     per.forEach(x => { const k = this.ftStatus(x.p).key; (bucket[k] || bucket.complete).push(x); });
 
-    const arrow = this.ico('arrow_right_alt', 18);
-    const link = (label, act, arg) => `<span data-act="${act}" data-arg="${arg}" style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${label}${arrow}</span>`;
+    const link = (label, act, arg) => `<span data-act="${act}" data-arg="${arg}" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${label}</span>`;
     // The property and what it needs read as one phrase, so they sit together and the action goes right.
     const grid = (list, fact, action) => !list.length ? '' : `<div style="margin-top:9px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${list.map((x, i) => `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;${i?'border-top:1px solid var(--rmx-brand-tint-bg, #ebf1f5)':''}">
         <span style="min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${x.p}</span>
@@ -5126,10 +5125,10 @@ class Component extends DCLogic {
       return keys[0] === 'short' ? btn('Add Charge Details', 'openFeeProfile', p, true) + tab
         : btn('Go to Charges Tab', 'openFeeProfile', p, true) + btn('Done', 'setupClose', '', false);
     }
-    const done = btn('Done', 'setupClose', '', false);
-    // Nothing outstanding anywhere: closing is the action, and the hub is the afterthought.
-    if (!keys.some(k => k === 'short' || k === 'ready')) return btn('Done', 'setupClose', '', true) + btn('Go to Pricing Setup', 'navFeeTrans', '', false);
-    return btn('Go to Pricing Setup', 'navFeeTrans', '', true) + done;
+    // Nothing outstanding anywhere: the process is finished, so there is nothing for a Done button to
+    // acknowledge — the hub is the only thing left to offer.
+    if (!keys.some(k => k === 'short' || k === 'ready')) return btn('Go to Pricing Setup', 'navFeeTrans', '', true);
+    return btn('Go to Pricing Setup', 'navFeeTrans', '', true) + btn('Done', 'setupClose', '', false);
   }
   // Step 3 "Confirm Setup": the irreversible-action warning, what lands, what to do after, and the
   // acknowledgement that gates Save.
