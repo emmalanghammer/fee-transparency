@@ -6268,7 +6268,7 @@ class Component extends DCLogic {
     if (this.state.bulk) return '';
     const f = this.chargeForm(m);
     return `<div data-act="addclose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:${this.state.profHist?130:(m.generalOnly?140:100)}">
-      <div data-act="noop" style="width:700px;max-width:94vw;max-height:92vh;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 3px 12px rgba(0,0,0,0.2);display:flex;flex-direction:column;overflow:hidden">
+      <div data-act="noop" style="width:1000px;max-width:96vw;max-height:92vh;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 3px 12px rgba(0,0,0,0.2);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;height:48px;box-sizing:border-box;padding:8px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
           <span style="font-size:20px;line-height:28px;color:var(--rmx-brand-dark, #13314c)">${f.title}</span>
           <svg class="ico" width="24" height="24" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="addclose" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
@@ -6505,24 +6505,24 @@ class Component extends DCLogic {
       + "var y=r.bottom+6;if(y+h>window.innerHeight-8)y=r.top-h-6;if(y<8)y=8;t.style.left=l+'px';t.style.top=y+'px';";
     const lockHide = "var t=document.getElementById('m-lock-tip');if(t)t.style.display='none';";
     const lockTip = `<span id="m-lock-tip" style="display:none;position:fixed;left:0;top:0;width:290px;padding:14px 16px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5;z-index:400"><span style="display:block;white-space:normal">The amount is pulled from the pet type selected and cannot be edited.</span></span>`;
-    const amount = `<div style="display:flex;flex-direction:column;gap:6px">
-      <div onmouseenter="${lockShow}" onmouseleave="${lockHide}" style="display:flex;gap:12px;align-items:flex-start">${lockTip}
-      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Amount Method')}${dd('m-method',['Flat','Reference','Calculation'],src,{noSearch:true,js:methodJs})}</div>
+    // The amount pair rides the date row, so General Details is three rows rather than four.
+    const amountFields = `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Amount Method')}${dd('m-method',['Flat','Reference','Calculation'],src,{noSearch:true,js:methodJs})}</div>
       <div style="flex:1;min-width:0">
         <input type="hidden" id="m-source" value="${src}">
         <div id="m-blk-flat" style="display:${src==='Flat'?'flex':'none'};flex-direction:column;gap:4px">${lab('Amount')}${iconInput('m-amount',amtFlat,'00.00','calculate')}</div>
         <div id="m-blk-ref" style="display:${src==='Reference'?'flex':'none'};flex-direction:column;gap:4px">${lab('Amount')}${dd('m-ref',['Market Rent','Field: Market Rent','Unit UDF: Parking Spot #'],'Market Rent',{noSearch:true})}</div>
         <div id="m-blk-calc" style="display:${src==='Calculation'?'flex':'none'};flex-direction:column;gap:4px">${lab('Amount')}${iconInput('m-calc','','','edit')}</div>
-      </div></div>
-      <span id="m-calc-note" style="display:${calcNote};font-size:12px;color:var(--rmx-text, #666666);line-height:1.45">Calculated charges may be labeled as a <i>Varying Amount</i> on the listing provider site.</span></div>`;
+      </div>`;
+    const amount = `<span id="m-calc-note" style="display:${calcNote};font-size:12px;color:var(--rmx-text, #666666);line-height:1.45">Calculated charges may be labeled as a <i>Varying Amount</i> on the listing provider site.</span>`;
 
     // ---- General Details ----
     // One-time charges have a date window too — they just don't repeat, so only Frequency is
     // recurring-only.
-    const freqRow = `<div style="display:flex;gap:12px;align-items:flex-start">
-      ${isOne ? '' : `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Frequency *')}<input id="m-freq" class="fld" value="1" style="height:36px;box-sizing:border-box"></div>`}
+    const freqRow = `<div onmouseenter="${lockShow}" onmouseleave="${lockHide}" style="display:flex;gap:12px;align-items:flex-start">${lockTip}
+      ${isOne ? '' : `<div style="flex:0 0 92px;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Frequency *')}<input id="m-freq" class="fld" value="1" style="height:36px;box-sizing:border-box"></div>`}
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('From')}${iconInput('m-from',ed?ed.from:'','mm/dd/yy','calendar_month')}</div>
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('To')}${iconInput('m-to',ed?ed.to:'','mm/dd/yy','calendar_month')}</div>
+      ${amountFields}
     </div>`;
     const ilsOn = ed ? !!ed.ils : true;
     // Locked General Details for property specific charges: application, type and amount only.
@@ -6789,13 +6789,10 @@ class Component extends DCLogic {
       </div>
       ${leaseSection}
       <div style="display:flex;flex-direction:column;gap:4px">${lab('Marketing Description')}<textarea id="m-marketing" class="fld" style="height:56px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${ed&&ed.listing?(ed.listing.marketing||''):''}</textarea></div>
+      <!-- All four to a row. A one-time charge has no schedule, so it runs three across. -->
       <div style="display:flex;gap:12px;align-items:flex-start">
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px"><span style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--rmx-text, #666666)">Charge Requirement${this.reqHelp()}</span>${dd('m-req',['Required','Optional','Situational'],req,{noSearch:true,blank:true,placeholder:' ',js:"document.getElementById('m-sitdesc-wrap').style.display=(_v==='Situational'?'flex':'none');if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Fee Due')}${dd('m-due',['At Application','Move-In','During Term','Move-Out'],(ed&&ed.listing&&ed.listing.feeDue)||'',{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>
-      </div>
-      <!-- Two to a row: Charge Requirement with Fee Due, then Charge Schedule with Refundable. A
-           one-time charge has no schedule, so Refundable takes that row on its own. -->
-      <div style="display:flex;gap:12px;align-items:flex-start">
         ${isOne?'':`<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Schedule', help.sched)}${dd('m-sched',['Monthly','Weekly','Daily'],(ed&&ed.listing&&ed.listing.schedule)||'',{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`}
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Refundable')}${dd('m-refund',['Refundable','Not Refundable'],refundable,{noSearch:true,blank:true,placeholder:' '})}</div>
       </div>
