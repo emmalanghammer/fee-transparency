@@ -5029,7 +5029,6 @@ class Component extends DCLogic {
     const c = this.state.setup;
     const per = c.done || [];
     const n = per.length;
-    const total = per.reduce((a, x) => a + x.count, 0);
     // Centralizing leaves a property in exactly one of three states, so the overlay reports the one it
     // landed in rather than reciting the same two steps to everybody. Converting hasn't happened yet,
     // so Needs Attention can't arise here.
@@ -5053,15 +5052,6 @@ class Component extends DCLogic {
         <span style="font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap">${fact(x)}</span>
       </div>`;
     const count = (list) => list.length + ' propert' + (list.length === 1 ? 'y' : 'ies');
-
-    // The success line: what just happened, before what to do about it.
-    const done = `<div style="display:flex;align-items:center;gap:18px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:16px 18px">
-        <span style="width:52px;height:52px;border-radius:50%;background:#e4f3ea;display:flex;align-items:center;justify-content:center;flex:none">${this.ico('check', 32, 'color:var(--rmx-success, #6eb744)')}</span>
-        <div style="display:flex;flex-direction:column;gap:4px;min-width:0">
-          <span style="font-size:16px;color:var(--rmx-brand-dark, #13314c)">${n === 1 ? per[0].p + ' is centralized' : n + ' properties are centralized'}</span>
-          <span style="font-size:14px;color:var(--rmx-text, #666666)">${total} charges moved to ${n === 1 ? 'the Charges tab' : 'their Charges tabs'}.</span>
-        </div>
-      </div>`;
 
     // One property gets the one thing to do next in full; a bulk run groups by the status each landed
     // in, so it's clear which properties need which step.
@@ -5096,7 +5086,7 @@ class Component extends DCLogic {
             bucket.ready.length === 1 ? 'pubOpen' : 'navFeeTrans', bucket.ready.length === 1 ? bucket.ready[0].p : ''))
         + group(bucket.complete, 'Complete', '<span style="font-size:14px;color:var(--rmx-text, #666666)">Nothing else to set up</span>');
     }
-    return `<div style="display:flex;flex-direction:column;gap:14px;padding-bottom:4px">${done}${body}</div>`;
+    return `<div style="display:flex;flex-direction:column;gap:14px;padding-bottom:4px">${body}</div>`;
   }
   // What the done step offers to do next: the immediate action, then Done.
   setupDoneFoot(){
