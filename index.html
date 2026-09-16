@@ -5056,11 +5056,8 @@ class Component extends DCLogic {
       : state === 'now'
       ? `<span style="width:24px;height:24px;border-radius:50%;background:var(--ac,var(--rmx-brand, #008dd5));box-shadow:0 0 0 4px rgba(0,141,213,0.18);color:#fff;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:none">${num}</span>`
       : `<span style="width:24px;height:24px;border-radius:50%;background:#fff;border:2px solid var(--rmx-line, #cedbe7);box-sizing:border-box;color:var(--rmx-text-muted, #b3b3b3);font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:none">${num}</span>`;
-    const doneCap = `<span style="font-size:14px;color:var(--rmx-success, #6eb744)">Done</span>`;
-    const nextCap = `<span style="display:inline-flex;align-items:center;border-radius:4px;padding:2px 10px;background:#fdf3e3;color:#7a5a2a;font-size:14px;white-space:nowrap">Do this next</span>`;
-    const laterCap = (t) => `<span style="font-size:14px;color:var(--rmx-text-muted, #b3b3b3)">${t}</span>`;
     // One rung of the rail: the marker and its connector on the left, everything else on the right.
-    const rung = (marker, title, state, cap, body, extra, pill, last) => `<div style="display:flex;gap:14px">
+    const rung = (marker, title, state, body, extra, pill, last) => `<div style="display:flex;gap:14px">
       <div style="width:24px;flex:none;display:flex;flex-direction:column;align-items:center">
         ${marker}
         ${last ? '' : `<span style="flex:1;width:0;${state === 'done' ? 'border-left:2px dashed #a6d68c;margin:4px 0' : 'border-left:2px solid var(--rmx-line, #cedbe7);margin:8px 0 0'}"></span>`}
@@ -5068,49 +5065,48 @@ class Component extends DCLogic {
       <div style="flex:1;min-width:0;${last ? '' : 'padding-bottom:20px;'}display:flex;flex-direction:column;gap:5px">
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <span style="font-size:16px;font-weight:600;color:${state === 'later' ? 'var(--rmx-ink-2, #424e5b)' : 'var(--rmx-brand-dark, #13314c)'}">${title}</span>
-          ${pill || ''}<div style="flex:1"></div>${cap}
+          ${pill || ''}
         </div>
         <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.5">${body}</span>
         ${extra || ''}
       </div></div>`;
-    const step = (num, title, state, cap, body, extra, pill, last) => rung(dot(state, num), title, state, cap, body, extra, pill, last);
+    const step = (num, title, state, body, extra, pill, last) => rung(dot(state, num), title, state, body, extra, pill, last);
 
     // Step 1 always just happened. Steps 2 and 3 are live when properties are standing on them.
-    const s1 = step(1, 'Centralize Charges', 'done', doneCap,
+    const s1 = step(1, 'Centralize Charges', 'done',
       `${total} charge${total === 1 ? '' : 's'} moved onto ${n === 1 ? 'the Charges tab' : n + ' Charges tabs'}. Quotes, move-ins and renewals read from ${n === 1 ? 'it' : 'them'} now.`);
 
     // Nothing in the run advertises online, so steps 2 and 3 are not part of anyone's story here:
     // the rail is centralizing, then done.
     const onlyComplete = !bucket.short.length && !bucket.ready.length;
     const s2 = onlyComplete ? '' : bucket.short.length
-      ? step(2, 'Add Charge Details', 'now', nextCap,
+      ? step(2, 'Add Charge Details', 'now',
           'Fill in more details that describe each charge before it can be converted.',
           grid(bucket.short, x => { const ch = this.ftCharges(x.p); return ch.incomplete + ' of ' + ch.total + ' charges need details'; },
             x => link('Add details', 'openFeeProfile', x.p)))
       : bucket.ready.length
-      ? step(2, 'Add Charge Details', 'done', doneCap,
+      ? step(2, 'Add Charge Details', 'done',
           'Every charge already carries the fields listings need, so there was nothing to fill in.')
       // Nothing here advertises online, so the listing fields were never the point.
-      : step(2, 'Add Charge Details', 'later', laterCap('Not needed'),
+      : step(2, 'Add Charge Details', 'later',
           'Listing fields only matter for a property that advertises online.');
 
     const pill3 = `<span style="display:inline-flex;align-items:center;border-radius:12px;padding:3px 12px;background:#d9ecf9;color:var(--rmx-brand-dark, #13314c);font-size:14px;white-space:nowrap">If you list online &amp; fee transparency is available</span>`;
     const s3 = onlyComplete ? '' : bucket.ready.length
-      ? step(3, 'Convert to Fee Transparency', 'now', nextCap,
+      ? step(3, 'Convert to Fee Transparency', 'now',
           'Converting puts a total monthly price on a property\'s listings.',
           grid(bucket.ready, x => this.ftCharges(x.p).ready + ' charges ready', x => link('Convert', 'pubOpen', x.p)),
           pill3, true)
       : step(3, 'Convert to Fee Transparency', 'later',
-          laterCap(bucket.short.length ? 'After step 2' : 'Nothing to convert'),
           bucket.short.length
-            ? 'Once every charge is complete a property turns Ready to Convert on Pricing Setup, and converting puts a total monthly price on its listings.'
+            ? 'Listings will show a total monthly price after the property is converted.'
             : 'None of these properties list online with fee transparency available.',
           '', pill3, true);
 
     // Properties that don't advertise online never reach steps 2 and 3 — centralizing was the job, so
     // they close out below the rail rather than sitting on a step they will never leave.
     const doneList = !bucket.complete.length ? '' : `${onlyComplete ? '' : '<div style="height:1px;background:var(--rmx-line, #cedbe7);margin:2px 0 18px"></div>'}
-      ${rung(tick, 'Complete', 'done', doneCap,
+      ${rung(tick, 'Complete', 'done',
         `Fee transparency doesn\'t apply to ${bucket.complete.length === 1 ? 'this property' : 'these properties'}, so centralizing was the whole job.`,
         grid(bucket.complete, x => this.mhOn(x.p) ? 'Listed on MH Village' : 'Not listed online',
           x => link('View charges', 'openFeeProfile', x.p)), '', true)}`;
