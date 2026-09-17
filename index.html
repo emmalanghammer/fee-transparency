@@ -1334,7 +1334,7 @@ class Component extends DCLogic {
         const mktSet = { marketing: set('bu-marketing'), requirement: set('bu-req'), feeDue: set('bu-due'),
           schedule: set('bu-sched'), refundable: set('bu-refund') };
         // Name is either one typed value or one taken from each charge — so it resolves per row.
-        const nameSrc = ((document.querySelector('input[name="bu-name-src"]:checked') || {}).value) || 'type';
+        const nameSrc = ((document.getElementById('bu-name-src-val') || {}).value) || 'type';
         const typedName = v('bu-name');
         const nameFor = (r) => nameSrc === 'comment' ? String(r.desc || '').trim()
           : nameSrc === 'ctdesc' ? this.chargeTypeDesc(r.mits)
@@ -4337,6 +4337,18 @@ class Component extends DCLogic {
     const txt = (id, icon, ph) => fieldBox(`${inputEl(id, ph)}${icon?this.ico(icon, 18, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none'):''}`);
     const search = (id) => fieldBox(`${this.ico('search', 18, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}${inputEl(id)}`);
     const dd = (id, opts) => `<span style="flex:1;min-width:0">${this.singleSelect(id, opts, '', { noSearch:true, blank:true, placeholder:' ', js:"if(window.__buCount)window.__buCount()" })}</span>`;
+    // Name is typed, or taken from each charge's own Charge Type Description or Comment — so it is a
+    // text field with the two derived sources behind its chevron.
+    const nameField = () => `<span style="flex:1;min-width:0;position:relative;display:flex">
+      <input type="hidden" id="bu-name-src-val" value="">
+      <div style="flex:1;min-width:0;display:flex;align-items:center;gap:4px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:36px;box-sizing:border-box;padding:0 4px 0 8px">
+        <input id="bu-name" oninput="document.getElementById('bu-name-src-val').value='';if(window.__buCount)window.__buCount()" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">
+        <span onclick="var p=document.getElementById('bu-name-pnl');p.style.display=(p.style.display==='block'?'none':'block')" style="display:inline-flex;align-items:center;cursor:pointer;flex:none">${this.ico('arrow_drop_down', 20, 'color:var(--rmx-text, #666666)')}</span>
+      </div>
+      <div id="bu-name-pnl" style="display:none;position:absolute;left:0;right:0;top:40px;z-index:1000;background:#fff;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);overflow:hidden;padding:4px 0">
+        ${[['ctdesc','Charge Type Description'],['comment','Charge Comment']].map(o => `<div onclick="document.getElementById('bu-name').value='${o[1]}';document.getElementById('bu-name-src-val').value='${o[0]}';this.parentElement.style.display='none';if(window.__buCount)window.__buCount()" style="padding:9px 14px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">${o[1]}</div>`).join('')}
+      </div>
+    </span>`;
     // From and To are one decision, so they share a row and a tick.
     const dates = `<span style="flex:1;min-width:0;display:flex;gap:12px">${txt('bu-from','calendar_today','mm/dd/yyyy')}${txt('bu-to','calendar_today','mm/dd/yyyy')}</span>`;
 
@@ -4350,7 +4362,7 @@ class Component extends DCLogic {
       ['amt', 'Amount', () => txt('bu-amt','calculate'), false]
     ].filter(Boolean);
     const MARKETING = [
-      ['name', 'Name', () => txt('bu-name'), true],
+      ['name', 'Name', () => nameField(), true],
       ['marketing', 'Marketing Description', () => txt('bu-marketing'), false],
       ['req', 'Charge Requirement', () => dd('bu-req', ['Required','Optional','Situational']), true],
       ['due', 'Fee Due', () => dd('bu-due', [{value:'At Application',label:'At Application'},{value:'Move-In',label:'At Move-In'},{value:'During Term',label:'During Term'},{value:'Move-Out',label:'At Move-Out'}]), true],
@@ -4367,14 +4379,7 @@ class Component extends DCLogic {
       `w.style.opacity=on?'1':'0.5';w.style.pointerEvents=on?'auto':'none';` +
       `l.style.color=on?'var(--rmx-brand-dark, #13314c)':'var(--rmx-text-muted, #b3b3b3)';` +
       `b.style.background=on?'var(--rmx-attention, #f58220)':'#fff';b.style.borderColor=on?'var(--rmx-attention, #f58220)':'var(--rmx-text-muted, #b3b3b3)';t.style.display=on?'inline-flex':'none';` +
-      `var x=document.getElementById('bu-name-src');if(x&&'${k}'==='name')x.style.display=on?'flex':'none';` +
       `if(window.__buCount)window.__buCount()`;
-    // Name can also be taken from each charge's own Comment or its charge type's description.
-    const nameSrc = `<div id="bu-name-src" style="display:none;flex-direction:column;gap:6px;padding:8px 0 2px 30px">
-      <label style="display:flex;align-items:center;gap:9px;cursor:pointer"><input type="radio" name="bu-name-src" value="type" checked style="width:16px;height:16px;margin:0;flex:none;accent-color:var(--ac,var(--rmx-brand, #008dd5))"><span style="font-size:14px;color:var(--rmx-text, #666666)">Use the name typed above</span></label>
-      <label style="display:flex;align-items:center;gap:9px;cursor:pointer"><input type="radio" name="bu-name-src" value="comment" style="width:16px;height:16px;margin:0;flex:none;accent-color:var(--ac,var(--rmx-brand, #008dd5))"><span style="font-size:14px;color:var(--rmx-text, #666666)">Use each charge&rsquo;s own <strong style="color:var(--rmx-brand-dark, #13314c)">Comment</strong></span></label>
-      <label style="display:flex;align-items:center;gap:9px;cursor:pointer"><input type="radio" name="bu-name-src" value="ctdesc" style="width:16px;height:16px;margin:0;flex:none;accent-color:var(--ac,var(--rmx-brand, #008dd5))"><span style="font-size:14px;color:var(--rmx-text, #666666)">Use each charge type&rsquo;s <strong style="color:var(--rmx-brand-dark, #13314c)">Description</strong></span></label>
-    </div>`;
     const reqTag = `<span style="display:inline-flex;align-items:center;border-radius:4px;padding:2px 8px;background:#fdf3e3;color:#7a5a2a;font-size:12px;white-space:nowrap">Required for listings</span>`;
 
     const row = (f, first) => `<div style="padding:10px 16px;${first?'':'border-top:1px solid var(--rmx-line, #cedbe7)'}">
@@ -4387,7 +4392,6 @@ class Component extends DCLogic {
         <span style="width:150px;flex:none">${f[3] ? reqTag : ''}</span>
         <span id="bu-ctl-${f[0]}" style="flex:1;min-width:0;display:flex;opacity:0.5;pointer-events:none">${f[2]()}</span>
       </div>
-      ${f[0] === 'name' ? nameSrc : ''}
     </div>`;
 
     // Each section collapses on the DOM so typed values survive — a re-render would wipe them.
@@ -4413,7 +4417,7 @@ class Component extends DCLogic {
           ${this.ico('close', 24, 'color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer').replace('<svg ', '<svg data-act="bulkUpdClose" ')}
         </div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:20px">
-          <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Select the fields you want to change.</span>
+          <span style="font-size:14px;color:var(--rmx-text, #666666)">Select the fields you want to change.</span>
           <div id="bu-err" style="display:none;align-items:flex-start;gap:10px;background:#fbe9e9;border:1px solid var(--rmx-error, #eb343c);border-radius:4px;padding:11px 14px">
             ${this.ico('error', 18, 'color:var(--rmx-error, #eb343c);flex:none;margin-top:1px')}
             <span id="bu-err-txt" style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5"></span>
@@ -5232,9 +5236,11 @@ class Component extends DCLogic {
   }
   // What the done step offers to do next: the immediate action, then Done.
   // The finish step closes like the rest of the wizard: one Done, where Next sits on the other steps.
-  // The step's own rows carry the links to the work.
+  // For a single property it also lands on that property's charges, which is where the work is.
   setupDoneFoot(){
-    return `<button data-act="setupClose" class="btn-pri" style="height:36px;min-height:36px;padding:0 22px;border-radius:4px;font-size:14px">Done</button>`;
+    const per = (this.state.setup || {}).done || [];
+    const one = per.length === 1 ? per[0].p : '';
+    return `<button data-act="${one ? 'openFeeProfile' : 'setupClose'}"${one ? ` data-arg="${one}"` : ''} class="btn-pri" style="height:36px;min-height:36px;padding:0 22px;border-radius:4px;font-size:14px">Done</button>`;
   }
   // Step 3 "Confirm Setup": the irreversible-action warning, what lands, what to do after, and the
   // acknowledgement that gates Save.
