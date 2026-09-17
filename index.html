@@ -147,8 +147,9 @@ class Component extends DCLogic {
     txnView: false,        // the Transactions tile expanded into the View Transactions overlay
     unit: '1B',
     toggles: {},
-    // Per-property Fee Transparency. profileStatus[prop]='active' once turned on;
-    // profileFees[prop] holds that property's charge rows.
+    // profileFees[prop] holds a property's charge rows once they have been edited. Until then the
+    // rows are derived from the charges the property already runs — every property's charges are
+    // readable in one place from the first look, so there is nothing to turn on.
     // Properties opted into marketing on online listings. Marketing/MITS details are editable on
     // every property; this flag only controls whether listing publishing is surfaced at all.
     // The Berkshires is listed but not yet converted, so the setup review can warn about the
@@ -158,7 +159,6 @@ class Component extends DCLogic {
       'Oakwood Manor': true,
       'The Estates': true, 'Willow Creek': true, 'Greenbriar Village': true, 'Pinewood Place': true,
       'The Highlands': true, 'Stonegate Village': true, 'The Hamptons': true },
-    profileStatus: {},
     profileFees: {},
     profHist: null,
     // Bulk Update Charges: { idx, open:{rec,one} }. state.modal carries the charge being edited, so the
@@ -169,7 +169,6 @@ class Component extends DCLogic {
     // Copy Charges from Property: { from, dup:'skip'|'replace', excl }
     copyFees: null,
     // Register selection mode for the bulk profile setup: { sel: {propName:true} }
-    bulkSetup: null,
     // The "Coming Soon" kickoff announcement. Starts closed on purpose — it's opened from the nav
     // menu when it needs showing, rather than interrupting every refresh.
     kickoff: false,
@@ -188,7 +187,6 @@ class Component extends DCLogic {
     histLog: [],
     nextFeeId: 101,
     setup: null,            // { props, step:1|2|3|'saving'|'done', pi, ack }
-    setupExit: false,       // the "leave setup?" confirmation over the wizard
     lvlSel: 'all',          // 'all' | 'Property' | 'Unit Type' | 'Unit' | 'ORI'
     bannerDismissed: {},
     pricePreview: null,     // { prop, unit, opt:{}, sitOpen }
@@ -259,8 +257,8 @@ class Component extends DCLogic {
       { name:'Clearcreek Condominiums', short:'CLEARC', email:'renee@clearcreekcondos.com', manager:'Renee Salgado', addr:'2468 Clearcreek Franklin Rd, Springboro, OH 45066', billing:'3579 Lower Springboro Rd, Waynesville, OH 45068', color:'#6eb744', loc:'Springboro, OH', units:62, occupied:57, mh:true }
     ]);
   }
-  // Properties whose charges can be copied when adding a property.
-  copyableProfiles(){ return this.propertiesData().map(p=>p.name).filter(n=>this.usingProfile(n)); }
+  // Properties whose charges can be copied when adding a property — any property with charges.
+  copyableProfiles(){ return this.propertiesData().map(p=>p.name).filter(n=>this.profileRows(n).length); }
   // The charges on another property that can mean the same thing here: property-level charges always
   // can, and a unit type charge can when this property has that unit type. Unit and rentable-item
   // charges can't — the unit or item they're attached to doesn't exist on this property.
@@ -294,17 +292,6 @@ class Component extends DCLogic {
   // Oakwood Manor has been through the whole thing — centralized, complete, converted — so the
   // walkthrough has a finished property to open on.
   happyPublished(){ return ['Oakwood Manor']; }
-  seededProfiles(){
-    // Outside Happy Path nobody starts set up — the tracker opens with every property at Not Set Up
-    // so the demo walks the real first-run journey. Setting up a property writes
-    // profileStatus/profileFees.
-    return this.scenarioKey() === 'happy' ? this.happyReadyProps() : [];
-  }
-  usingProfile(p){ return this.profStatus(p) === 'active'; }
-  profStatus(p){
-    const n = p || this.state.property;
-    return this.state.profileStatus[n] || (this.seededProfiles().indexOf(n) >= 0 ? 'active' : 'none');
-  }
   ilsOn(p){ return !!this.state.ilsProps[p || this.state.property]; }
   // Manufactured housing: listed, but on a provider that has no complete-pricing feed.
   mhOn(p){ return !!(this.propInfo(p || this.state.property) || {}).mh; }
@@ -335,8 +322,6 @@ class Component extends DCLogic {
     if (/\b(optional|add-?on|valet|storage|parking|garage|reservation|locker|access)\b/.test(text)) return 'Optional';
     return 'Required';
   }
-  // Which selected property step 2 is currently reviewing.
-  setupCurProp(){ const c = this.state.setup; if (!c) return ''; return this.setupProps()[c.pi || 0] || ''; }
   // ---------- Charges history ----------
   // Preloaded demo history, running up to today. Keyed to charge codes so it only surfaces for
   // charges the property actually has. Keys sort as 'YYYY-MM'; anything after this is tracked live.
@@ -520,7 +505,9 @@ class Component extends DCLogic {
     const rows = this.state.profileFees[n];
     if (rows) return rows;
     if (this.listingReadyProps().indexOf(n) >= 0) return this.listingReadyRows(n);
-    return this.seededProfiles().indexOf(n) >= 0 ? this.propCharges(n) : [];
+    // Nothing has to be migrated before a property's charges can be read in one place, so a
+    // property nobody has edited yet reads the charges it already runs.
+    return this.defaultCharges(n);
   }
   // The worked example: a property whose profile is finished — every charge carries its marketing
   // details and is included on listings — so the "done" state can be shown next to the properties
@@ -1079,8 +1066,7 @@ class Component extends DCLogic {
       case 'ftSelNext': { const sel = Array.from(document.querySelectorAll('#ftsel-props-list input:checked')).map(i => i.value);
         // Handled on the DOM so an empty pick doesn't re-render the dialog and wipe the selection.
         if (!sel.length) { const e = document.getElementById('ftsel-err'); if (e) e.style.display = 'block'; break; }
-        if (this.state.ftSel.mode === 'setup') this.setState({ ftSel: null, setup: { props: sel, step: 1 } });
-        else this.setState({ ftSel: null, pubModal: { props: sel, ack: false } });
+        this.setState({ ftSel: null, pubModal: { props: sel, ack: false } });
         break; }
       // Publishing complete pricing runs through a confirmation with an explicit acknowledgement.
       case 'pubOpen': { const st = this.ftStatus(arg);
@@ -1129,19 +1115,8 @@ class Component extends DCLogic {
         else this.flash(arg + ' tab is out of scope for this prototype');
         break;
       case 'openFeeProfile': {
-        const prop = arg || this.state.property;
-        // Read before the close: setState lands before the branch below would see it.
-        const fromSetup = !!this.state.setup;
-        this.setState({ recView: null, mktSetup: false, mktAdv: false, setup: null });
-        // Coming out of the setup wizard, the two overlays would cross on screen. Land on the property
-        // first, then bring Charges up over it.
-        if (fromSetup) {
-          this.go('property', { property: prop, propTab: 'General' });
-          clearTimeout(this._chgT);
-          this._chgT = setTimeout(() => this.setState({ propTab: 'Charges' }), 320);
-        } else {
-          this.go('property', { property: prop, propTab: 'Charges' });
-        }
+        this.setState({ recView: null, mktSetup: false, mktAdv: false });
+        this.go('property', { property: arg || this.state.property, propTab: 'Charges' });
         break;
       }
 
@@ -1181,38 +1156,6 @@ class Component extends DCLogic {
       // ---- Set Up Fee Transparency wizard ----
       // The property's general details sit behind the wizard, not the Charges overlay it may have been
       // opened from — otherwise Charges shows through, closes, and comes back on the way out.
-      case 'setupOpen': this.setState({ recView: null, mktSetup: false, mktAdv: false, propTab: 'General',
-        setup: { props: [arg || this.state.property], step: 1 } }); break;
-      // Leaving mid-flow throws away the charge selections and requirements picked so far, so it asks
-      // first. Nothing to lose on step 1 before anything is touched, and the saving/success steps
-      // have already written the profile — those close straight away.
-      case 'setupClose': {
-        const c = this.state.setup;
-        if (c && this.setupDirty(c)) { this.setState({ setupExit: true }); break; }
-        // Finishing a single-property setup lands on that property's Charges tab; a bulk setup
-        // lands on the Fee Transparency page to see every converted property's status.
-        if (c && c.step === 'done') {
-          const props = c.props || [];
-          this.setState({ setup: null, setupExit: false });
-          if (props.length > 1) this.go('feetrans');
-          // Closing the finish step leaves the property's general details up; the footer's own action
-          // is what opens Charges.
-          else if (props[0]) this.go('property', { property: props[0], propTab: 'General' });
-          break;
-        }
-        this.setState({ setup: null, setupExit: false });
-        break; }
-      case 'setupExitCancel': this.setState({ setupExit: false }); break;
-      case 'setupExitConfirm': this.setState({ setup: null, setupExit: false }); this.flash('Setup canceled — nothing was changed'); break;
-      // Step 2 is walked once per selected property, then the review closes the flow.
-      // Two steps now: the combined intro/charge list, then the review.
-      case 'setupNext': this.setState(s => ({ setup: Object.assign({}, s.setup, { step: 2 }) })); break;
-      case 'setupBack': this.setState(s => ({ setup: Object.assign({}, s.setup, { step: 1 }) })); break;
-      // Step 2's charge lists start collapsed; each group opens on click.
-      case 'setupGrp': this.setState(s => { const c = s.setup, o = Object.assign({}, c.open || {});
-        o[arg] = !o[arg]; return { setup: Object.assign({}, c, { open: o }) }; }); break;
-      // Bulk setup: clicking a property on step 2 shows that property's charges.
-      case 'setupPi': this.setState(s => ({ setup: Object.assign({}, s.setup, { pi: parseInt(arg, 10) || 0, open: {} }) })); break;
       case 'kickoffOpen': this.setState({ kickoff: true, kickoffStep: 1 }); break;
       case 'kickoffNext': this.setState({ kickoffStep: 2 }); break;
       case 'kickoffBack': this.setState({ kickoffStep: 1 }); break;
@@ -1245,19 +1188,6 @@ class Component extends DCLogic {
         this.setState({ kickoff: false });
         this.flash(n + ' charge type' + (n === 1 ? '' : 's') + ' configured');
         break; }
-      // ---- Bulk profile setup: pick properties in the register, then run the normal setup flow ----
-      case 'bulkSetupCancel': this.setState({ bulkSetup: null }); break;
-      case 'bulkSetupToggle': this.setState(s => { const sel = Object.assign({}, s.bulkSetup.sel);
-        if (sel[arg]) delete sel[arg]; else sel[arg] = true;
-        return { bulkSetup: Object.assign({}, s.bulkSetup, { sel }) }; }); break;
-      case 'bulkSetupAll': { const avail = this.bulkSetupCandidates().map(p => p.name);
-        const sel = {}; const all = avail.every(n => this.state.bulkSetup.sel[n]);
-        if (!all) avail.forEach(n => { sel[n] = true; });
-        this.setState(s => ({ bulkSetup: Object.assign({}, s.bulkSetup, { sel }) })); break; }
-      // Hands off to the same three-step wizard a single property uses.
-      case 'bulkSetupGo': { const sel = Object.keys(this.state.bulkSetup.sel);
-        if (!sel.length) { this.flash('Select at least one property'); break; }
-        this.setState({ bulkSetup: null, setup: { props: sel, step: 1 } }); break; }
 
       // ---- Copy Charges from Property ----
       case 'copyOpen': this.setState({ profMenu: null, copyFees: { from: '', dup: 'skip', sel: {} } }); break;
@@ -1396,28 +1326,6 @@ class Component extends DCLogic {
       case 'profHistClose': this.setState({ profHist: null }); break;
       // One charge open at a time — expanding a charge collapses whichever was open before.
       case 'profHistExp': this.setState(s => ({ profHist: Object.assign({}, s.profHist, { exp: s.profHist.exp[arg] ? {} : { [arg]: true } }) })); break;
-      case 'setupAck': this.setState(s => ({ setup: Object.assign({}, s.setup, { ack: !s.setup.ack }) })); break;
-      case 'setupSave': { const c = this.state.setup;
-        const props = this.setupProps();
-        const perProp = {}; let total = 0;
-        props.forEach(p => { perProp[p] = this.setupRows(p); total += perProp[p].length; });
-        const rows = perProp[props[0]] || [];
-        this.setState({ setup: Object.assign({}, c, { step: 'saving' }) });
-        clearTimeout(this._sut); this._sut = setTimeout(() => this.setState(s => {
-          const status = Object.assign({}, s.profileStatus), fees = Object.assign({}, s.profileFees);
-          const log = s.histLog.slice();
-          props.forEach(p => {
-            status[p] = 'active';
-            // Each property keeps the selections made on its own step, in its own copy of the rows.
-            fees[p] = perProp[p].map(r => Object.assign({}, r));
-            log.push({ prop: p, by: 'Emma Langhammer', charge: 'Fee Transparency',
-              change: 'Fee Transparency turned on · ' + perProp[p].length + ' charges added', level: p });
-          });
-          const done = props.map(p => ({ p, count: perProp[p].length }));
-          return { setup: Object.assign({}, c, { step: 'done', done }), profileStatus: status, profileFees: fees,
-            nextFeeId: 101 + total, histLog: log };
-        }), 1200);
-        break; }
       case 'profBannerDismiss': this.setState(s => ({ bannerDismissed: Object.assign({}, s.bannerDismissed, { [this.state.property]: true }) })); break;
       case 'recViewNoteDismiss': this.setState({ recViewNote: false }); break;
 
@@ -2343,8 +2251,6 @@ class Component extends DCLogic {
   }
 
   // ================= PROPERTIES REGISTER =================
-  // Properties the bulk setup can act on — the ones without a profile yet.
-  bulkSetupCandidates(){ return this.propertiesData().filter(p => this.profStatus(p.name) !== 'active'); }
   // ---------- Fee Transparency tracker (mock 2651-48385) ----------
   // Where each property stands: not set up, charges missing details, ready, or published.
   // ---------- Demo scenarios: the nav bar's "Test Feature State" ----------
@@ -2375,7 +2281,7 @@ class Component extends DCLogic {
   // Charges for a converted property: either every marketing detail filled in, or the same charges
   // as they arrive from setup, with details still missing. Built from the property's own charge set,
   // so a seeded scenario varies by property the same way a real portfolio does.
-  scenarioRows(name, complete){ return complete ? this.listingReadyRows(name) : this.setupRows(name, true); }
+  scenarioRows(name, complete){ return complete ? this.listingReadyRows(name) : this.defaultCharges(name); }
   // Converting is gated on every charge being listing ready, so a converted property can only be
   // short of details by drifting afterwards — a charge edited, or one added since. Blanking a
   // required field on a couple of charges is that story, and the only way the state can legitimately
@@ -2446,8 +2352,8 @@ class Component extends DCLogic {
       // Everything below belongs to the scenario the user just left, so none of it carries over.
       property: 'Riverview Apartments', propTab: 'General', unit: '1B',
       newProps: [], addProp: null, histLog: [], toggles: {}, bannerDismissed: {}, tenantCharges: {},
-      setup: null, setupExit: false, modal: null, bulk: null, bulkSel: null, bulkUpd: null,
-      copyFees: null, bulkSetup: null, pricePreview: null, profMenu: null, profHist: null,
+      modal: null, bulk: null, bulkSel: null, bulkUpd: null,
+      copyFees: null, pricePreview: null, profMenu: null, profHist: null,
       recView: null, recViewNote: true, rowMenu: null, pubModal: null, ftSel: null,
       mktSetup: false, mktAdv: false, petType: null, spBanner: true, ftHelp: false,
       lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false
@@ -2464,35 +2370,28 @@ class Component extends DCLogic {
       incomplete: on.filter(r => !this.mitsComplete(r)).length,
       excluded: rows.length - on.length };
   }
-  // One status per property, worded for the register it lands in: properties enabled for online
-  // listings run all the way to published, while the rest stop at centralized charges.
-  // Five states, in the order the work happens. Centralizing comes first for every property; only a
-  // property that lists online with fee transparency available goes on to convert, and one that
-  // doesn't is finished as soon as its charges are centralized.
+  // One status per property, worded for the register it lands in. Four states, in the order the work
+  // happens: a property's charges need their marketing details, and then a property that lists online
+  // with fee transparency available converts. One that doesn't list online has nothing to do.
   ftApplicable(p){ return this.ilsOn(p) && !this.mhOn(p); }
   ftStatus(p){
-    const centralized = this.profStatus(p) === 'active';
     const converted = !!this.state.publishedProps[p];
-    const applicable = this.ftApplicable(p);
     const short = this.ftCharges(p).incomplete;
-    if (!centralized) return { key:'none', order:1, status:'Not Centralized', loz:'grey',
-      next:'Centralize Charges', act:'setupOpen', centralized:false, ft:applicable ? false : 'na' };
-    if (!applicable) return { key:'complete', order:5, status:'Complete', loz:'green',
-      centralized:true, ft:'na' };
+    if (!this.ftApplicable(p)) return { key:'complete', order:4, status:'Complete', loz:'green', ft:'na' };
     if (converted) return short
-      ? { key:'attention', order:4, status:'Needs Attention', loz:'red', next:'Add Charge Details',
-          act:'openFeeProfile', issues:short, centralized:true, ft:true }
-      : { key:'complete', order:5, status:'Complete', loz:'green', centralized:true, ft:true };
+      ? { key:'attention', order:3, status:'Needs Attention', loz:'red', next:'Add Charge Details',
+          act:'openFeeProfile', issues:short, ft:true }
+      : { key:'complete', order:4, status:'Complete', loz:'green', ft:true };
     return short
-      ? { key:'short', order:2, status:'Incomplete Charges', loz:'amber', next:'Add Charge Details',
-          act:'openFeeProfile', issues:short, centralized:true, ft:false }
-      : { key:'ready', order:3, status:'Ready to Convert', loz:'blue',
-          next:'Convert to Fee Transparency', act:'pubOpen', centralized:true, ft:false };
+      ? { key:'short', order:1, status:'Incomplete Charges', loz:'amber', next:'Add Charge Details',
+          act:'openFeeProfile', issues:short, ft:false }
+      : { key:'ready', order:2, status:'Ready to Convert', loz:'blue',
+          next:'Convert to Fee Transparency', act:'pubOpen', ft:false };
   }
   // ---------- How does pricing setup work? (mock 2699-105683) ----------
   // The page's own explainer: the three steps, what each status means, and what every column counts.
   ftHelpLoz(status){
-    const map = { 'Not Centralized':'grey', 'Incomplete Charges':'amber', 'Ready to Convert':'blue',
+    const map = { 'Incomplete Charges':'amber', 'Ready to Convert':'blue',
       'Needs Attention':'red', 'Complete':'green' };
     const styles = { green:'background:var(--rmx-success-bg, #e2f1da);color:#2f5d43', amber:'background:#fdf3e3;color:#7a5a2a',
       blue:'background:var(--rmx-brand-tint-bg, #ebf1f5);color:var(--rmx-brand-hover, #0071aa)',
@@ -2602,7 +2501,6 @@ class Component extends DCLogic {
       <div style="flex:1"></div>
       <span data-act="ftHelpOpen" style="display:inline-flex;align-items:center;gap:6px;height:34px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M511-258q11-11 11-27t-11-27q-11-11-27-11t-27 11q-11 11-11 27t11 27q11 11 27 11t27-11Zm-62-135h59q0-26 6.5-47.5T555-490q31-26 44-51t13-55q0-53-34.5-85T486-713q-49 0-86.5 24.5T345-621l53 20q11-28 33-43.5t52-15.5q34 0 55 18.5t21 47.5q0 22-13 41.5T508-512q-30 26-44.5 51.5T449-393Zm31 313q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 31.5-156t86-127Q252-817 325-848.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 82-31.5 155T763-197.5q-54 54.5-127 86T480-80Zm0-60q142 0 241-99.5T820-480q0-142-99-241t-241-99q-141 0-240.5 99T140-480q0 141 99.5 240.5T480-140Zm0-340Z"/></svg>How does pricing setup work?</span>
       ${convertable.length ? `<button data-act="ftSelOpen" data-arg="pub" class="btn-out" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Bulk Convert to Fee Transparency</button>` : ''}
-      ${this.bulkSetupCandidates().length ? `<button data-act="ftSelOpen" data-arg="setup" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Bulk Centralize Charges</button>` : ''}
     </div>`;
 
     // ---- register ----
@@ -2679,25 +2577,23 @@ class Component extends DCLogic {
       // A dash means a number could land here and hasn't yet; N/A means one never will. So the
       // listings columns read N/A for a property that doesn't market online, centralized or not,
       // while Total Charges — which every property gets — dashes until the charges are centralized.
-      const dash = !st.centralized;
       const naCounts = st.ft === 'na';
-      const num = (v) => naCounts ? na : (dash ? cell('-') : cell(String(v)));
+      const num = (v) => naCounts ? na : cell(String(v));
       const incNum = st.key === 'attention' ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-brand-dark, #13314c)';
       const incTrigger = `<span style="display:inline-flex;align-items:center;gap:7px;font-size:14px;color:${incNum};cursor:default">${ch.incomplete}${st.key === 'attention' ? incWarn : ''}</span>`;
       const incHover = this.infoTip(incTipHTML(r.name), 324, { pad:'16px', shadow:'0 3px 3px rgba(0,0,0,0.1)', trigger:incTrigger });
-      const incCell = naCounts ? na : dash ? cell('-')
+      const incCell = naCounts ? na
         : (ch.incomplete ? `<span style="display:flex;align-items:center;min-height:39px;box-sizing:border-box;padding:0 10px;white-space:nowrap">${incHover}</span>` : cell('0'));
       const menuId = `ft${key}${i}-pnl`;
-      const items = (!st.centralized ? mitem('Centralize Charges','setupOpen',r.name) : mitem('View Charges','openFeeProfile',r.name)
+      const items = mitem('View Charges','openFeeProfile',r.name)
         + (st.key === 'ready' ? mitem('Convert to Fee Transparency','pubOpen',r.name) : '')
-        + (st.ft === 'na' && !this.ilsOn(r.name) ? mitem('Enable for Online Listings','ilsEnable',r.name) : ''));
+        + (st.ft === 'na' && !this.ilsOn(r.name) ? mitem('Enable for Online Listings','ilsEnable',r.name) : '');
       const menuPos = `event.stopPropagation();var t=document.getElementById('${menuId}');if(t.style.display==='block'){t.style.display='none';}else{t.style.display='block';var r=this.getBoundingClientRect();var w=t.offsetWidth,h=t.offsetHeight;var l=r.right-w;if(l<8)l=8;var y=r.bottom+4;if(y+h>window.innerHeight-8)y=r.top-h-4;t.style.left=l+'px';t.style.top=y+'px';}`;
       return `<div onmouseenter="this.style.background='#f7fafc'" onmouseleave="this.style.background='#fff'" style="display:grid;grid-template-columns:var(--ftcols);align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff">
         <a data-act="openFeeProfile" data-arg="${esc(r.name)}" style="display:flex;align-items:center;min-height:39px;box-sizing:border-box;padding:0 10px 0 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer">${r.name}</a>
-        ${cell(st.centralized ? tick : '', 'justify-content:center')}
         ${st.ft === 'na' ? naMid : cell(st.ft ? tick : '', 'justify-content:center')}
         ${grouped ? '' : `<span style="display:flex;align-items:center;min-height:39px;box-sizing:border-box;padding:0 10px"><span class="loz" style="${lozStyle[st.loz]};text-transform:none;letter-spacing:0;white-space:nowrap">${st.status}</span></span>`}
-        ${dash ? cell('-') : cell(String(ch.total))}
+        ${cell(String(ch.total))}
         ${num(ch.ready)}${incCell}${num(ch.excluded)}
         ${st.next
           ? `<a data-act="${st.act}" data-arg="${esc(r.name)}" style="display:flex;align-items:center;min-height:39px;padding:0 10px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis">${st.next}</a>`
@@ -2991,9 +2887,7 @@ class Component extends DCLogic {
   ftSelHTML(){
     const f = this.state.ftSel;
     if (!f) return '';
-    const opts = f.mode === 'pub'
-      ? this.propertiesData().map(p => p.name).filter(n => this.ftStatus(n).key === 'ready')
-      : this.bulkSetupCandidates().map(p => p.name);
+    const opts = this.propertiesData().map(p => p.name).filter(n => this.ftStatus(n).key === 'ready');
     return `<div data-act="ftSelCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:140">
       <div data-act="noop" style="width:360px;max-width:94vw;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 18px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
@@ -3610,23 +3504,15 @@ class Component extends DCLogic {
   }
   registerBody(){
     const rows = this.propertiesData();
-    // In selection mode a checkbox column leads the grid and rows select instead of navigating.
-    const bs = this.state.bulkSetup;
-    const pickable = (n) => this.profStatus(n) !== 'active';
-    const colK = 'props' + (bs ? '-sel' : '');
-    const cols = this.colTracks(colK, (bs ? '44px ' : '') + '10px minmax(180px,1.2fr) 120px minmax(200px,1.4fr) 150px minmax(230px,1.6fr) minmax(230px,1.6fr) 44px');
+    const colK = 'props';
+    const cols = this.colTracks(colK, '10px minmax(180px,1.2fr) 120px minmax(200px,1.4fr) 150px minmax(230px,1.6fr) minmax(230px,1.6fr) 44px');
     const hcell = (t) => `<span style="display:flex;align-items:center;height:28px;box-sizing:border-box;padding:4px 8px;font-size:14px;font-weight:500;letter-spacing:0.5px;color:#fff;border-right:1px solid rgba(255,255,255,0.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>`;
-    const box = (on) => `<span style="width:18px;height:18px;border-radius:2px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${on?'background:var(--rmx-attention, #f58220);border:1px solid var(--rmx-attention, #f58220)':'background:#fff;border:1px solid var(--rmx-text-muted, #b3b3b3)'}">${on?'<svg class="ico" width="14" height="14" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:#fff"><path d="M378-246 154-470l43-43 181 181 384-384 43 43-427 427Z"/></svg>':''}</span>`;
-    const avail = this.bulkSetupCandidates().map(p => p.name);
-    const allOn = bs && avail.length && avail.every(n => bs.sel[n]);
-    const headBox = !bs ? '' : `<span data-act="bulkSetupAll" style="display:flex;align-items:center;justify-content:center;height:28px;cursor:pointer">${box(!!allOn)}</span>`;
     const heads = ['Name','Short Name','Email','Manager Name','Primary Address','Billing Address'];
-    const header = `<div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">${headBox}<span></span>${heads.map(hcell).join('')}<span style="display:flex;align-items:center;justify-content:center;height:28px"><svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:#fff"><path d="M120-260v-440q0-24.75 17.63-42.38Q155.25-760 180-760h600q24.75 0 42.38 17.62Q840-724.75 840-700v440q0 24.75-17.62 42.37Q804.75-200 780-200H180q-24.75 0-42.37-17.63Q120-235.25 120-260Zm60 0h160v-440H180v440Zm220 0h160v-440H400v440Zm220 0h160v-440H620v440Z"/></svg></span></div>`;
+    const header = `<div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)"><span></span>${heads.map(hcell).join('')}<span style="display:flex;align-items:center;justify-content:center;height:28px"><svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:#fff"><path d="M120-260v-440q0-24.75 17.63-42.38Q155.25-760 180-760h600q24.75 0 42.38 17.62Q840-724.75 840-700v440q0 24.75-17.62 42.37Q804.75-200 780-200H180q-24.75 0-42.37-17.63Q120-235.25 120-260Zm60 0h160v-440H180v440Zm220 0h160v-440H400v440Zm220 0h160v-440H620v440Z"/></svg></span></div>`;
     const cell = (t, extra) => `<span style="padding:8px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
     // The whole row navigates, so the name is plain navy text rather than a link. The kebab keeps its
     // own data-act and wins the closest() lookup, so it stays independently clickable.
-    const body = rows.map(r => `<div data-act="${bs ? (pickable(r.name) ? 'bulkSetupToggle' : 'noop') : 'navProperty'}" data-arg="${r.name}" style="display:grid;grid-template-columns:${cols};align-items:center;background:${bs&&bs.sel[r.name]?'var(--rmx-brand-tint-bg, #ebf1f5)':'#fff'};border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);cursor:${bs&&!pickable(r.name)?'default':'pointer'}"${bs?'':` onmouseover="this.style.background='#f4f8fb'" onmouseout="this.style.background='#fff'"`}>
-      ${!bs ? '' : `<span style="display:flex;align-items:center;justify-content:center">${pickable(r.name) ? box(!!bs.sel[r.name]) : ''}</span>`}
+    const body = rows.map(r => `<div data-act="navProperty" data-arg="${r.name}" style="display:grid;grid-template-columns:${cols};align-items:center;background:${bs&&bs.sel[r.name]?'var(--rmx-brand-tint-bg, #ebf1f5)':'#fff'};border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);cursor:${bs&&!pickable(r.name)?'default':'pointer'}"${bs?'':` onmouseover="this.style.background='#f4f8fb'" onmouseout="this.style.background='#fff'"`}>
       <span style="align-self:stretch;background:${r.color||'transparent'}"></span>
       <span style="padding:8px;overflow:hidden"><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${r.name}</span></span>
       ${cell(r.short)}
@@ -3634,19 +3520,8 @@ class Component extends DCLogic {
       ${cell(r.manager)}${cell(r.addr)}${cell(r.billing)}
       <span data-act="toast" data-arg="Row actions" style="display:flex;align-items:center;justify-content:center;cursor:pointer"><svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5))"><path d="M400-720a80 80 0 1 0 160 0 80 80 0 1 0-160 0ZM400-480a80 80 0 1 0 160 0 80 80 0 1 0-160 0ZM400-240a80 80 0 1 0 160 0 80 80 0 1 0-160 0Z"/></svg></span>
     </div>`).join('');
-    const nSel = bs ? Object.keys(bs.sel).length : 0;
-    // Selection lives in a floating bar at the bottom and the toolbar above goes inert, so the only
-    // thing to do while selecting is select.
-    const selBar = !bs ? '' : `<div style="position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:130;display:flex;align-items:center;gap:18px;background:var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;box-shadow:0 8px 24px rgba(0,0,0,0.28);padding:12px 14px 12px 20px;white-space:nowrap">
-        <span style="font-size:14px;font-weight:600;color:#fff">Select properties</span>
-        <span style="font-size:14px;color:rgba(255,255,255,0.85)">${nSel} of ${avail.length} selected</span>
-        <button ${nSel?'data-act="bulkSetupGo"':''} style="height:34px;min-height:34px;padding:0 18px;border-radius:4px;font:400 14px Roboto,sans-serif;color:#fff;background:rgba(255,255,255,${nSel?'0.2':'0.08'});border:1px solid rgba(255,255,255,${nSel?'0.65':'0.3'});cursor:${nSel?'pointer':'default'}">Centralize Charges</button>
-        <svg class="ico" width="24" height="24" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="bulkSetupCancel" style="color:#fff;cursor:pointer"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
-      </div>`;
-    const dim = bs ? 'opacity:0.45;pointer-events:none;' : '';
     return `<div style="padding:16px 24px;display:flex;flex-direction:column;gap:16px;flex:1;min-height:0">
-      ${selBar}
-      <div style="${dim}display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap">
         <div style="display:flex;align-items:flex-end;gap:8px">
           <span style="position:relative;display:inline-flex">
             <button onclick="var p=document.getElementById('reg-bulk-pnl');p.style.display=(p.style.display==='block'?'none':'block')" class="btn-pri" style="height:36px;padding:0 10px 0 14px;border-radius:4px;font:400 14px Roboto,sans-serif;display:inline-flex;align-items:center;gap:6px">Bulk Actions<svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M480-360 280-559h400L480-360Z"/></svg></button>
@@ -4896,13 +4771,6 @@ class Component extends DCLogic {
       <div style="display:flex;flex-direction:column;gap:8px">${sectionHead('One-Time Charges', addLink('Add One-Time Charge'))}${oneTable}</div>
     </div>`;
   }
-  // ================= SETUP WIZARD =================
-  setupDots(step){
-    const dot = on => `<span style="width:7px;height:7px;border-radius:50%;background:${on?'var(--rmx-text-muted, #b3b3b3)':'#d7dee5'};display:inline-block"></span>`;
-    return `<span style="display:inline-flex;align-items:center;gap:6px">${dot(step===1)}${dot(step===2)}</span>`;
-  }
-  // The properties this setup run applies to — one for a single property, many for a bulk run.
-  setupProps(){ const c = this.state.setup; return (c && c.props) || []; }
   // The rows exactly as save will write them, so the review step counts what actually lands.
   // What setup would discover on a property. Properties added this session start blank — there are
   // no legacy charges to pull in.
@@ -4910,19 +4778,15 @@ class Component extends DCLogic {
     if ((this.state.newProps || []).some(x => x.name === prop)) return [];
     return this.propCharges(prop || this.state.property);
   }
-  setupRows(prop, keepOri){
-    // Setup only pulls property, unit type and unit charges — rentable items stay where they are, so
-    // ORI charges are made by hand (or by switching a charge's level) after setup. keepOri is for the
-    // seeded scenarios, where a property has been managing its charges since it converted.
-    const noOri = rows => keepOri ? rows : rows.map(r => r.level === 'ORI' ? Object.assign({}, r, { level:'Property', target:'', oriType:undefined }) : r);
+  // Every charge a property runs, read as one list. A charge stays at the level it was written at —
+  // property, unit type, unit or rentable item — and is editable from that level's own page or from
+  // the property's Charges. Marketing details start blank, so an untouched property reads Incomplete
+  // Charges until someone adds them; only Charge Category, which comes from the charge type, fills
+  // itself in.
+  defaultCharges(prop){
     if (!this.discoveredCharges(prop).length) return [];
-    // Centralizing moves the charges and nothing else: every marketing detail arrives blank, so a
-    // freshly centralized property reads Incomplete Charges until someone adds them.
     const blankMkt = (r) => { const n2 = Object.assign({}, r); delete n2.listing; return n2; };
-    // The new setup moves every discovered charge — nothing is excluded during setup; charges are
-    // managed (or removed) on the Charges tab afterwards. No marketing detail is carried over or
-    // guessed: only Charge Category, which comes from the charge type, fills itself in.
-    return noOri(this.propCharges(prop || this.state.property)).map(blankMkt).map(r => {
+    return this.propCharges(prop || this.state.property).map(blankMkt).map(r => {
       const req = (r.listing && r.listing.requirement) || '';
       const suffix = /-one$/.test(r.group) ? '-one' : '-rec';
       // No chosen requirement keeps the group the charge was discovered with, so required charges
@@ -4931,35 +4795,6 @@ class Component extends DCLogic {
       const prefix = req === 'Optional' ? 'opt' : req === 'Situational' ? 'sit' : req === 'Required' ? 'req' : (orig || 'ind');
       return Object.assign({}, r, { group: prefix + suffix });
     });
-  }
-  // True once there's something to lose: past step 1, or the acknowledgement ticked. The saving and
-  // success steps have already committed, so they're clean.
-  setupDirty(c){
-    if (!c || c.step === 'saving' || c.step === 'done') return false;
-    if ((c.step || 1) > 1) return true;
-    return !!c.ack;
-  }
-  // "Leave Setup" confirmation (mock 2637-31905).
-  setupExitHTML(){
-    if (!this.state.setupExit || !this.state.setup) return '';
-    return `<div data-act="setupExitCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.35);display:flex;align-items:center;justify-content:center;z-index:160">
-      <div data-act="noop" style="width:512px;max-width:92vw;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
-        <div style="display:flex;align-items:center;gap:12px;padding:13px 20px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
-          <span style="font-size:20px;color:var(--rmx-brand-dark, #13314c)">Leave Setup</span><div style="flex:1"></div>
-          <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="setupExitCancel" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
-        </div>
-        <div style="display:flex;align-items:flex-start;gap:20px;padding:24px 24px 26px">
-          <svg class="ico" width="40" height="40" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5));flex:none"><path d="m40-120 440-760 440 760H40Zm465.5-125.68q8.5-8.67 8.5-21.5 0-12.82-8.68-21.32-8.67-8.5-21.5-8.5-12.82 0-21.32 8.68-8.5 8.67-8.5 21.5 0 12.82 8.68 21.32 8.67 8.5 21.5 8.5 12.82 0 21.32-8.68ZM454-348h60v-224h-60v224Z"/></svg>
-          <div style="display:flex;flex-direction:column;gap:18px;min-width:0;font-size:14px;color:var(--rmx-text, #666666);line-height:1.5">
-            <span>Your changes will not be saved.</span>
-            <span>Are you sure you want to exit Centralize Charges?</span>
-          </div>
-        </div>
-        <div style="display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:14px 20px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7)">
-          <button data-act="setupExitConfirm" class="btn-pri" style="height:38px;min-height:38px;padding:0 22px;border-radius:4px;font-size:14px">Leave Setup</button>
-          <button data-act="setupExitCancel" class="btn-out" style="height:38px;min-height:38px;padding:0 22px;border-radius:4px;font-size:14px">Cancel</button>
-        </div>
-      </div></div>`;
   }
   // Deleting a unit-type charge affects every unit of that type, so it confirms first.
   utDelHTML(){
@@ -4986,103 +4821,6 @@ class Component extends DCLogic {
           <button data-act="utDelCancel" class="btn-out" style="height:38px;min-height:38px;padding:0 22px;border-radius:4px;font-size:14px">Cancel</button>
         </div>
       </div></div>`;
-  }
-  setupHTML(){
-    const c = this.state.setup; if (!c) return '';
-    const body = c.step === 'saving' ? this.setupSaving()
-      : c.step === 'done' ? this.setupDone()
-      : c.step === 1 ? this.setupStep1() : this.setupStep3();
-    const back = `<button data-act="setupBack" class="btn-out" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px">Back</button>`;
-    const props = this.setupProps();
-    // Step 1 is the intro and the charge list in one; step 2 is the review.
-    const nextLabel = 'Next';
-    const next = `<button data-act="setupNext" class="btn-pri" style="height:36px;min-height:36px;padding:0 22px;border-radius:4px;font-size:14px">${nextLabel}</button>`;
-    // Saving stays behind the acknowledgement, since the profile takes over charging for the property.
-    const totalRows = props.reduce((n, p) => n + this.setupRows(p).length, 0);
-    const save = `<button ${c.ack?'data-act="setupSave"':''} class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px;${c.ack?'':'opacity:0.45;cursor:default'}">Centralize Charges</button>`;
-    const foot = c.step === 'saving' ? ''
-      : c.step === 'done'
-      ? `<div style="flex:1"></div>${this.setupDoneFoot()}`
-      : c.step === 1
-        ? `<div style="flex:1"></div>${next}`
-        : `${back}<div style="flex:1"></div>${save}`;
-    const chrome = c.step === 'saving' || c.step === 'done';
-    return `<div data-act="setupClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:120">
-      <div data-act="noop" style="width:860px;max-width:96vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
-        <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:12px 16px 0"><svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="setupClose" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg></div>
-        ${c.step === 'done' ? '' : `<div style="text-align:center;font-size:20px;color:var(--rmx-brand-dark, #13314c);padding:0 24px 16px">Centralize Charges</div>`}
-        <div style="flex:1;min-height:0;overflow-y:auto;padding:${c.step === 'done' ? '4px 24px 8px' : '0 24px 8px'}">${body}</div>
-        ${foot ? `<div style="display:flex;align-items:center;gap:12px;padding:12px 24px 16px">${foot}</div>` : '<div style="height:16px"></div>'}
-        ${chrome ? '' : `<div style="position:relative;height:0"><div style="position:absolute;left:50%;transform:translateX(-50%);bottom:26px">${this.setupDots(c.step)}</div></div>`}
-      </div></div>`;
-  }
-  // Step 1 combines the intro and the charge list (mock 2720-129961): what changes, what doesn't, then
-  // the charges themselves in two collapsed groups.
-  setupStep1(){
-    const c = this.state.setup;
-    const props = this.setupProps();
-    const cur = this.setupCurProp();
-    const all = this.setupRows(cur);
-    const para = (title, body) => `<div style="display:flex;flex-direction:column;gap:3px">
-      <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title}</span>
-      <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.55">${body}</span></div>`;
-    const table = (rows) => {
-      const colK = 'setup1';
-      const cols = this.colTracks(colK, '130px minmax(200px,1fr) 120px 200px');
-      const heads = ['Charge Type','Comment','Amount','Charge Level'];
-      const hc = (t) => `<span style="padding:8px 12px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;${/Amount/.test(t)?'justify-content:flex-end;display:flex;':''}">${t}</span>`;
-      const cell = (t,extra) => `<span style="display:flex;align-items:center;min-height:36px;padding:6px 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
-      return `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;margin:0 12px 12px;overflow:hidden">
-        <div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7)">${heads.map(hc).join('')}</div>
-        ${rows.map((r,ri)=>`<div style="display:grid;grid-template-columns:${cols};align-items:center;${ri===rows.length-1?'':'border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa)'}">
-          ${cell(r.mits)}${cell(r.desc||r.name)}
-          ${cell(String(r.amount||'').replace(/^\$/,''),'justify-content:flex-end;text-align:right')}
-          <span style="display:flex;align-items:center;min-height:36px;padding:6px 12px">${this.chargeLevelPill(r, cur)}</span>
-        </div>`).join('')}</div>`;
-    };
-    // Both groups start collapsed so the whole set is scannable at a glance; each opens on click.
-    const open = c.open || {};
-    const sect = (key, label, rows, first) => {
-      const on = !!open[key];
-      return `<div data-act="setupGrp" data-arg="${key}" style="display:flex;align-items:center;gap:6px;padding:11px 12px;cursor:pointer;${first?'':'border-top:1px solid var(--rmx-bg-subtle, #f5f8fa)'}">
-          ${this.ico(on?'keyboard_arrow_down':'chevron_right', 20, 'color:var(--ac,var(--rmx-brand, #008dd5))')}
-          <span style="font-size:14px;color:var(--rmx-text, #666666)">${label} (${rows.length})</span>
-        </div>
-        ${on && rows.length ? table(rows) : ''}`;
-    };
-    // Bulk setup: every selected property is clickable, so the charges can be checked property by
-    // property before the review.
-    const many = props.length > 1;
-    const pill = (p, i) => { const now = i === (c.pi || 0);
-      const hov = now ? '' : ` onmouseover="this.style.background='#e8f4fb'" onmouseout="this.style.background='#fff'"`;
-      return `<span data-act="setupPi" data-arg="${i}"${hov} style="display:inline-flex;align-items:center;gap:5px;border-radius:12px;padding:3px 11px;font-size:14px;white-space:nowrap;cursor:pointer;box-sizing:border-box;${now?'background:var(--ac,var(--rmx-brand, #008dd5));color:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5))':'background:#fff;color:var(--ac,var(--rmx-brand, #008dd5));border:1px solid var(--rmx-line, #cedbe7)'}">${p}</span>`; };
-    // The list belongs to whichever property is selected, so in a bulk run it sits inside the picker
-    // under the tabs and drops the property name its own header would otherwise repeat.
-    const list = `<div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
-        <div style="display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
-          ${many ? '' : `<svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5));flex:none"><path d="M220-180h150v-250h220v250h150v-390L480-765 220-570v390Zm-60 60v-480l320-240 320 240v480H530v-250H430v250H160Zm320-353Z"/></svg>
-          <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${cur}</span>`}
-          <span style="font-size:14px;${many ? 'font-weight:600;color:var(--rmx-brand-dark, #13314c)' : 'color:var(--rmx-ink-2, #424e5b)'}">${all.length} charge${all.length === 1 ? '' : 's'} found</span>
-        </div>
-        <div style="overflow-x:auto"><div style="min-width:740px">
-          ${sect('rec', 'Recurring Charges', all.filter(r=>!/-one$/.test(r.group)), true)}
-          ${sect('one', 'One-Time Charges', all.filter(r=>/-one$/.test(r.group)))}
-        </div></div>
-      </div>`;
-    return `<div style="display:flex;flex-direction:column;gap:14px">
-      ${para('What Changes', `All existing charges will move into one place on the property and only be edited from there. Each charge will have new marketing fields so your listings can show complete pricing.`)}
-      ${para("What Doesn't", 'Charge information is unchanged. You can add, edit, or remove any charges after setup. Current tenant charges are unaffected.')}
-      ${!many ? list : `<div style="display:flex;flex-direction:column;gap:10px;background:var(--rmx-brand-tint-bg, #ebf1f5);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:12px 14px">
-        <div style="display:flex;align-items:center;gap:10px">
-          <svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5));flex:none"><path d="M220-180h150v-250h220v250h150v-390L480-765 220-570v390Zm-60 60v-480l320-240 320 240v480H530v-250H430v250H160Zm320-353Z"/></svg>
-          <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${cur}</span>
-          <div style="flex:1"></div>
-          <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b);white-space:nowrap">Select a property to see its charges</span>
-        </div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px">${props.map(pill).join('')}</div>
-        ${list}
-      </div>`}
-    </div>`;
   }
   // Explains the Charge Requirement field. Sent to online listings as the MITS "Requirement" value,
   // so the wording matches what a prospect would read on the listing.
@@ -5129,146 +4867,6 @@ class Component extends DCLogic {
       + term('Optional', 'The resident decides whether to add it, like a pet, a parking space, or a storage unit.')
       + term('Situational', 'Only charged when something specific happens, like pet damage, a late payment, or a lease violation.')
       + `</span>`);
-  }
-  // Saving happens inside the same overlay, so review → saving → success is one continuous surface.
-  setupSaving(){
-    const props = this.setupProps();
-    return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:56px 0 44px;text-align:center">
-      <span style="position:relative;width:88px;height:88px;display:flex;align-items:center;justify-content:center">
-        <span style="position:absolute;inset:0;border:5px solid #fbe4cf;border-top-color:var(--rmx-attention, #f58220);border-radius:50%;animation:spin 0.9s linear infinite"></span>
-        <svg class="ico" width="40" height="40" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5))"><path d="M120-120v-555h165v-165h390v330h165v390H533v-165H427v165H120Zm60-60h105v-105H180v105Zm0-165h105v-105H180v105Zm0-165h105v-105H180v105Zm165 165h105v-105H345v105Zm0-165h105v-105H345v105Zm0-165h105v-105H345v105Zm165 330h105v-105H510v105Zm0-165h105v-105H510v105Zm0-165h105v-105H510v105Zm165 495h105v-105H675v105Zm0-165h105v-105H675v105Z"/></svg>
-      </span>
-      <span style="font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${props.length > 1 ? `Centralizing charges for ${props.length} properties` : 'Centralizing charges'}</span>
-      <span style="font-size:14px;color:var(--rmx-text-muted, #b3b3b3)">Moving your charges onto ${props.length > 1 ? 'each property' : props[0] || 'the property'}&hellip;</span>
-    </div>`;
-  }
-  // Closing step: confirms what landed, then the two things to do next. A bulk run also lists every
-  // property, so it doesn't end on a vanished overlay.
-  // The finish line reuses the announcement's 1-2-3 breakdown: the same three steps, with the
-  // properties that were just centralized standing on the step each one is actually waiting at.
-  // A property that doesn't list online never reaches steps 2 and 3, so it closes the panel instead.
-  setupDone(){
-    const c = this.state.setup;
-    const per = c.done || [];
-    const n = per.length;
-    const total = per.reduce((a, x) => a + x.count, 0);
-    const bucket = { short: [], ready: [], complete: [] };
-    per.forEach(x => { const k = this.ftStatus(x.p).key; (bucket[k] || bucket.complete).push(x); });
-
-    const link = (label, act, arg) => `<span data-act="${act}" data-arg="${arg}" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${label}</span>`;
-    // The property and what it needs read as one phrase, so they sit together and the action goes right.
-    const grid = (list, fact, action) => !list.length ? '' : `<div style="margin-top:9px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${list.map((x, i) => `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;${i?'border-top:1px solid var(--rmx-brand-tint-bg, #ebf1f5)':''}">
-        <span style="min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${x.p}</span>
-        <span style="font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap">${fact(x)}</span>
-        <div style="flex:1"></div>
-        ${action ? action(x) : ''}
-      </div>`).join('')}</div>`;
-
-    const tick = `<span style="width:24px;height:24px;border-radius:50%;background:var(--rmx-success, #6eb744);display:flex;align-items:center;justify-content:center;flex:none">${this.ico('check', 15, 'color:#fff')}</span>`;
-    const dot = (state, num) => state === 'done' ? tick
-      : state === 'now'
-      ? `<span style="width:24px;height:24px;border-radius:50%;background:var(--ac,var(--rmx-brand, #008dd5));box-shadow:0 0 0 4px rgba(0,141,213,0.18);color:#fff;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:none">${num}</span>`
-      : `<span style="width:24px;height:24px;border-radius:50%;background:#fff;border:2px solid var(--rmx-line, #cedbe7);box-sizing:border-box;color:var(--rmx-text-muted, #b3b3b3);font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:none">${num}</span>`;
-    // One rung of the rail: the marker and its connector on the left, everything else on the right.
-    const rung = (marker, title, state, body, extra, pill, last) => `<div style="display:flex;gap:14px">
-      <div style="width:24px;flex:none;display:flex;flex-direction:column;align-items:center">
-        ${marker}
-        ${last ? '' : `<span style="flex:1;width:0;${state === 'done' ? 'border-left:2px dashed #a6d68c;margin:4px 0' : 'border-left:2px solid var(--rmx-line, #cedbe7);margin:8px 0 0'}"></span>`}
-      </div>
-      <div style="flex:1;min-width:0;${last ? '' : 'padding-bottom:30px;'}display:flex;flex-direction:column;gap:5px">
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <span style="font-size:16px;font-weight:${state === 'now' ? '600' : '400'};color:${state === 'later' ? 'var(--rmx-ink-2, #424e5b)' : 'var(--rmx-brand-dark, #13314c)'}">${title}</span>
-          ${pill || ''}
-        </div>
-        <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.5">${body}</span>
-        ${extra || ''}
-      </div></div>`;
-    const step = (num, title, state, body, extra, pill, last) => rung(dot(state, num), title, state, body, extra, pill, last);
-
-    // Step 1 always just happened. Steps 2 and 3 are live when properties are standing on them.
-    const s1 = step(1, 'Centralize Charges', 'done',
-      'Every charge is now consolidated and managed on the property level.');
-
-    // Nothing in the run advertises online, so steps 2 and 3 are not part of anyone's story here:
-    // the rail is centralizing, then done.
-    const onlyComplete = !bucket.short.length && !bucket.ready.length;
-    const s2 = onlyComplete ? '' : bucket.short.length
-      ? step(2, 'Add Charge Details', 'now',
-          'Fill in more details that describe each charge before it can be converted.',
-          grid(bucket.short, x => { const ch = this.ftCharges(x.p); return ch.incomplete + ' of ' + ch.total + ' charges need details'; },
-            x => link('Add details', 'openFeeProfile', x.p)))
-      : bucket.ready.length
-      ? step(2, 'Add Charge Details', 'done',
-          'Every charge already carries the fields listings need, so there was nothing to fill in.')
-      // Nothing here advertises online, so the listing fields were never the point.
-      : step(2, 'Add Charge Details', 'later',
-          'Listing fields only matter for a property that advertises online.');
-
-    const pill3 = `<span style="display:inline-flex;align-items:center;border-radius:12px;padding:3px 12px;background:#d9ecf9;color:var(--rmx-brand-dark, #13314c);font-size:14px;white-space:nowrap">If you list online &amp; fee transparency is available</span>`;
-    const s3 = onlyComplete ? '' : bucket.ready.length
-      ? step(3, 'Convert to Fee Transparency', 'now',
-          'Converting puts a total monthly price on a property\'s listings.',
-          grid(bucket.ready, x => this.ftCharges(x.p).ready + ' charges ready', x => link('Convert', 'pubOpen', x.p)),
-          pill3, true)
-      : step(3, 'Convert to Fee Transparency', 'later',
-          bucket.short.length
-            ? 'Listings will show a total monthly price after the property is converted.'
-            : 'None of these properties list online with fee transparency available.',
-          '', pill3, true);
-
-    // Properties that don't advertise online never reach steps 2 and 3 — centralizing was the job, so
-    // they close out below the rail rather than sitting on a step they will never leave.
-    const doneList = !bucket.complete.length ? '' : `${onlyComplete ? '' : '<div style="height:1px;background:var(--rmx-line, #cedbe7);margin:24px 0 22px"></div>'}
-      ${rung(tick, 'Complete', 'done',
-        `Fee transparency doesn\'t apply to ${bucket.complete.length === 1 ? 'this property' : 'these properties'}, so ${bucket.complete.length === 1 ? "it's" : "they're"} finished after the charges are centralized.`,
-        grid(bucket.complete, x => this.mhOn(x.p) ? 'Listed on MH Village' : 'Not listed online',
-          x => link('View charges', 'openFeeProfile', x.p)), '', true)}`;
-
-    return `<div style="display:flex;flex-direction:column;padding:2px 0 4px">${s1}${s2}${s3}${doneList}</div>`;
-  }
-  // What the done step offers to do next: the immediate action, then Done.
-  // The finish step closes like the rest of the wizard: one Done, where Next sits on the other steps.
-  // For a single property it also lands on that property's charges, which is where the work is.
-  setupDoneFoot(){
-    const per = (this.state.setup || {}).done || [];
-    const one = per.length === 1 ? per[0].p : '';
-    return `<button data-act="${one ? 'openFeeProfile' : 'setupClose'}"${one ? ` data-arg="${one}"` : ''} class="btn-pri" style="height:36px;min-height:36px;padding:0 22px;border-radius:4px;font-size:14px">Done</button>`;
-  }
-  // Step 3 "Confirm Setup": the irreversible-action warning, what lands, what to do after, and the
-  // acknowledgement that gates Save.
-  setupStep3(){
-    const c = this.state.setup;
-    const props = this.setupProps();
-    const one = props.length === 1;
-    const who = one ? props[0] : 'these ' + props.length + ' properties';
-    const per = props.map(p => ({ p, rows: this.setupRows(p) }));
-    const rows = per.reduce((a, x) => a.concat(x.rows), []);
-    const rec = rows.filter(r => !/-one$/.test(r.group)).length;
-    const units = props.reduce((n, p) => n + (this.propInfo(p).units || 0), 0);
-    const on = !!c.ack;
-    const box = `<span style="width:18px;height:18px;border-radius:2px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${on?'background:var(--rmx-attention, #f58220);border:1px solid var(--rmx-attention, #f58220)':'background:#fff;border:1px solid var(--rmx-text-muted, #b3b3b3)'}">${on?'<svg class="ico" width="14" height="14" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:#fff"><path d="M378-246 154-470l43-43 181 181 384-384 43 43-427 427Z"/></svg>':''}</span>`;
-    const stat = (t, sub) => `<div style="flex:1;min-width:180px;background:#eef4f9;border-radius:4px;padding:12px 16px;display:flex;flex-direction:column;gap:3px">
-      <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span>
-      <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b)">${sub}</span></div>`;
-    return `<div style="display:flex;flex-direction:column;gap:14px">
-      <div style="background:#fbe9e9;border:1px solid var(--rmx-error, #eb343c);border-radius:4px;padding:12px 16px;display:flex;flex-direction:column;gap:6px">
-        <span style="font-size:14px;font-weight:600;color:var(--rmx-error, #eb343c)">Warning! This is an irreversible action.</span>
-        <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Centralizing charges permanently changes how ${one ? props[0] : props.length + ' properties'} manage${one?'s':''} charges. There's no way to return to the current setup.</span>
-        <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:3px">
-          <li style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">All ${rows.length} charges move onto the property and are managed there from now on.</li>
-          <li style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Every future move-in, quote, and renewal uses these charges.</li>
-        </ul>
-      </div>
-      <div style="display:flex;gap:14px;flex-wrap:wrap">
-        ${stat(rows.length + ' Charges', rec + ' recurring, ' + (rows.length - rec) + ' one-time')}
-        ${stat(units + ' Units Affected', 'Across ' + (one ? props[0] : props.length + ' properties'))}
-      </div>
-      <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">These units are charged from the property from now on. Tenants already in them keep the charges on their account as they are.</span>
-      <div style="height:1px;background:var(--rmx-line, #cedbe7);margin-top:4px"></div>
-      <div data-act="setupAck" style="display:flex;gap:10px;align-items:center;cursor:pointer;padding-bottom:4px">
-        ${box}<span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.45">I understand this permanently changes how ${who} manage${one?'s':''} charges and cannot be undone.</span>
-      </div>
-    </div>`;
   }
 
   // ================= PRICING PREVIEW =================
@@ -7823,8 +7421,6 @@ class Component extends DCLogic {
     out += this.rowMenuHTML();
     out += this.chargeExclHTML();
     out += this.recViewHTML();
-    out += this.setupHTML();
-    out += this.setupExitHTML();
     out += this.utDelHTML();
     out += this.ltErrHTML();
     out += this.colSetupHTML();
