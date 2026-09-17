@@ -4330,7 +4330,10 @@ class Component extends DCLogic {
     const u = this.state.bulkUpd;
     if (!u) return '';
     const sel = this.bulkSelRows();
+    // A field only shows when it applies to every charge in the selection, so a mixed selection
+    // offers neither the recurring-only fields nor the one-time-only one.
     const allRec = sel.length > 0 && sel.every(r => !/-one$/.test(r.group));
+    const allOne = sel.length > 0 && sel.every(r => /-one$/.test(r.group));
 
     // Input Field anatomy: 36px box, --component-input-default fill, 1px --border-primary, 4px radius,
     // and an italic --text-disabled placeholder — the one place italic grey is right.
@@ -4369,8 +4372,8 @@ class Component extends DCLogic {
       ['marketing', 'Marketing Description', () => txt('bu-marketing'), false],
       ['req', 'Charge Requirement', () => dd('bu-req', ['Required','Optional','Situational']), true],
       // A recurring charge is collected across the term by definition, so Fee Due is only a question
-      // when the selection includes a one-time charge.
-      allRec ? null : ['due', 'Fee Due', () => dd('bu-due', [{value:'At Application',label:'At Application'},{value:'Move-In',label:'At Move-In'},{value:'During Term',label:'During Term'},{value:'Move-Out',label:'At Move-Out'}]), true],
+      // when every selected charge is one-time.
+      allOne ? ['due', 'Fee Due', () => dd('bu-due', [{value:'At Application',label:'At Application'},{value:'Move-In',label:'At Move-In'},{value:'During Term',label:'During Term'},{value:'Move-Out',label:'At Move-Out'}]), true] : null,
       allRec ? ['sched', 'Charge Schedule', () => dd('bu-sched', ['Monthly','Weekly','Daily']), true] : null,
       ['refund', 'Refundable', () => dd('bu-refund', [{value:'yes',label:'Refundable'},{value:'no',label:'Not Refundable'}]), false]
     ].filter(Boolean);
