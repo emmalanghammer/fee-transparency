@@ -3186,10 +3186,10 @@ class Component extends DCLogic {
       </div>`).join('')}
     </div>`;
     const addLink = (t) => `<a data-act="toast" data-arg="${t}" style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M450-450H200v-60h250v-250h60v250h250v60H510v250h-60v-250Z"/></svg>${t}</a>`;
-    // Tenant Charge Setup only applies to properties that haven't centralized their charges, so the
-    // callouts (and whether the settings show at all) follow how much of the portfolio is converted.
+    // Tenant Charge Setup only applies to properties that haven't converted to Fee Transparency, so
+    // the callouts (and whether the settings show at all) follow how much of the portfolio has.
     const allProps = this.propertiesData().map(p => p.name);
-    const onFT = allProps.filter(n => this.profStatus(n) === 'active').length;
+    const onFT = allProps.filter(n => !!this.state.publishedProps[n]).length;
     const ftState = onFT === 0 ? 'none' : (onFT === allProps.length ? 'all' : 'some');
     const blueBanner = (title) => !this.state.spBanner ? '' : `<div style="position:relative;background:#e8f4fb;border-radius:4px;padding:16px 20px;display:flex;flex-direction:column;gap:12px">
       <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="spBannerDismiss" style="position:absolute;top:12px;right:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
@@ -3512,7 +3512,7 @@ class Component extends DCLogic {
     const cell = (t, extra) => `<span style="padding:8px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
     // The whole row navigates, so the name is plain navy text rather than a link. The kebab keeps its
     // own data-act and wins the closest() lookup, so it stays independently clickable.
-    const body = rows.map(r => `<div data-act="navProperty" data-arg="${r.name}" style="display:grid;grid-template-columns:${cols};align-items:center;background:${bs&&bs.sel[r.name]?'var(--rmx-brand-tint-bg, #ebf1f5)':'#fff'};border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);cursor:${bs&&!pickable(r.name)?'default':'pointer'}"${bs?'':` onmouseover="this.style.background='#f4f8fb'" onmouseout="this.style.background='#fff'"`}>
+    const body = rows.map(r => `<div data-act="navProperty" data-arg="${r.name}" style="display:grid;grid-template-columns:${cols};align-items:center;background:#fff;border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);cursor:pointer" onmouseover="this.style.background='#f4f8fb'" onmouseout="this.style.background='#fff'">
       <span style="align-self:stretch;background:${r.color||'transparent'}"></span>
       <span style="padding:8px;overflow:hidden"><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${r.name}</span></span>
       ${cell(r.short)}
@@ -3660,9 +3660,9 @@ class Component extends DCLogic {
         ['MITS Property ID','RIV-0125'],
         ['Regional Portfolio','Southwest Ohio']]));
 
-    // Once the property's charges are centralized they live on the Charges tab, so the General tab
-    // stops carrying a copy of them.
-    const recurring = this.profStatus() === 'active' ? '' : this.recChargesTile('property');
+    // The property's own Charges opens over this page, so General doesn't carry a second copy of
+    // the same list. Unit and unit-type pages, which have no Charges of their own, still do.
+    const recurring = '';
 
     const emptyReg=(t,heads)=>tileT(t,'',gtable(heads.map(()=>'1fr').join(' '),heads,[heads.map(()=>'<span style="color:var(--rmx-text-muted, #b3b3b3)">—</span>')]),
       `<span style="font-style:italic">No transactions in the current period</span>`);
@@ -3673,7 +3673,6 @@ class Component extends DCLogic {
         ['Riverview-Site-Map.png','Image','Nov 2, 2024']]));
 
     let h='';
-    h+=this.profileSetupBanner(p);
     h+=images;
     h+=general;
     h+=two(address,logo);
@@ -3720,27 +3719,7 @@ class Component extends DCLogic {
   }
 
   // ================= RENTAL FEE PROFILE (property tab) =================
-  feeProfileTab(){
-    const s = this.state;
-    if (s.setup && s.setup.step === 'saving') return this.feeProfileLoading();
-    if (this.profStatus() === 'active') return this.feeProfileBody();
-    return this.feeProfileEmpty();
-  }
-  feeProfileEmpty(){
-    return `<div style="flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:48px 24px;text-align:center">
-      <img src="assets/logo-rentmanager-mark.svg" alt="" style="width:76px;height:76px">
-      <div style="font-size:16px;font-weight:600;color:var(--rmx-text, #666666)">Manage this property&rsquo;s charges in one place</div>
-      <div style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.5">Fee Transparency brings your charges, deposits, and pricing together for setup, move-ins, quotes, and listings.&nbsp; <a data-act="toast" data-arg="Opens contextual help" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Learn More</a></div>
-      <button data-act="setupOpen" class="btn-pri" style="margin-top:4px;height:36px;padding:0 18px;border-radius:4px;font-size:14px">Centralize Charges</button>
-    </div>`;
-  }
-  feeProfileLoading(){
-    return `<div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:80px 24px">
-      <span style="position:relative;width:104px;height:104px;display:flex;align-items:center;justify-content:center">
-        <span style="position:absolute;inset:0;border:5px solid #fbe4cf;border-top-color:var(--rmx-attention, #f58220);border-radius:50%;animation:spin 0.9s linear infinite"></span>
-        <svg class="ico" width="40" height="40" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5))"><path d="M120-120v-555h165v-165h390v330h165v390H533v-165H427v165H120Zm60-60h105v-105H180v105Zm0-165h105v-105H180v105Zm0-165h105v-105H180v105Zm165 165h105v-105H345v105Zm0-165h105v-105H345v105Zm0-165h105v-105H345v105Zm165 330h105v-105H510v105Zm0-165h105v-105H510v105Zm0-165h105v-105H510v105Zm165 495h105v-105H675v105Zm0-165h105v-105H675v105Z"/></svg>
-      </span></div>`;
-  }
+  feeProfileTab(){ return this.feeProfileBody(); }
   // Charge Level pill — Property / a unit-type name / Unit N / ORI.
   // Every level names what it applies to: the unit, the unit type, the rentable-item type — and, at
   // property level, the property itself. prop is the property the row belongs to, which is the one on
@@ -4304,23 +4283,6 @@ class Component extends DCLogic {
           <button data-act="bulkUpdClose" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Cancel</button>
         </div>
       </div>
-    </div>`;
-  }
-  // Dismissible banner on the General tab pointing at the new profile.
-  profileSetupBanner(p){
-    if (this.profStatus(p) === 'active' || this.state.bannerDismissed[p]) return '';
-    const n = this.discoveredCharges(p).length;
-    if (!n) return '';
-    return `<div style="display:flex;align-items:flex-start;gap:12px;background:var(--rmx-brand-tint-bg, #ebf1f5);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:16px 18px">
-      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
-        <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">This property has ${n} charges. Manage them in one place.</span>
-        <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">Move this property's charges, deposits, and pricing into one place, so setup, move-ins, and quotes all read from it. A property has to be centralized before it can convert to fee transparency. Current tenant charges are unaffected.</span>
-        <div style="display:flex;align-items:center;gap:16px;margin-top:6px">
-          <button data-act="setupOpen" class="btn-pri" style="height:34px;padding:0 16px;border-radius:4px;font-size:14px">Centralize Charges</button>
-          <a data-act="toast" data-arg="Opens contextual help" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Learn More</a>
-        </div>
-      </div>
-      <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="profBannerDismiss" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;flex:none"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
     </div>`;
   }
 
@@ -5103,29 +5065,10 @@ class Component extends DCLogic {
   // Selected-scope header row (mirrors the property scoreboard) used by the Unit Type Fees and Unit Fees tabs.
   ufUnits(){ const p=this.state.property; return this.units().map(u=>Object.assign({}, u, { prop:p })); }
   recChargesTile(scope){
-    // Same setup pitch as the View Recurring Charges overlay, inside the tile, until the property
-    // runs on Fee Transparency.
-    const callout = (scope !== 'unit' || this.profStatus() === 'active' || !this.state.recViewNote) ? '' : (() => {
-      const n = this.discoveredCharges(this.state.property).length;
-      if (!n) return '';
-      return `<div style="margin:12px 16px 4px;display:flex;align-items:flex-start;gap:16px;background:var(--rmx-brand-tint-bg, #ebf1f5);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:14px 16px;flex-wrap:wrap">
-        <div style="flex:1;min-width:260px;display:flex;flex-direction:column;gap:4px">
-          <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">This property has ${n} charges. Manage them in one place.</span>
-          <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">Move this property's charges, deposits, and pricing into one place, so setup, move-ins, and quotes all read from it. A property has to be centralized before it can convert to fee transparency. Current tenant charges are unaffected.</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:16px;flex:none;padding-top:2px">
-          <button data-act="setupOpen" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Centralize Charges</button>
-          <a data-act="toast" data-arg="Opens contextual help" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Learn More</a>
-        </div>
-        <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="recViewNoteDismiss" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;flex:none"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
-      </div>`;
-    })();
-    const managed = this.profStatus() === 'active';
     return `<div class="tile">
       <div class="thead2"><span class="ttl">Recurring Charges</span><div style="flex:1"></div><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="recViewOpen" data-arg="${scope}" title="View recurring charges" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="M180-120q-24 0-42-18t-18-42v-600q0-24 18-42t42-18h279v60H180v600h600v-279h60v279q0 24-18 42t-42 18H180Zm202-219-42-43 398-398H519v-60h321v321h-60v-218L382-339Z"/></svg></div>
-      ${callout}
-      ${managed ? this.chargesManagedNote() : ''}
-      ${this.recChargesTableHTML({scope, edge:true, managed})}
+      ${this.chargesManagedNote()}
+      ${this.recChargesTableHTML({scope, edge:true})}
     </div>`;
   }
   // Shared Recurring Charges table.
@@ -5166,9 +5109,7 @@ class Component extends DCLogic {
     const recHead=`<div ${this.colHead(recColK)} style="display:grid;grid-template-columns:${recCols}">${heads.map(h=>rh(h[0],h[1])).join('')}</div>`;
     const cell=(t,align,color)=>`<span style="display:flex;align-items:center;height:36px;box-sizing:border-box;padding:0 8px;font-size:14px;color:${color||'var(--rmx-brand-dark, #13314c)'};border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${align==='right'?'justify-content:flex-end;text-align:right':''}">${t}</span>`;
     const barFor=(c)=>`<span style="display:flex;justify-content:center;height:36px;box-sizing:border-box;border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)"><span style="width:10px;background:${c}"></span></span>`;
-    // Once the property is converted these charges are written on the Charges tab and only there, so
-    // every row says so rather than looking like something to edit in place.
-    const lock = !opts.managed ? '' : `<span title="Managed on the property level" style="display:inline-flex;margin-left:6px;flex:none">${this.ico('lock', 14, 'color:var(--rmx-text-muted, #b3b3b3)')}</span>`;
+    const lock = '';
     const row=(idx,bar,level,code,comment,amount,commentColor,comment2)=>{
       const rowBg = (idx%2===1) ? 'var(--rmx-bg-subtle, #f5f8fa)' : '#fff';
       const mid = two ? `${cell(comment,'',commentColor||'var(--rmx-text, #666666)')}${cell(comment2||'','',commentColor||'var(--rmx-text, #666666)')}` : cell(comment,'',commentColor||'var(--rmx-text, #666666)');
@@ -5196,42 +5137,14 @@ class Component extends DCLogic {
   // "View Recurring Charges" modal opened from the property tile's pop-out icon (Figma 2385-32329).
   // Legacy "View Recurring Charges" overlay (pre-conversion): full charge register + convert callout.
   // Setup callout for the overlay (mock 2627-31642): text left, actions right, dismiss top-right.
-  // Where charges live once a property is converted. The tile and the View Recurring Charges overlay
-  // both say it, so they say it the same way.
+  // The same charge can be reached from its own level's page and from the property's Charges. The
+  // tile and the View Recurring Charges overlay both say so, so they say it the same way.
   chargesManagedNote(prop, margin){
     const p = prop || this.state.property;
     return `<div style="margin:${margin||'12px 16px 4px'};display:flex;align-items:center;gap:12px;background:var(--rmx-brand-tint-bg, #ebf1f5);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:12px 16px">
       ${this.ico('info', 20, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}
-      <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">Charges are managed on the property. Add, edit or remove them there and the change applies everywhere it's charged.</span>
+      <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">These charges also appear in this property's Charges. Edit them here or there — either way the change applies everywhere the charge is billed.</span>
       <a data-act="openFeeProfile" data-arg="${p}" style="display:inline-flex;align-items:center;gap:5px;flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Open Charges</a>
-    </div>`;
-  }
-  recViewCallout(){
-    const p = this.state.property;
-    // Once the property runs on a profile this view is read-only, so it says where the charges live
-    // and offers the way there. Properties without one keep the setup pitch instead.
-    if (this.profStatus(p) === 'active') {
-      return `<div style="margin:12px 20px 0;display:flex;align-items:center;gap:12px;background:var(--rmx-brand-tint-bg, #ebf1f5);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:12px 16px">
-        <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5));flex:none"><path d="M453-280h60v-240h-60v240Zm50.5-323.2q9.5-9.2 9.5-22.8 0-14.45-9.48-24.22-9.48-9.78-23.5-9.78t-23.52 9.78Q447-640.45 447-626q0 13.6 9.48 22.8 9.48 9.2 23.5 9.2t23.52-9.2ZM480.27-80q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg>
-        <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">Charges are managed on the property. Add, edit or remove them there and the change applies everywhere it's charged.</span>
-        <a data-act="openFeeProfile" data-arg="${p}" style="display:inline-flex;align-items:center;gap:5px;flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Open Charges</a>
-      </div>`;
-    }
-    if (!this.state.recViewNote) return '';
-    const n = this.discoveredCharges(p).length;
-    if (!n) return '';
-    // Inset from the overlay edges and bordered like the banner on the property page, rather than
-    // running edge to edge across the top of the modal.
-    return `<div style="margin:12px 20px 0;display:flex;align-items:flex-start;gap:16px;background:var(--rmx-brand-tint-bg, #ebf1f5);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:16px 18px">
-      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
-        <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">This property has ${n} charges. Manage them in one place.</span>
-        <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">Move this property's charges, deposits, and pricing into one place, so setup, move-ins, and quotes all read from it. A property has to be centralized before it can convert to fee transparency. Current tenant charges are unaffected.</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:16px;flex:none;padding-top:2px">
-        <button data-act="setupOpen" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Centralize Charges</button>
-        <a data-act="toast" data-arg="Opens contextual help" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Learn More</a>
-      </div>
-      <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="recViewNoteDismiss" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;flex:none"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
     </div>`;
   }
   // Property-scope context strip: the same content as the property scoreboard (name, owner, manager,
@@ -5269,20 +5182,14 @@ class Component extends DCLogic {
     const lvl = { 'Property':'#1570ef', 'Unit Type':'#d92d20', 'Unit type':'#d92d20', 'Unit':'#099250', 'ORI':'#6a4aa8' };
     const cb = (label) => `<label style="display:flex;align-items:center;gap:8px;padding:7px 14px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap"><span style="width:18px;height:18px;border-radius:2px;box-sizing:border-box;border:2px solid var(--ac,var(--rmx-brand, #008dd5));background:#fff;flex:none"></span>${label}</label>`;
     const orange = `<span style="width:18px;height:18px;border-radius:2px;box-sizing:border-box;background:var(--rmx-attention, #f58220);border:1px solid var(--rmx-attention, #f58220);display:flex;align-items:center;justify-content:center;flex:none"><svg class="ico" width="14" height="14" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:#fff"><path d="M378-246 154-470l43-43 181 181 384-384 43 43-427 427Z"/></svg></span>`;
-    // Once Fee Transparency is on, charges are added and selected on the Charges tab — this
-    // overlay is read-only, so the Add button and the row selection column come off.
-    const managed = this.profStatus(prop) === 'active';
-    const colK = 'recview2' + (managed ? '-m' : '');
-    const cols = this.colTracks(colK, managed
-      ? '20px 110px 120px minmax(160px,1fr) 90px 100px 100px 110px 44px'
-      : '20px 44px 110px 120px minmax(160px,1fr) 90px 100px 100px 110px 44px');
-    const heads = (managed ? ['',''] : ['','',''])
-      .concat(['Charge Type','Comment','Frequency','From Date','To Date','Amount','']);
+    const colK = 'recview2';
+    const cols = this.colTracks(colK, '20px 44px 110px 120px minmax(160px,1fr) 90px 100px 100px 110px 44px');
+    const heads = ['','',''].concat(['Charge Type','Comment','Frequency','From Date','To Date','Amount','']);
     const hc = (t,i) => `<span style="display:flex;align-items:center;height:44px;box-sizing:border-box;padding:0 10px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;${/Amount|Frequency/.test(t)?'justify-content:flex-end;':''}">${t}</span>`;
     const cell = (t,extra) => `<span style="display:flex;align-items:center;height:44px;box-sizing:border-box;padding:0 10px;font-size:14px;color:var(--rmx-brand-dark, #13314c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
     const body = rows.map((r,i) => `<div style="display:grid;grid-template-columns:${cols};align-items:center;background:${i%2?'#f7fafc':'#fff'}">
       <span style="align-self:stretch;display:flex;justify-content:flex-end"><span style="width:6px;background:${lvl[r.level]||lvl['Property']}"></span></span>
-      ${managed ? '' : `<span style="display:flex;align-items:center;justify-content:center;height:44px">${orange}</span>`}
+      <span style="display:flex;align-items:center;justify-content:center;height:44px">${orange}</span>
       ${cell(r.level)}
       ${cell(r.mits)}${cell(r.desc||r.name)}
       ${cell(this.freqNum(r)||'1','justify-content:flex-end')}
@@ -5305,11 +5212,11 @@ class Component extends DCLogic {
       <div style="display:flex;align-items:center;gap:12px;height:56px;box-sizing:border-box;padding:0 16px 0 24px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
         <span style="font-size:18px;color:var(--rmx-brand-dark, #13314c)">View Recurring Charges</span><div style="flex:1"></div>
         <button data-act="toast" data-arg="Print" class="btn-pri" style="height:36px;min-height:36px;padding:0 24px;border-radius:4px;font-size:14px">Print</button>
-        ${managed ? '' : `<button data-act="toast" data-arg="Add charge" class="btn-pri" style="height:36px;min-height:36px;padding:0 14px;border-radius:4px;font-size:14px;display:inline-flex;align-items:center;gap:6px"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M453-280h60v-166h167v-60H513v-174h-60v174H280v60h173v166Zm27.27 200q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg>Add<svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M480-360 280-559h400L480-360Z"/></svg></button>`}
+        ${`<button data-act="toast" data-arg="Add charge" class="btn-pri" style="height:36px;min-height:36px;padding:0 14px;border-radius:4px;font-size:14px;display:inline-flex;align-items:center;gap:6px"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M453-280h60v-166h167v-60H513v-174h-60v174H280v60h173v166Zm27.27 200q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg>Add<svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M480-360 280-559h400L480-360Z"/></svg></button>`}
         <svg class="ico" width="24" height="24" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="recViewClose" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
       </div>
       <div style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column">
-        ${this.recViewCallout()}
+        ${this.chargesManagedNote(null, '12px 20px 0')}
         ${unitScope ? '' : this.recViewPropStrip()}
         ${!unitScope ? '' : `<div style="display:flex;align-items:center;justify-content:space-between;gap:20px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;margin:12px 20px;padding:14px 20px">
           <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;min-width:0">
@@ -5636,9 +5543,9 @@ class Component extends DCLogic {
       .concat([rRow('Tenant', 'RC', 'Rent', money(this.tenantRent()), recRows.length)]).join('');
     // The footer quotes the total the way the mock does — dollars, and cents only when there are any.
     const loose = (n) => n.toLocaleString('en-US', { minimumFractionDigits:0, maximumFractionDigits:2 });
-    // Once the property is converted, where a tenant's charges come from is worth saying: new ones
-    // are written on the property, while the ones already on this account stay as they were billed.
-    const tntManaged = this.profStatus(prop) === 'active'
+    // Where a tenant's charges come from is worth saying on a converted property: new ones follow
+    // the property's charges, while the ones already on this account stay as they were billed.
+    const tntManaged = !!this.state.publishedProps[prop]
       ? `<div style="display:flex;align-items:center;gap:10px;background:var(--rmx-brand-tint-bg, #ebf1f5);border-bottom:1px solid var(--rmx-line, #cedbe7);padding:9px 14px">
           ${this.ico('info', 17, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}
           <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.45">New charges come from the property's charges. The charges already on this tenant stay as they were written.</span>
@@ -7151,25 +7058,16 @@ class Component extends DCLogic {
       `<a data-act="toast" data-arg="Add from UDF" style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap"><svg class="ico" width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M450-450H200v-60h250v-250h60v250h250v60H510v250h-60v-250Z"/></svg>Add from UDF</a>`);
     const preview = `<button data-act="toast" data-arg="Preview" class="btn-pri" style="height:34px;min-height:34px;padding:0 18px;border-radius:4px;font-size:14px;flex:none">Preview</button>`;
     const mkProp = this.state.property;
-    const mkOn = this.profStatus(mkProp) === 'active';
     const mkPub = !!this.state.publishedProps[mkProp];
-    // Mock 2791-152711: once the charges are centralized, the callout offers the unit pricing
-    // preview — and once the property has converted, it says what its listings now advertise.
+    // Mock 2791-152711: the callout offers the unit pricing preview — and once the property has
+    // converted, it says what its listings now advertise.
     const mkLine = mkPub
       ? "This property is converted to fee transparency, so its listings advertise a total monthly price. Preview what a unit shows."
-      : "This property's charges are centralized, so you can preview pricing for an individual unit and see the total that would display on a listing.";
-    const ftCallout = mkOn
-      ? `<div style="display:flex;align-items:flex-start;gap:10px;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;padding:11px 13px">
+      : "Preview pricing for an individual unit to see the total that would display on a listing.";
+    const ftCallout = `<div style="display:flex;align-items:flex-start;gap:10px;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;padding:11px 13px">
           <svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5));flex:none;margin-top:1px"><path d="M453-280h60v-240h-60v240Zm50.5-323.2q9.5-9.2 9.5-22.8 0-14.45-9.48-24.22-9.48-9.78-23.5-9.78t-23.52 9.78Q447-640.45 447-626q0 13.6 9.48 22.8 9.48 9.2 23.5 9.2t23.52-9.2ZM480.27-80q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg>
           <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">${mkLine}</span>
           <a data-act="pricePreviewOpen" style="flex:none;margin-top:1px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Preview Pricing</a>
-        </div>`
-      : `<div style="display:flex;align-items:center;gap:14px;background:var(--rmx-brand-tint-bg, #ebf1f5);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:12px 14px;flex-wrap:wrap">
-          <div style="flex:1;min-width:220px;display:flex;flex-direction:column;gap:3px">
-            <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Show renters complete, transparent pricing.</span>
-            <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">Fee Transparency brings every charge into one place on the property and publishes a total monthly price to your listings — no fee surprises.</span>
-          </div>
-          <button data-act="setupOpen" data-arg="${mkProp}" class="btn-pri" style="height:32px;min-height:32px;padding:0 14px;border-radius:4px;font-size:14px;white-space:nowrap;flex:none">Centralize Charges</button>
         </div>`;
     const listing = card('Listing Details', `
       ${ftCallout}
@@ -7244,10 +7142,10 @@ class Component extends DCLogic {
     const field = (l, ctrl, span) => `<div style="${span?'grid-column:span 2;':''}display:flex;flex-direction:column;gap:6px">${lab(l)}${ctrl}</div>`;
     const heading = (t) => `<div style="grid-column:span 2;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);padding:6px 0 8px;border-bottom:1px solid var(--rmx-line, #cedbe7)">${t}</div>`;
     const cardHead = (t) => `<div style="padding:11px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</div>`;
-    // Fee Transparency's publish state surfaces here too: publish from Advanced Settings when the
-    // property is set up, or confirm complete pricing is already live.
+    // Fee Transparency's publish state surfaces here too: publish from Advanced Settings, or confirm
+    // complete pricing is already live.
     const prop2 = this.state.property;
-    const ftOn = this.profStatus(prop2) === 'active';
+    const ftOn = true;
     const ftPublished = !!this.state.publishedProps[prop2];
     const ftNote = !ftOn ? '' : ftPublished
       ? `<span style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--rmx-brand-dark, #13314c);padding-top:2px"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-success, #6eb744)"><path d="m346-60-76-130-151-31 17-147-96-112 96-111-17-147 151-31 76-131 134 62 134-62 77 131 150 31-17 147 96 111-96 112 17 147-150 31-77 130-134-62-134 62Zm91-287 227-225-45-41-182 180-95-99-46 45 141 140Z"/></svg>This property is using Fee Transparency and is displaying complete pricing on its listings.</span>`
