@@ -71,6 +71,9 @@ it, charge counts) over a Marketing Details tile.
 Two things happen with a default: `mktDefSave` fills the blank fields on charges that already
 exist (a value someone typed is never overwritten), and `saveFee` runs `mktDefFill` on a charge
 being **created** so it starts filled in. Editing an existing charge never re-applies them.
+Filling existing charges is unconditional — the design has no control for it.
+
+The overlay matches Figma `3431:38347` in `43F6y97LDzYBgL4CZAEO82`; keep them in step.
 
 Every type's pane is rendered and all but the selected one hidden, and selection is a DOM swap
 (`window.__mdPick`, `__mdFill`) — so clicking down the list never loses what has been typed, and
