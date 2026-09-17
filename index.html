@@ -152,7 +152,6 @@ class Component extends DCLogic {
     // readable in one place from the first look, so there is nothing to turn on.
     // Properties opted into marketing on online listings. Marketing/MITS details are editable on
     // every property; this flag only controls whether listing publishing is surfaced at all.
-    // The Berkshires is listed but not yet converted, so the setup review can warn about the
     // listing impact. The opt-in itself only surfaces once a profile exists.
     // The Hamptons is the finished example — marketed, with every charge listing-ready.
     ilsProps: { 'Clearcreek Condominiums': true, 'Riverview Apartments': true, 'The Berkshires': true, 'The Windermere': true,
@@ -168,7 +167,6 @@ class Component extends DCLogic {
     bulkUpd: null, // { gen, mkt } — Update Charges dialog (section open/closed)
     // Copy Charges from Property: { from, dup:'skip'|'replace', excl }
     copyFees: null,
-    // Register selection mode for the bulk profile setup: { sel: {propName:true} }
     // The "Coming Soon" kickoff announcement. Starts closed on purpose — it's opened from the nav
     // menu when it needs showing, rather than interrupting every refresh.
     kickoff: false,
@@ -186,20 +184,17 @@ class Component extends DCLogic {
     // here is something the user did this session.
     histLog: [],
     nextFeeId: 101,
-    setup: null,            // { props, step:1|2|3|'saving'|'done', pi, ack }
     lvlSel: 'all',          // 'all' | 'Property' | 'Unit Type' | 'Unit' | 'ORI'
-    bannerDismissed: {},
     pricePreview: null,     // { prop, unit, opt:{}, sitOpen }
     profMenu: null,
     recView: null,
-    recViewNote: true,
     rowMenu: null,
     // Properties whose complete pricing has been published from the Fee Transparency page.
     publishedProps: { 'Oakwood Manor': true },
     pubModal: null, // { prop, ack } — Convert to Fee Transparency confirmation
     mktSetup: false, // Marketing Setup overlay (opened from the action rail's copy flyout)
     mktAdv: false, // Advanced Settings overlay on top of Marketing Setup
-    ftSel: null, // { mode:'pub'|'setup' } — Select Properties dialog on the tracker
+    ftSel: null, // { mode:'pub' } — Select Properties dialog on the tracker
     ltProp: 'all', // Listings page property filter
     // props: the properties a pet type applies to; null means every property.
     petTypes: [
@@ -284,7 +279,6 @@ class Component extends DCLogic {
 
   // ---------- per-property Fee Transparency ----------
   // Properties that already have Fee Transparency on — the register's "Fee Transparency"
-  // column. Opening one of these lands on the populated profile; the rest land on pre-setup.
   // Happy Path opens part-way through: three of the four properties already have every marketing
   // detail in place, so Pricing Setup has properties waiting to convert on the first screen and one
   // whose charges still need their details.
@@ -559,21 +553,21 @@ class Component extends DCLogic {
     });
   }
   // A property's charges: its Charges tab once Fee Transparency is on, otherwise the charges that already
-  // exist in its operational setup (what the setup wizard would pull in).
+  // exist in its operational setup.
   propertyCharges(p){ const rows = this.profileRows(p); return rows.length ? rows : this.propCharges(p || this.state.property); }
   setProfileRows(fn){
     const p = this.state.property;
     const base = this.profileRows(p).slice();
     this.setState(s => ({ profileFees: Object.assign({}, s.profileFees, { [p]: fn(base) }) }));
   }
-  // Charges discovered across the property's existing setup — the setup wizard's candidate list and
+  // Charges discovered across the property's existing setup — the single seed every count in the UI
   // the single seed every count in the UI derives from.
   // Converted charges arrive with no listing configuration — ils stays false until the user
   // adds listing details on each charge, which is what the "Listing Details Added" column reflects.
   // What each property actually runs. Charges every property has aren't listed; a property's entry
   // names the charge types it doesn't run, so the register reads like fifteen different properties
   // instead of one copied fifteen times. Explicit rather than random: these counts show up in the
-  // register, the tab banners, the setup wizard and the pricing preview, and they have to agree
+  // register, the tab banners and the pricing preview, and they have to agree
   // every time any of them reads them.
   // Which scenario the plan is being read for. scenarioApply sets it before building the next
   // portfolio, so the charges come from the scenario being entered, not the one being left.
@@ -598,7 +592,7 @@ class Component extends DCLogic {
     if (this.scenarioKey() !== 'happy') return base;
     // The plan names what a property doesn't run, so a keep list becomes everything else — the
     // property-specific NSF and late fees included, which keeps the one-time section to the keeps.
-    const all = this.setupCandidates().map(r => r.mits);
+    const all = this.baseCharges().map(r => r.mits);
     const simple = this.happyPathCharges();
     const out = Object.assign({}, base);
     Object.keys(simple).forEach(n => { out[n] = all.filter(c => simple[n].indexOf(c) < 0); });
@@ -639,7 +633,7 @@ class Component extends DCLogic {
     const skip = this.propChargePlan()[prop] || [];
     const drift = /^(GARBAG|GARBAGEFEE|WATER|ADMIN|APPFEE|DP|KEY|SF|AMENFEE|COVPARK|HOLD|PETFEE|PETDP|EVCHG)$/;
     const money = n => '$' + n.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
-    return this.setupCandidates().filter(r => skip.indexOf(r.mits) < 0).map(r => {
+    return this.baseCharges().filter(r => skip.indexOf(r.mits) < 0).map(r => {
       if (!drift.test(r.mits)) return r;
       const flat = this.parseAmt(r.amount);
       // A calculated or referenced amount carries its estimate instead of a figure of its own.
@@ -647,7 +641,8 @@ class Component extends DCLogic {
       return Object.assign({}, r, { amount: money(this.propAmtDrift(prop, r.mits, flat)) });
     });
   }
-  setupCandidates(){
+  // The charges a demo property runs, before any per-property drift is applied.
+  baseCharges(){
     const L = (level, target) => ({ level, target: target || '' });
     return [
       Object.assign({ id:1,  group:'req-rec', mits:'RC',         name:'Rent',              desc:'Base rent',                    freq:'Every Month', from:'01/01/2026', to:'', amount:'Market Rent', amtMethod:'Reference', est:1350, ils:true  }, L('Property')),
@@ -956,7 +951,6 @@ class Component extends DCLogic {
         this.setState({ chargeTypes: this.chargeTypeRows().filter(r => r.code !== code), ctDetail: null });
         this.flash(code + ' deleted'); break; }
       case 'navSysPrefs': this.go('sysprefs'); break;
-      // Straight into a bulk setup: the tracker page with the property picker already open.
       case 'spNav': this.setState({ spNav: arg }); break;
       case 'spBannerDismiss': this.setState({ spBanner: false }); break;
       case 'petTypeOpen': this.setState({ petType: arg === 'new' ? 'new' : parseInt(arg, 10) }); break;
@@ -1163,8 +1157,6 @@ class Component extends DCLogic {
       case 'announceNext': this.setState(s => ({ announceStep: Math.min(3, (s.announceStep || 1) + 1) })); break;
       case 'announceBack': this.setState(s => ({ announceStep: Math.max(1, (s.announceStep || 1) - 1) })); break;
       case 'announceClose': this.setState({ announce: false }); break;
-      // Setup from the announcement drops the user into the register's selection mode, so they choose
-      // properties first and then run the same bulk setup flow as the Bulk Actions entry point.
       // The tracker page exists now, so the announcement's CTA goes straight there.
       case 'announceSetup':
         this.go('feetrans', { announce: false });
@@ -1325,8 +1317,6 @@ class Component extends DCLogic {
       case 'profHistClose': this.setState({ profHist: null }); break;
       // One charge open at a time — expanding a charge collapses whichever was open before.
       case 'profHistExp': this.setState(s => ({ profHist: Object.assign({}, s.profHist, { exp: s.profHist.exp[arg] ? {} : { [arg]: true } }) })); break;
-      case 'profBannerDismiss': this.setState(s => ({ bannerDismissed: Object.assign({}, s.bannerDismissed, { [this.state.property]: true }) })); break;
-      case 'recViewNoteDismiss': this.setState({ recViewNote: false }); break;
 
       // ---- profile list ----
       case 'lvlSel': this.setState({ lvlSel: arg }); break;
@@ -2212,7 +2202,7 @@ class Component extends DCLogic {
   }
 
   // The Charges tab, over the property rather than in place of it. It sits below the charge form and
-  // the setup wizard, so those still open on top of it.
+  // the charge form, so those still open on top of it.
   chargesOverlay(){
     return `<div data-act="chargesClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;padding:60px 20px 20px;box-sizing:border-box;z-index:95">
       <div data-act="noop" style="flex:1;min-width:0;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.28);display:flex;flex-direction:column;overflow:hidden">
@@ -2278,7 +2268,7 @@ class Component extends DCLogic {
       'Clearcreek Condominiums'];
   }
   // Charges for a converted property: either every marketing detail filled in, or the same charges
-  // as they arrive from setup, with details still missing. Built from the property's own charge set,
+  // with details still missing. Built from the property's own charge set,
   // so a seeded scenario varies by property the same way a real portfolio does.
   scenarioRows(name, complete){ return complete ? this.listingReadyRows(name) : this.defaultCharges(name); }
   // Converting is gated on every charge being listing ready, so a converted property can only be
@@ -2350,10 +2340,10 @@ class Component extends DCLogic {
       view: p.view, announce: p.announce, announceStep: 1, kickoff: false,
       // Everything below belongs to the scenario the user just left, so none of it carries over.
       property: 'Riverview Apartments', propTab: 'General', unit: '1B',
-      newProps: [], addProp: null, histLog: [], toggles: {}, bannerDismissed: {}, tenantCharges: {},
+      newProps: [], addProp: null, histLog: [], toggles: {}, tenantCharges: {},
       modal: null, bulk: null, bulkSel: null, bulkUpd: null,
       copyFees: null, pricePreview: null, profMenu: null, profHist: null,
-      recView: null, recViewNote: true, rowMenu: null, pubModal: null, ftSel: null,
+      recView: null, rowMenu: null, pubModal: null, ftSel: null,
       mktSetup: false, mktAdv: false, petType: null, spBanner: true, ftHelp: false,
       lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false
     });
@@ -3718,7 +3708,7 @@ class Component extends DCLogic {
   // Charge Level pill — Property / a unit-type name / Unit N / ORI.
   // Every level names what it applies to: the unit, the unit type, the rentable-item type — and, at
   // property level, the property itself. prop is the property the row belongs to, which is the one on
-  // screen everywhere except the setup wizard and the copy flows.
+  // screen everywhere except the copy flows.
   chargeLevelPill(r, prop){
     const cls = { 'Property':'lvl-prop', 'Unit Type':'lvl-ut', 'Unit':'lvl-unit', 'ORI':'lvl-ori' }[r.level] || 'lvl-prop';
     const label = r.level === 'Unit Type' ? (r.target || 'Unit Type')
@@ -4729,7 +4719,7 @@ class Component extends DCLogic {
     </div>`;
   }
   // The rows exactly as save will write them, so the review step counts what actually lands.
-  // What setup would discover on a property. Properties added this session start blank — there are
+  // The charges a property has. Properties added this session start blank — there are
   // no legacy charges to pull in.
   discoveredCharges(prop){
     if ((this.state.newProps || []).some(x => x.name === prop)) return [];
@@ -5315,7 +5305,7 @@ class Component extends DCLogic {
   //
   // A charge already posted to a tenant is a fact about their account, not a live view of the
   // property's charges — editing a property charge must not rewrite what a sitting tenant was
-  // already billed, which is exactly what the setup banners promise. So the tenant's charges are
+  // already billed. So the tenant's charges are
   // snapshotted on navTenant and read from there; the live seed is only a fallback for a tenant
   // reached some other way.
   tenantRecurring(){
