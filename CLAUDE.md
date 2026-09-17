@@ -79,6 +79,19 @@ Every type's pane is rendered and all but the selected one hidden, and selection
 (`window.__mdPick`, `__mdFill`) — so clicking down the list never loses what has been typed, and
 nothing here re-renders, which would wipe a pane half filled in. `mktDefSave` reads every pane.
 
+## Where marketing details live
+
+**Marketing Setup › Pricing** (`mktPricingBody`, saved by `mktPricingSave`) is the only place a
+charge's marketing details are edited: the property's charges down the left, the selected one's
+read-only facts on the right — level, frequency, dates, amount — over the marketing fields and
+the Include-on-listings toggle. A field with nothing entered opens on its charge type's default
+from `state.mktDef`.
+
+The **Charges overlay carries none of it**: no Marketing Details section on the charge form, no
+Marketing Name / Listing Ready / requirement / category columns, no Group by Requirement, no
+completeness banner (`mitsBanner` returns ''), and Bulk Update is General-only. Preview Pricing
+stays — it previews the outcome rather than editing a detail.
+
 ## Test feature states
 
 The Test Feature State selector is hidden by default; reveal it by clicking the logo or with

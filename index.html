@@ -197,6 +197,7 @@ class Component extends DCLogic {
     publishedProps: { 'Oakwood Manor': true },
     pubModal: null, // { prop, ack } — Convert to Fee Transparency confirmation
     mktSetup: false, // Marketing Setup overlay (opened from the action rail's copy flyout)
+    mktTab: 'General', // Marketing Setup's own tabs: General or Pricing
     mktAdv: false, // Advanced Settings overlay on top of Marketing Setup
     ftSel: null, // { mode:'pub' } — Select Properties dialog on the tracker
     ltProp: 'all', // Listings page property filter
@@ -1116,9 +1117,11 @@ class Component extends DCLogic {
           if (s.petType === 'new') list.push(row); else list[s.petType] = row;
           return { petTypes: list, petType: null }; });
         this.flash(name + ' saved'); break; }
-      case 'mktOpen': this.setState({ mktSetup: true }); break;
+      case 'mktOpen': this.setState({ mktSetup: true, mktTab: 'General' }); break;
+      case 'mktTab': this.setState({ mktTab: arg }); break;
       case 'mktClose': this.setState({ mktSetup: false }); break;
-      case 'mktSave': this.setState({ mktSetup: false }); this.flash('Marketing setup saved'); break;
+      case 'mktSave': if ((this.state.mktTab || 'General') === 'Pricing') this.mktPricingSave();
+        this.setState({ mktSetup: false }); this.flash('Marketing setup saved'); break;
       case 'mktAdvOpen': this.setState({ mktAdv: true }); break;
       case 'mktAdvClose': this.setState({ mktAdv: false }); break;
       case 'mktAdvSave': this.setState({ mktAdv: false }); this.flash('Advanced settings saved'); break;
@@ -2429,7 +2432,7 @@ class Component extends DCLogic {
       modal: null, bulk: null, bulkSel: null, bulkUpd: null,
       copyFees: null, pricePreview: null, profMenu: null, profHist: null,
       recView: null, rowMenu: null, pubModal: null, ftSel: null, mktDef: {}, mktDefOpen: false,
-      mktSetup: false, mktAdv: false, petType: null, spBanner: true, ftHelp: false,
+      mktSetup: false, mktAdv: false, mktTab: 'General', petType: null, spBanner: true, ftHelp: false,
       lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false
     });
     window.scrollTo(0, 0);
@@ -3997,10 +4000,9 @@ class Component extends DCLogic {
     }).join('')}</div>`;
   }
   feeProfileToolbar(){
-    const on = this.state.groupByReq;
-    const cb = (label) => `<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;box-sizing:border-box;border-radius:2px;${on?'background:var(--ac,var(--rmx-brand, #008dd5));border:1px solid var(--ac,var(--rmx-brand, #008dd5))':'background:#fff;border:1px solid var(--rmx-text-muted, #b3b3b3)'}">${on?'<svg class="ico" width="14" height="14" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:#fff"><path d="M378-246 154-470l43-43 181 181 384-384 43 43-427 427Z"/></svg>':''}</span><span style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))">${label}</span>`;
+    const on = false;
+    const cb = (label) => `<span style="display:none;align-items:center;justify-content:center;width:18px;height:18px;box-sizing:border-box;border-radius:2px;${on?'background:var(--ac,var(--rmx-brand, #008dd5));border:1px solid var(--ac,var(--rmx-brand, #008dd5))':'background:#fff;border:1px solid var(--rmx-text-muted, #b3b3b3)'}">${on?'<svg class="ico" width="14" height="14" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:#fff"><path d="M378-246 154-470l43-43 181 181 384-384 43 43-427 427Z"/></svg>':''}</span><span style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))">${label}</span>`;
     return `<div id="pf-toolbar" style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;padding-bottom:2px">
-      <label data-act="groupByReq" style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;margin-left:4px;flex:none">${cb('Group by Requirement')}</label>
       <div style="flex:1"></div>
       ${(() => { const n = this.activeFilterCount(); const on = !!this.state.pfFilter || n > 0;
         return `<span data-act="pfFilterOpen" style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;box-sizing:border-box;border:1px solid ${on?'var(--ac,var(--rmx-brand, #008dd5))':'var(--rmx-line, #cedbe7)'};border-radius:4px;background:${on?'var(--rmx-brand-tint-bg, #ebf1f5)':'#fff'};cursor:pointer"><svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5))"><path d="M427-120v-225h60v83h353v60H487v82h-60Zm-307-82v-60h247v60H120Zm187-166v-82H120v-60h187v-84h60v226h-60Zm120-82v-60h413v60H427Zm166-165v-225h60v82h187v60H653v83h-60Zm-473-83v-60h413v60H120Z"/></svg>${n?`<span style="position:absolute;top:-6px;right:-6px;min-width:16px;height:16px;border-radius:4px;background:var(--ac,var(--rmx-brand, #008dd5));color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;padding:0 4px">${n}</span>`:''}</span>`; })()}
@@ -4038,21 +4040,12 @@ class Component extends DCLogic {
     return [
       { key:'ctype',    label:'Charge Type',           w:'120px', base:true },
       { key:'comment',  label:'Comment',                          base:true },
-      // Wherever the property advertises, the resident-facing name rides next to the comment.
-      { key:'mktname',  label:'Marketing Name',        w:'150px', base:'ils' },
       { key:'freq',     label:'Frequency',             w:'110px', base:true, recOnly:true },
       { key:'from',     label:'From',                  w:'100px', base:true },
       { key:'to',       label:'To',                    w:'90px',  base:true },
       { key:'amount',   label:'Amount',                w:'110px', base:true },
       { key:'level',    label:'Charge Level',          w:'170px', base:true },
-      { key:'ready',    label:'Listing Ready',         w:'130px', base:true, ilsOnly:true },
-      { key:'category', label:'Charge Category',       w:'140px' },
-      { key:'req',      label:'Charge Requirement',    w:'160px' },
-      { key:'due',      label:'Fee Due',               w:'120px' },
-      { key:'sched',    label:'Charge Schedule',       w:'140px', recOnly:true },
-      { key:'mktdesc',  label:'Marketing Description', w:'minmax(200px,1.2fr)' },
-      { key:'method',   label:'Amount Method',         w:'130px' },
-      { key:'refund',   label:'Refundable',            w:'110px' }
+      { key:'method',   label:'Amount Method',         w:'130px' }
     ];
   }
   chargeColDef(k){ return this.chargeColDefs().filter(c => c.key === k)[0]; }
@@ -4283,9 +4276,10 @@ class Component extends DCLogic {
     const inner = this.profileTable('rec', rec, grp+'rec') + this.profileTable('one', one, grp+'one');
     return this.acc(`${title} (${rows.length})`, sub, inner, null, 'pf-'+key, opts);
   }
-  // Aggregate reminder of the MITS/listing work outstanding across the profile. Nothing outstanding
-  // means nothing to say — the per-charge Listing Ready column already reads as done.
-  mitsBanner(){
+  // Marketing details live on Marketing Setup's Pricing tab, so the Charges overlay no longer
+  // reports on them. Pricing Setup and that tab both carry the outstanding count.
+  mitsBanner(){ return ''; }
+  mitsBannerOld(){
     const need = this.mitsIncompleteCount();
     const total = this.appliedRows().length;
     const ils = this.ilsOn();
@@ -4406,7 +4400,8 @@ class Component extends DCLogic {
       ['amtm', 'Amount Method', () => dd('bu-amtm', ['Flat','Reference','Calculation']), false],
       ['amt', 'Amount', () => txt('bu-amt','calculate'), false]
     ].filter(Boolean);
-    const MARKETING = [
+    const MARKETING = [];
+    const MARKETING_MOVED = [
       ['name', 'Name', () => nameField(), true],
       ['marketing', 'Marketing Description', () => txt('bu-marketing'), false],
       ['req', 'Charge Requirement', () => dd('bu-req', ['Required','Optional','Situational']), true],
@@ -4417,6 +4412,7 @@ class Component extends DCLogic {
       ['refund', 'Refundable', () => dd('bu-refund', [{value:'yes',label:'Refundable'},{value:'no',label:'Not Refundable'}]), false]
     ].filter(Boolean);
     const all = GENERAL.concat(MARKETING);
+    void MARKETING_MOVED;
 
     // Same signal the register's "N needed" pill carries, reduced to the mark itself — the words move
     // into the hover panel every other help mark on the charge form uses.
@@ -4463,7 +4459,7 @@ class Component extends DCLogic {
             <span id="bu-err-txt" style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5"></span>
           </div>
           ${section('gen', 'General Details', GENERAL)}
-          ${section('mkt', 'Marketing Details', MARKETING)}
+          ${MARKETING.length ? section('mkt', 'Marketing Details', MARKETING) : ''}
         </div>
         <div style="display:flex;align-items:center;gap:16px;box-sizing:border-box;padding:8px 16px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);flex:none">
           <span id="bu-count" style="font-size:14px;color:var(--rmx-text-muted, #b3b3b3)">No changes yet</span>
@@ -6744,10 +6740,7 @@ class Component extends DCLogic {
       ${specNote}
       ${sect('General Details', spec ? specGeneral : general)}
       ${creSections}
-      <div style="display:flex;flex-direction:column;gap:10px">
-        <div style="display:flex;align-items:center;gap:12px">
-          <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Marketing Details</span>
-        </div>
+      <div style="display:none">
         <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:12px">${listing}</div>
         ${ilsBox}
       </div>
@@ -7215,6 +7208,164 @@ class Component extends DCLogic {
       </div></div>`;
   }
   // ---------- Marketing Setup overlay (mock 2791-148966) ----------
+  // The Pricing tab holds its fields on the DOM while it is open, so saving reads them back.
+  mktPricingSave(){
+    const q = id => { const e = this.q('#' + id); return e ? String(e.value || '').trim() : ''; };
+    const on = id => { const e = this.q('#' + id); return !!(e && e.getAttribute('data-on') === '1'); };
+    const patch = {};
+    this.appliedRows().forEach(r => {
+      if (!this.q('#mp-name-' + r.id)) return;
+      const ref = q('mp-refundable-' + r.id);
+      const one = /-one$/.test(r.group || '');
+      patch[r.id] = { ils: on('mp-ils-box-' + r.id), listing: {
+        name: q('mp-name-' + r.id), marketing: q('mp-marketing-' + r.id),
+        category: q('mp-category-' + r.id), requirement: q('mp-requirement-' + r.id),
+        feeDue: one ? q('mp-feeDue-' + r.id) : ((r.listing || {}).feeDue || 'During Term'),
+        schedule: one ? '' : q('mp-schedule-' + r.id),
+        refundable: ref === '' ? undefined : ref === 'yes' } };
+    });
+    if (!Object.keys(patch).length) return;
+    this.setProfileRows(rows => rows.map(r => {
+      const pt = patch[r.id]; if (!pt) return r;
+      return Object.assign({}, r, { ils: pt.ils, listing: Object.assign({}, r.listing, pt.listing) });
+    }));
+  }
+  // Marketing Setup › Pricing: every charge on the property, with what it is read-only on the right
+  // and its marketing details underneath. A charge with nothing entered yet opens on its charge
+  // type's defaults, so the common answer is already in the field.
+  mktPricingBody(){
+    const rows = this.appliedRows();
+    if (!rows.length) return `<div style="padding:40px 4px;text-align:center;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">This property has no charges yet.</div>`;
+    const defs = this.mktDefs();
+    const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+    const REQ = ['Required','Optional','Situational'];
+    const DUE = [{value:'At Application',label:'At Application'},{value:'Move-In',label:'At Move-In'},
+      {value:'During Term',label:'During Term'},{value:'Move-Out',label:'At Move-Out'}];
+    const SCHED = ['Weekly','Monthly','Annually'];
+    const REF = [{value:'yes',label:'Refundable'},{value:'no',label:'Not Refundable'}];
+
+    // What the field opens on: what the charge carries, else its charge type's default.
+    const eff = (r) => {
+      const L = r.listing || {};
+      const d = defs[String(r.mits || '').toUpperCase()] || {};
+      const pick = (k) => { const v = L[k]; return (v == null || String(v).trim() === '') ? (d[k] || '') : v; };
+      return { name: pick('name'), marketing: pick('marketing'),
+        category: L.category || d.category || this.chargeCategoryFor(r.mits),
+        requirement: pick('requirement'), feeDue: pick('feeDue'), schedule: pick('schedule'),
+        refundable: L.refundable == null ? (d.refundable || '') : (L.refundable ? 'yes' : 'no'),
+        fromDefault: !!(defs[String(r.mits || '').toUpperCase()]) };
+    };
+
+    const fieldBox = (inner) => `<div style="display:flex;align-items:center;gap:6px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:36px;box-sizing:border-box;padding:0 10px">${inner}</div>`;
+    const txt = (id, val) => fieldBox(`<input id="${id}" value="${esc(val)}" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">`);
+    const area = (id, val) => `<textarea id="${id}" style="box-sizing:border-box;height:60px;padding:8px 10px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);line-height:1.5;resize:vertical;width:100%">${esc(val)}</textarea>`;
+    const dd = (id, opts, val) => this.singleSelect(id, opts, val, { noSearch:true, blank:true, placeholder:' ' });
+    const lab = (t) => `<span style="font-size:14px;color:var(--rmx-text, #666666)">${t}</span>`;
+    const fld = (label, ctl) => `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">${lab(label)}${ctl}</div>`;
+    // Read-only, because the charge itself is edited on the property's Charges.
+    const ro = (label, val) => `<div style="display:flex;flex-direction:column;gap:3px;min-width:0">
+      <span style="font-size:12px;color:var(--rmx-text, #666666)">${label}</span>
+      <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(val || '—')}</span></div>`;
+
+    const li = (r, i) => {
+      const done = this.mitsComplete(r);
+      return `<div id="mp-li-${r.id}" data-k="${esc(((r.mits || '') + ' ' + (r.desc || r.name || '')).toLowerCase())}" onclick="if(window.__mpPick)window.__mpPick('${r.id}')" onmouseover="if(this.getAttribute('data-on')!=='1')this.style.background='var(--rmx-bg-subtle, #f5f8fa)'" onmouseout="if(this.getAttribute('data-on')!=='1')this.style.background=''" data-on="${i === 0 ? '1' : '0'}" style="display:flex;align-items:center;gap:10px;min-height:32px;box-sizing:border-box;padding:6px 12px;cursor:pointer;${i === 0 ? 'background:rgba(0,141,213,0.15)' : ''}">
+        <span style="width:104px;flex:none;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.mits)}</span>
+        <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.desc || r.name || '')}</span>
+        <span style="flex:none;display:inline-flex;align-items:center">${done ? this.ico('check_circle', 16, 'color:var(--rmx-success, #6eb744)') : this.ico('error', 16, 'color:var(--rmx-attention, #f58220)')}</span>
+      </div>`;
+    };
+
+    const pane = (r, i) => {
+      const e = eff(r);
+      const one = /-one$/.test(r.group || '');
+      const miss = this.mitsMissing(r);
+      return `<div id="mp-pane-${r.id}" style="display:${i === 0 ? 'flex' : 'none'};flex-direction:column;gap:20px">
+
+        <div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:14px 16px;display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${esc(r.mits)}</span>
+            <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${esc(r.desc || r.name || '')}</span>
+            <div style="flex:1"></div>
+            ${miss.length
+              ? `<span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap">${this.ico('error', 16, 'color:var(--rmx-attention, #f58220)')}<span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${miss.length} field${miss.length === 1 ? '' : 's'} still needed</span></span>`
+              : `<span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap">${this.ico('check_circle', 16, 'color:var(--rmx-success, #6eb744)')}<span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Listing ready</span></span>`}
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(5, minmax(0,1fr));gap:12px 16px">
+            ${ro('Charge Level', r.level === 'Property' ? this.propInfo().name : (r.target || r.level))}
+            ${ro(one ? 'Charged' : 'Frequency', one ? 'One-time' : ('Every ' + (this.freqNum(r) || 1) + ' month'))}
+            ${ro('From', r.from)}
+            ${ro('To', r.to)}
+            ${ro('Amount', String(r.amount || '').replace(/^\$/, '') || '—')}
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Marketing Details</span>
+            ${e.fromDefault ? `<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--rmx-brand-hover, #0071aa)">${this.ico('check', 13, 'color:var(--rmx-brand-hover, #0071aa)')}Started from the ${esc(r.mits)} defaults</span>` : ''}
+          </div>
+          <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:16px;display:flex;flex-direction:column;gap:16px;background:#fff">
+            <div style="display:flex;gap:16px">
+              ${fld('Name', txt('mp-name-' + r.id, e.name))}
+              ${fld('Charge Category', dd('mp-category-' + r.id, this.chargeCategoryOptions(), e.category))}
+            </div>
+            ${fld('Marketing Description', area('mp-marketing-' + r.id, e.marketing))}
+            <div style="display:flex;gap:16px">
+              ${fld('Charge Requirement', dd('mp-requirement-' + r.id, REQ, e.requirement))}
+              ${fld('Charge Schedule', one ? fieldBox(`<span style="flex:1;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">One-time charge</span>`) : dd('mp-schedule-' + r.id, SCHED, e.schedule))}
+            </div>
+            <div style="display:flex;gap:16px">
+              ${fld('Fee Due', one ? dd('mp-feeDue-' + r.id, DUE, e.feeDue) : fieldBox(`<span style="flex:1;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">Collected across the term</span>`))}
+              ${fld('Refundable', dd('mp-refundable-' + r.id, REF, e.refundable))}
+            </div>
+            <label onclick="if(window.__mpIls)window.__mpIls('${r.id}')" style="display:inline-flex;align-items:center;gap:10px;cursor:pointer;align-self:flex-start">
+              <span id="mp-ils-box-${r.id}" data-on="${r.ils ? '1' : '0'}" style="width:20px;height:20px;flex:none;border-radius:2px;box-sizing:border-box;border:2px solid ${r.ils ? 'var(--rmx-attention, #f58220)' : 'var(--rmx-text-muted, #b3b3b3)'};background:${r.ils ? 'var(--rmx-attention, #f58220)' : '#fff'};display:inline-flex;align-items:center;justify-content:center">${r.ils ? this.ico('check', 14, 'color:#fff') : ''}</span>
+              <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Include on listings</span>
+            </label>
+          </div>
+        </div>
+
+      </div>`;
+    };
+
+    const ids = rows.map(r => String(r.id));
+    window.__mpPick = (id) => {
+      ids.forEach(x => {
+        const on = x === String(id);
+        const row = this.q('#mp-li-' + x);
+        if (row) { row.setAttribute('data-on', on ? '1' : '0'); row.style.background = on ? 'rgba(0,141,213,0.15)' : ''; }
+        const pn = this.q('#mp-pane-' + x);
+        if (pn) pn.style.display = on ? 'flex' : 'none';
+      });
+    };
+    window.__mpIls = (id) => {
+      const b = this.q('#mp-ils-box-' + id); if (!b) return;
+      const on = b.getAttribute('data-on') !== '1';
+      b.setAttribute('data-on', on ? '1' : '0');
+      b.style.background = on ? 'var(--rmx-attention, #f58220)' : '#fff';
+      b.style.borderColor = on ? 'var(--rmx-attention, #f58220)' : 'var(--rmx-text-muted, #b3b3b3)';
+      b.innerHTML = on ? this.ico('check', 14, 'color:#fff') : '';
+    };
+
+    const short = rows.filter(r => !this.mitsComplete(r)).length;
+    return `<div style="display:flex;flex-direction:column;gap:14px;flex:1;min-height:0">
+      <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.45">Select a charge to fill in the details listings need. ${short ? short + ' of ' + rows.length + ' still need something.' : 'Every charge has what listings need.'} The charge itself — amount, dates, level — is edited on the property’s Charges.</span>
+      <div style="flex:1;min-height:0;display:flex;gap:20px">
+        <div style="width:300px;flex:none;display:flex;flex-direction:column;min-height:0;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;overflow:hidden">
+          <div style="flex:none;padding:12px 12px 8px">
+            <div style="display:flex;align-items:center;gap:8px;height:36px;box-sizing:border-box;padding:0 8px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px">
+              ${this.ico('search', 18, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}
+              <input id="mp-q" placeholder="Find a charge" oninput="var q=this.value.toLowerCase();document.querySelectorAll('[id^=&quot;mp-li-&quot;]').forEach(function(r){var k=r.getAttribute('data-k')||'';r.style.display=k.indexOf(q)<0?'none':'flex'})" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:italic 400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">
+            </div>
+          </div>
+          <div style="flex:1;min-height:0;overflow-y:auto">${rows.map(li).join('')}</div>
+          <div style="flex:none;display:flex;justify-content:flex-end;padding:8px 14px;font-size:14px;color:var(--rmx-text-muted, #b3b3b3)">${rows.length} charge${rows.length === 1 ? '' : 's'}</div>
+        </div>
+        <div style="flex:1;min-width:0;min-height:0;overflow-y:auto">${rows.map(pane).join('')}</div>
+      </div>
+    </div>`;
+  }
   mktSetupHTML(){
     if (!this.state.mktSetup) return '';
     const P = this.propInfo();
@@ -7310,8 +7461,13 @@ class Component extends DCLogic {
             <div style="flex:1"></div>
             <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Occupied Units: <strong>${P.occupied != null ? P.occupied : 30}</strong></span>
           </div>
+          <div style="display:flex;align-items:flex-start;flex:none;border-bottom:1px solid var(--rmx-line, #cedbe7);margin:0 -20px;padding:0 20px">${['General','Pricing'].map(t => {
+            const on = t === (this.state.mktTab || 'General');
+            return `<span data-act="mktTab" data-arg="${t}" style="display:inline-flex;align-items:center;justify-content:center;min-width:153px;box-sizing:border-box;padding:14px 8px;margin-bottom:-1px;font-size:14px;white-space:nowrap;cursor:pointer;${on ? 'font-weight:600;color:var(--rmx-brand-dark, #13314c);border-bottom:3px solid var(--ac,var(--rmx-brand, #008dd5))' : 'font-weight:400;color:var(--rmx-text, #666666);border-bottom:3px solid transparent'}">${t}</span>`;
+          }).join('')}</div>
+          ${(this.state.mktTab || 'General') === 'Pricing' ? this.mktPricingBody() : `
           <div style="display:grid;grid-template-columns:repeat(3, minmax(0,1fr));gap:16px;align-items:stretch">${contact1}${contact2}${listing}</div>
-          <div style="display:grid;grid-template-columns:repeat(2, minmax(0,1fr));gap:16px;align-items:stretch">${features}${floor}</div>
+          <div style="display:grid;grid-template-columns:repeat(2, minmax(0,1fr));gap:16px;align-items:stretch">${features}${floor}</div>`}
         </div>
         <div style="display:flex;justify-content:flex-end;gap:10px;background:#fff;border-top:1px solid var(--rmx-line, #cedbe7);padding:12px 20px;flex:none">
           <button data-act="mktAdvOpen" style="height:34px;min-height:34px;padding:0 20px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Advanced</button>
