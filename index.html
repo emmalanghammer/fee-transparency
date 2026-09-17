@@ -504,13 +504,16 @@ class Component extends DCLogic {
     const use = {};
     this.propNames().forEach(prop => this.profileRows(prop).forEach(r => {
       const c = String(r.mits || '').toUpperCase(); if (!c) return;
-      const u = use[c] || (use[c] = { code:c, charges:0, props:{}, one:0, rec:0, blanks:0 });
+      const u = use[c] || (use[c] = { code:c, charges:0, props:{}, one:0, rec:0, blanks:0, short:0, sample:'' });
       u.charges++; u.props[prop] = true;
+      if (!u.sample) u.sample = r.name || r.desc || '';
       if (/-one$/.test(r.group || '')) u.one++; else u.rec++;
-      u.blanks += this.mitsMissing(r).length;
+      const miss = this.mitsMissing(r).length;
+      u.blanks += miss; if (miss) u.short++;
     }));
     return Object.keys(use).map(c => Object.assign(use[c], {
-      props: Object.keys(use[c].props).length, desc: this.chargeTypeDesc(c)
+      propList: Object.keys(use[c].props), props: Object.keys(use[c].props).length,
+      desc: this.chargeTypeDesc(c) || use[c].sample, gl: (this.chargeTypeRow(c) || {}).gl || ''
     })).sort((a, b) => b.blanks - a.blanks || b.charges - a.charges || (a.code < b.code ? -1 : 1));
   }
   // Fills only what is blank — a value someone typed by hand is never overwritten. Fee Due is asked
@@ -2951,12 +2954,14 @@ class Component extends DCLogic {
     </div>`;
   }
   // ---------- Select Properties dialog (mock 2699-105683) ----------
-  // Marketing Defaults: every charge type the portfolio uses, one row each, every marketing field a
-  // column edited in place. Tick rows to type a value once and set it across all of them. Selection
-  // and typing are held on the DOM — a re-render here would wipe a grid half filled in.
+  // Marketing Defaults: the charge types the portfolio uses down the left, and what a charge of the
+  // selected one should start with on the right. Every type's fields are rendered and only the
+  // selected pane is shown, so clicking down the list never loses what has been typed — and nothing
+  // here re-renders, which would wipe a pane half filled in.
   mktDefHTML(){
     if (!this.state.mktDefOpen) return '';
     const types = this.mktDefTypes();
+    if (!types.length) return '';
     const defs = this.mktDefs();
     const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
     const REQ = ['Required','Optional','Situational'];
@@ -2964,107 +2969,81 @@ class Component extends DCLogic {
       {value:'During Term',label:'During Term'},{value:'Move-Out',label:'At Move-Out'}];
     const SCHED = ['Monthly','Weekly','Daily'];
     const REF = [{value:'yes',label:'Refundable'},{value:'no',label:'Not Refundable'}];
+    const hasDef = t => { const d = defs[t.code] || {};
+      return !!(d.name || d.marketing || d.requirement || d.feeDue || d.schedule || d.refundable); };
 
-    // A cell is the Input Field at grid height: same fill, border and italic placeholder, 32px so a
-    // row of eight still reads as one line.
-    const txt = (id, val, ph) => `<input id="${id}" value="${esc(val)}"${ph?` placeholder="${esc(ph)}"`:''} oninput="this.style.fontStyle=this.value?'normal':'italic'" style="width:100%;height:32px;box-sizing:border-box;padding:0 8px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;font:${(!val&&ph)?'italic ':''}400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);outline:none">`;
-    const dd = (id, opts, val) => `<span style="display:block;width:100%">${this.singleSelect(id, opts, val, { noSearch:true, blank:true, placeholder:'Not set' })}</span>`;
-    const na = `<span style="font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">n/a</span>`;
+    // ---- left: one row per charge type ----
+    const li = (t, i) => `<div id="md-li-${t.code}" data-k="${esc((t.code + ' ' + t.desc).toLowerCase())}" onclick="if(window.__mdPick)window.__mdPick('${t.code}')" onmouseover="if(this.getAttribute('data-on')!=='1')this.style.background='var(--rmx-bg-subtle, #f5f8fa)'" onmouseout="if(this.getAttribute('data-on')!=='1')this.style.background=''" data-on="${i === 0 ? '1' : '0'}" style="display:flex;align-items:center;gap:10px;min-height:32px;box-sizing:border-box;padding:6px 12px;cursor:pointer;${i === 0 ? 'background:var(--rmx-brand-tint-bg, #ebf1f5)' : ''}">
+      <span style="width:104px;flex:none;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.code}</span>
+      <span style="flex:1;min-width:0;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.desc)}</span>
+      <span id="md-tick-${t.code}" style="flex:none;display:inline-flex;align-items:center">${hasDef(t) ? this.ico('check_circle', 16, 'color:var(--rmx-success, #6eb744)') : ''}</span>
+    </div>`;
 
-    const box = (on, id) => `<span id="${id}" style="width:18px;height:18px;flex:none;border-radius:2px;box-sizing:border-box;border:2px solid ${on?'var(--rmx-attention, #f58220)':'var(--rmx-text-muted, #b3b3b3)'};background:${on?'var(--rmx-attention, #f58220)':'#fff'};display:inline-flex;align-items:center;justify-content:center">${on?this.ico('check', 13, 'color:#fff'):''}</span>`;
+    // ---- right: the selected type, then its marketing details ----
+    const fieldBox = (inner, extra) => `<div style="display:flex;align-items:center;gap:6px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:36px;box-sizing:border-box;padding:0 10px;${extra || ''}">${inner}</div>`;
+    const txt = (id, val, ph) => fieldBox(`<input id="${id}" value="${esc(val)}"${ph ? ` placeholder="${esc(ph)}"` : ''} oninput="this.style.fontStyle=this.value?'normal':'italic'" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:${(!val && ph) ? 'italic ' : ''}400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">`);
+    const area = (id, val, ph) => `<textarea id="${id}" rows="3"${ph ? ` placeholder="${esc(ph)}"` : ''} oninput="this.style.fontStyle=this.value?'normal':'italic'" style="box-sizing:border-box;padding:8px 10px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;font:${(!val && ph) ? 'italic ' : ''}400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);line-height:1.5;resize:vertical;width:100%">${esc(val)}</textarea>`;
+    const dd = (id, opts, val) => this.singleSelect(id, opts, val, { noSearch:true, blank:true, placeholder:'No default' });
+    // A field that can't apply to this charge type keeps its place, greyed, and says why — so the
+    // pane doesn't change shape as you click down the list.
+    const off = (why) => `<div style="display:flex;flex-direction:column;gap:4px">
+      ${fieldBox(`<span style="flex:1;min-width:0;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">Doesn&rsquo;t apply</span>`, 'background:var(--rmx-bg-muted, #f2f2f2)')}
+      <span style="font-size:12px;color:var(--rmx-text, #666666);line-height:1.4">${why}</span></div>`;
+    const lab = t => `<span style="font-size:14px;color:var(--rmx-text, #666666)">${t}</span>`;
+    const fld = (label, ctl) => `<div style="display:flex;flex-direction:column;gap:4px;min-width:0">${lab(label)}${ctl}</div>`;
 
-    const cols = '44px 168px 190px minmax(240px,1fr) 156px 156px 148px 156px';
-    const hc = (t, first) => `<span style="display:flex;align-items:center;height:32px;box-sizing:border-box;padding:0 ${first?'0 0 10px':'10px'};font:500 12.6px Roboto,sans-serif;letter-spacing:.04em;color:#fff;white-space:nowrap">${t}</span>`;
-
-    const row = (t, i) => {
+    const pane = (t, i) => {
       const d = defs[t.code] || {};
-      const set = !!(d.name || d.marketing || d.requirement || d.feeDue || d.schedule || d.refundable);
-      return `<div id="md-row-${t.code}" data-on="0" data-k="${esc((t.code + ' ' + t.desc).toLowerCase())}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);background:${i%2?'var(--rmx-bg-subtle, #f5f8fa)':'#fff'}">
-        <span onclick="if(window.__mdSel)window.__mdSel('${t.code}')" style="display:flex;align-items:center;justify-content:center;min-height:48px;cursor:pointer">${box(false, 'md-box-' + t.code)}</span>
-        <span style="display:flex;flex-direction:column;justify-content:center;gap:1px;min-height:48px;padding:0 10px;overflow:hidden">
-          <span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${t.code}${set?this.ico('check_circle', 14, 'color:var(--rmx-success, #6eb744);flex:none'):''}</span>
-          <span style="font-size:12px;color:var(--rmx-text, #666666);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.charges} charge${t.charges===1?'':'s'} &middot; ${t.props} propert${t.props===1?'y':'ies'}</span>
-        </span>
-        <span style="padding:0 8px">${txt('md-name-' + t.code, d.name || '', 'Not set')}</span>
-        <span style="padding:0 8px">${txt('md-marketing-' + t.code, d.marketing || '', 'Not set')}</span>
-        <span style="padding:0 8px">${dd('md-requirement-' + t.code, REQ, d.requirement || '')}</span>
-        <span style="padding:0 8px">${t.one ? dd('md-feeDue-' + t.code, DUE, d.feeDue || '') : na}</span>
-        <span style="padding:0 8px">${t.rec ? dd('md-schedule-' + t.code, SCHED, d.schedule || '') : na}</span>
-        <span style="padding:0 8px">${dd('md-refundable-' + t.code, REF, d.refundable || '')}</span>
+      const more = t.propList.length - 1;
+      const props = esc(t.propList.map(n => (this.propInfo(n) || {}).short || n).join(', '));
+      return `<div id="md-pane-${t.code}" style="display:${i === 0 ? 'flex' : 'none'};flex-direction:column;gap:14px">
+
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:14px 16px">
+          <span style="font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t.code}</span>
+          <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b)">${esc(t.gl || t.desc)}</span>
+          <span title="${props}" style="display:inline-flex;align-items:center;gap:5px">
+            ${this.ico('home', 16, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}
+            <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${esc((this.propInfo(t.propList[0]) || {}).short || t.propList[0])}</span>
+            ${more > 0 ? `<span style="display:inline-flex;align-items:center;height:20px;padding:0 9px;border-radius:10px;border:1px solid var(--ac,var(--rmx-brand, #008dd5));font-size:12px;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap">+${more}</span>` : ''}
+          </span>
+          <div style="flex:1"></div>
+          <span style="display:inline-flex;align-items:center;gap:14px;flex:none">
+            <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b);white-space:nowrap">Total Charges: <strong style="color:var(--rmx-brand-dark, #13314c)">${t.charges}</strong></span>
+            ${t.short ? `<span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap">${this.ico('error', 14, 'color:var(--rmx-attention, #f58220)')}<span style="font-size:14px;color:#7a5a2a">${t.short} need detail${t.short === 1 ? '' : 's'}</span></span>`
+              : `<span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap">${this.ico('check_circle', 14, 'color:var(--rmx-success, #6eb744)')}<span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">All complete</span></span>`}
+          </span>
+        </div>
+
+        <div class="tile" style="margin:0">
+          <div class="thead2"><span class="ttl">Marketing Details</span></div>
+          <div style="padding:16px;display:flex;flex-direction:column;gap:14px">
+            <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px 20px">
+              ${fld('Name', txt('md-name-' + t.code, d.name || '', 'No default'))}
+              ${fld('Charge Requirement', dd('md-requirement-' + t.code, REQ, d.requirement || ''))}
+            </div>
+            ${fld('Marketing Description', area('md-marketing-' + t.code, d.marketing || '', 'No default'))}
+            <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:14px 20px">
+              ${fld('Fee Due', t.one ? dd('md-feeDue-' + t.code, DUE, d.feeDue || '') : off('No one-time charges use this type.'))}
+              ${fld('Charge Schedule', t.rec ? dd('md-schedule-' + t.code, SCHED, d.schedule || '') : off('No recurring charges use this type.'))}
+              ${fld('Refundable', dd('md-refundable-' + t.code, REF, d.refundable || ''))}
+            </div>
+          </div>
+        </div>
+
       </div>`;
     };
 
-    // The bulk panel types a value once and writes it into every ticked row.
-    const bulkRow = (label, ctl, key) => `<div style="display:grid;grid-template-columns:150px minmax(0,1fr) 72px;align-items:center;gap:10px;padding:7px 14px">
-      <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${label}</span>${ctl}
-      <button onclick="if(window.__mdApply)window.__mdApply('${key}')" style="height:30px;min-height:30px;padding:0 10px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Apply</button>
-    </div>`;
-    const bulkPanel = `<div id="md-bulk-pnl" style="display:none;position:absolute;left:0;bottom:44px;z-index:1200;width:520px;background:#fff;border-radius:4px;box-shadow:0 8px 24px rgba(0,0,0,0.28);padding:6px 0">
-      <div style="padding:9px 14px 7px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)">Set one field on every selected charge type</div>
-      ${bulkRow('Name', txt('md-bulk-name', '', 'Type a name'), 'name')}
-      ${bulkRow('Marketing Description', txt('md-bulk-marketing', '', 'Type a description'), 'marketing')}
-      ${bulkRow('Charge Requirement', dd('md-bulk-requirement', REQ, ''), 'requirement')}
-      ${bulkRow('Fee Due', dd('md-bulk-feeDue', DUE, ''), 'feeDue')}
-      ${bulkRow('Charge Schedule', dd('md-bulk-schedule', SCHED, ''), 'schedule')}
-      ${bulkRow('Refundable', dd('md-bulk-refundable', REF, ''), 'refundable')}
-      <div style="padding:4px 14px 9px;font-size:12px;color:var(--rmx-text, #666666);line-height:1.5">Fee Due is skipped on a type with no one-time charges, Charge Schedule on one with no recurring charges.</div>
-    </div>`;
-
-    const codes = types.map(t => t.code);
-    window.__mdSel = (code) => {
-      const r = this.q('#md-row-' + code); if (!r) return;
-      const on = r.getAttribute('data-on') !== '1';
-      r.setAttribute('data-on', on ? '1' : '0');
-      r.style.background = on ? '#fff7ee' : '';
-      const b = this.q('#md-box-' + code);
-      if (b) { b.style.background = on ? 'var(--rmx-attention, #f58220)' : '#fff';
-        b.style.borderColor = on ? 'var(--rmx-attention, #f58220)' : 'var(--rmx-text-muted, #b3b3b3)';
-        b.innerHTML = on ? this.ico('check', 13, 'color:#fff') : ''; }
-      window.__mdBar();
-    };
-    window.__mdPicked = () => codes.filter(c => { const r = this.q('#md-row-' + c); return r && r.getAttribute('data-on') === '1'; });
-    window.__mdAll = () => {
-      const all = window.__mdPicked().length === codes.length;
-      codes.forEach(c => { const r = this.q('#md-row-' + c);
-        if (r && (r.getAttribute('data-on') === '1') === all) window.__mdSel(c); });
-    };
-    window.__mdBar = () => {
-      const n = window.__mdPicked().length, bar = this.q('#md-bar');
-      if (bar) bar.style.display = n ? 'flex' : 'none';
-      const lbl = this.q('#md-bar-n'); if (lbl) lbl.textContent = n + ' charge type' + (n === 1 ? '' : 's') + ' selected';
-      const btn = this.q('#md-bar-btn'); if (btn) btn.textContent = 'Set a field for all ' + n;
-      const ch = this.q('#md-bar-ch');
-      if (ch) { const m = window.__mdPicked().reduce((a, c) => a + (types.filter(t => t.code === c)[0] || {charges:0}).charges, 0);
-        ch.textContent = m + ' charge' + (m === 1 ? '' : 's') + ' use them'; }
-      const hb = this.q('#md-box-all');
-      if (hb) { const all = n === codes.length && n > 0;
-        hb.style.background = all ? 'var(--rmx-attention, #f58220)' : '#fff';
-        hb.style.borderColor = all ? 'var(--rmx-attention, #f58220)' : 'var(--rmx-text-muted, #b3b3b3)';
-        hb.innerHTML = all ? this.ico('check', 13, 'color:#fff') : ''; }
-    };
-    // A dropdown keeps its value on a hidden input and its label on a sibling, so both move together.
-    window.__mdPut = (id, val, label) => {
-      const h = this.q('#' + id); if (h) h.value = val;
-      const d = this.q('#' + id + '-disp');
-      if (d) { d.textContent = label || ' ';
-        d.style.fontStyle = val ? 'normal' : 'italic';
-        d.style.color = val ? 'var(--rmx-brand-dark, #13314c)' : 'var(--rmx-text-muted, #b3b3b3)'; }
-      if (h && h.tagName === 'INPUT' && h.type !== 'hidden') h.style.fontStyle = val ? 'normal' : 'italic';
-    };
-    window.__mdApply = (key) => {
-      const src = this.q('#md-bulk-' + key); if (!src) return;
-      const val = String(src.value || '').trim();
-      const dsp = this.q('#md-bulk-' + key + '-disp');
-      const label = dsp ? dsp.textContent : val;
-      window.__mdPicked().forEach(c => {
-        const t = types.filter(x => x.code === c)[0] || {};
-        if (key === 'feeDue' && !t.one) return;
-        if (key === 'schedule' && !t.rec) return;
-        window.__mdPut('md-' + key + '-' + c, val, label);
+    // Selection is a DOM swap: every pane is already rendered, so nothing typed is thrown away.
+    window.__mdPick = (code) => {
+      types.forEach(t => {
+        const on = t.code === code;
+        const row = this.q('#md-li-' + t.code);
+        if (row) { row.setAttribute('data-on', on ? '1' : '0');
+          row.style.background = on ? 'var(--rmx-brand-tint-bg, #ebf1f5)' : ''; }
+        const pn = this.q('#md-pane-' + t.code);
+        if (pn) pn.style.display = on ? 'flex' : 'none';
       });
     };
-
-    const fillOn = `<span id="md-fill-box" style="width:20px;height:20px;flex:none;border-radius:2px;box-sizing:border-box;border:2px solid var(--rmx-attention, #f58220);background:var(--rmx-attention, #f58220);display:inline-flex;align-items:center;justify-content:center">${this.ico('check', 14, 'color:#fff')}</span>`;
     window.__mdFill = () => {
       const b = this.q('#md-fill-box'); if (!b) return;
       const on = b.getAttribute('data-off') === '1';
@@ -3075,49 +3054,38 @@ class Component extends DCLogic {
     };
 
     const totalBlanks = types.reduce((a, t) => a + t.blanks, 0);
+    const fillBox = `<span id="md-fill-box" style="width:20px;height:20px;flex:none;border-radius:2px;box-sizing:border-box;border:2px solid var(--rmx-attention, #f58220);background:var(--rmx-attention, #f58220);display:inline-flex;align-items:center;justify-content:center">${this.ico('check', 14, 'color:#fff')}</span>`;
 
     return `<div data-act="mktDefClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:150">
-      <div data-act="noop" style="width:1120px;max-width:96vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+      <div data-act="noop" style="width:1040px;max-width:96vw;height:660px;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
 
         <div style="display:flex;align-items:center;justify-content:space-between;height:48px;box-sizing:border-box;padding:8px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
           <span style="font-size:20px;color:var(--rmx-brand-dark, #13314c)">Marketing Defaults by Charge Type</span>
           ${this.ico('close', 24, 'color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer').replace('<svg ', '<svg data-act="mktDefClose" ')}
         </div>
 
-        <div style="flex:none;background:var(--rmx-bg-subtle, #f5f8fa);border-bottom:1px solid var(--rmx-line, #cedbe7);padding:11px 20px;font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.45">A charge of this type starts with these marketing details, on every property. Charges created from now on pick them up; charges that already exist are filled below.</div>
+        <div style="flex:none;background:var(--rmx-bg-subtle, #f5f8fa);border-bottom:1px solid var(--rmx-line, #cedbe7);padding:11px 20px;font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.45">A charge of the selected type starts with these marketing details, on every property. ${totalBlanks} blank field${totalBlanks === 1 ? '' : 's'} across ${types.length} charge type${types.length === 1 ? '' : 's'} could be filled from here.</div>
 
-        <div style="flex:none;display:flex;align-items:center;gap:12px;padding:12px 20px 10px">
-          <div style="display:flex;align-items:center;gap:6px;width:240px;height:36px;box-sizing:border-box;padding:0 8px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px">
-            ${this.ico('search', 18, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}
-            <input id="md-q" placeholder="Find a charge type" oninput="var q=this.value.toLowerCase();document.querySelectorAll('[id^=&quot;md-row-&quot;]').forEach(function(r){var k=r.getAttribute('data-k')||'';r.style.display=k.indexOf(q)<0?'none':'grid'})" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:italic 400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">
-          </div>
-          <div style="flex:1"></div>
-          <span style="font-size:14px;color:var(--rmx-text, #666666)">${types.length} charge type${types.length===1?'':'s'} in use &middot; ${totalBlanks} blank field${totalBlanks===1?'':'s'} to fill</span>
-        </div>
+        <div style="flex:1;min-height:0;display:grid;grid-template-columns:300px minmax(0,1fr)">
 
-        <div style="flex:1;min-height:0;overflow:auto;padding:0 20px">
-          <div style="min-width:1100px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
-            <div style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373);position:sticky;top:0;z-index:2">
-              <span onclick="if(window.__mdAll)window.__mdAll()" style="display:flex;align-items:center;justify-content:center;height:32px;cursor:pointer">${box(false, 'md-box-all')}</span>
-              ${hc('CHARGE TYPE', true)}${hc('NAME')}${hc('MARKETING DESCRIPTION')}${hc('REQUIREMENT')}${hc('FEE DUE')}${hc('SCHEDULE')}${hc('REFUNDABLE')}
+          <div style="border-right:1px solid var(--rmx-line, #cedbe7);display:flex;flex-direction:column;min-height:0;background:#fff">
+            <div style="flex:none;padding:12px 12px 8px">
+              <div style="display:flex;align-items:center;gap:6px;height:36px;box-sizing:border-box;padding:0 8px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px">
+                ${this.ico('search', 18, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}
+                <input id="md-q" placeholder="Find a charge type" oninput="var q=this.value.toLowerCase();document.querySelectorAll('[id^=&quot;md-li-&quot;]').forEach(function(r){var k=r.getAttribute('data-k')||'';r.style.display=k.indexOf(q)<0?'none':'flex'})" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:italic 400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">
+              </div>
             </div>
-            ${types.map(row).join('')}
+            <div style="flex:1;min-height:0;overflow-y:auto">${types.map(li).join('')}</div>
+            <div style="flex:none;display:flex;justify-content:flex-end;padding:8px 14px;border-top:1px solid var(--rmx-brand-tint-bg, #ebf1f5);font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">${types.length} charge type${types.length === 1 ? '' : 's'}</div>
           </div>
+
+          <div style="min-height:0;overflow-y:auto;background:var(--rmx-bg-subtle, #f5f8fa);padding:16px 20px">${types.map(pane).join('')}</div>
+
         </div>
 
-        <div style="position:relative;flex:none;padding:0 20px">
-          <div id="md-bar" style="display:none;align-items:center;gap:18px;margin-top:12px;background:var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;padding:10px 16px">
-            <span id="md-bar-n" style="font-size:14px;font-weight:600;color:#fff">0 charge types selected</span>
-            <button onclick="var p=document.getElementById('md-bulk-pnl');p.style.display=(p.style.display==='block'?'none':'block')" id="md-bar-btn" style="height:32px;min-height:32px;padding:0 14px;border-radius:4px;font:400 14px Roboto,sans-serif;color:#fff;background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.65);cursor:pointer">Set a field for all</button>
-            <div style="flex:1"></div>
-            <span id="md-bar-ch" style="font-size:14px;color:rgba(255,255,255,0.9)"></span>
-          </div>
-          ${bulkPanel}
-        </div>
-
-        <div style="flex:none;display:flex;align-items:center;gap:16px;padding:12px 20px">
+        <div style="flex:none;display:flex;align-items:center;gap:16px;padding:12px 20px;border-top:1px solid var(--rmx-line, #cedbe7)">
           <label onclick="if(window.__mdFill)window.__mdFill()" style="display:inline-flex;align-items:center;gap:10px;cursor:pointer">
-            ${fillOn}<span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Fill blank fields on charges that already exist</span>
+            ${fillBox}<span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Fill blank fields on charges that already exist</span>
           </label>
           <div style="flex:1"></div>
           <button data-act="mktDefSave" class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px">Save</button>

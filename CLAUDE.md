@@ -64,16 +64,17 @@ only journey left is: fill in each charge's marketing details → convert to Fee
 
 `state.mktDef` maps a charge type code to the marketing details a charge of that type starts
 with. It is portfolio-wide and set from one overlay, `mktDefHTML()`, opened by the **Marketing
-Defaults** button in the Pricing Setup toolbar: every charge type the portfolio uses is a row,
-every marketing field a column, edited in place, with row ticks and a panel that types a value
-once and writes it across the selection.
+Defaults** button in the Pricing Setup toolbar: the charge types the portfolio uses down the
+left, and on the right the selected type's info strip (code, GL account, the properties using
+it, charge counts) over a Marketing Details tile.
 
 Two things happen with a default: `mktDefSave` fills the blank fields on charges that already
 exist (a value someone typed is never overwritten), and `saveFee` runs `mktDefFill` on a charge
 being **created** so it starts filled in. Editing an existing charge never re-applies them.
 
-The grid is held on the DOM (`window.__mdSel`, `__mdPut`, `__mdApply`, `__mdBar`, `__mdFill`) —
-a re-render while it is open would wipe a grid half filled in.
+Every type's pane is rendered and all but the selected one hidden, and selection is a DOM swap
+(`window.__mdPick`, `__mdFill`) — so clicking down the list never loses what has been typed, and
+nothing here re-renders, which would wipe a pane half filled in. `mktDefSave` reads every pane.
 
 ## Test feature states
 
