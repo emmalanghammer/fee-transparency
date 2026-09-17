@@ -60,6 +60,21 @@ only journey left is: fill in each charge's marketing details → convert to Fee
 (which only applies to a property that lists online on a provider carrying complete pricing).
 `ftStatus` has four rungs: Incomplete Charges → Ready to Convert → Needs Attention → Complete.
 
+## Marketing defaults by charge type
+
+`state.mktDef` maps a charge type code to the marketing details a charge of that type starts
+with. It is portfolio-wide and set from one overlay, `mktDefHTML()`, opened by the **Marketing
+Defaults** button in the Pricing Setup toolbar: every charge type the portfolio uses is a row,
+every marketing field a column, edited in place, with row ticks and a panel that types a value
+once and writes it across the selection.
+
+Two things happen with a default: `mktDefSave` fills the blank fields on charges that already
+exist (a value someone typed is never overwritten), and `saveFee` runs `mktDefFill` on a charge
+being **created** so it starts filled in. Editing an existing charge never re-applies them.
+
+The grid is held on the DOM (`window.__mdSel`, `__mdPut`, `__mdApply`, `__mdBar`, `__mdFill`) —
+a re-render while it is open would wipe a grid half filled in.
+
 ## Test feature states
 
 The Test Feature State selector is hidden by default; reveal it by clicking the logo or with
