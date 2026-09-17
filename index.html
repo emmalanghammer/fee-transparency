@@ -4378,14 +4378,15 @@ class Component extends DCLogic {
     ].filter(Boolean);
     const all = GENERAL.concat(MARKETING);
 
-    // Same signal the register's "N needed" pill carries, reduced to the mark itself: an attention
-    // glyph on a round tint, with the words in the tooltip.
-    const reqTag = `<span title="Required for listings" style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:#fdf3e3">${this.ico('error', 14, 'color:var(--rmx-attention, #f58220)')}</span>`;
+    // Same signal the register's "N needed" pill carries, reduced to the mark itself — the words move
+    // into the hover panel every other help mark on the charge form uses.
+    const reqTag = this.infoTip('<span style="display:block;white-space:normal">This field is missing from charges and is required to display on listings.</span>', 290,
+      { trigger: this.ico('error', 20, 'color:var(--rmx-attention, #f58220);cursor:pointer') });
 
     const row = (f, first) => `<div style="padding:10px 16px;${first?'':'border-top:1px solid var(--rmx-line, #cedbe7)'}">
       <div style="display:flex;align-items:center;gap:12px">
         <span style="width:190px;flex:none;font-size:14px;color:var(--rmx-brand-dark, #13314c)">${f[1]}</span>
-        <span style="width:36px;flex:none;display:flex;justify-content:center">${f[3] ? reqTag : ''}</span>
+        <span style="width:28px;flex:none;display:flex;justify-content:center">${f[3] ? reqTag : ''}</span>
         <span id="bu-ctl-${f[0]}" style="flex:1;min-width:0;display:flex">${f[2]()}</span>
       </div>
     </div>`;
