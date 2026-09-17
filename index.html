@@ -3790,7 +3790,9 @@ class Component extends DCLogic {
         ['MITS Property ID','RIV-0125'],
         ['Regional Portfolio','Southwest Ohio']]));
 
-    const recurring = this.recChargesTile('property');
+    // Once the property's charges are centralized they live on the Charges tab, so the General tab
+    // stops carrying a copy of them.
+    const recurring = this.profStatus() === 'active' ? '' : this.recChargesTile('property');
 
     const emptyReg=(t,heads)=>tileT(t,'',gtable(heads.map(()=>'1fr').join(' '),heads,[heads.map(()=>'<span style="color:var(--rmx-text-muted, #b3b3b3)">—</span>')]),
       `<span style="font-style:italic">No transactions in the current period</span>`);
