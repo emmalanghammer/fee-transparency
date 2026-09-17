@@ -5282,7 +5282,6 @@ class Component extends DCLogic {
   ppSeedOpt(prop){
     if (this.state.publishedProps[prop]) return {};
     const rows = this.ilsOn(prop) ? this.appliedRows(prop).filter(r => r.ils) : this.appliedRows(prop);
-    if (!rows.length || !rows.every(r => this.mitsComplete(r))) return {};
     const out = {};
     rows.forEach(r => { if ((this.resolvedListing(r).requirement || '') === 'Required') out[r.id] = true; });
     return out;
@@ -5312,7 +5311,13 @@ class Component extends DCLogic {
     // the preview turns into a full picker: every charge listed, grouped the way the Charges tab
     // groups them, with the required ones ticked and priced. Ticking is what the breakdown follows,
     // so a leasing agent can see the quote with and without any one charge before converting.
-    const pickAll = !this.state.publishedProps[p.prop] && rows.length > 0 && rows.every(r => this.mitsComplete(r));
+    // ...and the same picker stands in when the charges can't be grouped at all: without a Charge
+    // Requirement on every one of them there is no telling a required fee from an optional one, so
+    // the preview stops guessing and lets the charges be picked instead.
+    const reqSet = r => !!String(this.resolvedListing(r).requirement || '').trim();
+    const allReq = rows.every(reqSet);
+    const pickAll = !this.state.publishedProps[p.prop] && rows.length > 0
+      && (rows.every(r => this.mitsComplete(r)) || !allReq);
     const picked = r => !!p.opt[r.id];
     const monthly = pickAll ? rows.filter(r => !/-one$/.test(r.group) && picked(r)) : of('req').filter(r => !/-one$/.test(r.group));
     const oneTime = pickAll ? rows.filter(r => /-one$/.test(r.group) && picked(r)) : of('req').filter(r => /-one$/.test(r.group));
@@ -5361,7 +5366,10 @@ class Component extends DCLogic {
     const pickSection = (t, rws) => rws.length ? `<div style="display:flex;flex-direction:column;gap:2px;margin-top:2px">
       <span style="font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">${t}</span>${rws.map(optCb).join('')}</div>` : '';
     const chargePicker = `<div style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);padding-bottom:8px;margin-top:4px">Select Charges</div>
-      <span style="font-size:12px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3);line-height:1.5">Required charges are selected for you. Untick one to see the price without it.</span>
+      <span style="font-size:12px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3);line-height:1.5">${allReq
+        ? 'Required charges are selected for you. Untick one to see the price without it.'
+        : 'Tick the charges to price together. Any charge already marked Required is selected for you.'}</span>
+      ${rows.every(r => this.mitsComplete(r)) ? '' : `<span style="font-size:12px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">Filling in each charge's marketing details makes this preview more accurate — listing sites build the price they show from the same fields.</span>`}
       ${pickSection('Recurring', rows.filter(r => !/-one$/.test(r.group)))}
       ${pickSection('One-Time', rows.filter(r => /-one$/.test(r.group)))}`;
     const info = this.propInfo(p.prop);
@@ -5398,7 +5406,9 @@ class Component extends DCLogic {
                 ${rows.length ? (pickAll
                   // Nothing is converted yet, so the breakdown doesn't claim to know when a fee is
                   // collected — it groups the way the picker on the left does.
-                  ? `${grp('Recurring Charges', monthly)}${grp('One-Time Charges', oneTime, '', oneTime.length>1?'One-time total':'')}`
+                  ? (monthly.length || oneTime.length
+                    ? `${grp('Recurring Charges', monthly)}${grp('One-Time Charges', oneTime, '', oneTime.length>1?'One-time total':'')}`
+                    : `<div style="padding:14px 0;border-top:1px solid var(--rmx-bg-subtle, #f5f8fa);font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3);line-height:1.5">Tick a charge on the left to build the price.</div>`)
                   : `${grp('Monthly Charges', monthly)}${grp('Due At Application', atApp, '', 'At application total')}${grp('Due at Move In', atMoveIn, '', 'Move-in total')}${grp('Due one-time', otherOne, '', otherOne.length>1?'One-time total':'')}${chosenOpt.length?grp('Optional add-ons', chosenOpt, '/mo'):''}${chosenOptOne.length?grp('Optional add-ons, one-time', chosenOptOne):''}`)
                   : `<div style="padding:16px 0;border-top:1px solid var(--rmx-bg-subtle, #f5f8fa);display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center">
                       <svg class="ico" width="24" height="24" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-line, #cedbe7)"><path d="m629-419-44-44q26-71-27-118t-115-24l-44-44q17-11 38-16t43-5q71 0 120.5 49.5T650-500q0 22-5.5 43.5T629-419Zm129 129-40-40q49-36 85.5-80.5T857-500q-50-111-150-175.5T490-740q-42 0-86 8t-69 19l-46-47q35-16 89.5-28T485-800q143 0 261.5 81.5T920-500q-26 64-67 117t-95 93Zm58 226L648-229q-35 14-79 21.5t-89 7.5q-146 0-265-81.5T40-500q20-52 55.5-101.5T182-696L56-822l42-43 757 757-39 44ZM223-654q-37 27-71.5 71T102-500q51 111 153.5 175.5T488-260q33 0 65-4t48-12l-64-64q-11 5-27 7.5t-30 2.5q-70 0-120-49t-50-121q0-15 2.5-30t7.5-27l-97-97Zm305 142Zm-116 58Z"/></svg>
