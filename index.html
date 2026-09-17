@@ -1171,7 +1171,10 @@ class Component extends DCLogic {
         break; }
 
       // ---- Set Up Fee Transparency wizard ----
-      case 'setupOpen': this.setState({ recView: null, mktSetup: false, mktAdv: false, setup: { props: [arg || this.state.property], step: 1 } }); break;
+      // The property's general details sit behind the wizard, not the Charges overlay it may have been
+      // opened from — otherwise Charges shows through, closes, and comes back on the way out.
+      case 'setupOpen': this.setState({ recView: null, mktSetup: false, mktAdv: false, propTab: 'General',
+        setup: { props: [arg || this.state.property], step: 1 } }); break;
       // Leaving mid-flow throws away the charge selections and requirements picked so far, so it asks
       // first. Nothing to lose on step 1 before anything is touched, and the saving/success steps
       // have already written the profile — those close straight away.
@@ -1184,7 +1187,9 @@ class Component extends DCLogic {
           const props = c.props || [];
           this.setState({ setup: null, setupExit: false });
           if (props.length > 1) this.go('feetrans');
-          else if (props[0]) this.go('property', { property: props[0], propTab: 'Charges' });
+          // Closing the finish step leaves the property's general details up; the footer's own action
+          // is what opens Charges.
+          else if (props[0]) this.go('property', { property: props[0], propTab: 'General' });
           break;
         }
         this.setState({ setup: null, setupExit: false });
@@ -1388,7 +1393,7 @@ class Component extends DCLogic {
         const perProp = {}; let total = 0;
         props.forEach(p => { perProp[p] = this.setupRows(p); total += perProp[p].length; });
         const rows = perProp[props[0]] || [];
-        this.setState({ setup: Object.assign({}, c, { step: 'saving' }), propTab: 'Charges' });
+        this.setState({ setup: Object.assign({}, c, { step: 'saving' }) });
         clearTimeout(this._sut); this._sut = setTimeout(() => this.setState(s => {
           const status = Object.assign({}, s.profileStatus), fees = Object.assign({}, s.profileFees);
           const log = s.histLog.slice();
