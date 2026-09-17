@@ -2969,7 +2969,7 @@ class Component extends DCLogic {
     const REQ = ['Required','Optional','Situational'];
     const DUE = [{value:'At Application',label:'At Application'},{value:'Move-In',label:'At Move-In'},
       {value:'During Term',label:'During Term'},{value:'Move-Out',label:'At Move-Out'}];
-    const SCHED = ['Monthly','Weekly','Daily'];
+    const SCHED = ['Weekly','Monthly','Annually'];
     const REF = [{value:'yes',label:'Refundable'},{value:'no',label:'Not Refundable'}];
 
     // ---- left: one row per charge type ----
@@ -4413,7 +4413,7 @@ class Component extends DCLogic {
       // A recurring charge is collected across the term by definition, so Fee Due is only a question
       // when every selected charge is one-time.
       allOne ? ['due', 'Fee Due', () => dd('bu-due', [{value:'At Application',label:'At Application'},{value:'Move-In',label:'At Move-In'},{value:'During Term',label:'During Term'},{value:'Move-Out',label:'At Move-Out'}]), true] : null,
-      allRec ? ['sched', 'Charge Schedule', () => dd('bu-sched', ['Monthly','Weekly','Daily']), true] : null,
+      allRec ? ['sched', 'Charge Schedule', () => dd('bu-sched', ['Weekly','Monthly','Annually']), true] : null,
       ['refund', 'Refundable', () => dd('bu-refund', [{value:'yes',label:'Refundable'},{value:'no',label:'Not Refundable'}]), false]
     ].filter(Boolean);
     const all = GENERAL.concat(MARKETING);
@@ -6608,7 +6608,7 @@ class Component extends DCLogic {
         ${isOne
           ? `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Fee Due')}${dd('m-due',['At Application','Move-In','During Term','Move-Out'],(ed&&ed.listing&&ed.listing.feeDue)||'',{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`
           : `<input type="hidden" id="m-due" value="During Term">`}
-        ${isOne?'':`<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Schedule', help.sched)}${dd('m-sched',['Monthly','Weekly','Daily'],(ed&&ed.listing&&ed.listing.schedule)||'',{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`}
+        ${isOne?'':`<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Schedule', help.sched)}${dd('m-sched',['Weekly','Monthly','Annually'],(ed&&ed.listing&&ed.listing.schedule)||'',{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`}
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Refundable')}${dd('m-refund',['Refundable','Not Refundable'],refundable,{noSearch:true,blank:true,placeholder:' '})}</div>
       </div>
       <div id="m-sitdesc-wrap" style="display:${req==='Situational'?'flex':'none'};flex-direction:column;gap:4px">${lab('Situational Charge Description')}<textarea id="m-sitdesc" class="fld" style="height:48px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${esc(ed?ed.cond:'')}</textarea></div>
