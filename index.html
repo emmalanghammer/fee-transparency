@@ -2335,13 +2335,6 @@ class Component extends DCLogic {
     </div>`;
   }
 
-  footer(label){
-    return `<div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;background:#fff;border-top:1px solid var(--rmx-line, #cedbe7);flex:none;position:sticky;bottom:0;z-index:5">
-      <button class="btn-out" style="padding:8px 20px;font-size:14px">Discard</button>
-      <button data-act="toast" data-arg="Changes saved" class="btn-pri" style="padding:8px 20px;font-size:14px">${label}</button>
-    </div>`;
-  }
-
   banner(text, link, act, arg){
     return `<div style="display:flex;align-items:center;gap:10px;background:var(--rmx-brand-tint-bg, #ebf1f5);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:10px 16px">
       <svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5))"><path d="M453-280h60v-240h-60v240Zm50.5-323.2q9.5-9.2 9.5-22.8 0-14.45-9.48-24.22-9.48-9.78-23.5-9.78t-23.52 9.78Q447-640.45 447-626q0 13.6 9.48 22.8 9.48 9.2 23.5 9.2t23.52-9.2ZM480.27-80q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg>
@@ -5504,9 +5497,6 @@ class Component extends DCLogic {
   // Selected-scope header row (mirrors the property scoreboard) used by the Unit Type Fees and Unit Fees tabs.
   ufUnits(){ const p=this.state.property; return this.units().map(u=>Object.assign({}, u, { prop:p })); }
   recChargesTile(scope){
-    // Nothing to open until the property actually has a profile.
-    const link = this.profStatus() === 'active'
-      ? `<a data-act="openFeeProfile" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))">Open Charges</a>` : '';
     // Same setup pitch as the View Recurring Charges overlay, inside the tile, until the property
     // runs on Fee Transparency.
     const callout = (scope !== 'unit' || this.profStatus() === 'active' || !this.state.recViewNote) ? '' : (() => {
@@ -5526,7 +5516,7 @@ class Component extends DCLogic {
     })();
     const managed = this.profStatus() === 'active';
     return `<div class="tile">
-      <div class="thead2"><span class="ttl">Recurring Charges</span><div style="flex:1"></div>${link}<svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="recViewOpen" data-arg="${scope}" title="View recurring charges" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="M180-120q-24 0-42-18t-18-42v-600q0-24 18-42t42-18h279v60H180v600h600v-279h60v279q0 24-18 42t-42 18H180Zm202-219-42-43 398-398H519v-60h321v321h-60v-218L382-339Z"/></svg></div>
+      <div class="thead2"><span class="ttl">Recurring Charges</span><div style="flex:1"></div><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="recViewOpen" data-arg="${scope}" title="View recurring charges" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="M180-120q-24 0-42-18t-18-42v-600q0-24 18-42t42-18h279v60H180v600h600v-279h60v279q0 24-18 42t-42 18H180Zm202-219-42-43 398-398H519v-60h321v321h-60v-218L382-339Z"/></svg></div>
       ${callout}
       ${managed ? this.chargesManagedNote() : ''}
       ${this.recChargesTableHTML({scope, edge:true, managed})}
@@ -5607,7 +5597,7 @@ class Component extends DCLogic {
     return `<div style="margin:${margin||'12px 16px 4px'};display:flex;align-items:center;gap:12px;background:var(--rmx-brand-tint-bg, #ebf1f5);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:12px 16px">
       ${this.ico('info', 20, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}
       <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">Charges are managed on the property. Add, edit or remove them there and the change applies everywhere it's charged.</span>
-      <a data-act="openFeeProfile" data-arg="${p}" style="display:inline-flex;align-items:center;gap:5px;flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Open Charges${this.ico('open_in_new', 16)}</a>
+      <a data-act="openFeeProfile" data-arg="${p}" style="display:inline-flex;align-items:center;gap:5px;flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Open Charges</a>
     </div>`;
   }
   recViewCallout(){
@@ -5618,7 +5608,7 @@ class Component extends DCLogic {
       return `<div style="margin:12px 20px 0;display:flex;align-items:center;gap:12px;background:var(--rmx-brand-tint-bg, #ebf1f5);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:12px 16px">
         <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5));flex:none"><path d="M453-280h60v-240h-60v240Zm50.5-323.2q9.5-9.2 9.5-22.8 0-14.45-9.48-24.22-9.48-9.78-23.5-9.78t-23.52 9.78Q447-640.45 447-626q0 13.6 9.48 22.8 9.48 9.2 23.5 9.2t23.52-9.2ZM480.27-80q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg>
         <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">Charges are managed on the property. Add, edit or remove them there and the change applies everywhere it's charged.</span>
-        <a data-act="openFeeProfile" data-arg="${p}" style="display:inline-flex;align-items:center;gap:5px;flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Open Charges<svg class="ico" width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M180-120q-24 0-42-18t-18-42v-600q0-24 18-42t42-18h279v60H180v600h600v-279h60v279q0 24-18 42t-42 18H180Zm202-219-42-43 398-398H519v-60h321v321h-60v-218L382-339Z"/></svg></a>
+        <a data-act="openFeeProfile" data-arg="${p}" style="display:inline-flex;align-items:center;gap:5px;flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Open Charges</a>
       </div>`;
     }
     if (!this.state.recViewNote) return '';
@@ -7734,7 +7724,6 @@ class Component extends DCLogic {
       // Charges is a workspace rather than a tab of fields, so it opens over the property instead of
       // replacing it — the property stays behind, the way View Recurring Charges works.
       inner += `<div style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column"><div style="flex:1;min-width:0;padding:16px;display:flex;flex-direction:column;gap:16px;width:100%;box-sizing:border-box">${this.propGeneralBody()}</div></div>`;
-      inner += this.footer('Save property');
       out += `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden"><div style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden">${inner}</div>${this.rail()}</div>`;
       if (s.propTab === 'Charges') out += this.chargesOverlay();
     } else if (s.view === 'sysprefs') {
@@ -7819,7 +7808,6 @@ class Component extends DCLogic {
     } else {
       out += this.ctx('Unit', [{ label: s.property, act:'navProperty', arg: s.property }, { label:'Unit ' + s.unit }], '125 of 255');
       out += this.unitBody();
-      out += this.footer('Save unit');
     }
     out += this.modalHTML();
     out += this.rowMenuHTML();
