@@ -79,6 +79,20 @@ Every type's pane is rendered and all but the selected one hidden, and selection
 (`window.__mdPick`, `__mdFill`) — so clicking down the list never loses what has been typed, and
 nothing here re-renders, which would wipe a pane half filled in. `mktDefSave` reads every pane.
 
+## The Marketing Center
+
+`view: 'feetrans'` is the **Marketing Center** — one page for everything that decides what a
+listing advertises. `marketingCenterBody()` stacks `mcScoreboard()` (four portfolio numbers; the
+two that mean work link into the tab that fixes them) over `mcTabs()` and one panel:
+
+- **Properties** — `feeTransBody()`, the old Pricing Setup register.
+- **Listings** — `listingsBody()`, one row per unit floor plan. The nav's Listings entry now
+  lands here (`mcTab: 'Listings'`); there is no separate listings view.
+- **Charge Type Defaults** — `mktDefBody()`, formerly an overlay.
+
+Clicking a property, or its Next Step, runs `mcOpenProp`: it opens that property's **Marketing
+Setup**, on the Pricing tab when charges are still missing details, else General.
+
 ## Where marketing details live
 
 **Marketing Setup › Pricing** (`mktPricingBody`, saved by `mktPricingSave`) is the only place a
