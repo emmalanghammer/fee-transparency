@@ -89,8 +89,8 @@ from `state.mktDef`.
 
 The **Charges overlay carries none of it**: no Marketing Details section on the charge form, no
 Marketing Name / Listing Ready / requirement / category columns, no Group by Requirement, no
-completeness banner (`mitsBanner` returns ''), and Bulk Update is General-only. Preview Pricing
-stays — it previews the outcome rather than editing a detail.
+completeness banner (`mitsBanner` returns ''), and Bulk Update is General-only. **Preview
+Pricing** moved to the Pricing tab too, and the kebab's Pricing Setup link is gone.
 
 ## Test feature states
 

@@ -4007,7 +4007,6 @@ class Component extends DCLogic {
       ${(() => { const n = this.activeFilterCount(); const on = !!this.state.pfFilter || n > 0;
         return `<span data-act="pfFilterOpen" style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;box-sizing:border-box;border:1px solid ${on?'var(--ac,var(--rmx-brand, #008dd5))':'var(--rmx-line, #cedbe7)'};border-radius:4px;background:${on?'var(--rmx-brand-tint-bg, #ebf1f5)':'#fff'};cursor:pointer"><svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5))"><path d="M427-120v-225h60v83h353v60H487v82h-60Zm-307-82v-60h247v60H120Zm187-166v-82H120v-60h187v-84h60v226h-60Zm120-82v-60h413v60H427Zm166-165v-225h60v82h187v60H653v83h-60Zm-473-83v-60h413v60H120Z"/></svg>${n?`<span style="position:absolute;top:-6px;right:-6px;min-width:16px;height:16px;border-radius:4px;background:var(--ac,var(--rmx-brand, #008dd5));color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;padding:0 4px">${n}</span>`:''}</span>`; })()}
       <span style="width:1px;height:24px;background:var(--rmx-line, #cedbe7);margin:0 2px"></span>
-      <button data-act="pricePreviewOpen" class="btn-out" style="height:36px;min-height:36px;padding:0 14px;border-radius:4px;font-size:14px;white-space:nowrap">Preview Pricing</button>
       <span style="position:relative;display:inline-flex">
         <button data-act="addopen" data-arg="req-rec" class="btn-pri" style="height:36px;min-height:36px;padding:0 14px;border-radius:4px 0 0 4px;font-size:14px;white-space:nowrap">Add Charge</button>
         <button onclick="var p=document.getElementById('pf-add-pnl');if(p.style.display==='block'){p.style.display='none';return}p.style.display='block';var r=this.getBoundingClientRect();var w=p.offsetWidth,h=p.offsetHeight;var l=r.right-w;if(l+w>window.innerWidth-8)l=window.innerWidth-8-w;if(l<8)l=8;var t=r.bottom+4;if(t+h>window.innerHeight-8)t=r.top-h-4;p.style.left=l+'px';p.style.top=t+'px'" class="btn-pri" style="height:36px;min-height:36px;padding:0 6px;border-radius:0 4px 4px 0;border-left:1px solid rgba(255,255,255,0.35);font-size:14px"><svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M480-360 280-559h400L480-360Z"/></svg></button>
@@ -4030,7 +4029,7 @@ class Component extends DCLogic {
       <div style="position:fixed;left:${left}px;top:${p.y}px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);z-index:151;overflow:hidden;padding:4px 0">
         ${ilsItem ? ilsItem + '<div style="height:1px;background:var(--rmx-brand-tint-bg, #ebf1f5);margin:4px 0"></div>' : ''}
         ${item('Bulk Update Charges','bulkOpen')}${item('Copy Charges from Property','copyOpen')}<div style="height:1px;background:var(--rmx-brand-tint-bg, #ebf1f5);margin:4px 0"></div>
-        ${item('Charge History', 'profHistOpen')}${item('Pricing Setup','navFeeTrans')}
+        ${item('Charge History', 'profHistOpen')}
       </div>`;
   }
   // Recurring / One-Time subtable inside a profile section.
@@ -7350,7 +7349,12 @@ class Component extends DCLogic {
 
     const short = rows.filter(r => !this.mitsComplete(r)).length;
     return `<div style="display:flex;flex-direction:column;gap:14px;flex:1;min-height:0">
-      <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.45">Select a charge to fill in the details listings need. ${short ? short + ' of ' + rows.length + ' still need something.' : 'Every charge has what listings need.'} The charge itself — amount, dates, level — is edited on the property’s Charges.</span>
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <span style="flex:1;min-width:280px;font-size:14px;color:var(--rmx-text, #666666);line-height:1.45">Select a charge to fill in the details listings need. ${short ? short + ' of ' + rows.length + ' still need something.' : 'Every charge has what listings need.'} The charge itself — amount, dates, level — is edited on the property’s Charges.</span>
+        <span style="display:inline-flex;align-items:center;gap:14px;flex:none">
+          <button data-act="pricePreviewOpen" class="btn-out" style="height:34px;min-height:34px;padding:0 14px;border-radius:4px;font-size:14px;white-space:nowrap">Preview Pricing</button>
+        </span>
+      </div>
       <div style="flex:1;min-height:0;display:flex;gap:20px">
         <div style="width:300px;flex:none;display:flex;flex-direction:column;min-height:0;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;overflow:hidden">
           <div style="flex:none;padding:12px 12px 8px">
