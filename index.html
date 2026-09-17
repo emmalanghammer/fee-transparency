@@ -179,7 +179,7 @@ class Component extends DCLogic {
     announceStep: 1,     // the announcement walks three steps
     // How far through conversion the whole prototype is showing (nav bar "Test Feature State").
     // Happy Path by default: a walkthrough opens on the four simplified properties, all of them
-    // marketed online, three already centralized and waiting to convert and one still on legacy
+    // marketed online, three with every marketing detail in place and waiting to convert, one still
     // charges. seededProfiles/listingReadyProps carry the three; ilsProps above carries all four.
     scenario: 'happy',
     // Changes made while using the prototype. The seeded history stops at today, so everything in
@@ -253,7 +253,7 @@ class Component extends DCLogic {
       { name:'Stonegate Village', short:'STONEG', email:'neha@stonegatevillage.com', manager:'Neha Walter', addr:'8024 Western Row Rd, Maineville, OH 45039', billing:'9135 Irwin Simpson Rd, Mason, OH 45040', color:'#12a150', loc:'Maineville, OH', units:58, occupied:39 },
       { name:'The Hamptons', short:'HAMPTON', email:'zavier@thehamptons.com', manager:'Zavier Burks', addr:'0246 Fields Ertel Rd, Cincinnati, OH 45241', billing:'1357 Loveland Madeira Rd, Loveland, OH 45140', color:'#f58220', loc:'Cincinnati, OH', units:34, occupied:31 },
       // Manufactured housing. It advertises through MH Village, which doesn't carry complete pricing,
-      // so setting up fee transparency centralizes its charges and that is the whole journey.
+      // so it never reaches fee transparency — its charges are readable, and that is the whole story.
       { name:'Clearcreek Condominiums', short:'CLEARC', email:'renee@clearcreekcondos.com', manager:'Renee Salgado', addr:'2468 Clearcreek Franklin Rd, Springboro, OH 45066', billing:'3579 Lower Springboro Rd, Waynesville, OH 45068', color:'#6eb744', loc:'Springboro, OH', units:62, occupied:57, mh:true }
     ]);
   }
@@ -285,11 +285,11 @@ class Component extends DCLogic {
   // ---------- per-property Fee Transparency ----------
   // Properties that already have Fee Transparency on — the register's "Fee Transparency"
   // column. Opening one of these lands on the populated profile; the rest land on pre-setup.
-  // Happy Path opens part-way through: three of the four properties are already centralized with
-  // every marketing detail in place, so Pricing Setup has properties waiting to convert on the first
-  // screen and one still to centralize.
+  // Happy Path opens part-way through: three of the four properties already have every marketing
+  // detail in place, so Pricing Setup has properties waiting to convert on the first screen and one
+  // whose charges still need their details.
   happyReadyProps(){ return ['The Berkshires','The Windermere','Oakwood Manor']; }
-  // Oakwood Manor has been through the whole thing — centralized, complete, converted — so the
+  // Oakwood Manor has been through the whole thing — complete and converted — so the
   // walkthrough has a finished property to open on.
   happyPublished(){ return ['Oakwood Manor']; }
   ilsOn(p){ return !!this.state.ilsProps[p || this.state.property]; }
@@ -957,7 +957,6 @@ class Component extends DCLogic {
         this.flash(code + ' deleted'); break; }
       case 'navSysPrefs': this.go('sysprefs'); break;
       // Straight into a bulk setup: the tracker page with the property picker already open.
-      case 'navFeeTransBulk': this.go('feetrans', { ftSel: { mode: 'setup' } }); break;
       case 'spNav': this.setState({ spNav: arg }); break;
       case 'spBannerDismiss': this.setState({ spBanner: false }); break;
       case 'petTypeOpen': this.setState({ petType: arg === 'new' ? 'new' : parseInt(arg, 10) }); break;
@@ -1171,7 +1170,7 @@ class Component extends DCLogic {
         this.go('feetrans', { announce: false });
         break;
       // Happy Path walks the property-first route: the announcement hands you back to Properties, and
-      // the charge callout on a property is what sends you into centralizing.
+      // the charge callout on a property is what sends you into its charges.
       case 'announceProps':
         this.go('register', { announce: false });
         break;
@@ -2311,26 +2310,26 @@ class Component extends DCLogic {
       if (published) plan.published[n] = true;
     };
     if (key === 'mid') {
-      // Mid-conversion is the mixed portfolio: converted, converted and since drifted, centralized but
-      // still short, ready to convert, done because they don't advertise, and untouched.
+      // Mid-conversion is the mixed portfolio: converted, converted and since drifted, still short of
+      // details, ready to convert, done because they don't advertise, and untouched.
       ['Riverview Apartments','Greenbriar Village'].forEach(n => convert(n, true, true));
       // Converted with every detail in place, then two charges drifted — which is the only way a
       // converted property can need attention, since the conversion itself is gated on being ready.
       convert('The Windermere', true, true, 2);
       ['The Estates','Willow Creek','Pinewood Place'].forEach(n => convert(n, false, false));
       ['The Hamptons','Stonegate Village'].forEach(n => convert(n, true, false));
-      // Not enabled for listings, so centralizing the charges is all there is to do.
+      // Not enabled for listings, so there is nothing for these to convert to.
       ['Oakwood Manor','Cedar Ridge'].forEach(n => convert(n, true, false));
-      // Listed, but on MH Village — centralized is as far as it goes.
+      // Listed, but on MH Village, which carries no complete-pricing feed — so it never converts.
       convert('Clearcreek Condominiums', true, false);
       // The Berkshires, The Highlands, Valley Forge and The Arbors are still on legacy charges.
     } else if (key === 'happy') {
       // The walkthrough opens with one property still on legacy charges and the rest waiting to
       // convert, so both halves of the job are on screen from the first look at Pricing Setup.
       ['The Berkshires','The Windermere'].forEach(n => convert(n, true, false));
-      // Oakwood Manor is the finished one: centralized, complete and converted.
+      // Oakwood Manor is the finished one: complete and converted.
       convert('Oakwood Manor', true, true);
-      // Riverview Apartments is the one left to centralize.
+      // Riverview Apartments is the one whose charges still need their marketing details.
     } else if (key === 'post') {
       // Steady state: every property is converted, and every marketed one publishes complete pricing.
       names.forEach(n => convert(n, true, !!ils[n] && !this.mhOn(n)));
@@ -2412,17 +2411,15 @@ class Component extends DCLogic {
         ${body(note)}
       </span></div>`;
     const steps = card(
-      step(1, 'Centralize Charges', 'Every charge consolidated onto a charges tab on the property.')
-      + step(2, 'Add Charge Details', 'Fill in more details that describe each charge.')
-      + step(3, 'Convert to Fee Transparency', 'Listings show a total monthly price.', 'If you list online &amp; fee transparency is available')
+      step(1, 'Add Charge Details', 'Fill in more details that describe each charge.')
+      + step(2, 'Convert to Fee Transparency', 'Listings show a total monthly price.', 'If you list online &amp; fee transparency is available')
       + `<div style="display:flex;align-items:center;gap:8px;border-top:1px solid var(--rmx-bg-subtle, #f5f8fa);padding-top:10px">
           <svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-success, #6eb744)"><path d="M378-246 154-470l43-43 181 181 384-384 43 43-427 427Z"/></svg>
-          ${body("Not listing online? You're done at step 2.")}
+          ${body("Not listing online? There's nothing to do here.")}
         </div>`);
 
     const keyRows = [
-      ['Not Centralized', 'Charges still live in various places. Start by centralizing them.'],
-      ['Incomplete Charges', 'Centralized, but some charges are missing details listings need.'],
+      ['Incomplete Charges', 'Some charges are missing details listings need.'],
       ['Ready to Convert', 'Every charge has what it needs. Convert when you’re ready.'],
       ['Needs Attention', 'Converted, but charges are missing details, so some fees are not showing on listings right now.'],
       ['Complete', 'No setup left to do for this property.']
@@ -2436,9 +2433,8 @@ class Component extends DCLogic {
     </div>`;
 
     const colRows = [
-      ['Centralized', 'If checked, charges are managed on the property level.'],
       ['Fee Transparent', 'If checked, listings show a total monthly price with all fees displaying. N/A means this step isn’t applicable to this property.'],
-      ['Total Charges', 'Total charges on every property after centralizing charges.'],
+      ['Total Charges', 'Every charge on the property, whichever level it is written at.'],
       ['Listing Ready Charges', 'Charges with all the fields that listings require.'],
       ['Incomplete Charges', 'Charges missing required fields. These will not appear on listings.'],
       ['Excluded Charges', 'Charges you’ve chosen to keep off listings. These are excluded on the individual charge.']
@@ -2474,7 +2470,7 @@ class Component extends DCLogic {
     const convertable = this.propertiesData().map(p => p.name).filter(n => this.ftStatus(n).key === 'ready');
 
     // ---- toolbar ----
-    const filtLabels = { all:'All selected', none:'Not Centralized', short:'Incomplete Charges',
+    const filtLabels = { all:'All selected', short:'Incomplete Charges',
       ready:'Ready to Convert', attention:'Needs Attention', complete:'Complete' };
     const fopt = (v, t) => `<div data-act="ftFilterSet" data-arg="${v}" style="padding:7px 14px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">${t}</div>`;
     const clampJs = id => `var p=document.getElementById('${id}');if(p.style.display==='block'){p.style.display='none';}else{p.style.display='block';p.style.right='0';p.style.left='auto';var r=p.getBoundingClientRect();if(r.right>window.innerWidth-8){p.style.right='0';}}`;
@@ -2493,7 +2489,7 @@ class Component extends DCLogic {
         <span style="position:relative;display:flex">
           <div onclick="${clampJs('ft-status-pnl')}" style="flex:1;display:flex;align-items:center;height:36px;box-sizing:border-box;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;padding:0 8px;cursor:pointer"><span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${filtLabels[filt]}</span><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-text, #666666)"><path d="M480-360 280-559h400L480-360Z"/></svg></div>
           <div id="ft-status-pnl" style="display:none;position:absolute;left:0;top:38px;z-index:1000;min-width:200px;background:#fff;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);padding:4px 0">
-            ${fopt('all','All selected')}${fopt('none','Not Centralized')}${fopt('short','Incomplete Charges')}${fopt('ready','Ready to Convert')}${fopt('attention','Needs Attention')}${fopt('complete','Complete')}
+            ${fopt('all','All selected')}${fopt('short','Incomplete Charges')}${fopt('ready','Ready to Convert')}${fopt('attention','Needs Attention')}${fopt('complete','Complete')}
           </div>
         </span>
       </div>
@@ -2509,8 +2505,8 @@ class Component extends DCLogic {
     // the section above the table already says it.
     const grouped = !!this.state.ftGroup;
     const cols = grouped
-      ? 'minmax(140px,215fr) minmax(78px,105fr) minmax(96px,125fr) minmax(72px,110fr) minmax(90px,140fr) minmax(88px,135fr) minmax(84px,130fr) minmax(140px,180fr) 38px'
-      : 'minmax(140px,215fr) minmax(78px,105fr) minmax(96px,125fr) minmax(126px,150fr) minmax(72px,110fr) minmax(90px,140fr) minmax(88px,135fr) minmax(84px,130fr) minmax(140px,180fr) 38px';
+      ? 'minmax(140px,215fr) minmax(96px,125fr) minmax(72px,110fr) minmax(90px,140fr) minmax(88px,135fr) minmax(84px,130fr) minmax(140px,180fr) 38px'
+      : 'minmax(140px,215fr) minmax(96px,125fr) minmax(126px,150fr) minmax(72px,110fr) minmax(90px,140fr) minmax(88px,135fr) minmax(84px,130fr) minmax(140px,180fr) 38px';
     // Drag a header's right edge to resize that column. Every grid on the page — the header and each
     // row, in each section — sizes from one custom property, so a drag rewrites a single value, and
     // the widths survive a re-render on the instance, keyed by whether the page is grouped.
@@ -2540,12 +2536,12 @@ class Component extends DCLogic {
       document.addEventListener('mouseup', up);
     };
     const resizer = (i) => `<span onmousedown="if(window.__ftColDrag)window.__ftColDrag(event,${i})" title="Drag to resize" style="position:absolute;top:0;bottom:0;right:-4px;width:9px;display:flex;align-items:center;justify-content:center;cursor:col-resize;z-index:2"><span style="width:1px;height:calc(100% - 7px);background:var(--rmx-line, #cedbe7)"></span></span>`;
-    // Centralized and Fee Transparent hold a tick or N/A rather than text, so the label centres over
-    // the column the same way the cells do.
-    const midCol = (i) => i === 1 || i === 2;
+    // Fee Transparent holds a tick or N/A rather than text, so the label centres over the column the
+    // same way the cells do.
+    const midCol = (i) => i === 1;
     const hc = (t, first, i) => `<span style="position:relative;display:flex;align-items:center;min-height:30px;box-sizing:border-box;padding:4px 8px 4px ${first?'16px':'8px'};font:500 12.6px Roboto,sans-serif;letter-spacing:1.134px;color:var(--rmx-brand-dark, #13314c)">
       <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${midCol(i)?'text-align:center;':''}">${t}</span>${resizer(i)}</span>`;
-    const heads = ['Property','Centralized','Fee Transparent'].concat(grouped ? [] : ['Status'])
+    const heads = ['Property','Fee Transparent'].concat(grouped ? [] : ['Status'])
       .concat(['Total Charges','Listing Ready Charges','Incomplete Charges','Excluded Charges','Next Step']);
     const header = `<div data-ftheader="1" style="display:grid;grid-template-columns:var(--ftcols);background:#fff;border-bottom:1px solid var(--rmx-line, #cedbe7)">
       ${heads.map((t, i) => hc(t, i === 0, i)).join('')}
@@ -2575,8 +2571,8 @@ class Component extends DCLogic {
       const st = this.ftStatus(r.name);
       const ch = this.ftCharges(r.name);
       // A dash means a number could land here and hasn't yet; N/A means one never will. So the
-      // listings columns read N/A for a property that doesn't market online, centralized or not,
-      // while Total Charges — which every property gets — dashes until the charges are centralized.
+      // listings columns read N/A for a property that doesn't market online, while Total Charges —
+      // which every property gets — always counts.
       const naCounts = st.ft === 'na';
       const num = (v) => naCounts ? na : cell(String(v));
       const incNum = st.key === 'attention' ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-brand-dark, #13314c)';
@@ -3063,7 +3059,7 @@ class Component extends DCLogic {
     const needsFT = all.some(l => { const st = l.fixed || this.ltStatus(l.prop); return !st.total || !!st.warn; });
     const banner = `<div style="display:flex;align-items:center;gap:12px;background:#fef4e8;border:1px solid #f6b26b;border-radius:4px;padding:12px 16px">
       <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-attention, #f58220);flex:none"><path d="m40-120 440-760 440 760H40Zm104-60h672L480-760 144-180Zm361.5-65.68q8.5-8.67 8.5-21.5 0-12.82-8.68-21.32-8.67-8.5-21.5-8.5-12.82 0-21.32 8.68-8.5 8.67-8.5 21.5 0 12.82 8.68 21.32 8.67 8.5 21.5 8.5 12.82 0 21.32-8.68ZM454-348h60v-224h-60v224Zm26-122Z"/></svg>
-      <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">A growing number of states require advertised rent to include every required fee, and listing sites are asking for the same. Centralize a property's charges, then convert it to fee transparency, and its listings advertise a total monthly price instead of rent alone.</span>
+      <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">A growing number of states require advertised rent to include every required fee, and listing sites are asking for the same. Fill in each charge's marketing details, convert the property to fee transparency, and its listings advertise a total monthly price instead of rent alone.</span>
       <a data-act="navFeeTrans" style="flex:none;display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap;cursor:pointer">Go to Pricing Setup<svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="m560-242-43-42 168-168H160v-60h525L516-681l43-42 241 241-240 240Z"/></svg></a>
     </div>`;
     const fopt = (v, t) => `<div data-act="ltPropSet" data-arg="${v}" style="padding:7px 14px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">${t}</div>`;
@@ -3101,7 +3097,6 @@ class Component extends DCLogic {
       const live = this.ltStatus(l.prop);
       const st = l.fixed || live;
       const basePrice = l.base == null ? '-' : money(l.base);
-      // Total monthly price is only known once the property's charges are centralized.
       // Only a property that has published complete pricing advertises a total; everything else
       // advertises base rent, which is what its listing actually says today.
       const total = l.fixed
@@ -3194,9 +3189,9 @@ class Component extends DCLogic {
     const blueBanner = (title) => !this.state.spBanner ? '' : `<div style="position:relative;background:#e8f4fb;border-radius:4px;padding:16px 20px;display:flex;flex-direction:column;gap:12px">
       <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="spBannerDismiss" style="position:absolute;top:12px;right:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
       <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title}</span>
-      <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5;padding-right:30px">Move your charges, deposits, and pricing into one place on each property, so setup, move-ins, and quotes all read from it. A property has to be centralized before it can convert to fee transparency. Current tenant charges are unaffected.</span>
+      <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5;padding-right:30px">Every property's charges, deposits, and pricing are already readable in one place. Fill in each charge's marketing details and a property can convert to fee transparency, so its listings advertise a complete monthly price. Current tenant charges are unaffected.</span>
       <span style="display:flex;align-items:center;gap:20px">
-        <button data-act="navFeeTransBulk" class="btn-pri" style="height:36px;min-height:36px;padding:0 18px;border-radius:4px;font-size:14px">Centralize Charges</button>
+        <button data-act="navFeeTrans" class="btn-pri" style="height:36px;min-height:36px;padding:0 18px;border-radius:4px;font-size:14px">Go to Pricing Setup</button>
         <a data-act="announceOpen" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Learn More</a>
       </span>
     </div>`;
@@ -3206,12 +3201,12 @@ class Component extends DCLogic {
     </div>`;
     const allStrip = `<div style="display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;padding:11px 16px">
       <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5));flex:none"><path d="M453-280h60v-240h-60v240Zm50.5-323.2q9.5-9.2 9.5-22.8 0-14.45-9.48-24.22-9.48-9.78-23.5-9.78t-23.52 9.78Q447-640.45 447-626q0 13.6 9.48 22.8 9.48 9.2 23.5 9.2t23.52-9.2ZM480.27-80q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg>
-      <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Charges are centralized for all properties, so all charges are managed on the property level. Go to the property details or Pricing Setup to view the charges setup.</span>
+      <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Every property is converted to fee transparency. Go to the property details or Pricing Setup to view its charges.</span>
       <a data-act="navFeeTrans" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Pricing Setup</a>
     </div>`;
     const callouts = ftState === 'all' ? allStrip
-      : ftState === 'none' ? blueBanner('Centralize your charges with Fee Transparency.')
-      : blueBanner('Finish centralizing charges on your properties.') + warnStrip;
+      : ftState === 'none' ? blueBanner('Convert your properties to Fee Transparency.')
+      : blueBanner('Finish converting your properties to Fee Transparency.') + warnStrip;
     const body = sel !== 'Tenant Charge Setup'
       ? `<div style="padding:40px 4px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">${sel} preferences</div>`
       : ftState === 'all'
@@ -4493,7 +4488,7 @@ class Component extends DCLogic {
       .map(r => ({ id:'c' + r.id, level:r.level || 'Property', type:r.mits, comment:r.desc || '',
         amount:amount(r), one:/-one$/.test(r.group),
         def:r.group.indexOf('req') === 0, lock:required(r) ? 'grey' : null }));
-    // A property whose charges aren't centralized yet has no rent charge to read, so the quote
+    // A property with no rent charge to read has nothing to price from, so the quote
     // still carries the rent typed in step one rather than pricing at zero. It has no Charge
     // Requirement behind it either, so it stays held the way it always was.
     if (!rows.some(r => r.type === 'RC') && this.rqAmt(q.rent)) {
@@ -5788,7 +5783,7 @@ class Component extends DCLogic {
     const copyable = this.copyableProfiles();
     const isCopy = a.fee === 'copy';
     // Unit-level marketing keeps fees on each unit, so there's no property-wide profile to configure.
-    // Marketing configuration is independent of Fee Transparency — centralizing charges doesn't depend
+    // Marketing configuration is independent of Fee Transparency — a property's charges don't depend
     // on whether the property markets at property or unit level.
     const unitMkt = a.mkt === 'unit';
     const srcRows = isCopy ? this.copyableRows(a.copyFrom) : [];
@@ -5813,7 +5808,7 @@ class Component extends DCLogic {
     };
     const copyBlock = !isCopy ? '' : `<div style="display:flex;flex-direction:column;gap:6px;padding-left:24px">
         <div style="max-width:340px">${this.singleSelect('ap-copy', copyable.length?copyable:['No properties with a profile'], a.copyFrom, { act:'addPropCopyFrom', placeholder:'Select a property' })}</div>
-        <span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">Copy recurring and one-time charges from a property that has charges centralized.</span>
+        <span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">Copy recurring and one-time charges from another property.</span>
         ${srcRows.length?`<div style="margin-top:6px;display:flex;flex-direction:column;gap:2px">
           <div style="display:flex;align-items:baseline;gap:10px"><span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Select Recurring and One-Time Charges to Include</span><div style="flex:1"></div><span style="font-size:12px;color:var(--rmx-ink-2, #424e5b)">${srcRows.filter(r=>a.sel[r.id]).length} of ${srcRows.length} selected</span></div>
           <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;background:var(--rmx-bg-subtle, #f5f8fa);padding:10px 12px;max-height:260px;overflow-y:auto">
@@ -6616,7 +6611,7 @@ class Component extends DCLogic {
           <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="copyClose" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
         </div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:14px">
-          <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">Recurring and one-time charges can be copied from any property that has charges centralized. Only property charges and unit type charges for a unit type this property has are listed — unit and rentable item charges stay with the property they're on.</span>
+          <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">Recurring and one-time charges can be copied from any other property. Only property charges and unit type charges for a unit type this property has are listed — unit and rentable item charges stay with the property they're on.</span>
           <div style="display:flex;flex-direction:column;gap:6px">
             <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Copy From</span>
             ${sources.length
@@ -6830,8 +6825,8 @@ class Component extends DCLogic {
       ${closeX}
       <span style="display:flex;flex-direction:column;gap:14px;min-width:0;flex:1">
         <span style="align-self:flex-start;background:var(--rmx-attention, #f58220);color:#fff;font-size:12px;font-weight:600;letter-spacing:0.06em;border-radius:12px;padding:4px 11px">COMING SOON</span>
-        <span style="font-size:24px;font-weight:600;color:#fff;line-height:1.2">Get Ready for Fee Transparency with Charge Centralization</span>
-        <span style="font-size:14px;color:#e8eef4;line-height:1.6">Coming soon to Rent Manager: a property's charges in one place, and online listings that advertise a complete monthly price instead of rent alone.</span>
+        <span style="font-size:24px;font-weight:600;color:#fff;line-height:1.2">Get Ready for Fee Transparency</span>
+        <span style="font-size:14px;color:#e8eef4;line-height:1.6">Coming soon to Rent Manager: every charge a property collects, readable in one place, and online listings that advertise a complete monthly price instead of rent alone.</span>
       </span>
       <span style="flex:none;width:74px;height:74px;border-radius:50%;border:2px solid var(--ac,var(--rmx-brand, #008dd5));display:flex;align-items:center;justify-content:center">
         <img src="assets/logo-rentmanager-mark-white.svg" alt="" style="width:42px;height:42px">
@@ -6906,8 +6901,8 @@ class Component extends DCLogic {
       ${closeX}
       <span style="display:flex;flex-direction:column;gap:14px;min-width:0;flex:1">
         <span style="align-self:flex-start;background:var(--rmx-attention, #f58220);color:#fff;font-size:12px;font-weight:600;letter-spacing:0.06em;border-radius:12px;padding:4px 11px">NEW FEATURE</span>
-        <span style="font-size:24px;font-weight:600;color:#fff;line-height:1.2">Introducing Fee Transparency with Charge Centralization</span>
-        <span style="font-size:14px;color:#e8eef4;line-height:1.6">Every charge a property collects, in one place.<br>Transparent pricing on your listings.</span>
+        <span style="font-size:24px;font-weight:600;color:#fff;line-height:1.2">Introducing Fee Transparency</span>
+        <span style="font-size:14px;color:#e8eef4;line-height:1.6">Every charge a property collects, readable in one place.<br>Transparent pricing on your listings.</span>
       </span>
       <span style="flex:none;width:74px;height:74px;border-radius:50%;border:2px solid var(--ac,var(--rmx-brand, #008dd5));display:flex;align-items:center;justify-content:center">
         <img src="assets/logo-rentmanager-mark-white.svg" alt="" style="width:42px;height:42px">
@@ -6978,14 +6973,13 @@ class Component extends DCLogic {
     const body2 = `<div style="display:flex;flex-direction:column;gap:16px">
       ${preview}
       <div style="display:flex;flex-direction:column">
-        ${stepRow(1,'Centralize Charges','Every charge consolidated onto a charges tab on the property.')}
-        ${stepRow(2,'Add Charge Details','Fill in more details that describe each charge.')}
-        ${stepRow(3,'Convert to Fee Transparency','Listings show a total monthly price.','If you list online &amp; fee transparency is available',true)}
+        ${stepRow(1,'Add Charge Details','Fill in more details that describe each charge.')}
+        ${stepRow(2,'Convert to Fee Transparency','Listings show a total monthly price.','If you list online &amp; fee transparency is available',true)}
       </div>
       <div style="height:1px;background:var(--rmx-line, #cedbe7)"></div>
       <div style="display:flex;align-items:center;gap:10px">
         <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-success, #6eb744);flex:none"><path d="M378-246 154-470l43-43 181 181 384-384 43 43-427 427Z"/></svg>
-        <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Not listing online? You're done at step 2.</span>
+        <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Not listing online? There's nothing to do here.</span>
       </div>
     </div>`;
 
@@ -6997,13 +6991,13 @@ class Component extends DCLogic {
     const body3 = `<div style="display:flex;flex-direction:column;gap:16px">
       <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:14px 16px;display:flex;flex-direction:column;gap:12px">
         <span style="text-align:center;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Where to Start</span>
-        <div style="background:#f2f6f9;border-radius:4px;padding:14px 16px;font-size:14px;color:var(--rmx-text, #666666);line-height:1.55">Open the <strong style="color:var(--rmx-brand-dark, #13314c)">Pricing Setup</strong> page to see every property's status, or set up a single property from its <strong style="color:var(--rmx-brand-dark, #13314c)">Charges</strong> tab.</div>
+        <div style="background:#f2f6f9;border-radius:4px;padding:14px 16px;font-size:14px;color:var(--rmx-text, #666666);line-height:1.55">Open the <strong style="color:var(--rmx-brand-dark, #13314c)">Pricing Setup</strong> page to see every property's status, or work through a single property from its <strong style="color:var(--rmx-brand-dark, #13314c)">Charges</strong>.</div>
       </div>
       <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:16px 18px;display:flex;flex-direction:column;gap:14px">
         <span style="text-align:center;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">What to Expect</span>
         ${expect('Tenant-level charges stay where they are.')}
         ${expect('Listings keep displaying as they do now until you convert to fee transparency.')}
-        ${expect('Late and NSF fees are displayed with the property\'s charges for centralization. How they work doesn\'t change.')}
+        ${expect('Late and NSF fees are displayed with the property\'s charges. How they work doesn\'t change.')}
       </div>
     </div>`;
 

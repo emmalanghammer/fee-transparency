@@ -43,9 +43,26 @@ it should be a **new** artifact rather than this one.
   (`window.__attrCheck`, `__mitsRecheck`, `__nameMode`, `__exclSync` and friends) rather than
   `setState`.
 
+## The model
+
+Every property's charges are readable in one place — the **Charges** overlay on the property —
+from the first look. Nothing is migrated or turned on: `profileRows(prop)` falls back to
+`defaultCharges(prop)`, which reads the charges the property already runs with their marketing
+details blank. `profileFees[prop]` only exists once someone edits something.
+
+A charge keeps the level it was written at (Property, Unit Type, Unit, ORI) and is editable from
+**either** that level's own page or the property's Charges — the unit and unit-type Recurring
+Charges tiles are full add / edit / remove, not a read-only mirror. The property's General tab
+carries no Recurring Charges tile, because Charges opens over that same page.
+
+There is no centralization step, no `profStatus`, and the word "centralize" appears nowhere. The
+only journey left is: fill in each charge's marketing details → convert to Fee Transparency
+(which only applies to a property that lists online on a provider carrying complete pricing).
+`ftStatus` has four rungs: Incomplete Charges → Ready to Convert → Needs Attention → Complete.
+
 ## Test feature states
 
 The Test Feature State selector is hidden by default; reveal it by clicking the logo or with
 `?test=1`. **Happy Path** is the default and the one used for walkthroughs: four properties, all
-marketed online, three already centralized and waiting to convert, Riverview Apartments still on
-legacy charges.
+marketed online, three with every marketing detail in place and waiting to convert, Riverview
+Apartments still missing details on all five of its charges.
