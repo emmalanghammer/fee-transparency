@@ -3787,9 +3787,12 @@ class Component extends DCLogic {
       ['Unit Type Charges', c['Unit Type'], 'Unit Type'], ['Unit Charges', c['Unit'], 'Unit'],
       ['ORI Charges', c['ORI'], 'ORI']];
     const sel = this.state.lvlSel || 'all';
-    return `<div style="display:flex;align-items:stretch;gap:16px;padding:0 16px;flex:none;overflow-x:auto;border-bottom:1px solid var(--rmx-line, #cedbe7)">${levels.map(l => {
+    // The 1px rule is an inset shadow rather than a border: a border would sit outside the tabs'
+    // own box, and the -1px pull that covered it put them past the content edge — which, with
+    // overflow-x:auto forcing the other axis to auto, is what gave the strip a vertical scroll.
+    return `<div style="display:flex;align-items:stretch;gap:16px;padding:0 16px;flex:none;overflow-x:auto;overflow-y:hidden;box-shadow:inset 0 -1px 0 var(--rmx-line, #cedbe7)">${levels.map(l => {
       const on = l[2] === sel;
-      return `<span data-act="lvlSel" data-arg="${l[2]}" style="display:inline-flex;align-items:center;gap:8px;box-sizing:border-box;padding:16px 8px;margin-bottom:-1px;font-size:14px;white-space:nowrap;cursor:pointer;${on ? 'font-weight:600;color:var(--rmx-brand-dark, #13314c);border-bottom:3px solid var(--ac,var(--rmx-brand, #008dd5))' : 'font-weight:400;color:var(--rmx-text, #666666);border-bottom:3px solid transparent'}">${l[0]}<span style="display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;box-sizing:border-box;padding:0 6px;border-radius:10px;font-size:12px;${on ? 'background:var(--rmx-brand-tint-bg, #ebf1f5);color:var(--rmx-brand-hover, #0071aa)' : 'background:var(--rmx-bg-muted, #f2f2f2);color:var(--rmx-text, #666666)'}">${l[1]}</span></span>`;
+      return `<span data-act="lvlSel" data-arg="${l[2]}" style="display:inline-flex;align-items:center;gap:8px;box-sizing:border-box;padding:16px 8px;font-size:14px;white-space:nowrap;cursor:pointer;${on ? 'font-weight:600;color:var(--rmx-brand-dark, #13314c);border-bottom:3px solid var(--ac,var(--rmx-brand, #008dd5))' : 'font-weight:400;color:var(--rmx-text, #666666);border-bottom:3px solid transparent'}">${l[0]}<span style="display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;box-sizing:border-box;padding:0 6px;border-radius:10px;font-size:12px;${on ? 'background:var(--rmx-brand-tint-bg, #ebf1f5);color:var(--rmx-brand-hover, #0071aa)' : 'background:var(--rmx-bg-muted, #f2f2f2);color:var(--rmx-text, #666666)'}">${l[1]}</span></span>`;
     }).join('')}</div>`;
   }
   feeProfileToolbar(){
