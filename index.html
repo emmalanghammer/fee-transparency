@@ -4649,12 +4649,16 @@ class Component extends DCLogic {
       if (r.level === 'Unit Type') return !!(unit && r.target === unit.type);
       return true;
     };
+    // A charge can only be held on the quote if the charge itself says it is required — every other
+    // one, rent included, is the leasing agent's to drop.
+    const required = (r) => this.resolvedListing(r).requirement === 'Required';
     const rows = this.appliedRows(q.prop).filter(applies)
       .map(r => ({ id:'c' + r.id, level:r.level || 'Property', type:r.mits, comment:r.desc || '',
         amount:amount(r), one:/-one$/.test(r.group),
-        def:r.group.indexOf('req') === 0, lock:r.mits === 'RC' ? 'grey' : null }));
+        def:r.group.indexOf('req') === 0, lock:required(r) ? 'grey' : null }));
     // A property whose charges aren't centralized yet has no rent charge to read, so the quote
-    // still carries the rent typed in step one rather than pricing at zero.
+    // still carries the rent typed in step one rather than pricing at zero. It has no Charge
+    // Requirement behind it either, so it stays held the way it always was.
     if (!rows.some(r => r.type === 'RC') && this.rqAmt(q.rent)) {
       rows.unshift({ id:'rent', level:'Property', type:'RC', comment:'Base rent',
         amount:this.rqAmt(q.rent), one:false, def:true, lock:'grey' });
