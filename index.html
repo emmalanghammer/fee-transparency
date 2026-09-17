@@ -1316,12 +1316,11 @@ class Component extends DCLogic {
         this.setState({ bulkUpd: { gen: true, mkt: true } }); break; }
       case 'bulkUpdClose': this.setState({ bulkUpd: null }); break;
       case 'bulkUpdSave': { const CLEAR = '__blank__';
-        // A field changes because its row is ticked — nothing else. A ticked row left empty writes an
-        // empty value, which is how a value comes back off many charges at once.
+        // A field changes because it carries a value — nothing else. A dropdown's blank option is the
+        // explicit clear, which is how a value comes back off many charges at once.
         const raw = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
         const v = id => { const x = raw(id); return x === CLEAR ? '' : x; };
-        // From and To share one row, so they share one tick.
-        const set = id => { const k = String(id).replace('bu-', ''); const c = document.getElementById('bu-on-' + (k === 'from' || k === 'to' ? 'dates' : k)); return !!(c && c.checked); };
+        const set = id => !!raw(id);
         const picked = this.bulkSelRows().map(r => r.id);
         // Frequency is typed as a number of months; charges store it the way the charge form writes it.
         const freqN = v('bu-freq').replace(/\D/g, '');
@@ -1343,7 +1342,7 @@ class Component extends DCLogic {
           : typedName;
         const nameChanges = set('bu-name');
         const nGen = Object.keys(genSet).filter(k => genSet[k]).length, nMkt = Object.keys(mktSet).filter(k => mktSet[k]).length;
-        if (!nGen && !nMkt && !nameChanges) { this.flash('Tick a field to change it'); break; }
+        if (!nGen && !nMkt && !nameChanges) { this.flash('Fill in a field to change it'); break; }
         // Same rule as the charge form: no two charges of one charge type may share a name at the same
         // charge level. Applying one set of values to many charges is the easiest way to break it, so
         // the collision is caught before anything is written — against the other selected charges and
@@ -4379,26 +4378,13 @@ class Component extends DCLogic {
     ].filter(Boolean);
     const all = GENERAL.concat(MARKETING);
 
-    // Checkbox, State=Default: 20x20, 2px --icon-disabled border, and an --icon-attention fill with a
-    // white tick when checked. A native box is a default form control, which RMX never shows.
-    const tick = this.ico('check', 14, 'color:#fff');
-    const boxEl = (k) => `<span id="bu-box-${k}" style="width:20px;height:20px;flex:none;border-radius:2px;box-sizing:border-box;border:2px solid var(--rmx-text-muted, #b3b3b3);background:#fff;display:inline-flex;align-items:center;justify-content:center"><span id="bu-tick-${k}" style="display:none">${tick}</span></span>`;
-    const toggleJs = (k) => `var w=document.getElementById('bu-ctl-${k}');var l=document.getElementById('bu-lab-${k}');var b=document.getElementById('bu-box-${k}');var t=document.getElementById('bu-tick-${k}');var on=this.checked;` +
-      `w.style.opacity=on?'1':'0.5';w.style.pointerEvents=on?'auto':'none';` +
-      `l.style.color=on?'var(--rmx-brand-dark, #13314c)':'var(--rmx-text-muted, #b3b3b3)';` +
-      `b.style.background=on?'var(--rmx-attention, #f58220)':'#fff';b.style.borderColor=on?'var(--rmx-attention, #f58220)':'var(--rmx-text-muted, #b3b3b3)';t.style.display=on?'inline-flex':'none';` +
-      `if(window.__buCount)window.__buCount()`;
     const reqTag = `<span style="display:inline-flex;align-items:center;border-radius:4px;padding:2px 8px;background:#fdf3e3;color:#7a5a2a;font-size:12px;white-space:nowrap">Required for listings</span>`;
 
     const row = (f, first) => `<div style="padding:10px 16px;${first?'':'border-top:1px solid var(--rmx-line, #cedbe7)'}">
       <div style="display:flex;align-items:center;gap:12px">
-        <label style="display:inline-flex;align-items:center;gap:8px;flex:none;cursor:pointer">
-          <input id="bu-on-${f[0]}" type="checkbox" onchange="${toggleJs(f[0])}" style="position:absolute;width:0;height:0;opacity:0;margin:0">
-          ${boxEl(f[0])}
-          <span id="bu-lab-${f[0]}" style="width:190px;font-size:14px;color:var(--rmx-text-muted, #b3b3b3)">${f[1]}</span>
-        </label>
+        <span style="width:190px;flex:none;font-size:14px;color:var(--rmx-brand-dark, #13314c)">${f[1]}</span>
         <span style="width:150px;flex:none">${f[3] ? reqTag : ''}</span>
-        <span id="bu-ctl-${f[0]}" style="flex:1;min-width:0;display:flex;opacity:0.5;pointer-events:none">${f[2]()}</span>
+        <span id="bu-ctl-${f[0]}" style="flex:1;min-width:0;display:flex">${f[2]()}</span>
       </div>
     </div>`;
 
@@ -4411,10 +4397,13 @@ class Component extends DCLogic {
       <div id="bu-sect-${key}" style="display:flex;flex-direction:column;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${rows.map((f, i) => row(f, i === 0)).join('')}</div>
     </div>`;
 
+    // With no ticks, a field changes because it carries a value. A dropdown's blank option is an
+    // explicit clear and so counts as a change; a field left alone is left alone.
+    window.__buFilled = (id) => { const el = document.getElementById(id); return !!(el && String(el.value).trim()); };
     window.__buCount = () => {
       const el = this.q('#bu-count'); if (!el) return;
-      const n = all.filter(f => { const c = this.q('#bu-on-' + f[0]); return c && c.checked; }).length;
-      el.textContent = n ? n + ' field' + (n === 1 ? '' : 's') + ' will change' : 'Nothing selected';
+      const n = all.filter(f => (f[0] === 'dates' ? ['bu-from', 'bu-to'] : ['bu-' + f[0]]).some(window.__buFilled)).length;
+      el.textContent = n ? n + ' field' + (n === 1 ? '' : 's') + ' will change' : 'No changes yet';
       el.style.color = n ? 'var(--rmx-text, #666666)' : 'var(--rmx-text-muted, #b3b3b3)';
     };
 
@@ -4425,7 +4414,7 @@ class Component extends DCLogic {
           ${this.ico('close', 24, 'color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer').replace('<svg ', '<svg data-act="bulkUpdClose" ')}
         </div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:20px">
-          <span style="font-size:14px;color:var(--rmx-text, #666666)">Select the fields you want to change.</span>
+          <span style="font-size:14px;color:var(--rmx-text, #666666)">Fill in the fields you want to change. Anything you leave blank stays as it is.</span>
           <div id="bu-err" style="display:none;align-items:flex-start;gap:10px;background:#fbe9e9;border:1px solid var(--rmx-error, #eb343c);border-radius:4px;padding:11px 14px">
             ${this.ico('error', 18, 'color:var(--rmx-error, #eb343c);flex:none;margin-top:1px')}
             <span id="bu-err-txt" style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5"></span>
@@ -4434,7 +4423,7 @@ class Component extends DCLogic {
           ${section('mkt', 'Marketing Details', MARKETING)}
         </div>
         <div style="display:flex;align-items:center;gap:16px;box-sizing:border-box;padding:8px 16px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);flex:none">
-          <span id="bu-count" style="font-size:14px;color:var(--rmx-text-muted, #b3b3b3)">Nothing selected</span>
+          <span id="bu-count" style="font-size:14px;color:var(--rmx-text-muted, #b3b3b3)">No changes yet</span>
           <div style="flex:1"></div>
           <button data-act="bulkUpdSave" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Save</button>
           <button data-act="bulkUpdClose" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Cancel</button>
