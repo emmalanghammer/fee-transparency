@@ -3123,13 +3123,6 @@ class Component extends DCLogic {
     const props = m.props || [m.prop];
     const single = props.length === 1;
     const prop = single ? props[0] : props.length + ' selected properties';
-    // Every charge is ready by the time this opens — publishing is only offered on properties whose
-    // charges are complete — so there's nothing to warn about beyond the one-way switch.
-    const total = props.reduce((n, p) => n + this.appliedRows(p).length, 0);
-    const readyBox = `<div style="background:#eef7e9;border:1px solid var(--rmx-success, #6eb744);border-radius:4px;padding:12px 16px;display:flex;align-items:flex-start;gap:10px">
-      <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-success, #6eb744);flex:none"><path d="m346-60-76-130-151-31 17-147-96-112 96-111-17-147 151-31 76-131 134 62 134-62 77 131 150 31-17 147 96 111-96 112 17 147-150 31-77 130-134-62-134 62Zm91-287 227-225-45-41-182 180-95-99-46 45 141 140Z"/></svg>
-      <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">All ${total} charge${total===1?'':'s'} ${total===1?'has':'have'} the fields listings require, so the total monthly price will include every required fee.</span>
-    </div>`;
     return `<div data-act="pubCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:152">
       <div data-act="noop" style="width:640px;max-width:94vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
@@ -3140,7 +3133,6 @@ class Component extends DCLogic {
         </div>
         <div style="padding:18px 20px;display:flex;flex-direction:column;gap:14px;overflow-y:auto">
           <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Are you sure you would like to convert ${prop} to fee transparency?</span>
-          ${readyBox}
           <div style="display:flex;align-items:flex-start;gap:12px;background:#fdf3e3;border:1px solid #f0ad4e;border-radius:4px;padding:12px 14px">
             <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-notice, #faa61c);flex:none;margin-top:1px"><path d="m40-120 440-760 440 760H40Zm104-60h672L480-760 144-180Zm361.5-65.68q8.5-8.67 8.5-21.5 0-12.82-8.68-21.32-8.67-8.5-21.5-8.5-12.82 0-21.32 8.68-8.5 8.67-8.5 21.5 0 12.82 8.68 21.32 8.67 8.5 21.5 8.5 12.82 0 21.32-8.68ZM454-348h60v-224h-60v224Zm26-122Z"/></svg>
             <span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.5">Converting switches ${single ? 'this property&#39;s listing feed' : 'these properties&#39; listing feeds'} permanently and can&#39;t be undone. Later changes to these charges appear on the next feed update.</span>
