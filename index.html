@@ -4736,12 +4736,8 @@ class Component extends DCLogic {
     const search = (id, val) => wrap(glyph('search') + bare(id, val));
     const dated = (id, val) => wrap(bare(id, val, 'mm/dd/yy') + glyph('calendar_today', 'var(--rmx-text, #666666)'));
     const muted = (id, val) => `<div style="display:flex;align-items:center;gap:6px;background:var(--rmx-bg-muted, #f2f2f2);border:1px solid var(--rmx-line-soft, #ebf1f5);border-radius:4px;height:36px;box-sizing:border-box;padding:0 4px 0 10px"><input id="${id}" value="${esc(val)}" placeholder="mm/dd/yy" style="flex:1;min-width:0;border:none;background:transparent;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);outline:none"><svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-text, #666666)"><path d="M480-360 280-559h400L480-360Z"/></svg></div>`;
-    const unitBtn = `<svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="unitSelOpen" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;flex:none;background:var(--ac,var(--rmx-brand, #008dd5));color:#fff;border-radius:4px;cursor:pointer"><path d="M120-120v-555h165v-165h390v330h165v390H533v-165H427v165H120Zm60-60h105v-105H180v105Zm0-165h105v-105H180v105Zm0-165h105v-105H180v105Zm165 165h105v-105H345v105Zm0-165h105v-105H345v105Zm0-165h105v-105H345v105Zm165 330h105v-105H510v105Zm0-165h105v-105H510v105Zm0-165h105v-105H510v105Zm165 495h105v-105H675v105Zm0-165h105v-105H675v105Z"/></svg>`;
-    // Nothing to price from until the card names a charge type, so the button waits for one.
-    const oriAmtBtn = (o, i) => o.ctype
-      ? `<button data-act="oriAmtOpen" data-arg="${i}" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap;flex:none">Select Amount</button>`
-      : `<button class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap;flex:none;opacity:0.45;cursor:default">Select Amount</button>`;
-    const amtBtn = `<button data-act="amtSelOpen" data-arg="rent" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap;flex:none">Select Amount</button>`;
+    // A 36px control with an 18px glyph centred in it, rather than a glyph stretched to the box.
+    const unitBtn = `<span data-act="unitSelOpen" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;flex:none;box-sizing:border-box;background:var(--ac,var(--rmx-brand, #008dd5));color:#fff;border-radius:4px;cursor:pointer"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="pointer-events:none"><path d="M120-120v-555h165v-165h390v330h165v390H533v-165H427v165H120Zm60-60h105v-105H180v105Zm0-165h105v-105H180v105Zm0-165h105v-105H180v105Zm165 165h105v-105H345v105Zm0-165h105v-105H345v105Zm0-165h105v-105H345v105Zm165 330h105v-105H510v105Zm0-165h105v-105H510v105Zm0-165h105v-105H510v105Zm165 495h105v-105H675v105Zm0-165h105v-105H675v105Z"/></svg></span>`;
     const col = (inner) => `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${inner}</div>`;
     const row = (inner) => `<div style="display:flex;gap:20px;align-items:flex-start">${inner}</div>`;
     // Property and Unit stay identical in width, and each keeps the same room to its right — the Unit
@@ -4758,7 +4754,6 @@ class Component extends DCLogic {
     const head = (t) => `<span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span>`;
     const terms = ['6 Months','12 Months','18 Months','24 Months'];
     // Charge types come from the property's own Charges tab, the same source the ORI cards use.
-    const ctypes = this.chargeTypesFor(q.prop).map(r => r.code);
     const oriProps = this.rqOriProps();
     // Charge types belong to the property, so a new property clears a type that no longer applies.
     window.__rqUnitPick = () => {
@@ -4788,18 +4783,13 @@ class Component extends DCLogic {
       + pairRow(lab('Date Quoted', true) + dated('rq-quoted', q.quoted), lab('Expiration') + dated('rq-exp', q.exp))
       + pairRow(lab('Move In') + muted('rq-moveIn', q.moveIn),
         lab('Lease Term') + this.singleSelect('rq-term', terms, q.term, { noSearch:true, placeholder:'\u00a0', blank:true }))
-      + col(lab('Charge Type') + this.singleSelect('rq-ctype', ctypes, q.ctype, { placeholder:'\u00a0', blank:true }))
-      + col(lab('Rent', true) + withBtn(wrap(bare('rq-rent', q.rent)), amtBtn))
       + col(lab('Comment') + `<textarea id="rq-comment" rows="3" style="${fld};height:auto;padding:8px 10px;resize:vertical">${esc(q.comment)}</textarea>`));
 
     const oriCard = (o, i) => card(
       `<div style="display:flex;align-items:center"><div style="flex:1"></div><span data-act="rqRmOri" data-arg="${i}" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Remove</span></div>`
       + unitRow(lab('Property', true) + this.singleSelect(`rq-ori-prop-${i}`, oriProps, o.prop, { placeholder:'\u00a0', js:`if(window.__rqOriProp)window.__rqOriProp(${i},_v)` }),
         lab('Unit', true), this.singleSelect(`rq-ori-unit-${i}`, o.prop ? this.oriUnitsFor(o.prop) : [], o.unit,
-          { placeholder:'\u00a0', js:`if(window.__rqOriUnit)window.__rqOriUnit(${i},_v)` }), oriBtn(i))
-      + pairRow(lab('Charge Type', true) + this.singleSelect(`rq-ori-ctype-${i}`, o.prop ? this.oriTypesFor(o.prop) : [], o.ctype,
-          { noSearch:true, placeholder:'\u00a0' }),
-        lab('Amount', true) + withBtn(wrap(bare(`rq-ori-amount-${i}`, o.amount)), oriAmtBtn(o, i))));
+          { placeholder:'\u00a0', js:`if(window.__rqOriUnit)window.__rqOriUnit(${i},_v)` }), oriBtn(i)));
 
     return `<div style="display:flex;flex-direction:column;gap:14px">
       <span style="font-size:14px;color:var(--rmx-text, #666666)">Once you reserve the Unit, these details fill in the Reservation/Expected Lease information.</span>
