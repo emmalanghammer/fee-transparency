@@ -197,7 +197,7 @@ class Component extends DCLogic {
     recViewNote: true,
     rowMenu: null,
     // Properties whose complete pricing has been published from the Fee Transparency page.
-    publishedProps: {},
+    publishedProps: { 'Oakwood Manor': true },
     pubModal: null, // { prop, ack } — Convert to Fee Transparency confirmation
     mktSetup: false, // Marketing Setup overlay (opened from the action rail's copy flyout)
     mktAdv: false, // Advanced Settings overlay on top of Marketing Setup
@@ -291,6 +291,9 @@ class Component extends DCLogic {
   // every marketing detail in place, so Pricing Setup has properties waiting to convert on the first
   // screen and one still to centralize.
   happyReadyProps(){ return ['The Berkshires','The Windermere','Oakwood Manor']; }
+  // Oakwood Manor has been through the whole thing — centralized, complete, converted — so the
+  // walkthrough has a finished property to open on.
+  happyPublished(){ return ['Oakwood Manor']; }
   seededProfiles(){
     // Outside Happy Path nobody starts set up — the tracker opens with every property at Not Set Up
     // so the demo walks the real first-run journey. Setting up a property writes
@@ -598,7 +601,8 @@ class Component extends DCLogic {
       'Riverview Apartments': ['RC','GARBAG','GARBAGEFEE','ADMIN','DP'],
       'The Berkshires':       ['RC','DP'],
       'The Windermere':       ['RC','APPFEE'],
-      'Oakwood Manor':        ['RC','ADMIN','PETFEE']
+      // Oakwood is the finished example, so it carries the charges nearly every property has.
+      'Oakwood Manor':        ['RC','DP','ADMIN','GARBAG']
     };
   }
   propChargePlan(){
@@ -884,6 +888,9 @@ class Component extends DCLogic {
     // A charge that already follows a pet type opens with its amount locked, not just after a change.
     // Reopening applies the kind already saved on the charge — it must not re-ask.
     if (window.__petApply) { const pk = this.q('#m-at-petkind'); if (pk) window.__petApply(pk.value); }
+    // A recurring charge's Fee Due is a hidden default, so the missing-fields list has to be
+    // recomputed from the form rather than from the unsaved row.
+    if (window.__mitsRecheck && this.q('#m-due')) window.__mitsRecheck();
     const snap = this._scrollSnap; this._scrollSnap = null;
     if (this._resetScroll) { this._resetScroll = false; return; }
     if (snap) { const panes = this.scrollPanes(); snap.forEach((v,i)=>{ if(panes[i]) panes[i].scrollTop = v; }); }
@@ -1716,6 +1723,84 @@ class Component extends DCLogic {
     return -1;
   }
   // Collapse toggles swap the chevron in place rather than re-rendering, so they replace the path.
+  // Date Picker (RMX-Components 5350-5786): a 288px card with a month header, a zebra-striped grid of
+  // 32px day cells, and Today / Clear beneath. It lives on the body so no re-render can wipe the form
+  // it belongs to, and writes straight into the input that opened it.
+  datePickerInstall(){
+    if (window.__dpOpen) return;
+    const MON = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const pad = n => (n < 10 ? '0' : '') + n;
+    const fmt = d => pad(d.getMonth() + 1) + '/' + pad(d.getDate()) + '/' + d.getFullYear();
+    const parse = (v) => { const m = String(v || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/); if (!m) return null;
+      let y = +m[3]; if (y < 100) y += 2000; const d = new Date(y, +m[1] - 1, +m[2]); return isNaN(d) ? null : d; };
+    const panel = () => {
+      let p = document.getElementById('dp-pnl');
+      if (p) return p;
+      p = document.createElement('div');
+      p.id = 'dp-pnl';
+      p.style.cssText = 'display:none;position:fixed;z-index:1400;width:288px;box-sizing:border-box;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);padding:16px 8px;flex-direction:column;gap:8px';
+      document.body.appendChild(p);
+      document.addEventListener('mousedown', (e) => {
+        if (p.style.display === 'flex' && !p.contains(e.target) && e.target !== p._btn) p.style.display = 'none';
+      });
+      return p;
+    };
+    const draw = (p) => {
+      const view = p._view, sel = p._sel;
+      const first = new Date(view.getFullYear(), view.getMonth(), 1);
+      const start = new Date(first); start.setDate(1 - first.getDay());
+      const cell = (d, i) => {
+        const out = d.getMonth() !== view.getMonth();
+        const on = sel && d.toDateString() === sel.toDateString();
+        return `<span data-d="${fmt(d)}" style="display:flex;align-items:center;justify-content:center;width:32px;height:36px;box-sizing:border-box;border-radius:2px;font-size:14px;cursor:pointer;${on ? 'background:var(--ac,var(--rmx-brand, #008dd5));color:#fff' : 'color:' + (out ? 'var(--rmx-text-muted, #b3b3b3)' : 'var(--rmx-brand-dark, #13314c)')}">${d.getDate()}</span>`;
+      };
+      let rows = '';
+      for (let r = 0; r < 6; r++) {
+        let row = '';
+        for (let c = 0; c < 7; c++) { const d = new Date(start); d.setDate(start.getDate() + r * 7 + c); row += cell(d, c); }
+        rows += `<div style="display:flex;gap:8px;${r % 2 ? 'background:var(--rmx-bg-subtle, #f5f8fa)' : ''}">${row}</div>`;
+      }
+      const chev = (dir) => `<span data-mv="${dir}" style="display:flex;align-items:center;justify-content:center;width:24px;height:24px;cursor:pointer">${this.ico(dir < 0 ? 'chevron_left' : 'chevron_right', 24, 'color:var(--rmx-text, #666666)')}</span>`;
+      p.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;gap:11px;padding:0 8px">
+          ${chev(-1)}<span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${MON[view.getMonth()]} ${view.getFullYear()}</span>${chev(1)}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <div style="display:flex;gap:8px;border-bottom:1px solid var(--rmx-line, #cedbe7);padding-bottom:4px">${['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => `<span style="display:flex;align-items:center;justify-content:center;width:32px;height:28px;font-size:14px;color:var(--rmx-brand-dark, #13314c)">${d}</span>`).join('')}</div>
+          ${rows}
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 8px 0">
+          <span data-set="today" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Today</span>
+          <span data-set="clear" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Clear</span>
+        </div>`;
+    };
+    const commit = (p, v) => {
+      const inp = document.getElementById(p._for);
+      if (inp) { inp.value = v; inp.dispatchEvent(new Event('input', { bubbles: true })); }
+      p.style.display = 'none';
+    };
+    window.__dpOpen = (id, btn) => {
+      const p = panel();
+      if (p.style.display === 'flex' && p._for === id) { p.style.display = 'none'; return; }
+      p._for = id; p._btn = btn;
+      const cur = parse((document.getElementById(id) || {}).value);
+      p._sel = cur; p._view = cur ? new Date(cur.getFullYear(), cur.getMonth(), 1) : new Date();
+      draw(p);
+      p.style.display = 'flex';
+      const r = btn.getBoundingClientRect();
+      const h = p.offsetHeight, w = p.offsetWidth;
+      let left = Math.min(r.right - w, window.innerWidth - w - 8); if (left < 8) left = 8;
+      let top = r.bottom + 4; if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 4);
+      p.style.left = left + 'px'; p.style.top = top + 'px';
+      p.onclick = (e) => {
+        const mv = e.target.closest('[data-mv]');
+        if (mv) { p._view.setMonth(p._view.getMonth() + (+mv.getAttribute('data-mv'))); draw(p); return; }
+        const set = e.target.closest('[data-set]');
+        if (set) { commit(p, set.getAttribute('data-set') === 'today' ? fmt(new Date()) : ''); return; }
+        const d = e.target.closest('[data-d]');
+        if (d) commit(p, d.getAttribute('data-d'));
+      };
+    };
+  }
   icoSwapInstall(){ window.__icoSwap = (el, name) => { if (el) el.innerHTML = `<path d="${this.iconPaths()[String(name)] || ''}"/>`; }; }
   colDragInstall(){
     window.__colHover = (ev, head) => { head.style.cursor = this.colEdgeAt(head, ev.clientX) >= 0 ? 'col-resize' : ''; };
@@ -2341,7 +2426,9 @@ class Component extends DCLogic {
     } else if (key === 'happy') {
       // The walkthrough opens with one property still on legacy charges and the rest waiting to
       // convert, so both halves of the job are on screen from the first look at Pricing Setup.
-      ['The Berkshires','The Windermere','Oakwood Manor'].forEach(n => convert(n, true, false));
+      ['The Berkshires','The Windermere'].forEach(n => convert(n, true, false));
+      // Oakwood Manor is the finished one: centralized, complete and converted.
+      convert('Oakwood Manor', true, true);
       // Riverview Apartments is the one left to centralize.
     } else if (key === 'post') {
       // Steady state: every property is converted, and every marketed one publishes complete pricing.
@@ -6520,7 +6607,10 @@ class Component extends DCLogic {
     const src = ed ? (ed.amtMethod || 'Flat') : 'Flat';
     const amtFlat = ed && /^\$/.test(ed.amount||'') ? (ed.amount||'').replace(/^\$/,'') : '';
     const radio = (label,value,blk) => `<label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--rmx-text, #666666);cursor:pointer"><input type="radio" name="m-amt-r" value="${value}" data-blk="${blk}" ${src===value?'checked':''} onchange="var b=this.getAttribute('data-blk');document.getElementById('m-source').value=this.value;['flat','ref','calc'].forEach(function(k){document.getElementById('m-blk-'+k).style.display=(k===b?'flex':'none')});if(window.__calcNote)window.__calcNote()" style="accent-color:var(--ac,var(--rmx-brand, #008dd5));width:16px;height:16px;margin:0">${label}</label>`;
-    const iconInput = (id,val,ph,icon) => `<div style="display:flex;align-items:center;gap:4px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><input id="${id}" value="${esc(val)}" placeholder="${ph}" oninput="if(window.__mitsRecheck)window.__mitsRecheck()" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">${this.ico(icon, 18, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</div>`;
+    // A calendar icon opens the date picker; every other trailing icon is decoration.
+    const iconInput = (id,val,ph,icon) => `<div style="display:flex;align-items:center;gap:4px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><input id="${id}" value="${esc(val)}" placeholder="${ph}" oninput="if(window.__mitsRecheck)window.__mitsRecheck()" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">${icon === 'calendar_month'
+      ? this.ico(icon, 18, 'color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer').replace('<svg ', `<svg onclick="if(window.__dpOpen)window.__dpOpen('${id}',this)" `)
+      : this.ico(icon, 18, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</div>`;
     // A calculated amount has no single figure to publish, so listing providers show it as a varying
     // amount. Only worth saying once the charge is actually going out to listings.
     const calcNote = (src === 'Calculation' && ed && ed.ils) ? 'block' : 'none';
@@ -6825,7 +6915,11 @@ class Component extends DCLogic {
       <!-- All four to a row. A one-time charge has no schedule, so it runs three across. -->
       <div style="display:flex;gap:12px;align-items:flex-start">
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px"><span style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--rmx-text, #666666)">Charge Requirement${this.reqHelp()}</span>${dd('m-req',['Required','Optional','Situational'],req,{noSearch:true,blank:true,placeholder:' ',js:"document.getElementById('m-sitdesc-wrap').style.display=(_v==='Situational'?'flex':'none');if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Fee Due')}${dd('m-due',['At Application','Move-In','During Term','Move-Out'],(ed&&ed.listing&&ed.listing.feeDue)||(isOne?'':'During Term'),{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>
+        <!-- A recurring charge is collected across the term by definition, so it carries During Term
+             without asking. Only a one-time charge has a question to answer here. -->
+        ${isOne
+          ? `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Fee Due')}${dd('m-due',['At Application','Move-In','During Term','Move-Out'],(ed&&ed.listing&&ed.listing.feeDue)||'',{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`
+          : `<input type="hidden" id="m-due" value="During Term">`}
         ${isOne?'':`<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Schedule', help.sched)}${dd('m-sched',['Monthly','Weekly','Daily'],(ed&&ed.listing&&ed.listing.schedule)||'',{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`}
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Refundable')}${dd('m-refund',['Refundable','Not Refundable'],refundable,{noSearch:true,blank:true,placeholder:' '})}</div>
       </div>
@@ -7630,6 +7724,7 @@ class Component extends DCLogic {
     this._tid = 0;
     this.colDragInstall();
     this.icoSwapInstall();
+    this.datePickerInstall();
     this.scenPeekInstall();
     const s = this.state;
     let out = this.header();
