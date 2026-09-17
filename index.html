@@ -5014,15 +5014,10 @@ class Component extends DCLogic {
     const chrome = c.step === 'saving' || c.step === 'done';
     return `<div data-act="setupClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:120">
       <div data-act="noop" style="width:860px;max-width:96vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
-        ${c.step === 'done'
-          ? `<div style="display:flex;align-items:center;gap:12px;padding:13px 20px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
-              <span style="font-size:20px;color:var(--rmx-brand-dark, #13314c)">Centralize Charges Complete</span><div style="flex:1"></div>
-              ${this.ico('close', 20, 'color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer').replace('<svg ', '<svg data-act="setupClose" ')}
-            </div>`
-          : `<div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:12px 16px 0"><svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="setupClose" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg></div>
-            <div style="text-align:center;font-size:20px;color:var(--rmx-brand-dark, #13314c);padding:0 24px 16px">Centralize Charges</div>`}
-        <div style="flex:1;min-height:0;overflow-y:auto;padding:${c.step === 'done' ? '18px 20px' : '0 24px 8px'}">${body}</div>
-        ${foot ? `<div style="display:flex;align-items:center;gap:12px;padding:${c.step === 'done' ? '14px 20px' : '12px 24px 16px'};${c.step === 'done' ? 'background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);flex:none' : ''}">${foot}</div>` : '<div style="height:16px"></div>'}
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:12px 16px 0"><svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="setupClose" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg></div>
+        ${c.step === 'done' ? '' : `<div style="text-align:center;font-size:20px;color:var(--rmx-brand-dark, #13314c);padding:0 24px 16px">Centralize Charges</div>`}
+        <div style="flex:1;min-height:0;overflow-y:auto;padding:${c.step === 'done' ? '4px 24px 8px' : '0 24px 8px'}">${body}</div>
+        ${foot ? `<div style="display:flex;align-items:center;gap:12px;padding:12px 24px 16px">${foot}</div>` : '<div style="height:16px"></div>'}
         ${chrome ? '' : `<div style="position:relative;height:0"><div style="position:absolute;left:50%;transform:translateX(-50%);bottom:26px">${this.setupDots(c.step)}</div></div>`}
       </div></div>`;
   }
@@ -5236,17 +5231,10 @@ class Component extends DCLogic {
     return `<div style="display:flex;flex-direction:column;padding:2px 0 4px">${s1}${s2}${s3}${doneList}</div>`;
   }
   // What the done step offers to do next: the immediate action, then Done.
+  // The finish step closes like the rest of the wizard: one Done, where Next sits on the other steps.
+  // The step's own rows carry the links to the work.
   setupDoneFoot(){
-    const per = (this.state.setup || {}).done || [];
-    const keys = per.map(x => this.ftStatus(x.p).key);
-    const btn = (label, act, arg) => `<button data-act="${act}"${arg?` data-arg="${arg}"`:''} class="btn-pri" style="height:36px;min-height:36px;padding:0 22px;border-radius:4px;font-size:14px">${label}</button>`;
-    // One action, and the X to leave: a Done button only asked the user to agree the step had ended.
-    // For one property that action is its Charges tab, where the work is; for a run, the hub.
-    if (per.length === 1) {
-      const p = per[0].p;
-      return btn(keys[0] === 'short' ? 'Add Charge Details' : 'Go to Charges Tab', 'openFeeProfile', p);
-    }
-    return btn('Go to Pricing Setup', 'navFeeTrans', '');
+    return `<button data-act="setupClose" class="btn-pri" style="height:36px;min-height:36px;padding:0 22px;border-radius:4px;font-size:14px">Done</button>`;
   }
   // Step 3 "Confirm Setup": the irreversible-action warning, what lands, what to do after, and the
   // acknowledgement that gates Save.
