@@ -1323,8 +1323,10 @@ class Component extends DCLogic {
         // From and To share one row, so they share one tick.
         const set = id => { const k = String(id).replace('bu-', ''); const c = document.getElementById('bu-on-' + (k === 'from' || k === 'to' ? 'dates' : k)); return !!(c && c.checked); };
         const picked = this.bulkSelRows().map(r => r.id);
+        // Frequency is typed as a number of months; charges store it the way the charge form writes it.
+        const freqN = v('bu-freq').replace(/\D/g, '');
         const gen = { mits: v('bu-ctype').toUpperCase(), desc: v('bu-comment'),
-          freq: v('bu-freq'), from: v('bu-from'), to: v('bu-to'), amtMethod: v('bu-amtm'), amount: v('bu-amt') };
+          freq: freqN ? 'Every ' + freqN + ' Month' : '', from: v('bu-from'), to: v('bu-to'), amtMethod: v('bu-amtm'), amount: v('bu-amt') };
         const genSet = { mits: set('bu-ctype'), desc: set('bu-comment'),
           freq: set('bu-freq'), from: set('bu-from'), to: set('bu-to'), amtMethod: set('bu-amtm'), amount: set('bu-amt') };
         // Refundable is picked, not typed: only 'Refundable'/'Not Refundable' write, and the
@@ -4356,7 +4358,8 @@ class Component extends DCLogic {
     const GENERAL = [
       ['ctype', 'Charge Type', () => search('bu-ctype'), false],
       ['comment', 'Comment', () => txt('bu-comment'), false],
-      allRec ? ['freq', 'Frequency', () => dd('bu-freq', ['Every Month','Every 2 Months','Every 3 Months','Every 6 Months','Every 12 Months']), false] : null,
+      // Frequency is a count of months, so it is typed rather than picked.
+      allRec ? ['freq', 'Frequency', () => txt('bu-freq'), false] : null,
       ['dates', 'From/To', () => dates, false],
       ['amtm', 'Amount Method', () => dd('bu-amtm', ['Flat','Reference','Calculation']), false],
       ['amt', 'Amount', () => txt('bu-amt','calculate'), false]
@@ -4365,7 +4368,9 @@ class Component extends DCLogic {
       ['name', 'Name', () => nameField(), true],
       ['marketing', 'Marketing Description', () => txt('bu-marketing'), false],
       ['req', 'Charge Requirement', () => dd('bu-req', ['Required','Optional','Situational']), true],
-      ['due', 'Fee Due', () => dd('bu-due', [{value:'At Application',label:'At Application'},{value:'Move-In',label:'At Move-In'},{value:'During Term',label:'During Term'},{value:'Move-Out',label:'At Move-Out'}]), true],
+      // A recurring charge is collected across the term by definition, so Fee Due is only a question
+      // when the selection includes a one-time charge.
+      allRec ? null : ['due', 'Fee Due', () => dd('bu-due', [{value:'At Application',label:'At Application'},{value:'Move-In',label:'At Move-In'},{value:'During Term',label:'During Term'},{value:'Move-Out',label:'At Move-Out'}]), true],
       allRec ? ['sched', 'Charge Schedule', () => dd('bu-sched', ['Monthly','Weekly','Daily']), true] : null,
       ['refund', 'Refundable', () => dd('bu-refund', [{value:'yes',label:'Refundable'},{value:'no',label:'Not Refundable'}]), false]
     ].filter(Boolean);
