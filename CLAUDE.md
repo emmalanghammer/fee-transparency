@@ -5,21 +5,24 @@ A Rent Manager Express pricing-setup / fee-transparency prototype. Everything li
 delegated `data-act` / `data-arg` dispatcher in `onClick`. `support.js` and `ds/` are the
 Design Components runtime and the RMX design system; don't edit them.
 
+## Branches
+
+- **`experiment`** is where the work happens, and it is what GitHub Pages serves.
+- **`main`** is a frozen snapshot of the prototype as it stood on 2026-09-17, kept so the
+  version demoed up to then can still be read. Don't commit to it, and don't merge
+  `experiment` into it, unless the user asks.
+
 ## Deploying
 
-The prototype ships to two places, and a change is not finished until both have it:
+`git push origin experiment` triggers the Actions workflow. Poll it with
+`gh run view <id> --json status,conclusion` until it says `completed success`, then the change
+is live at <https://emmalanghammer.github.io/fee-transparency/>.
 
-1. **GitHub Pages** — `git push origin main` triggers the Actions workflow. Poll it with
-   `gh run view <id> --json status,conclusion` until it says `completed success`.
-2. **The artifact** — <https://claude.ai/artifact/JCtc82KKhtuQJ1eEDfiQdj>. Republish with the
-   Artifact tool: `file_path` is `index.html`, `url` is that link, `favicon` is 🏢. Supporting
-   files that have not changed are kept automatically, so `files` only needs the ones this
-   change touched (pass `root` as the repo directory when it does).
-
-Do both, in that order, every time — the user should not have to ask for the republish.
-
-When the user says **"sync"**, they mean the artifact has fallen behind `main` — changes were
-made outside a session. Republish it from the current working tree; nothing else is implied.
+**Do not republish the artifact.** <https://claude.ai/artifact/JCtc82KKhtuQJ1eEDfiQdj> is
+frozen at Version 29, which matches `main`. It is the shareable record of that snapshot, so
+pushing `experiment` work into it would destroy the thing it exists to preserve. Publish an
+artifact again only when the user asks — and if they want the experiment shared, ask whether
+it should be a **new** artifact rather than this one.
 
 ## Things that will bite
 
