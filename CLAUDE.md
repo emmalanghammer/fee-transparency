@@ -132,7 +132,9 @@ while the page below is showing what it counted; clicking a lit card takes the f
 ## Where marketing details live
 
 `mktSetupBody()` is the Marketing Setup itself, and matches Figma `3457:41815`: the property
-header strip, the General / Pricing tabs, and the selected tab. The Marketing Center renders it
+header strip, the General / Pricing tabs, and the selected tab. The strip and the tabs are a
+fixed band; only the tab's own content scrolls, so the property you are on and the tab you are on
+never leave the screen. The Marketing Center renders it
 inline; the property page's own overlay (`mktSetupHTML`) wraps the same markup in chrome. One
 source, so the two cannot drift.
 
