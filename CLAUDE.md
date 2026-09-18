@@ -146,7 +146,8 @@ many charges are still short and why that blocks converting.
 
 The expanded panel carries the missing fields as amber chips, then Name / Marketing Description /
 Charge Category over Charge Requirement / Fee Due / Charge Schedule, then the Include-on-listings
-switch. **Charge Category is required on the charge**, not inherited: the charge type's category is
+switch. Neither the banner nor the fill-in line is rendered when there is nothing outstanding —
+the Listing Ready column already reads green, and a line saying so twice is noise. **Charge Category is required on the charge**, not inherited: the charge type's category is
 a hint in the field's tooltip, and `mitsMissing` reads `r.listing.category` rather than the
 resolved one, so a charge isn't listing ready until someone chooses it here. A field with nothing entered opens on its
 charge type's default from `state.mktDef`.

@@ -7485,10 +7485,10 @@ class Component extends DCLogic {
       const ilsOn = draft[r.id] && draft[r.id].__ils != null ? draft[r.id].__ils : r.ils !== false;
       return `<div style="grid-column:1/-1;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:16px 20px 18px;display:flex;flex-direction:column;gap:12px">
         <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Marketing Details</span>
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <span style="font-size:14px;color:var(--rmx-text, #666666)">${miss.length ? 'Fill in the following fields to have this charge appear on listings:' : 'This charge has everything listings need.'}</span>
+        ${miss.length ? `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span style="font-size:14px;color:var(--rmx-text, #666666)">Fill in the following fields to have this charge appear on listings:</span>
           ${miss.map(m => `<span style="display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 9px;border-radius:4px;background:#fdf3e7;font-size:13px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${this.ico('error', 15, 'color:var(--rmx-attention, #f58220)')}${esc(m)}</span>`).join('')}
-        </div>
+        </div>` : ''}
         <div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:16px;display:grid;grid-template-columns:repeat(3, minmax(0,1fr));gap:14px 20px">
           ${fld('Name', txt('mp-name-' + r.id, e.name))}
           ${fld('Marketing Description', txt('mp-marketing-' + r.id, e.marketing))}
@@ -7550,15 +7550,13 @@ class Component extends DCLogic {
 
     const rec = rows.filter(r => !/-one$/.test(r.group || ''));
     const one = rows.filter(r => /-one$/.test(r.group || ''));
+    // Nothing to say when nothing is outstanding — the Listing Ready column already reads green.
     const banner = short
       ? `<div style="display:flex;align-items:flex-start;gap:10px;background:#fdf3e7;border:1px solid var(--rmx-attention, #f58220);border-radius:4px;padding:11px 14px">
           ${this.ico('error', 18, 'color:var(--rmx-attention, #f58220);flex:none;margin-top:1px')}
           <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.45">${short} of ${rows.length} charges still need marketing details, so this property can’t convert yet. Open a charge to fill in what’s missing, or hover its Listing Ready count to see which fields.</span>
         </div>`
-      : `<div style="display:flex;align-items:center;gap:10px;background:var(--rmx-success-bg, #e2f1da);border:1px solid var(--rmx-success, #6eb744);border-radius:4px;padding:11px 14px">
-          ${this.ico('check_circle', 18, 'color:var(--rmx-success, #6eb744);flex:none')}
-          <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c)">Every charge has the details listings need.</span>
-        </div>`;
+      : '';
 
     return `<div style="display:flex;flex-direction:column;gap:14px">
       ${banner}
