@@ -5058,43 +5058,68 @@ class Component extends DCLogic {
     const none = (t) => `<div style="padding:10px 12px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">${t}</div>`;
     const footStrip = (l, v) => `<div style="display:flex;align-items:center;gap:12px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:8px 12px"><div style="flex:1"></div><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${l}</span><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);min-width:96px;text-align:right">${v}</span></div>`;
 
-    // The same shape as the Pricing Preview's picker: tick what the quote includes, read the amount
-    // on the right. A four-column register was more furniture than a list of tick-or-don't.
+    // The Pricing Preview's UI, exactly: the picker on the left, the price card on a tinted pane on
+    // the right, edge to edge. The negative margin cancels the dialog's own padding so the panes
+    // bleed the way the preview's do.
+    const money = (n) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const line = (l, v, strong) => `<div style="display:flex;align-items:baseline;gap:10px;padding:3px 0;font-size:14px;${strong ? 'font-weight:600;' : ''}color:var(--rmx-brand-dark, #13314c)"><span style="flex:1;min-width:0">${l}</span><span style="white-space:nowrap">${v}</span></div>`;
+    const grp = (t, rws, suffix, subLabel) => !rws.length ? '' : `<div style="padding:12px 0;border-top:1px solid var(--rmx-bg-subtle, #f5f8fa)">
+      <div style="font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3);margin-bottom:4px">${t}</div>
+      ${rws.map(r => line(r.comment || r.type, money(r.amount) + (suffix || ''))).join('')}
+      ${subLabel ? line(subLabel, money(rws.reduce((n, r) => n + r.amount, 0)), true) : ''}</div>`;
+
     const pickRow = (r, one) => {
       const on = r.lock ? true : this.rqOn(r);
       const act = r.lock ? '' : ` data-act="rqTog" data-arg="${r.id}"`;
       return `<label${act} style="display:flex;align-items:center;gap:10px;padding:5px 0;cursor:${r.lock ? 'default' : 'pointer'};font-size:14px;color:var(--rmx-brand-dark, #13314c)">
         ${box(on, r.lock, r.id)}
-        <span style="flex:none;width:104px;font-size:13px;color:var(--rmx-text, #666666);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.type}</span>
-        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.comment || ''}</span>
-        <span style="width:120px;flex:none;text-align:right;font-size:14px;color:var(--rmx-ink-2, #424e5b);white-space:nowrap">${dec(r.amount)}${one ? '/one-time' : '/mo'}</span>
+        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.comment || r.type}</span>
+        <span style="flex:none;text-align:right;font-size:14px;color:var(--rmx-ink-2, #424e5b);white-space:nowrap">${money(r.amount)}${one ? '/one-time' : '/mo'}</span>
       </label>`;
     };
-    const pickSection = (label, rws, one) => !rws.length ? '' : `<div style="display:flex;flex-direction:column;gap:2px;margin-top:2px">
-      <span style="font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">${label}</span>${rws.map(r => pickRow(r, one)).join('')}</div>`;
-    const pickBox = (primary, oris, emptyText, one, footL, footV) => `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:10px 14px 0;display:flex;flex-direction:column">
-      ${primary.rows.length ? pickSection(primary.label, primary.rows, one) : none(emptyText)}
-      ${oris.map(g => pickSection(g.label, g.rows, one)).join('')}
-      <div style="display:flex;align-items:center;gap:12px;border-top:1px solid var(--rmx-bg-subtle, #f5f8fa);margin-top:8px;padding:9px 0">
-        <div style="flex:1"></div>
-        <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${footL}</span>
-        <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);min-width:120px;text-align:right">${footV}</span>
+    const subLbl = (t) => `<span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3);margin-top:4px">${t}</span>`;
+    const pickGroup = (label, primary, oris, one, link, emptyText) => `<div style="display:flex;flex-direction:column;gap:2px;margin-top:2px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="flex:1;min-width:0;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">${label}</span>${link}
       </div>
+      ${primary.rows.length ? primary.rows.map(r => pickRow(r, one)).join('')
+        : `<span style="font-size:12px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">${emptyText}</span>`}
+      ${oris.map(g => subLbl(g.label) + g.rows.map(r => pickRow(r, one)).join('')).join('')}
     </div>`;
 
-    const recTable = pickBox(rec.primary, rec.oris, 'No recurring charges on this property.', false,
-      recCount + ' Recurring Charge' + (recCount === 1 ? '' : 's'), dec(monthly));
-    const oneTable = pickBox(one.primary, one.oris, 'No one-time charges on this property.', true,
-      oneCount + ' One-Time Charge' + (oneCount === 1 ? '' : 's'), dec(oneTotal));
+    const rule = (t) => `<div style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);padding-bottom:8px">${t}</div>`;
+    const chosen = (g) => g.rows.filter(r => r.lock || this.rqOn(r));
+    const recChosen = chosen(rec.primary).concat(rec.oris.reduce((a, g) => a.concat(chosen(g)), []));
+    const oneChosen = chosen(one.primary).concat(one.oris.reduce((a, g) => a.concat(chosen(g)), []));
 
-    // Two columns while there is room; below that the price card drops under the picker rather than
-    // squeezing the charge rows down to their codes.
-    return `<div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap">
-      <div style="flex:1 1 440px;min-width:380px;display:flex;flex-direction:column;gap:16px">
-        <div style="display:flex;flex-direction:column;gap:8px">${sectionHead('Recurring Charges', addLink('Add Recurring Charge'))}${recTable}</div>
-        <div style="display:flex;flex-direction:column;gap:8px">${sectionHead('One-Time Charges', addLink('Add One-Time Charge'))}${oneTable}</div>
+    return `<div style="margin:-16px;display:flex;flex-wrap:wrap;align-items:stretch">
+      <div style="flex:1;min-width:300px;padding:16px 20px;display:flex;flex-direction:column;gap:14px;box-sizing:border-box">
+        ${rule('Select Charges')}
+        <span style="font-size:12px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">Tick the charges this quote includes. The total on the right follows what you pick.</span>
+        ${pickGroup('Recurring', rec.primary, rec.oris, false, addLink('Add Recurring Charge'), 'No recurring charges on this property.')}
+        ${pickGroup('One-Time', one.primary, one.oris, true, addLink('Add One-Time Charge'), 'No one-time charges on this property.')}
       </div>
-      <div style="flex:1 1 300px;min-width:280px;max-width:340px;position:sticky;top:0">${header}</div>
+      <div style="flex:1;min-width:320px;background:var(--rmx-bg-subtle, #f5f8fa);padding:16px 20px;box-sizing:border-box;display:flex;flex-direction:column;gap:10px">
+        <div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
+          <div style="padding:14px 16px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+            <div style="display:flex;flex-direction:column">
+              <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b)">Total Monthly Price</span>
+              <span style="font-size:20px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${money(monthly)}<span style="font-size:14px;font-weight:400;color:var(--rmx-text-muted, #b3b3b3)">/mo</span></span>
+            </div>
+            <span style="display:inline-flex;align-items:center;gap:10px;flex:none">${chip('home', this.rqShort(q.prop))}${q.unit ? chip('apartment', q.unit) : ''}</span>
+          </div>
+          <div style="padding:8px 16px 0">
+            ${(recChosen.length || oneChosen.length)
+              ? `${grp('Recurring Charges', recChosen)}${grp('One-Time Charges', oneChosen, '', oneChosen.length > 1 ? 'One-time total' : '')}`
+              : `<div style="padding:14px 0;border-top:1px solid var(--rmx-bg-subtle, #f5f8fa);font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3);line-height:1.5">Tick a charge on the left to build the price.</div>`}
+          </div>
+          <div style="margin:12px 16px 16px;background:var(--rmx-brand-dark, #13314c);border-radius:4px;padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span style="font-size:14px;color:#fff">Due monthly</span><span style="font-size:14px;font-weight:600;color:#fff">${money(monthly)}</span>
+            <div style="flex:1"></div>
+            <span style="font-size:14px;color:#fff">Due one-time</span><span style="font-size:14px;font-weight:600;color:#fff">${money(oneTotal)}</span>
+          </div>
+        </div>
+      </div>
     </div>`;
   }
   // The rows exactly as save will write them, so the review step counts what actually lands.
