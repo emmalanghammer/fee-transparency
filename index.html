@@ -7499,11 +7499,11 @@ class Component extends DCLogic {
 
     const group = (title, list, one) => {
       if (!list.length) return '';
-      const cols = one
-        ? '34px minmax(90px,120fr) minmax(150px,280fr) minmax(90px,120fr) minmax(70px,100fr) minmax(90px,120fr) minmax(110px,150fr) minmax(210px,250fr)'
-        : '34px minmax(90px,120fr) minmax(150px,280fr) minmax(80px,110fr) minmax(90px,120fr) minmax(70px,100fr) minmax(90px,120fr) minmax(110px,150fr) minmax(210px,250fr)';
+      // One template for both registers, so Amount, Charge Level and Listing Ready line up down the
+      // page. A one-time charge leaves Frequency, From and To empty rather than closing the tracks up.
+      const cols = '34px minmax(90px,120fr) minmax(150px,280fr) minmax(80px,110fr) minmax(90px,120fr) minmax(70px,100fr) minmax(90px,120fr) minmax(110px,150fr) minmax(210px,250fr)';
       const heads = one
-        ? ['','Charge Type','Comment','From','To','Amount','Charge Level','Listing Ready']
+        ? ['','Charge Type','Comment','','','','Amount','Charge Level','Listing Ready']
         : ['','Charge Type','Comment','Frequency','From','To','Amount','Charge Level','Listing Ready'];
       return `<div style="display:flex;flex-direction:column;gap:8px">
         <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title} (${list.length})</span>
@@ -7518,9 +7518,9 @@ class Component extends DCLogic {
               ${chev(r, open)}
               ${cell(esc(r.mits))}
               ${cell(esc(r.desc || r.name || ''))}
-              ${one ? '' : cell(String(this.freqNum(r) || 1))}
-              ${cell(esc(r.from || '–'))}
-              ${cell(esc(r.to || '–'))}
+              ${one ? cell('') : cell(String(this.freqNum(r) || 1))}
+              ${one ? cell('') : cell(esc(r.from || '–'))}
+              ${one ? cell('') : cell(esc(r.to || '–'))}
               ${cell(esc(String(r.amount || '').replace(/^\$/, '') || '—'), 'justify-content:flex-end')}
               ${chip(r.level === 'Property' ? this.propInfo().name : (r.target || r.level))}
               ${readyCell(r)}
