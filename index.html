@@ -968,11 +968,10 @@ class Component extends DCLogic {
       // The register, filtered to the properties whose charges are still short of their details.
       case 'mcShort': this.setState({ mcTab: 'Properties', mcProp: null, ftFilter: 'short' }); break;
       // Picking in the property list. An empty arg is the All Properties row, which shows the
-      // register; a property shows its Marketing Setup, on the tab where its work is waiting.
-      case 'mcPick': { const short = arg ? this.ftCharges(arg).incomplete : 0;
-        this.setState({ mcProp: arg || null, property: arg || this.state.property,
-          mktTab: short ? 'Pricing' : 'General' });
-        break; }
+      // register; a property shows its Marketing Setup. Browsing the list always opens on General —
+      // only the register's Add Charge Details link, which names the work, lands on Pricing.
+      case 'mcPick': this.setState({ mcProp: arg || null, property: arg || this.state.property,
+        mktTab: 'General' }); break;
       // The Marketing Center's whole point: a property opens its Marketing Setup, on the Pricing tab
       // when that is where the outstanding work is.
       case 'mcOpenProp': { const short = this.ftCharges(arg).incomplete;
@@ -2646,7 +2645,6 @@ class Component extends DCLogic {
     const sel = this.state.mcProp || '';
     const esc = s2 => (''+s2).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
     const names = this.propertiesData().map(p => p.name);
-    const c = this.mcCounts();
     const dotFor = (n) => {
       const st = this.ftStatus(n);
       const col = st.loz === 'amber' ? 'var(--rmx-attention, #f58220)'
@@ -2666,12 +2664,10 @@ class Component extends DCLogic {
       ${lead}
       <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
         <span style="font-size:14px;${on ? 'font-weight:600;' : ''}color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(title)}</span>
-        <span style="font-size:12px;color:var(--rmx-text, #666666);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(sub)}</span>
+        ${sub ? `<span style="font-size:12px;color:var(--rmx-text, #666666);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(sub)}</span>` : ''}
       </span>
     </div>`;
-    const list = row('', !sel, this.ico('apartment', 18, 'color:var(--rmx-text, #666666);flex:none'), 'All Properties',
-        c.short ? c.short + ' charges missing details across ' + c.shortProps + ' propert' + (c.shortProps === 1 ? 'y' : 'ies')
-                : 'Every charge has its marketing details')
+    const list = row('', !sel, this.ico('apartment', 18, 'color:var(--rmx-text, #666666);flex:none'), 'All Properties', '')
       + names.map(n => row(n, n === sel, dotFor(n), n, summary(n))).join('');
     const filter = "var q=this.value.toLowerCase();document.querySelectorAll('[data-mcrow]').forEach(function(r){var k=r.getAttribute('data-k')||'';r.style.display=k.indexOf(q)<0?'none':'flex'})";
     return `<div style="flex:1;min-width:0;display:flex;align-items:stretch;min-height:0">
@@ -2831,8 +2827,8 @@ class Component extends DCLogic {
         + (st.key === 'ready' ? mitem('Convert to Fee Transparency','pubOpen',r.name) : '')
         + (st.ft === 'na' && !this.ilsOn(r.name) ? mitem('Enable for Online Listings','ilsEnable',r.name) : '');
       const menuPos = `event.stopPropagation();var t=document.getElementById('${menuId}');if(t.style.display==='block'){t.style.display='none';}else{t.style.display='block';var r=this.getBoundingClientRect();var w=t.offsetWidth,h=t.offsetHeight;var l=r.right-w;if(l<8)l=8;var y=r.bottom+4;if(y+h>window.innerHeight-8)y=r.top-h-4;t.style.left=l+'px';t.style.top=y+'px';}`;
-      return `<div onmouseenter="this.style.background='#f7fafc'" onmouseleave="this.style.background='#fff'" style="display:grid;grid-template-columns:var(--ftcols);align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff">
-        <a data-act="mcOpenProp" data-arg="${esc(r.name)}" style="display:flex;align-items:center;min-height:39px;box-sizing:border-box;padding:0 10px 0 16px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer">${r.name}</a>
+      return `<div data-act="navProperty" data-arg="${esc(r.name)}" onmouseenter="this.style.background='#f7fafc'" onmouseleave="this.style.background='#fff'" style="display:grid;grid-template-columns:var(--ftcols);align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff;cursor:pointer">
+        <a data-act="navProperty" data-arg="${esc(r.name)}" style="display:flex;align-items:center;min-height:39px;box-sizing:border-box;padding:0 10px 0 16px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer">${r.name}</a>
         ${st.ft === 'na' ? naMid : cell(st.ft ? tick : '', 'justify-content:center')}
         ${grouped ? '' : `<span style="display:flex;align-items:center;min-height:39px;box-sizing:border-box;padding:0 10px"><span class="loz" style="${lozStyle[st.loz]};text-transform:none;letter-spacing:0;white-space:nowrap">${st.status}</span></span>`}
         ${cell(String(ch.total))}

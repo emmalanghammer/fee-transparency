@@ -99,14 +99,17 @@ Selecting a row runs `mcPick` (empty arg = All Properties), which also moves `st
 so everything the detail renders reads the right property.
 
 - **All Properties** — `feeTransBody()`, the register that says how everyone is doing.
-- **a property** — `mcPropDetail()`: `mktSetupBody()` plus an Advanced / Save / Cancel footer,
-  landing on the Pricing tab when charges are still missing details, else General. Cancel goes
-  back to All Properties.
+- **a property** — `mcPropDetail()`: `mktSetupBody()` on its **General** tab, plus an
+  Advanced / Save / Cancel footer. Cancel goes back to All Properties.
 
-`mcOpenProp` (the register's rows and its Next Step links) is the same thing from elsewhere: it
-lands on the Marketing Center with that property selected. The scoreboard's amber
-**Charges missing details** card runs `mcShort` — All Properties, with the register filtered to
-the properties whose charges are short.
+In the register a row, and the property name in it, go to the **property page** (`navProperty`)
+— it is a list of properties, so it behaves like one. `mcOpenProp` is the marketing move, and it
+is left on the **Next Step** link and the kebab's Marketing Setup item: it lands on the Marketing
+Center with that property selected, on the Pricing tab when charges are still missing details.
+That is the only route that opens on Pricing; browsing the left list always opens on General.
+
+The scoreboard's amber **Charges missing details** card runs `mcShort` — All Properties, with
+the register filtered to the properties whose charges are short.
 
 ## Where marketing details live
 
