@@ -122,7 +122,8 @@ is left on the **Next Step** link and the kebab's Marketing Setup item: it lands
 Center with that property selected, on the Pricing tab when charges are still missing details.
 That is the only route that opens on Pricing; browsing the left list always opens on General.
 
-`mcScoreboard()` is four equal cards: Properties being marketed, Total price advertised, Charges
+`mcScoreboard()` renders on **Overview only** — the other two tabs are a working surface, not a
+place to read portfolio numbers. It is four equal cards: Properties being marketed, Total price advertised, Charges
 missing marketing details, Listings that have errors. The last two carry a coloured left spine —
 amber and red — and are the only two that do anything: `mcShort` filters the Overview register to
 `short`, `mcErrs` opens Listings with errors-only ticked. Each tints on hover and stays tinted
