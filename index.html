@@ -5057,35 +5057,34 @@ class Component extends DCLogic {
     const none = (t) => `<div style="padding:10px 12px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">${t}</div>`;
     const footStrip = (l, v) => `<div style="display:flex;align-items:center;gap:12px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:8px 12px"><div style="flex:1"></div><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${l}</span><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);min-width:96px;text-align:right">${v}</span></div>`;
 
-    const recTable = `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
-      <div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7)">
-        ${hc('')}${hc('Charge Level')}${hc('Charge Type')}${hc('Comment')}${hc('Amount', true)}
+    // The same shape as the Pricing Preview's picker: tick what the quote includes, read the amount
+    // on the right. A four-column register was more furniture than a list of tick-or-don't.
+    const pickRow = (r, one) => {
+      const on = r.lock ? true : this.rqOn(r);
+      const act = r.lock ? '' : ` data-act="rqTog" data-arg="${r.id}"`;
+      return `<label${act} style="display:flex;align-items:center;gap:10px;padding:5px 0;cursor:${r.lock ? 'default' : 'pointer'};font-size:14px;color:var(--rmx-brand-dark, #13314c)">
+        ${box(on, r.lock, r.id)}
+        <span style="flex:none;width:104px;font-size:13px;color:var(--rmx-text, #666666);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.type}</span>
+        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.comment || ''}</span>
+        <span style="width:120px;flex:none;text-align:right;font-size:14px;color:var(--rmx-ink-2, #424e5b);white-space:nowrap">${dec(r.amount)}${one ? '/one-time' : '/mo'}</span>
+      </label>`;
+    };
+    const pickSection = (label, rws, one) => !rws.length ? '' : `<div style="display:flex;flex-direction:column;gap:2px;margin-top:2px">
+      <span style="font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">${label}</span>${rws.map(r => pickRow(r, one)).join('')}</div>`;
+    const pickBox = (primary, oris, emptyText, one, footL, footV) => `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:10px 14px 0;display:flex;flex-direction:column">
+      ${primary.rows.length ? pickSection(primary.label, primary.rows, one) : none(emptyText)}
+      ${oris.map(g => pickSection(g.label, g.rows, one)).join('')}
+      <div style="display:flex;align-items:center;gap:12px;border-top:1px solid var(--rmx-bg-subtle, #f5f8fa);margin-top:8px;padding:9px 0">
+        <div style="flex:1"></div>
+        <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${footL}</span>
+        <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);min-width:120px;text-align:right">${footV}</span>
       </div>
-      ${groupLbl('Primary Unit')}
-      ${rec.primary.rows.length ? grpHead(rec.primary.key, rec.primary.label, rec.primary.rows.length)
-        + grpRows(rec.primary.key, rec.primary.rows, recRow)
-        + totalLine('Total: ' + dec(this.rqSum(rec.primary.rows)))
-        : none("No recurring charges on this property.")}
-      ${rec.oris.length ? groupLbl('Other Rentable Item Units') : ''}
-      ${rec.oris.map(g => grpHead(g.key, g.label, g.rows.length) + grpRows(g.key, g.rows, recRow)).join('')}
-      ${rec.oris.length ? totalLine('Other Rentable Item Total: ' + dec(rec.oris.reduce((n, g) => n + this.rqSum(g.rows), 0))) : ''}
-      ${footStrip(recCount + ' Recurring Charge' + (recCount===1?'':'s'), dec(monthly))}
     </div>`;
 
-    const oneTable = `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
-      <div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7)">
-        ${hc('')}${hc('Charge Level')}${hc('Charge Type')}${hc('Comment')}${hc('Amount', true)}
-      </div>
-      ${groupLbl('Primary Unit')}
-      ${one.primary.rows.length ? grpHead(one.primary.key, one.primary.label, one.primary.rows.length)
-        + grpRows(one.primary.key, one.primary.rows, recRow)
-        + totalLine('Total: ' + dec(this.rqSum(one.primary.rows)))
-        : none("No one-time charges on this property.")}
-      ${one.oris.length ? groupLbl('Other Rentable Item Unit' + (one.oris.length === 1 ? '' : 's'))
-        + one.oris.map(g => grpHead(g.key, g.label, g.rows.length) + grpRows(g.key, g.rows, recRow)).join('')
-        + totalLine('Other Rentable Item Total: ' + dec(one.oris.reduce((n, g) => n + this.rqSum(g.rows), 0))) : ''}
-      ${footStrip(oneCount + ' One-Time Charge' + (oneCount===1?'':'s'), dec(oneTotal))}
-    </div>`;
+    const recTable = pickBox(rec.primary, rec.oris, 'No recurring charges on this property.', false,
+      recCount + ' Recurring Charge' + (recCount === 1 ? '' : 's'), dec(monthly));
+    const oneTable = pickBox(one.primary, one.oris, 'No one-time charges on this property.', true,
+      oneCount + ' One-Time Charge' + (oneCount === 1 ? '' : 's'), dec(oneTotal));
 
     return `<div style="display:flex;flex-direction:column;gap:16px">
       ${header}
