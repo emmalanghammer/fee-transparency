@@ -980,7 +980,7 @@ class Component extends DCLogic {
       case 'navFullMenu': this.go('fullmenu'); break;
       case 'navProspect': this.go('prospect'); break;
       case 'navRegister': this.go('register'); break;
-      case 'navFeeTrans': this.go('feetrans', { profMenu: null, mcTab: 'Properties', mcProp: null }); break;
+      case 'navFeeTrans': this.go('feetrans', { profMenu: null, mcTab: 'Overview', mcProp: null }); break;
       // Listings is a tab of the Marketing Center, so the nav entry lands on that tab.
       case 'navListings': this.go('feetrans', { profMenu: null, mcTab: 'Listings' }); break;
       case 'mcTab': this.setState({ mcTab: arg }); break;
@@ -988,10 +988,9 @@ class Component extends DCLogic {
       // than taking a seat in the tab strip beside the two things you work in every day.
       // The register, filtered to the properties whose charges are still short of their details —
       // and clicking the lit line again takes the filter back off, since that is what it looks like.
-      case 'mcShort': this.setState(s2 => (s2.mcTab || 'Properties') === 'Properties' && !s2.mcProp
-        && s2.ftFilter === 'short'
+      case 'mcShort': this.setState(s2 => (s2.mcTab || 'Overview') === 'Overview' && s2.ftFilter === 'short'
         ? { ftFilter: 'all' }
-        : { mcTab: 'Properties', mcProp: null, ftFilter: 'short' }); break;
+        : { mcTab: 'Overview', ftFilter: 'short' }); break;
       // The listings the line counted, and only those.
       case 'mcErrs': this.setState(s2 => s2.mcTab === 'Listings' && s2.ltErrOnly
         ? { ltErrOnly: false, ltProp: 'all' }
@@ -2503,7 +2502,7 @@ class Component extends DCLogic {
       copyFees: null, pricePreview: null, profMenu: null, profHist: null,
       recView: null, rowMenu: null, pubModal: null, ftSel: null, mktDef: {},
       mktSetup: false, mktAdv: false, mktTab: 'General', petType: null, spBanner: true, ftHelp: false,
-      lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false, mcTab: 'Properties',
+      lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false, mcTab: 'Overview',
       mcProp: null, mktDefDraft: null, mktDefAsk: false, mktDefMode: 'blank'
     });
     window.scrollTo(0, 0);
@@ -2640,59 +2639,39 @@ class Component extends DCLogic {
   // names the job rather than a metric, and carries the properties it lands on as chips — so the fix
   // is one click from the number that reported it. A line stays tinted while its filter is the one
   // on screen, so the band shows what the page below is currently showing.
+  mcPlans(p){ return this.listingsData().filter(l => l.prop === p).length; }
+  // Four numbers across, matching Figma 3482:73909: where the portfolio stands, then the two that
+  // mean work, marked by a coloured spine. The spined two are still the way into what they counted.
   mcScoreboard(){
     const c = this.mcCounts();
     const st = this.state;
-    const esc = s2 => (''+s2).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
-    const stat = (label, big, sub) => `<div style="display:flex;align-items:baseline;gap:6px;min-width:0">
-      <span style="flex:1;min-width:0;font-size:13px;color:var(--rmx-text, #666666);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}</span>
-      <span style="flex:none;font-size:15px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${big}</span>
-      <span style="flex:none;font-size:13px;color:var(--rmx-text, #666666);white-space:nowrap">${sub}</span>
-    </div>`;
-    const chip = (label, n, act, arg, firm) => `<span data-act="${act}" data-arg="${esc(arg)}" title="${esc(label)}" style="display:inline-flex;align-items:center;gap:6px;${firm ? 'flex:none' : 'flex:0 1 auto;min-width:72px'};max-width:160px;height:26px;box-sizing:border-box;padding:0 10px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:13px;font-size:13px;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap;cursor:pointer" onmouseover="this.style.borderColor='var(--ac,var(--rmx-brand, #008dd5))'" onmouseout="this.style.borderColor='var(--rmx-line, #cedbe7)'">
-      <span style="min-width:0;overflow:hidden;text-overflow:ellipsis">${esc(label)}</span>${n == null ? '' : `<span style="flex:none;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${n}</span>`}</span>`;
-    // Two properties, then a chip that opens the rest where they can all be seen.
-    const strip = (rows, act, more) => {
-      const show = rows.slice(0, 2);
-      return show.map(r => chip(r[0], r[1], act, r[0])).join('')
-        + (rows.length > show.length ? chip('+' + (rows.length - show.length) + ' more', null, more, '', true) : '');
-    };
-    const work = (tone, head, act, chips, on) => {
-      const col = tone === 'red' ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-attention, #f58220)';
-      const bd = tone === 'red' ? '#f3b3b6' : '#f6d9ac';
+    const onShort = (st.mcTab || 'Overview') === 'Overview' && st.ftFilter === 'short';
+    const onErrs = st.mcTab === 'Listings' && !!st.ltErrOnly;
+    const card = (label, value, tone, act, on) => {
+      const col = tone === 'red' ? 'var(--rmx-error, #eb343c)' : tone === 'amber' ? 'var(--rmx-attention, #f58220)' : '';
       const tint = tone === 'red' ? '#fdecee' : '#fdf3e7';
-      return `<div data-act="${act}" data-on="${on ? '1' : '0'}" onmouseover="if(this.getAttribute('data-on')!=='1')this.style.background='${tint}'" onmouseout="if(this.getAttribute('data-on')!=='1')this.style.background='#fff'" style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;background:${on ? tint : '#fff'};border:1px solid ${bd};border-left:3px solid ${col};border-radius:4px;padding:0 12px;overflow:hidden;cursor:pointer">
-        ${this.ico('error', 18, 'color:' + col + ';flex:none')}
-        <span style="flex:none;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${head}</span>
-        <span style="flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:6px;overflow:hidden">${chips}</span>
+      const hov = act ? ` data-act="${act}" data-on="${on ? '1' : '0'}" onmouseover="if(this.getAttribute('data-on')!=='1')this.style.background='${tint}'" onmouseout="if(this.getAttribute('data-on')!=='1')this.style.background='#fff'"` : '';
+      return `<div${hov} style="display:flex;flex-direction:column;gap:6px;background:${on && act ? tint : '#fff'};border:1px solid var(--rmx-line, #cedbe7);${col ? 'border-left:4px solid ' + col + ';' : ''}border-radius:4px;padding:13px 16px;min-width:0;${act ? 'cursor:pointer' : ''}">
+        <span style="font-size:13px;color:var(--rmx-text, #666666);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}</span>
+        <span style="font-size:18px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${value}</span>
       </div>`;
     };
-    const b = n => `<span style="font-weight:600">${n}</span>`;
-    // A line is lit while the page below is showing exactly what that line counted.
-    const onShort = (st.mcTab || 'Properties') === 'Properties' && !st.mcProp && st.ftFilter === 'short';
-    const onErrs = st.mcTab === 'Listings' && !!st.ltErrOnly;
-    const lines = (c.short ? work('amber',
-        `${b(c.short)} charge${c.short === 1 ? '' : 's'} missing marketing details`,
-        'mcShort', strip(c.shortBy, 'mcOpenProp', 'mcShort'), onShort) : '')
-      + (c.errs ? work('red',
-        `${b(c.errs)} listing${c.errs === 1 ? '' : 's'} leaving out a required fee`,
-        'mcErrs', strip(c.errBy, 'mcErrProp', 'mcErrs'), onErrs) : '');
-    return `<div style="display:flex;align-items:stretch;gap:16px;height:60px;flex:none">
-      <div style="flex:none;width:250px;display:flex;flex-direction:column;justify-content:center;gap:3px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:0 14px;overflow:hidden">
-        ${stat('Marketed online', c.marketed, 'of ' + c.props)}
-        ${stat('Total price advertised', c.published, 'of ' + c.marketed)}
-      </div>
-      ${lines}
+    return `<div style="display:grid;grid-template-columns:repeat(4, minmax(0,1fr));gap:16px;flex:none">
+      ${card('Properties being marketed', c.marketed + '/' + c.props)}
+      ${card('Total price advertised', c.published + '/' + c.props)}
+      ${card('Charges missing marketing details', String(c.short), 'amber', 'mcShort', onShort)}
+      ${card('Listings that have errors', String(c.errs), 'red', 'mcErrs', onErrs)}
     </div>`;
   }
   mcTabs(){
     const c = this.mcCounts();
-    const cur = this.state.mcTab || 'Properties';
-    const tabs = [['Properties', 'Marketing Setup', ''], ['Listings', 'Listings', String(c.listings)]];
+    const cur = this.state.mcTab || 'Overview';
+    const tabs = [['Overview', 'Overview', ''], ['Properties', 'Property Marketing Setup', ''],
+      ['Listings', 'Listings', '']];
     // Charge type defaults are set on the charge type itself, so the Marketing Center carries no
     // entry point for them.
     const right = cur === 'Listings' ? this.mcListingsActions() : '';
-    return `<div style="display:flex;align-items:stretch;padding:0 16px;box-shadow:inset 0 -1px 0 var(--rmx-line, #cedbe7);flex:none">
+    return `<div style="display:flex;align-items:stretch;padding:0 4px;box-shadow:inset 0 -1px 0 var(--rmx-line, #cedbe7);flex:none">
       <div style="flex:1;min-width:0;display:flex;align-items:stretch;gap:16px;overflow-x:auto;overflow-y:hidden">${tabs.map(t => {
         const on = t[0] === cur;
         return `<span data-act="mcTab" data-arg="${t[0]}" style="display:inline-flex;align-items:center;gap:8px;box-sizing:border-box;padding:16px 8px;font-size:14px;white-space:nowrap;cursor:pointer;${on ? 'font-weight:600;color:var(--rmx-brand-dark, #13314c);border-bottom:3px solid var(--ac,var(--rmx-brand, #008dd5))' : 'font-weight:400;color:var(--rmx-text, #666666);border-bottom:3px solid transparent'}">${t[1]}${t[2] ? `<span style="display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;box-sizing:border-box;padding:0 6px;border-radius:10px;font-size:12px;${on ? 'background:var(--rmx-brand-tint-bg, #ebf1f5);color:var(--rmx-brand-hover, #0071aa)' : 'background:var(--rmx-bg-muted, #f2f2f2);color:var(--rmx-text, #666666)'}">${t[2]}</span>` : ''}</span>`;
@@ -2707,14 +2686,16 @@ class Component extends DCLogic {
       <span style="flex:1;min-width:0;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">${ph}</span></div>`;
   }
   marketingCenterBody(){
-    const cur = this.state.mcTab || 'Properties';
+    const cur = this.state.mcTab || 'Overview';
     const panel = cur === 'Listings'
       ? `<div style="flex:1;min-height:0;overflow:auto">${this.listingsBody()}</div>`
-      : `<div style="flex:1;min-height:0;display:flex">${this.mcPropsPanel()}</div>`;
-    return `<div style="padding:16px 24px 24px;display:flex;flex-direction:column;gap:16px;flex:1;min-height:0">
+      : cur === 'Properties'
+      ? `<div style="flex:1;min-height:0;display:flex">${this.mcPropsPanel()}</div>`
+      : `<div style="flex:1;min-height:0;overflow:auto">${this.feeTransBody()}</div>`;
+    return `<div style="padding:8px 24px 24px;display:flex;flex-direction:column;gap:16px;flex:1;min-height:0">
+      ${this.mcTabs()}
       ${this.mcScoreboard()}
       <div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden">
-        ${this.mcTabs()}
         ${panel}
       </div>
     </div>`;
@@ -2724,9 +2705,9 @@ class Component extends DCLogic {
   // All Properties is the first row of the list, so the register that says how everyone is doing is
   // always one click away — and opening a property never takes the list off the screen.
   mcPropsPanel(){
-    const sel = this.state.mcProp || '';
     const esc = s2 => (''+s2).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
     const names = this.propertiesData().map(p => p.name);
+    const sel = this.state.mcProp || names[0] || '';
     const dotFor = (n) => {
       const st = this.ftStatus(n);
       const col = st.loz === 'amber' ? 'var(--rmx-attention, #f58220)'
@@ -2749,8 +2730,7 @@ class Component extends DCLogic {
         ${sub ? `<span style="font-size:12px;color:var(--rmx-text, #666666);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(sub)}</span>` : ''}
       </span>
     </div>`;
-    const list = row('', !sel, this.ico('apartment', 18, 'color:var(--rmx-text, #666666);flex:none'), 'All Properties', '')
-      + names.map(n => row(n, n === sel, dotFor(n), n, summary(n))).join('');
+    const list = names.map(n => row(n, n === sel, dotFor(n), n, summary(n))).join('');
     const filter = "var q=this.value.toLowerCase();document.querySelectorAll('[data-mcrow]').forEach(function(r){var k=r.getAttribute('data-k')||'';r.style.display=k.indexOf(q)<0?'none':'flex'})";
     return `<div style="flex:1;min-width:0;display:flex;align-items:stretch;min-height:0">
       <div style="width:290px;flex:none;display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--rmx-line, #cedbe7)">
@@ -2763,19 +2743,18 @@ class Component extends DCLogic {
         <div style="flex:1;min-height:0;overflow-y:auto">${list}</div>
         <div style="flex:none;display:flex;justify-content:flex-end;padding:8px 14px;font-size:14px;color:var(--rmx-text-muted, #b3b3b3);border-top:1px solid var(--rmx-line, #cedbe7)">${names.length} propert${names.length === 1 ? 'y' : 'ies'}</div>
       </div>
-      <div style="flex:1;min-width:0;display:flex;flex-direction:column;min-height:0;background:var(--rmx-bg-subtle, #f5f8fa)">${sel
-        ? this.mcPropDetail()
-        : `<div style="flex:1;min-height:0;overflow:auto;background:#fff">${this.feeTransBody()}</div>`}</div>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;min-height:0;background:var(--rmx-bg-subtle, #f5f8fa)">${this.mcPropDetail(sel)}</div>
     </div>`;
   }
   // The Marketing Setup, rendered where it is read — the same markup the overlay uses, so the two
   // can't drift. The footer is the overlay's, minus the close: Cancel goes back to the portfolio.
-  mcPropDetail(){
+  mcPropDetail(sel){
+    if (sel && this.state.property !== sel) this.state.property = sel;
     return `${this.mktSetupBody()}
       <div style="display:flex;justify-content:flex-end;gap:10px;background:#fff;border-top:1px solid var(--rmx-line, #cedbe7);padding:12px 20px;flex:none">
         <button data-act="mktAdvOpen" style="height:34px;min-height:34px;padding:0 20px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Advanced</button>
         <button data-act="mktSave" class="btn-pri" style="height:34px;min-height:34px;padding:0 24px;border-radius:4px;font-size:14px">Save</button>
-        <button data-act="mcPick" data-arg="" style="height:34px;min-height:34px;padding:0 18px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Cancel</button>
+        <button data-act="mcTab" data-arg="Overview" style="height:34px;min-height:34px;padding:0 18px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Cancel</button>
       </div>`;
   }
   // Saving a default is three different acts depending on how far you mean it to reach, so the
@@ -2837,6 +2816,13 @@ class Component extends DCLogic {
     const fopt = (v, t) => `<div data-act="ftFilterSet" data-arg="${v}" style="padding:7px 14px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">${t}</div>`;
     const clampJs = id => `var p=document.getElementById('${id}');if(p.style.display==='block'){p.style.display='none';}else{p.style.display='block';p.style.right='0';p.style.left='auto';var r=p.getBoundingClientRect();if(r.right>window.innerWidth-8){p.style.right='0';}}`;
     const toolbar = `<div style="display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap">
+      <div style="display:flex;flex-direction:column;gap:4px;width:248px;flex:none">
+        <span style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))">Search</span>
+        <div style="display:flex;align-items:center;gap:8px;height:36px;box-sizing:border-box;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;padding:0 8px">
+          ${this.ico('search', 18, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}
+          <span style="flex:1;min-width:0;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">Find a property</span>
+        </div>
+      </div>
       ${this.savedFilterBox()}
       <div style="display:flex;flex-direction:column;gap:4px;width:200px">
         <span style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))">Status</span>
@@ -2847,7 +2833,6 @@ class Component extends DCLogic {
           </div>
         </span>
       </div>
-      <span style="margin-left:8px">${this.regCheck('Group by Status', 'ftGroupToggle', this.state.ftGroup)}</span>
       <div style="flex:1"></div>
       ${convertable.length
         ? `<button data-act="ftSelOpen" data-arg="pub" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Convert to Fee Transparency</button>`
@@ -2859,9 +2844,7 @@ class Component extends DCLogic {
     // a header label wraps instead of truncating. Grouping by status drops the Status column, since
     // the section above the table already says it.
     const grouped = !!this.state.ftGroup;
-    const cols = grouped
-      ? 'minmax(140px,215fr) minmax(96px,125fr) minmax(72px,110fr) minmax(90px,140fr) minmax(88px,135fr) minmax(84px,130fr) minmax(140px,180fr) 38px'
-      : 'minmax(140px,215fr) minmax(96px,125fr) minmax(126px,150fr) minmax(72px,110fr) minmax(90px,140fr) minmax(88px,135fr) minmax(84px,130fr) minmax(140px,180fr) 38px';
+    const cols = 'minmax(150px,230fr) minmax(96px,135fr) minmax(120px,170fr) minmax(88px,130fr) minmax(96px,140fr) minmax(140px,200fr) 38px';
     // Drag a header's right edge to resize that column. Every grid on the page — the header and each
     // row, in each section — sizes from one custom property, so a drag rewrites a single value, and
     // the widths survive a re-render on the instance, keyed by whether the page is grouped.
@@ -2891,13 +2874,10 @@ class Component extends DCLogic {
       document.addEventListener('mouseup', up);
     };
     const resizer = (i) => `<span onmousedown="if(window.__ftColDrag)window.__ftColDrag(event,${i})" title="Drag to resize" style="position:absolute;top:0;bottom:0;right:-4px;width:9px;display:flex;align-items:center;justify-content:center;cursor:col-resize;z-index:2"><span style="width:1px;height:calc(100% - 7px);background:var(--rmx-line, #cedbe7)"></span></span>`;
-    // Fee Transparent holds a tick or N/A rather than text, so the label centres over the column the
-    // same way the cells do.
-    const midCol = (i) => i === 1;
+    const midCol = () => false;
     const hc = (t, first, i) => `<span style="position:relative;display:flex;align-items:center;min-height:30px;box-sizing:border-box;padding:4px 8px 4px ${first?'16px':'8px'};font:500 12.6px Roboto,sans-serif;letter-spacing:1.134px;color:var(--rmx-brand-dark, #13314c)">
       <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${midCol(i)?'text-align:center;':''}">${t}</span>${resizer(i)}</span>`;
-    const heads = ['Property','Fee Transparent'].concat(grouped ? [] : ['Status'])
-      .concat(['Total Charges','Listing Ready Charges','Incomplete Charges','Excluded Charges','Next Step']);
+    const heads = ['Property','Marketed','Listing Ready Charges','Listings','Price Shown','Next Steps'];
     const header = `<div data-ftheader="1" style="display:grid;grid-template-columns:var(--ftcols);background:#fff;border-bottom:1px solid var(--rmx-line, #cedbe7)">
       ${heads.map((t, i) => hc(t, i === 0, i)).join('')}
       <span style="display:flex;align-items:center;justify-content:center"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5))"><path d="M120-260v-440q0-24.75 17.63-42.38Q155.25-760 180-760h600q24.75 0 42.38 17.62Q840-724.75 840-700v440q0 24.75-17.62 42.37Q804.75-200 780-200H180q-24.75 0-42.37-17.63Q120-235.25 120-260Zm60 0h160v-440H180v440Zm220 0h160v-440H400v440Zm220 0h160v-440H620v440Z"/></svg></span>
@@ -2925,30 +2905,35 @@ class Component extends DCLogic {
     const rowHTML = (r, i, key) => {
       const st = this.ftStatus(r.name);
       const ch = this.ftCharges(r.name);
-      // A dash means a number could land here and hasn't yet; N/A means one never will. So the
-      // listings columns read N/A for a property that doesn't market online, while Total Charges —
-      // which every property gets — always counts.
-      const naCounts = st.ft === 'na';
-      const num = (v) => naCounts ? na : cell(String(v));
-      const incNum = st.key === 'attention' ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-brand-dark, #13314c)';
-      const incTrigger = `<span style="display:inline-flex;align-items:center;gap:7px;font-size:14px;color:${incNum};cursor:default">${ch.incomplete}${st.key === 'attention' ? incWarn : ''}</span>`;
-      const incHover = this.infoTip(incTipHTML(r.name), 324, { pad:'16px', shadow:'0 3px 3px rgba(0,0,0,0.1)', trigger:incTrigger });
-      const incCell = naCounts ? na
-        : (ch.incomplete ? `<span style="display:flex;align-items:center;min-height:39px;box-sizing:border-box;padding:0 10px;white-space:nowrap">${incHover}</span>` : cell('0'));
       const menuId = `ft${key}${i}-pnl`;
       const items = mitem('Marketing Setup','mcOpenProp',r.name) + mitem('View Charges','openFeeProfile',r.name)
         + (st.key === 'ready' ? mitem('Convert to Fee Transparency','pubOpen',r.name) : '')
         + (st.ft === 'na' && !this.ilsOn(r.name) ? mitem('Enable for Online Listings','ilsEnable',r.name) : '');
       const menuPos = `event.stopPropagation();var t=document.getElementById('${menuId}');if(t.style.display==='block'){t.style.display='none';}else{t.style.display='block';var r=this.getBoundingClientRect();var w=t.offsetWidth,h=t.offsetHeight;var l=r.right-w;if(l<8)l=8;var y=r.bottom+4;if(y+h>window.innerHeight-8)y=r.top-h-4;t.style.left=l+'px';t.style.top=y+'px';}`;
+      // Where the property advertises. A property that isn't listed online says so rather than
+      // carrying a feed name it doesn't have.
+      const marketed = !this.ilsOn(r.name) ? 'Not marketed' : (this.mhOn(r.name) ? 'MH Village' : 'ILS feed');
+      // Listing-ready charges read as a fraction of the charges listings can carry, with a dot that
+      // goes green only when the fraction is whole — the same signal the status lozenge used to give.
+      const onList = ch.ready + ch.incomplete;
+      const whole = onList > 0 && ch.incomplete === 0;
+      const dot = `<span style="width:8px;height:8px;border-radius:50%;flex:none;background:${whole ? 'var(--rmx-success, #6eb744)' : 'var(--rmx-attention, #f58220)'}"></span>`;
+      const readyCell = !this.ilsOn(r.name) ? cell(String(ch.total) + ' charges')
+        : `<span style="display:flex;align-items:center;gap:9px;min-height:39px;box-sizing:border-box;padding:0 10px;font-size:14px;font-style:italic;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${dot}${ch.ready}/${onList}</span>`;
+      const plans = this.mcPlans(r.name);
+      const planCell = !this.ilsOn(r.name) ? cell('—')
+        : cell(plans + ' plan' + (plans === 1 ? '' : 's'));
+      const priceCell = st.ft === 'na' ? cell('<span style="font-style:italic;color:var(--rmx-text, #666666)">Not carried</span>')
+        : cell(this.state.publishedProps[r.name] ? 'Total monthly' : 'Rent only');
       return `<div data-act="navProperty" data-arg="${esc(r.name)}" onmouseenter="this.style.background='#f7fafc'" onmouseleave="this.style.background='#fff'" style="display:grid;grid-template-columns:var(--ftcols);align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff;cursor:pointer">
-        <a data-act="navProperty" data-arg="${esc(r.name)}" style="display:flex;align-items:center;min-height:39px;box-sizing:border-box;padding:0 10px 0 16px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer">${r.name}</a>
-        ${st.ft === 'na' ? naMid : cell(st.ft ? tick : '', 'justify-content:center')}
-        ${grouped ? '' : `<span style="display:flex;align-items:center;min-height:39px;box-sizing:border-box;padding:0 10px"><span class="loz" style="${lozStyle[st.loz]};text-transform:none;letter-spacing:0;white-space:nowrap">${st.status}</span></span>`}
-        ${cell(String(ch.total))}
-        ${num(ch.ready)}${incCell}${num(ch.excluded)}
+        ${cell(esc(r.name), 'padding-left:16px')}
+        ${cell(marketed)}
+        ${readyCell}
+        ${planCell}
+        ${priceCell}
         ${st.next
           ? `<a data-act="${st.act}" data-arg="${esc(r.name)}" style="display:flex;align-items:center;min-height:39px;padding:0 10px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis">${st.next}</a>`
-          : cell('<span style="font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No action needed</span>')}
+          : cell('')}
         <span style="position:relative;display:flex;align-items:center;justify-content:center;min-height:39px">
           <span onclick="${menuPos}" style="display:flex;cursor:pointer"><svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5))"><path d="M400-720a80 80 0 1 0 160 0 80 80 0 1 0-160 0ZM400-480a80 80 0 1 0 160 0 80 80 0 1 0-160 0ZM400-240a80 80 0 1 0 160 0 80 80 0 1 0-160 0Z"/></svg></span>
           <div id="${menuId}" style="display:none;position:fixed;z-index:1200;min-width:230px;background:#fff;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);padding:4px 0" onclick="this.style.display='none'">${items}</div>

@@ -90,12 +90,19 @@ from `state.mktDef`. A charge type with no charges yet skips the dialog and just
 ## The Marketing Center
 
 `view: 'feetrans'` is the **Marketing Center** — one page for everything that decides what a
-listing advertises. `marketingCenterBody()` stacks `mcScoreboard()` over `mcTabs()` and one
-panel. Two tabs — the label and the `mcTab` key are not the same thing:
+listing advertises. It matches Figma `3482:73909`: `marketingCenterBody()` stacks `mcTabs()` over
+`mcScoreboard()` over one white panel — tabs and cards sit on the page background, not inside the
+panel. Three tabs, no count pills; the label and the `mcTab` key are not the same thing:
 
-- **Marketing Setup** (key `Properties`) — `mcPropsPanel()`, a master–detail (below). No pill.
+- **Overview** — `feeTransBody()`, the property register. The default tab.
+- **Property Marketing Setup** (key `Properties`) — `mcPropsPanel()`, a master–detail (below).
 - **Listings** — `listingsBody()`, one row per unit floor plan. The nav's Listings entry now
   lands here (`mcTab: 'Listings'`); there is no separate listings view.
+
+The Overview register's columns are **Property, Marketed, Listing Ready Charges, Listings, Price
+Shown, Next Steps**. Listing Ready Charges is a fraction with a dot that goes green only when it
+is whole; Marketed reads ILS feed / MH Village / Not marketed; Price Shown reads Total monthly /
+Rent only / Not carried. There is no Status column and no Group by Status.
 
 **Charge Type Defaults is not a tab.** It is a portfolio-wide setting, so it is a button beside
 the tabs (`mktDefOpen`) that opens `mktDefOvHTML()` over the page.
@@ -115,23 +122,11 @@ is left on the **Next Step** link and the kebab's Marketing Setup item: it lands
 Center with that property selected, on the Pricing tab when charges are still missing details.
 That is the only route that opens on Pricing; browsing the left list always opens on General.
 
-`mcScoreboard()` is **one row, 60px**: a card holding the two numbers that are only context
-(Marketed online, Total price advertised), then two **work lines**. A line names the job rather
-than a metric ("90 charges missing marketing details") and carries the properties it lands on as
-chips, worst first, two then `+N more`. Chips shrink to an ellipsis rather than being clipped by
-the strip. **A line is a thing to do, so a line with nothing to do is not rendered** — the row
-just gets quieter, down to the context card alone. A line stays tinted while the page below is
-showing exactly what it counted, and clicking a lit line takes that filter back off.
-
-Every one of those is a destination, which is the point — the fix is one click from the number
-that reported it:
-
-- the amber line → `mcShort`: All Properties, register filtered to `short`.
-- an amber chip → `mcOpenProp`: that property's Marketing Setup, on Pricing.
-- the red line → `mcErrs`: Listings, Hide listings without errors ticked.
-- a red chip → `mcErrProp`: the same, filtered to that property.
-
-`mcCounts()` carries `shortBy` and `errBy` — `[name, count]` worst-first — for the chips.
+`mcScoreboard()` is four equal cards: Properties being marketed, Total price advertised, Charges
+missing marketing details, Listings that have errors. The last two carry a coloured left spine —
+amber and red — and are the only two that do anything: `mcShort` filters the Overview register to
+`short`, `mcErrs` opens Listings with errors-only ticked. Each tints on hover and stays tinted
+while the page below is showing what it counted; clicking a lit card takes the filter back off.
 
 ## Where marketing details live
 
