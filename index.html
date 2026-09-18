@@ -489,11 +489,14 @@ class Component extends DCLogic {
     // Fields whose dropdowns carry a default are already satisfied — only the ones with nothing to
     // fall back on (a typed Name, an unmapped Charge Category) count as missing.
     const resolved = this.resolvedListing(r);
+    // Charge Category is inherited from the charge type for display, but listings need the one that
+    // was chosen for this charge — so it counts as missing until it is set here.
+    const own = (r && r.listing) || {};
     // Payment frequency only applies to recurring charges, and a recurring charge is collected across
     // the term by definition — Fee Due is held for it, but never asked for, so it can't be missing.
     return this.mitsFields()
       .filter(f => !(f.recurringOnly && oneTime) && !(f.oneTimeOnly && !oneTime))
-      .filter(f => !String(resolved[f.key] || '').trim())
+      .filter(f => !String((f.key === 'category' ? own.category : resolved[f.key]) || '').trim())
       .map(f => f.label);
   }
   mitsComplete(r){ return this.mitsMissing(r).length === 0; }
@@ -7444,7 +7447,9 @@ class Component extends DCLogic {
       const d = defs[String(r.mits || '').toUpperCase()] || {};
       const pick = (k) => { const v = L[k]; return (v == null || String(v).trim() === '') ? (d[k] || '') : v; };
       return { name: pick('name'), marketing: pick('marketing'),
-        category: L.category || d.category || this.chargeCategoryFor(r.mits),
+        // The charge's own category only — what the charge type carries is a hint, not an answer.
+        category: L.category || d.category || '',
+        inherited: this.chargeCategoryFor(r.mits),
         requirement: pick('requirement'), feeDue: pick('feeDue'), schedule: pick('schedule') };
     };
 
@@ -7487,7 +7492,8 @@ class Component extends DCLogic {
         <div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:16px;display:grid;grid-template-columns:repeat(3, minmax(0,1fr));gap:14px 20px">
           ${fld('Name', txt('mp-name-' + r.id, e.name))}
           ${fld('Marketing Description', txt('mp-marketing-' + r.id, e.marketing))}
-          ${fld('Charge Category', `<span style="display:flex;align-items:center;height:36px;font-size:14px;color:var(--rmx-brand-dark, #13314c)">${esc(e.category || '—')}</span><input id="mp-category-${r.id}" type="hidden" value="${esc(e.category)}">`, catHelp)}
+          ${fld('Charge Category', dd('mp-category-' + r.id, this.chargeCategoryOptions(), e.category),
+            this.infoTip(`<span style="display:block;white-space:normal">Listing sites group fees by category.${e.inherited ? ' This charge’s type is set to <strong style="color:var(--rmx-brand-dark, #13314c)">' + esc(e.inherited) + '</strong>, but listings need the category chosen for the charge itself.' : ''}</span>`, 300))}
           ${fld('Charge Requirement', dd('mp-requirement-' + r.id, REQ, e.requirement))}
           ${one ? fld('Fee Due', dd('mp-feeDue-' + r.id, DUE, e.feeDue)) : fld('Fee Due', `<span style="display:flex;align-items:center;height:36px;font-size:14px;color:var(--rmx-text, #666666)">Collected across the term</span>`)}
           ${one ? '<div></div>' : fld('Charge Schedule', dd('mp-schedule-' + r.id, SCHED, e.schedule), schedHelp)}

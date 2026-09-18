@@ -145,8 +145,10 @@ column and a chevron that expands the row into its Marketing Details. A banner a
 many charges are still short and why that blocks converting.
 
 The expanded panel carries the missing fields as amber chips, then Name / Marketing Description /
-Charge Category (read-only, inherited from the charge type) over Charge Requirement / Fee Due /
-Charge Schedule, then the Include-on-listings switch. A field with nothing entered opens on its
+Charge Category over Charge Requirement / Fee Due / Charge Schedule, then the Include-on-listings
+switch. **Charge Category is required on the charge**, not inherited: the charge type's category is
+a hint in the field's tooltip, and `mitsMissing` reads `r.listing.category` rather than the
+resolved one, so a charge isn't listing ready until someone chooses it here. A field with nothing entered opens on its
 charge type's default from `state.mktDef`.
 
 Only the open row's inputs exist in the DOM, and expanding is a re-render — so `mpCapture()` banks
