@@ -69,6 +69,12 @@ the charge types the portfolio uses down the left, and on the right the selected
 strip (code, GL account, the properties using it, charge counts) over a Marketing Details tile.
 A Save / Cancel footer appears only once something has been typed (`window.__mdDirty`).
 
+The same fields also sit on the charge type itself, as a **Marketing Details** tile in the Charge
+Type Details overlay (`ctDetailHTML`, ids `ctd-mkt-*`, saved by `ctSave`). It writes the same
+`state.mktDef` entry, and follows the code if the code is renamed — so a default set in either
+place is the same default. Saving there only affects charges created afterwards; filling charges
+that already exist is the defaults overlay's job, because that is where the question is asked.
+
 `saveFee` runs `mktDefFill` on a charge being **created**, so it starts filled in; editing an
 existing charge never re-applies them.
 

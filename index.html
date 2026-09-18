@@ -1045,7 +1045,16 @@ class Component extends DCLogic {
           code: v('ctd-name').toUpperCase() || r.code, desc: v('ctd-desc'), gl: v('ctd-gl'), amount: num('ctd-amt'),
           props: picked.length === this.propNames().length ? null : picked,
           category: v('ctd-cat'), active: chk2('ctd-active'), prorate: chk2('ctd-prorate'), cre: chk2('ctd-cre') }));
-        this.setState({ chargeTypes: next, ctDetail: arg === 'close' ? null : (v('ctd-name').toUpperCase() || code) });
+        // The Marketing Details tile writes the same store the Charge Type Defaults overlay does, so a
+        // default set here is the default set there — and it follows the code if the code is renamed.
+        const newCode = v('ctd-name').toUpperCase() || code;
+        const mk = { name: v('ctd-mkt-name'), marketing: v('ctd-mkt-marketing'), category: v('ctd-mkt-category'),
+          requirement: v('ctd-mkt-requirement'), schedule: v('ctd-mkt-schedule'),
+          feeDue: v('ctd-mkt-feeDue'), refundable: v('ctd-mkt-refundable') };
+        const defs = Object.assign({}, this.mktDefs());
+        if (newCode !== code) delete defs[code];
+        if (Object.keys(mk).some(k => mk[k])) defs[newCode] = mk; else delete defs[newCode];
+        this.setState({ chargeTypes: next, mktDef: defs, ctDetail: arg === 'close' ? null : newCode });
         this.flash('Charge type saved'); break; }
       case 'ctDelete': { const code = this.state.ctDetail; if (!code) break;
         this.setState({ chargeTypes: this.chargeTypeRows().filter(r => r.code !== code), ctDetail: null });
@@ -3850,7 +3859,7 @@ class Component extends DCLogic {
     const r = this.chargeTypeRow(code); if (!r) return '';
     const F = this.ctFieldBits();
     const money = n => (n || 0).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
-    const tile = (title, right, inner) => `<div style="flex:1;min-width:320px;display:flex;flex-direction:column;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
+    const tile = (title, right, inner, wide) => `<div style="${wide ? 'flex:1 1 100%;' : 'flex:1;'}min-width:320px;display:flex;flex-direction:column;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
       <div style="display:flex;align-items:center;gap:12px;padding:9px 14px;border-bottom:2px solid var(--ac,var(--rmx-brand, #008dd5))">
         <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title}</span><div style="flex:1"></div>${right || ''}
       </div>
@@ -3870,6 +3879,34 @@ class Component extends DCLogic {
     const invRows = r.inv && r.inv.length
       ? r.inv.map((x, i) => `<div style="display:grid;grid-template-columns:${invCols};border-top:1px solid var(--rmx-bg-subtle, #f5f8fa)">${ic(x.name)}${ic(x.desc)}</div>`).join('')
       : `<div style="padding:12px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No inventory items linked to this charge type.</div>`;
+    // The marketing details every charge of this type starts with — the same fields the Charge Type
+    // Defaults overlay sets, on the charge type itself, writing to the same `state.mktDef` store.
+    const mesc = t => ('' + (t == null ? '' : t)).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+    const d = this.mktDefFor(code) || {};
+    const REQ = ['Required','Optional','Situational'];
+    const DUE = [{value:'At Application',label:'At Application'},{value:'Move-In',label:'At Move-In'},
+      {value:'During Term',label:'During Term'},{value:'Move-Out',label:'At Move-Out'}];
+    const SCHED = ['Weekly','Monthly','Annually'];
+    const REF = [{value:'yes',label:'Refundable'},{value:'no',label:'Not Refundable'}];
+    const mdd = (id, opts, val) => this.singleSelect(id, opts, val, { noSearch:true, blank:true, placeholder:'\u00a0' });
+    const marea = (id, val) => `<textarea id="${id}" style="box-sizing:border-box;width:100%;height:60px;padding:8px 10px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);line-height:1.5;resize:vertical">${mesc(val)}</textarea>`;
+    const mfld = (label, ctl, help) => `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0"><span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--rmx-text, #666666)">${label}${help || ''}</span>${ctl}</div>`;
+    const mCatHelp = this.infoTip('<span style="display:block;white-space:normal">Listing sites group fees by category. A charge already inherits the category of its charge type \u2014 setting one here overrides it on listings.</span>', 290);
+    const mktTile = tile('Marketing Details', '',
+      `<span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.45">Every charge of this type starts with these. Changing them here only affects charges created from now on \u2014 to fill charges that already exist, use <strong style="color:var(--rmx-brand-dark, #13314c)">Charge Type Defaults</strong> in the Marketing Center.</span>
+       <div style="display:flex;gap:16px">
+         ${mfld('Name', F.txt('ctd-mkt-name', d.name || ''))}
+         ${mfld('Charge Category', mdd('ctd-mkt-category', this.chargeCategoryOptions(), d.category || ''), mCatHelp)}
+       </div>
+       ${mfld('Marketing Description', marea('ctd-mkt-marketing', d.marketing || ''))}
+       <div style="display:flex;gap:16px">
+         ${mfld('Charge Requirement', mdd('ctd-mkt-requirement', REQ, d.requirement || ''))}
+         ${mfld('Charge Schedule', mdd('ctd-mkt-schedule', SCHED, d.schedule || ''))}
+       </div>
+       <div style="display:flex;gap:16px">
+         ${mfld('Fee Due', mdd('ctd-mkt-feeDue', DUE, d.feeDue || ''))}
+         ${mfld('Refundable', mdd('ctd-mkt-refundable', REF, d.refundable || ''))}
+       </div>`, true);
     const invTile = tile('Inventory Items',
       `<span data-act="toast" data-arg="Link Existing Inventory Item" style="display:inline-flex;align-items:center;gap:4px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Link Existing Inventory Item<svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M480-360 280-559h400L480-360Z"/></svg></span>`,
       `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
@@ -3887,7 +3924,7 @@ class Component extends DCLogic {
             <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="ctDetClose" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
           </span>
         </div>
-        <div style="flex:1;min-height:0;overflow-y:auto;padding:14px;display:flex;gap:14px;flex-wrap:wrap;align-items:stretch">${info}${invTile}</div>
+        <div style="flex:1;min-height:0;overflow-y:auto;padding:14px;display:flex;gap:14px;flex-wrap:wrap;align-items:stretch">${info}${invTile}${mktTile}</div>
         <div style="display:flex;align-items:center;gap:12px;background:#fff;border-top:1px solid var(--rmx-line, #cedbe7);padding:12px 16px;flex:none">
           <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="toast" data-arg="Charge type help" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="M453-280h60v-240h-60v240Zm50.5-323.2q9.5-9.2 9.5-22.8 0-14.45-9.48-24.22-9.48-9.78-23.5-9.78t-23.52 9.78Q447-640.45 447-626q0 13.6 9.48 22.8 9.48 9.2 23.5 9.2t23.52-9.2ZM480.27-80q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg>
           <div style="flex:1"></div>
