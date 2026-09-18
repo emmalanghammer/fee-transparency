@@ -108,11 +108,12 @@ is left on the **Next Step** link and the kebab's Marketing Setup item: it lands
 Center with that property selected, on the Pricing tab when charges are still missing details.
 That is the only route that opens on Pricing; browsing the left list always opens on General.
 
-`mcScoreboard()` is fixed at **114px** — the height four stat cards used to take — and says two
-things in it. On the left, a card with the two numbers that are only context: Marketed online and
-Total price advertised. On the right, two **work lines**, which name the job rather than a metric
-("90 charges are missing marketing details") and carry the properties it lands on as chips, worst
-first, three then `+N more`. A line with nothing to do turns green and says so.
+`mcScoreboard()` is **one row, 60px**: a card holding the two numbers that are only context
+(Marketed online, Total price advertised), then two **work lines**. A line names the job rather
+than a metric ("90 charges missing marketing details") and carries the properties it lands on as
+chips, worst first, two then `+N more`. Chips shrink to an ellipsis rather than being clipped by
+the strip. A line with nothing to do turns green and says so, and a line stays tinted while the
+page below is showing exactly what it counted.
 
 Every one of those is a destination, which is the point — the fix is one click from the number
 that reported it:

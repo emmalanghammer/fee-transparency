@@ -2590,28 +2590,36 @@ class Component extends DCLogic {
   // Two things, in the height four stat cards used to take: where the portfolio stands, and what is
   // actually waiting. The work lines name the job rather than a metric, and carry the properties it
   // lands on as chips — so the fix is one click from the number that reported it.
+  // One row, ~60px: where the portfolio stands on the left, and beside it the two work lines. A line
+  // names the job rather than a metric, and carries the properties it lands on as chips — so the fix
+  // is one click from the number that reported it. A line stays tinted while its filter is the one
+  // on screen, so the band shows what the page below is currently showing.
   mcScoreboard(){
     const c = this.mcCounts();
+    const st = this.state;
     const esc = s2 => (''+s2).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
-    const stat = (label, big, sub, line) => `<div style="flex:1;min-height:0;display:flex;align-items:center;gap:8px;padding:0 16px;${line ? 'border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);' : ''}">
+    const stat = (label, big, sub) => `<div style="display:flex;align-items:baseline;gap:6px;min-width:0">
       <span style="flex:1;min-width:0;font-size:13px;color:var(--rmx-text, #666666);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}</span>
-      <span style="flex:none;font-size:20px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${big}</span>
+      <span style="flex:none;font-size:15px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${big}</span>
       <span style="flex:none;font-size:13px;color:var(--rmx-text, #666666);white-space:nowrap">${sub}</span>
     </div>`;
-    const chip = (label, n, act, arg) => `<span data-act="${act}" data-arg="${esc(arg)}" title="${esc(label)}" style="display:inline-flex;align-items:center;gap:6px;flex:none;max-width:190px;height:26px;box-sizing:border-box;padding:0 10px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:13px;font-size:13px;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap;cursor:pointer" onmouseover="this.style.borderColor='var(--ac,var(--rmx-brand, #008dd5))'" onmouseout="this.style.borderColor='var(--rmx-line, #cedbe7)'">
+    const chip = (label, n, act, arg, firm) => `<span data-act="${act}" data-arg="${esc(arg)}" title="${esc(label)}" style="display:inline-flex;align-items:center;gap:6px;${firm ? 'flex:none' : 'flex:0 1 auto;min-width:72px'};max-width:160px;height:26px;box-sizing:border-box;padding:0 10px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:13px;font-size:13px;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap;cursor:pointer" onmouseover="this.style.borderColor='var(--ac,var(--rmx-brand, #008dd5))'" onmouseout="this.style.borderColor='var(--rmx-line, #cedbe7)'">
       <span style="min-width:0;overflow:hidden;text-overflow:ellipsis">${esc(label)}</span>${n == null ? '' : `<span style="flex:none;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${n}</span>`}</span>`;
-    // Three properties, then a chip that opens the rest where they can all be seen.
+    // Two properties, then a chip that opens the rest where they can all be seen.
     const strip = (rows, act, more) => {
-      const show = rows.slice(0, 3);
+      const show = rows.slice(0, 2);
       return show.map(r => chip(r[0], r[1], act, r[0])).join('')
-        + (rows.length > show.length ? chip('+' + (rows.length - show.length) + ' more', null, more, '') : '');
+        + (rows.length > show.length ? chip('+' + (rows.length - show.length) + ' more', null, more, '', true) : '');
     };
-    const work = (tone, head, act, chips) => {
+    const work = (tone, head, act, chips, on) => {
       const todo = tone !== 'ok';
       const col = tone === 'red' ? 'var(--rmx-error, #eb343c)'
         : tone === 'amber' ? 'var(--rmx-attention, #f58220)' : 'var(--rmx-success, #6eb744)';
       const bd = tone === 'red' ? '#f3b3b6' : tone === 'amber' ? '#f6d9ac' : 'var(--rmx-line, #cedbe7)';
-      return `<div${todo ? ` data-act="${act}"` : ''} style="flex:1;min-height:0;display:flex;align-items:center;gap:10px;background:#fff;border:1px solid ${bd};border-left:3px solid ${col};border-radius:4px;padding:0 14px;overflow:hidden;${todo ? 'cursor:pointer' : ''}">
+      const tint = tone === 'red' ? '#fdecee' : '#fdf3e7';
+      const hot = todo && on;
+      const hov = todo ? ` data-on="${hot ? '1' : '0'}" onmouseover="if(this.getAttribute('data-on')!=='1')this.style.background='${tint}'" onmouseout="if(this.getAttribute('data-on')!=='1')this.style.background='#fff'"` : '';
+      return `<div${todo ? ` data-act="${act}"` : ''}${hov} style="min-width:0;display:flex;align-items:center;gap:10px;background:${hot ? tint : '#fff'};border:1px solid ${bd};border-left:3px solid ${col};border-radius:4px;padding:0 12px;overflow:hidden;${todo ? 'cursor:pointer' : ''}">
         ${this.ico(todo ? 'error' : 'check_circle', 18, 'color:' + col + ';flex:none')}
         <span style="flex:none;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${head}</span>
         <span style="flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:6px;overflow:hidden">${chips}</span>
@@ -2619,20 +2627,21 @@ class Component extends DCLogic {
     };
     const b = n => `<span style="font-weight:600">${n}</span>`;
     const shortHead = c.short
-      ? `${b(c.short)} charge${c.short === 1 ? ' is' : 's are'} missing marketing details`
-      : 'Every charge has its marketing details';
+      ? `${b(c.short)} charge${c.short === 1 ? '' : 's'} missing marketing details`
+      : 'Every charge has its details';
     const errHead = c.errs
-      ? `${b(c.errs)} listing${c.errs === 1 ? ' advertises' : 's advertise'} a price that leaves out a required fee`
-      : 'Every listing advertises the price its charges add up to';
-    return `<div style="display:grid;grid-template-columns:290px minmax(0,1fr);gap:16px;height:114px;flex:none">
-      <div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;display:flex;flex-direction:column;overflow:hidden">
-        ${stat('Marketed online', c.marketed, 'of ' + c.props + ' properties', true)}
-        ${stat('Total price advertised', c.published, 'of ' + c.marketed + ' marketed')}
+      ? `${b(c.errs)} listing${c.errs === 1 ? '' : 's'} leaving out a required fee`
+      : 'Every listing shows a complete price';
+    // A line is lit while the page below is showing exactly what that line counted.
+    const onShort = (st.mcTab || 'Properties') === 'Properties' && !st.mcProp && st.ftFilter === 'short';
+    const onErrs = st.mcTab === 'Listings' && !!st.ltErrOnly;
+    return `<div style="display:grid;grid-template-columns:250px minmax(0,1fr) minmax(0,1fr);gap:16px;height:60px;flex:none">
+      <div style="display:flex;flex-direction:column;justify-content:center;gap:3px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:0 14px;overflow:hidden">
+        ${stat('Marketed online', c.marketed, 'of ' + c.props)}
+        ${stat('Total price advertised', c.published, 'of ' + c.marketed)}
       </div>
-      <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
-        ${work(c.short ? 'amber' : 'ok', shortHead, 'mcShort', c.short ? strip(c.shortBy, 'mcOpenProp', 'mcShort') : '')}
-        ${work(c.errs ? 'red' : 'ok', errHead, 'mcErrs', c.errs ? strip(c.errBy, 'mcErrProp', 'mcErrs') : '')}
-      </div>
+      ${work(c.short ? 'amber' : 'ok', shortHead, 'mcShort', c.short ? strip(c.shortBy, 'mcOpenProp', 'mcShort') : '', onShort)}
+      ${work(c.errs ? 'red' : 'ok', errHead, 'mcErrs', c.errs ? strip(c.errBy, 'mcErrProp', 'mcErrs') : '', onErrs)}
     </div>`;
   }
   mcTabs(){
