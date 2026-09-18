@@ -167,7 +167,9 @@ draft back, and `mktPricingSave` merges it. Without that, collapsing a row would
 thrown away the moment the property changes. Without that stamp one property's typing shows up on
 another's rows, which reads as a charge whose badge says complete over fields that look empty.
 
-The **Charges overlay carries none of it**: no Marketing Details section on the charge form, no
+The **Charges overlay carries almost none of it**. The charge form does have a **Marketing Details**
+section again, but collapsed by default with the outstanding count in its header — collapsing hides
+the body rather than dropping it, so `saveFee` still reads every field. Beyond that: no
 Marketing Name / Listing Ready / requirement / category columns, no Group by Requirement, no
 completeness banner (`mitsBanner` returns ''), and Bulk Update is General-only. **Preview
 Pricing** moved to the Pricing tab too — General's Listing Details carries no pricing callout —

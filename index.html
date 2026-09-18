@@ -6908,6 +6908,26 @@ class Component extends DCLogic {
         </div>
         <input type="hidden" id="m-ils" value="${swOn?'1':'0'}">` : `<input type="hidden" id="m-ils" value="0">`;
 
+    // ---- Marketing Details: on the charge again, but collapsed — it is not what most people open
+    // this form to change, and the header says whether anything is outstanding. Collapsing hides the
+    // body rather than dropping it, so `saveFee` still reads every field.
+    const mktToggleJs = "var b=document.getElementById('m-mkt-body');var c=document.getElementById('m-mkt-caret');var open=b.style.display==='none';b.style.display=open?'flex':'none';if(window.__icoSwap)window.__icoSwap(c,open?'keyboard_arrow_down':'keyboard_arrow_right')";
+    const mktNote = missing.length
+      ? `<span class="loz" style="background:#fdf3e3;color:#7a5a2a;text-transform:none;letter-spacing:0">${missing.length} field${missing.length === 1 ? '' : 's'} needed</span>`
+      : `<span style="font-size:14px;color:var(--rmx-text-muted, #b3b3b3)">Listing ready</span>`;
+    const mktSection = `<div style="flex:none;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
+        <div onclick="${mktToggleJs}" style="display:flex;align-items:center;gap:8px;padding:11px 14px;cursor:pointer;background:var(--rmx-bg-subtle, #f5f8fa)">
+          <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" id="m-mkt-caret" style="color:var(--rmx-text, #666666)"><path d="M530-481 332-679l43-43 241 241-241 241-43-43 198-198Z"/></svg>
+          <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Marketing Details</span>
+          <div style="flex:1"></div>
+          ${mktNote}
+        </div>
+        <div id="m-mkt-body" style="display:none;flex-direction:column;gap:14px;padding:14px">
+          <div style="display:flex;flex-direction:column;gap:12px">${listing}</div>
+          ${ilsBox}
+        </div>
+      </div>`;
+
     // ---- Exceptions: collapsed by default, since most charges have none ----
     const exSaved = this.exclOf(ed);
     // Exceptions are offered while adding a charge too, so the section renders for anything that could
@@ -6942,10 +6962,7 @@ class Component extends DCLogic {
       ${specNote}
       ${sect('General Details', spec ? specGeneral : general)}
       ${creSections}
-      <div style="display:none">
-        <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:12px">${listing}</div>
-        ${ilsBox}
-      </div>
+      ${mktSection}
       ${exclSection}` };
   }
   // Two charges are the same charge for copy purposes when they share charge type, frequency and
