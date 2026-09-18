@@ -83,11 +83,10 @@ nothing here re-renders, which would wipe a pane half filled in. `mktDefSave` re
 ## The Marketing Center
 
 `view: 'feetrans'` is the **Marketing Center** — one page for everything that decides what a
-listing advertises. `marketingCenterBody()` stacks `mcScoreboard()` (four portfolio numbers; the
-two that mean work are clickable) over `mcTabs()` and one panel. Two tabs — the label and the
-`mcTab` key are not the same thing:
+listing advertises. `marketingCenterBody()` stacks `mcScoreboard()` over `mcTabs()` and one
+panel. Two tabs — the label and the `mcTab` key are not the same thing:
 
-- **Setup** (key `Properties`) — `mcPropsPanel()`, a master–detail (below). No count pill.
+- **Marketing Setup** (key `Properties`) — `mcPropsPanel()`, a master–detail (below). No pill.
 - **Listings** — `listingsBody()`, one row per unit floor plan. The nav's Listings entry now
   lands here (`mcTab: 'Listings'`); there is no separate listings view.
 
@@ -109,9 +108,21 @@ is left on the **Next Step** link and the kebab's Marketing Setup item: it lands
 Center with that property selected, on the Pricing tab when charges are still missing details.
 That is the only route that opens on Pricing; browsing the left list always opens on General.
 
-The scoreboard's two amber cards each land on the thing they counted: **Charges missing details**
-runs `mcShort` (All Properties, register filtered to `short`), and **Listings with errors** runs
-`mcErrs` (the Listings tab with Hide listings without errors ticked).
+`mcScoreboard()` is fixed at **114px** — the height four stat cards used to take — and says two
+things in it. On the left, a card with the two numbers that are only context: Marketed online and
+Total price advertised. On the right, two **work lines**, which name the job rather than a metric
+("90 charges are missing marketing details") and carry the properties it lands on as chips, worst
+first, three then `+N more`. A line with nothing to do turns green and says so.
+
+Every one of those is a destination, which is the point — the fix is one click from the number
+that reported it:
+
+- the amber line → `mcShort`: All Properties, register filtered to `short`.
+- an amber chip → `mcOpenProp`: that property's Marketing Setup, on Pricing.
+- the red line → `mcErrs`: Listings, Hide listings without errors ticked.
+- a red chip → `mcErrProp`: the same, filtered to that property.
+
+`mcCounts()` carries `shortBy` and `errBy` — `[name, count]` worst-first — for the chips.
 
 ## Where marketing details live
 

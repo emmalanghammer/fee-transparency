@@ -967,8 +967,9 @@ class Component extends DCLogic {
       case 'mktDefCancel': this.setState({ mktDefOv: false }); this.flash('Changes discarded'); break;
       // The register, filtered to the properties whose charges are still short of their details.
       case 'mcShort': this.setState({ mcTab: 'Properties', mcProp: null, ftFilter: 'short' }); break;
-      // The listings the card counted, and only those.
-      case 'mcErrs': this.setState({ mcTab: 'Listings', ltErrOnly: true }); break;
+      // The listings the line counted, and only those.
+      case 'mcErrs': this.setState({ mcTab: 'Listings', ltErrOnly: true, ltProp: 'all' }); break;
+      case 'mcErrProp': this.setState({ mcTab: 'Listings', ltErrOnly: true, ltProp: arg }); break;
       // Picking in the property list. An empty arg is the All Properties row, which shows the
       // register; a property shows its Marketing Setup. Browsing the list always opens on General —
       // only the register's Add Charge Details link, which names the work, lands on Pricing.
@@ -2569,36 +2570,75 @@ class Component extends DCLogic {
     const props = this.propertiesData().map(p => p.name);
     const marketed = props.filter(n => this.ilsOn(n));
     const published = props.filter(n => !!this.state.publishedProps[n]);
-    let short = 0, shortProps = 0;
-    props.forEach(n => { const k = this.ftCharges(n).incomplete; if (k) { short += k; shortProps++; } });
+    // Both work lines name the properties they land on, so the counts are kept per property and
+    // ordered worst-first — that ordering is what the chips show.
+    let short = 0;
+    const shortBy = [];
+    props.forEach(n => { const k = this.ftCharges(n).incomplete; if (k) { short += k; shortBy.push([n, k]); } });
+    shortBy.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
     const listings = this.listingsData();
-    const errs = listings.filter(l => this.ltErrCount(l) > 0).length;
+    const bad = listings.filter(l => this.ltErrCount(l) > 0);
+    const byProp = {};
+    bad.forEach(l => { byProp[l.prop] = (byProp[l.prop] || 0) + 1; });
+    const errBy = Object.keys(byProp).map(n => [n, byProp[n]])
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
     return { props: props.length, marketed: marketed.length, published: published.length,
-      short, shortProps, listings: listings.length, errs,
+      short, shortProps: shortBy.length, shortBy,
+      listings: listings.length, errs: bad.length, errBy,
       defTypes: Object.keys(this.mktDefs()).length, allTypes: this.mktDefTypes().length };
   }
+  // Two things, in the height four stat cards used to take: where the portfolio stands, and what is
+  // actually waiting. The work lines name the job rather than a metric, and carry the properties it
+  // lands on as chips — so the fix is one click from the number that reported it.
   mcScoreboard(){
     const c = this.mcCounts();
-    const card = (label, big, sub, opts) => {
-      const o = opts || {};
-      return `<div${o.act ? ` data-act="${o.act}" data-arg="${o.arg || ''}"` : ''} style="background:#fff;border:1px solid ${o.border || 'var(--rmx-line, #cedbe7)'};border-radius:4px;padding:14px 16px;display:flex;flex-direction:column;gap:4px;${o.act ? 'cursor:pointer' : ''}">
-        <span style="font-size:13px;color:var(--rmx-text, #666666)">${label}</span>
-        <span style="display:inline-flex;align-items:center;gap:8px;font-size:24px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${big}${o.icon || ''}<span style="font-size:14px;font-weight:400;color:var(--rmx-text, #666666)">${sub}</span></span>
+    const esc = s2 => (''+s2).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+    const stat = (label, big, sub, line) => `<div style="flex:1;min-height:0;display:flex;align-items:center;gap:8px;padding:0 16px;${line ? 'border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);' : ''}">
+      <span style="flex:1;min-width:0;font-size:13px;color:var(--rmx-text, #666666);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}</span>
+      <span style="flex:none;font-size:20px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${big}</span>
+      <span style="flex:none;font-size:13px;color:var(--rmx-text, #666666);white-space:nowrap">${sub}</span>
+    </div>`;
+    const chip = (label, n, act, arg) => `<span data-act="${act}" data-arg="${esc(arg)}" title="${esc(label)}" style="display:inline-flex;align-items:center;gap:6px;flex:none;max-width:190px;height:26px;box-sizing:border-box;padding:0 10px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:13px;font-size:13px;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap;cursor:pointer" onmouseover="this.style.borderColor='var(--ac,var(--rmx-brand, #008dd5))'" onmouseout="this.style.borderColor='var(--rmx-line, #cedbe7)'">
+      <span style="min-width:0;overflow:hidden;text-overflow:ellipsis">${esc(label)}</span>${n == null ? '' : `<span style="flex:none;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${n}</span>`}</span>`;
+    // Three properties, then a chip that opens the rest where they can all be seen.
+    const strip = (rows, act, more) => {
+      const show = rows.slice(0, 3);
+      return show.map(r => chip(r[0], r[1], act, r[0])).join('')
+        + (rows.length > show.length ? chip('+' + (rows.length - show.length) + ' more', null, more, '') : '');
+    };
+    const work = (tone, head, act, chips) => {
+      const todo = tone !== 'ok';
+      const col = tone === 'red' ? 'var(--rmx-error, #eb343c)'
+        : tone === 'amber' ? 'var(--rmx-attention, #f58220)' : 'var(--rmx-success, #6eb744)';
+      const bd = tone === 'red' ? '#f3b3b6' : tone === 'amber' ? '#f6d9ac' : 'var(--rmx-line, #cedbe7)';
+      return `<div${todo ? ` data-act="${act}"` : ''} style="flex:1;min-height:0;display:flex;align-items:center;gap:10px;background:#fff;border:1px solid ${bd};border-left:3px solid ${col};border-radius:4px;padding:0 14px;overflow:hidden;${todo ? 'cursor:pointer' : ''}">
+        ${this.ico(todo ? 'error' : 'check_circle', 18, 'color:' + col + ';flex:none')}
+        <span style="flex:none;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${head}</span>
+        <span style="flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:6px;overflow:hidden">${chips}</span>
       </div>`;
     };
-    return `<div style="display:grid;grid-template-columns:repeat(4, minmax(0,1fr));gap:16px">
-      ${card('Marketed online', c.marketed, 'of ' + c.props + ' properties')}
-      ${card('Advertising a total price', c.published, 'of ' + c.marketed + ' marketed')}
-      ${card('Charges missing details', c.short, 'across ' + c.shortProps + ' propert' + (c.shortProps === 1 ? 'y' : 'ies'),
-        c.short ? { act:'mcShort', border:'#f6d9ac', icon:this.ico('error', 18, 'color:var(--rmx-attention, #f58220)') } : {})}
-      ${card('Listings with errors', c.errs, 'of ' + c.listings + ' listings',
-        c.errs ? { act:'mcErrs', border:'#f3b3b6', icon:this.ico('error', 18, 'color:var(--rmx-error, #eb343c)') } : {})}
+    const b = n => `<span style="font-weight:600">${n}</span>`;
+    const shortHead = c.short
+      ? `${b(c.short)} charge${c.short === 1 ? ' is' : 's are'} missing marketing details`
+      : 'Every charge has its marketing details';
+    const errHead = c.errs
+      ? `${b(c.errs)} listing${c.errs === 1 ? ' advertises' : 's advertise'} a price that leaves out a required fee`
+      : 'Every listing advertises the price its charges add up to';
+    return `<div style="display:grid;grid-template-columns:290px minmax(0,1fr);gap:16px;height:114px;flex:none">
+      <div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;display:flex;flex-direction:column;overflow:hidden">
+        ${stat('Marketed online', c.marketed, 'of ' + c.props + ' properties', true)}
+        ${stat('Total price advertised', c.published, 'of ' + c.marketed + ' marketed')}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+        ${work(c.short ? 'amber' : 'ok', shortHead, 'mcShort', c.short ? strip(c.shortBy, 'mcOpenProp', 'mcShort') : '')}
+        ${work(c.errs ? 'red' : 'ok', errHead, 'mcErrs', c.errs ? strip(c.errBy, 'mcErrProp', 'mcErrs') : '')}
+      </div>
     </div>`;
   }
   mcTabs(){
     const c = this.mcCounts();
     const cur = this.state.mcTab || 'Properties';
-    const tabs = [['Properties', 'Setup', ''], ['Listings', 'Listings', String(c.listings)]];
+    const tabs = [['Properties', 'Marketing Setup', ''], ['Listings', 'Listings', String(c.listings)]];
     // The two things you work in are tabs. Charge Type Defaults is a setting you visit occasionally,
     // so it sits beside them as a button and opens over the page.
     const right = (cur === 'Listings' ? this.mcListingsActions() : '')
