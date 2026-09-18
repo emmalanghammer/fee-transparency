@@ -199,6 +199,9 @@ class Component extends DCLogic {
     mktTab: 'General', // Marketing Setup's own tabs: General or Pricing
     mcProp: null, // Marketing Center > Properties: the selected property; null is All Properties
     mktDefOv: false, // Charge Type Defaults overlay — a portfolio-wide setting, not a tab
+    mktDefDraft: null, // what Save read off the defaults panes, held while the apply dialog is up
+    mktDefAsk: false, // the "how do you want to apply these" confirmation
+    mktDefMode: 'blank', // its answer: 'new' | 'blank' | 'all'
     mktAdv: false, // Advanced Settings overlay on top of Marketing Setup
     ftSel: null, // { mode:'pub' } — Select Properties dialog on the tracker
     ltProp: 'all', // Listings page property filter
@@ -520,17 +523,40 @@ class Component extends DCLogic {
   }
   // Fills only what is blank — a value someone typed by hand is never overwritten. Fee Due is asked
   // of one-time charges and Charge Schedule of recurring ones, so each lands only where it applies.
-  mktDefFill(row, defs){
+  // Without `force` a default only fills a field nobody has answered; with it the default wins,
+  // which is what "apply to all charges using these types" has to mean.
+  mktDefFill(row, defs, force){
     const d = defs[String(row.mits || '').toUpperCase()];
     if (!d) return row;
     const one = /-one$/.test(row.group || '');
     const L = Object.assign({}, row.listing);
-    const put = (k, v) => { if (v && !String(L[k] == null ? '' : L[k]).trim()) L[k] = v; };
+    const put = (k, v) => { if (v && (force || !String(L[k] == null ? '' : L[k]).trim())) L[k] = v; };
     put('name', d.name); put('marketing', d.marketing); put('requirement', d.requirement);
     put('category', d.category);
     if (one) put('feeDue', d.feeDue); else put('schedule', d.schedule);
-    if (d.refundable && L.refundable == null) L.refundable = d.refundable === 'yes';
+    if (d.refundable && (force || L.refundable == null)) L.refundable = d.refundable === 'yes';
     return Object.assign({}, row, { listing: L });
+  }
+  // The charge types this save actually changes, and how many charges run on them — the third
+  // option has to say what it is about to overwrite.
+  mktDefChanged(draft){
+    const cur = this.mktDefs();
+    const keys = {};
+    Object.keys(draft || {}).concat(Object.keys(cur)).forEach(k => { keys[k] = 1; });
+    const FIELDS = ['name','marketing','category','requirement','feeDue','schedule','refundable'];
+    return Object.keys(keys).filter(k => {
+      const a = (draft || {})[k] || {}, b = cur[k] || {};
+      return FIELDS.some(f => String(a[f] == null ? '' : a[f]) !== String(b[f] == null ? '' : b[f]));
+    });
+  }
+  mktDefChargeCount(codes){
+    const set = {};
+    (codes || []).forEach(c => { set[c] = 1; });
+    let n = 0;
+    this.propNames().forEach(prop => this.profileRows(prop).forEach(r => {
+      if (set[String(r.mits || '').toUpperCase()]) n++;
+    }));
+    return n;
   }
   // Charges that actually apply at this property: a charge with a property-wide exception isn't
   // charged, priced or published here, so everything that counts or prices works from this list.
@@ -962,13 +988,20 @@ class Component extends DCLogic {
       // Charge Type Defaults is a setting for the whole portfolio, so it opens over the page rather
       // than taking a seat in the tab strip beside the two things you work in every day.
       case 'mktDefOpen': this.setState({ mktDefOv: true }); break;
-      case 'mktDefClose': this.setState({ mktDefOv: false }); break;
+      case 'mktDefClose': this.setState({ mktDefOv: false, mktDefDraft: null, mktDefAsk: false }); break;
       // The grid is held on the DOM, so closing the overlay is what discards it.
-      case 'mktDefCancel': this.setState({ mktDefOv: false }); this.flash('Changes discarded'); break;
-      // The register, filtered to the properties whose charges are still short of their details.
-      case 'mcShort': this.setState({ mcTab: 'Properties', mcProp: null, ftFilter: 'short' }); break;
+      case 'mktDefCancel': this.setState({ mktDefOv: false, mktDefDraft: null, mktDefAsk: false });
+        this.flash('Changes discarded'); break;
+      // The register, filtered to the properties whose charges are still short of their details —
+      // and clicking the lit line again takes the filter back off, since that is what it looks like.
+      case 'mcShort': this.setState(s2 => (s2.mcTab || 'Properties') === 'Properties' && !s2.mcProp
+        && s2.ftFilter === 'short'
+        ? { ftFilter: 'all' }
+        : { mcTab: 'Properties', mcProp: null, ftFilter: 'short' }); break;
       // The listings the line counted, and only those.
-      case 'mcErrs': this.setState({ mcTab: 'Listings', ltErrOnly: true, ltProp: 'all' }); break;
+      case 'mcErrs': this.setState(s2 => s2.mcTab === 'Listings' && s2.ltErrOnly
+        ? { ltErrOnly: false, ltProp: 'all' }
+        : { mcTab: 'Listings', ltErrOnly: true, ltProp: 'all' }); break;
       case 'mcErrProp': this.setState({ mcTab: 'Listings', ltErrOnly: true, ltProp: arg }); break;
       // Picking in the property list. An empty arg is the All Properties row, which shows the
       // register; a property shows its Marketing Setup. Browsing the list always opens on General —
@@ -1024,6 +1057,8 @@ class Component extends DCLogic {
       case 'petTypeClose': this.setState({ petType: null }); break;
       case 'ftHelpOpen': this.setState(s => ({ ftHelp: !s.ftHelp })); break;
       // Everything in the grid is read off the DOM: a re-render while it was open would have wiped it.
+      // Save reads every pane off the DOM and stops there: how far the defaults reach is the
+      // user's call, so it is asked before anything is written.
       case 'mktDefSave': {
         const q = id => { const e = this.q('#' + id); return e ? String(e.value || '').trim() : ''; };
         const defs = {};
@@ -1037,31 +1072,45 @@ class Component extends DCLogic {
             refundable:q('md-refundable-' + t.code) };
           if (d.name || d.marketing || d.category || d.requirement || d.feeDue || d.schedule || d.refundable) defs[t.code] = d;
         });
-        const fill = true;
-        const nTypes = Object.keys(defs).length;
-        if (!nTypes) { this.flash('Set a default on at least one charge type'); break; }
-        let filled = 0;
-        this.setState(s => {
-          const fees = Object.assign({}, s.profileFees);
-          if (fill) this.propNames().forEach(prop => {
-            const rows = s.profileFees[prop] || this.profileRows(prop);
+        if (!Object.keys(defs).length) { this.flash('Set a default on at least one charge type'); break; }
+        this.setState({ mktDefDraft: defs, mktDefAsk: true });
+        break; }
+      case 'mktDefMode': this.setState({ mktDefMode: arg }); break;
+      // Back to the panes, with everything typed still on them.
+      case 'mktDefAskCancel': this.setState({ mktDefAsk: false }); break;
+      case 'mktDefApply': {
+        const draft = this.state.mktDefDraft || {};
+        const mode = arg || 'blank';
+        const nTypes = Object.keys(draft).length;
+        // "All charges using the updated charge types" means the types this save changed — not
+        // every type that happens to carry a default.
+        const changed = this.mktDefChanged(draft);
+        const use = mode === 'all'
+          ? changed.reduce((o, k) => { if (draft[k]) o[k] = draft[k]; return o; }, {})
+          : draft;
+        let filled = 0, hit = 0;
+        this.setState(s2 => {
+          const fees = Object.assign({}, s2.profileFees);
+          if (mode !== 'new') this.propNames().forEach(prop => {
+            const rows = s2.profileFees[prop] || this.profileRows(prop);
             let touched = false;
             const next = rows.map(r => {
               const before = this.mitsMissing(r).length;
-              const nr = this.mktDefFill(r, defs);
+              const nr = this.mktDefFill(r, use, mode === 'all');
               const after = this.mitsMissing(nr).length;
-              if (nr !== r) touched = true;
+              if (nr !== r) { touched = true; hit++; }
               filled += Math.max(0, before - after);
               return nr;
             });
             if (touched) fees[prop] = next;
           });
-          return { mktDef: defs, profileFees: fees };
+          return { mktDef: draft, profileFees: fees };
         });
-        this.setState({ mktDefOv: false });
-        this.flash(fill
-          ? 'Defaults saved on ' + nTypes + ' charge type' + (nTypes === 1 ? '' : 's') + ' · ' + filled + ' field' + (filled === 1 ? '' : 's') + ' filled'
-          : 'Defaults saved on ' + nTypes + ' charge type' + (nTypes === 1 ? '' : 's'));
+        this.setState({ mktDefOv: false, mktDefAsk: false, mktDefDraft: null });
+        const head = 'Defaults saved on ' + nTypes + ' charge type' + (nTypes === 1 ? '' : 's');
+        this.flash(mode === 'new' ? head + ' · new charges only'
+          : mode === 'all' ? head + ' · ' + hit + ' charge' + (hit === 1 ? '' : 's') + ' updated'
+          : head + ' · ' + filled + ' field' + (filled === 1 ? '' : 's') + ' filled');
         break; }
       case 'ftHelpClose': this.setState({ ftHelp: false }); break;
       case 'amtSelOpen': this.rqCapture(); this.setState({ amtSel: { kind:'rent', pick: 'prop' } }); break;
@@ -2458,7 +2507,7 @@ class Component extends DCLogic {
       recView: null, rowMenu: null, pubModal: null, ftSel: null, mktDef: {},
       mktSetup: false, mktAdv: false, mktTab: 'General', petType: null, spBanner: true, ftHelp: false,
       lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false, mcTab: 'Properties',
-      mcProp: null, mktDefOv: false
+      mcProp: null, mktDefOv: false, mktDefDraft: null, mktDefAsk: false, mktDefMode: 'blank'
     });
     window.scrollTo(0, 0);
   }
@@ -2737,6 +2786,47 @@ class Component extends DCLogic {
         <button data-act="mktSave" class="btn-pri" style="height:34px;min-height:34px;padding:0 24px;border-radius:4px;font-size:14px">Save</button>
         <button data-act="mcPick" data-arg="" style="height:34px;min-height:34px;padding:0 18px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Cancel</button>
       </div>`;
+  }
+  // Saving a default is three different acts depending on how far you mean it to reach, so the
+  // Save button asks rather than deciding. Nothing is written until an answer comes back.
+  mktDefAskHTML(){
+    if (!this.state.mktDefAsk) return '';
+    const draft = this.state.mktDefDraft || {};
+    const changed = this.mktDefChanged(draft);
+    const hit = this.mktDefChargeCount(changed);
+    const mode = this.state.mktDefMode || 'blank';
+    const nT = changed.length;
+    const opt = (v, title, sub) => {
+      const on = mode === v;
+      return `<div data-act="mktDefMode" data-arg="${v}" style="display:flex;align-items:flex-start;gap:11px;box-sizing:border-box;padding:12px 14px;border:1px solid ${on ? 'var(--ac,var(--rmx-brand, #008dd5))' : 'var(--rmx-line, #cedbe7)'};border-radius:4px;background:${on ? 'var(--rmx-brand-tint-bg, #ebf1f5)' : '#fff'};cursor:pointer">
+        <span style="flex:none;margin-top:2px;display:inline-block;width:16px;height:16px;box-sizing:border-box;border-radius:50%;border:2px solid ${on ? 'var(--ac,var(--rmx-brand, #008dd5))' : 'var(--rmx-text-muted, #b3b3b3)'};background:${on ? 'radial-gradient(circle, var(--ac,var(--rmx-brand, #008dd5)) 0 3.5px, #fff 3.5px)' : '#fff'}"></span>
+        <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
+          <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title}</span>
+          <span style="font-size:13px;color:var(--rmx-text, #666666);line-height:1.45">${sub}</span>
+        </span>
+      </div>`;
+    };
+    return `<div style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:150">
+      <div data-act="noop" style="width:600px;max-width:94vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 20px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
+          <span style="font-size:18px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">How do you want to apply these charge type defaults?</span>
+          <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="mktDefAskCancel" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;flex:none"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
+        </div>
+        <div style="padding:16px 20px;display:flex;flex-direction:column;gap:10px;overflow-y:auto">
+          ${opt('new', 'Only apply to new charges added',
+            'Charges created from here on start with these details. Nothing that already exists changes.')}
+          ${opt('blank', 'Apply to all blank fields',
+            'Fills the fields still empty on existing charges, on every property. Anything someone has typed is left alone.')}
+          ${opt('all', 'Apply these to all charges using the updated charge types',
+            nT ? 'Overwrites these fields on all ' + hit + ' charge' + (hit === 1 ? '' : 's') + ' of the ' + nT + ' charge type' + (nT === 1 ? '' : 's') + ' you changed — including values someone typed.'
+               : 'Overwrites these fields on every charge of the types you changed — including values someone typed. Nothing changed in this edit.')}
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:12px 20px;flex:none">
+          <button data-act="mktDefApply" data-arg="${mode}" class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px">Apply</button>
+          <button data-act="mktDefAskCancel" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Cancel</button>
+        </div>
+      </div>
+    </div>`;
   }
   // Charge Type Defaults, over the page.
   mktDefOvHTML(){
@@ -3173,7 +3263,10 @@ class Component extends DCLogic {
   mktDefBody(){
     const types = this.mktDefTypes();
     if (!types.length) return '';
-    const defs = this.mktDefs();
+    // Once Save has read the panes, the draft is what they show — so the apply dialog going up and
+    // coming back cannot lose what was typed.
+    const draft = this.state.mktDefDraft;
+    const defs = draft || this.mktDefs();
     const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
     const REQ = ['Required','Optional','Situational'];
     const DUE = [{value:'At Application',label:'At Application'},{value:'Move-In',label:'At Move-In'},
@@ -3277,8 +3370,7 @@ class Component extends DCLogic {
         </div>
 
 
-        <div id="md-foot" style="display:none;align-items:center;gap:16px;flex:none;padding:12px 20px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7)">
-          <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b)">Saving fills these fields on charges that are still blank, on every property.</span>
+        <div id="md-foot" style="display:${draft ? 'flex' : 'none'};align-items:center;gap:16px;flex:none;padding:12px 20px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7)">
           <div style="flex:1"></div>
           <button data-act="mktDefSave" class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px">Save</button>
           <button data-act="mktDefCancel" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Cancel</button>
@@ -5313,10 +5405,7 @@ class Component extends DCLogic {
     const pickSection = (t, rws) => rws.length ? `<div style="display:flex;flex-direction:column;gap:2px;margin-top:2px">
       <span style="font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">${t}</span>${rws.map(optCb).join('')}</div>` : '';
     const chargePicker = `<div style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);padding-bottom:8px;margin-top:4px">Select Charges</div>
-      <span style="font-size:12px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3);line-height:1.5">${allReq
-        ? 'Required charges are selected for you. Untick one to see the price without it.'
-        : 'Tick the charges to price together. Any charge already marked Required is selected for you.'}</span>
-      ${rows.every(r => this.mitsComplete(r)) ? '' : `<span style="font-size:12px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">Filling in each charge's marketing details makes this preview more accurate — listing sites build the price they show from the same fields.</span>`}
+      <span style="font-size:12px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">Select the charges you want to preview together. Filling in the marketing details makes the pricing preview more accurate to what listings sites will structure pricing.</span>
       ${pickSection('Recurring', rows.filter(r => !/-one$/.test(r.group)))}
       ${pickSection('One-Time', rows.filter(r => /-one$/.test(r.group)))}`;
     const info = this.propInfo(p.prop);
@@ -7873,6 +7962,7 @@ class Component extends DCLogic {
     out += this.ftSelHTML();
     out += this.mktSetupHTML();
     out += this.mktDefOvHTML();
+    out += this.mktDefAskHTML();
     out += this.mktAdvHTML();
     out += this.petTypeHTML();
     out += this.pricePreviewHTML();

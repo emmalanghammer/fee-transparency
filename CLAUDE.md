@@ -69,10 +69,21 @@ the charge types the portfolio uses down the left, and on the right the selected
 strip (code, GL account, the properties using it, charge counts) over a Marketing Details tile.
 A Save / Cancel footer appears only once something has been typed (`window.__mdDirty`).
 
-Two things happen with a default: `mktDefSave` fills the blank fields on charges that already
-exist (a value someone typed is never overwritten), and `saveFee` runs `mktDefFill` on a charge
-being **created** so it starts filled in. Editing an existing charge never re-applies them.
-Filling existing charges is unconditional — the design has no control for it.
+`saveFee` runs `mktDefFill` on a charge being **created**, so it starts filled in; editing an
+existing charge never re-applies them.
+
+**How far a default reaches is asked, not assumed.** `mktDefSave` only reads the panes into
+`state.mktDefDraft` and raises `mktDefAskHTML()` — "How do you want to apply these charge type
+defaults?" — with three answers, applied by `mktDefApply`:
+
+- `new` — save the defaults and touch nothing that exists.
+- `blank` — fill the fields still empty on existing charges (`mktDefFill`, no force). The default.
+- `all` — overwrite these fields on every charge of the types **this save changed**
+  (`mktDefChanged`), values someone typed included (`mktDefFill(..., true)`).
+
+Nothing is written until an answer comes back, and the dialog's Cancel returns to the panes with
+everything typed still on them — which is why the panes render from `mktDefDraft` when it exists
+rather than from `state.mktDef`.
 
 The overlay matches Figma `3431:38347` in `43F6y97LDzYBgL4CZAEO82`; keep them in step.
 
@@ -112,8 +123,8 @@ That is the only route that opens on Pricing; browsing the left list always open
 (Marketed online, Total price advertised), then two **work lines**. A line names the job rather
 than a metric ("90 charges missing marketing details") and carries the properties it lands on as
 chips, worst first, two then `+N more`. Chips shrink to an ellipsis rather than being clipped by
-the strip. A line with nothing to do turns green and says so, and a line stays tinted while the
-page below is showing exactly what it counted.
+the strip. A line with nothing to do turns green and says so; a line stays tinted while the page
+below is showing exactly what it counted, and clicking a lit line takes that filter back off.
 
 Every one of those is a destination, which is the point — the fix is one click from the number
 that reported it:
