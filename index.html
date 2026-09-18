@@ -2661,36 +2661,31 @@ class Component extends DCLogic {
         + (rows.length > show.length ? chip('+' + (rows.length - show.length) + ' more', null, more, '', true) : '');
     };
     const work = (tone, head, act, chips, on) => {
-      const todo = tone !== 'ok';
-      const col = tone === 'red' ? 'var(--rmx-error, #eb343c)'
-        : tone === 'amber' ? 'var(--rmx-attention, #f58220)' : 'var(--rmx-success, #6eb744)';
-      const bd = tone === 'red' ? '#f3b3b6' : tone === 'amber' ? '#f6d9ac' : 'var(--rmx-line, #cedbe7)';
+      const col = tone === 'red' ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-attention, #f58220)';
+      const bd = tone === 'red' ? '#f3b3b6' : '#f6d9ac';
       const tint = tone === 'red' ? '#fdecee' : '#fdf3e7';
-      const hot = todo && on;
-      const hov = todo ? ` data-on="${hot ? '1' : '0'}" onmouseover="if(this.getAttribute('data-on')!=='1')this.style.background='${tint}'" onmouseout="if(this.getAttribute('data-on')!=='1')this.style.background='#fff'"` : '';
-      return `<div${todo ? ` data-act="${act}"` : ''}${hov} style="min-width:0;display:flex;align-items:center;gap:10px;background:${hot ? tint : '#fff'};border:1px solid ${bd};border-left:3px solid ${col};border-radius:4px;padding:0 12px;overflow:hidden;${todo ? 'cursor:pointer' : ''}">
-        ${this.ico(todo ? 'error' : 'check_circle', 18, 'color:' + col + ';flex:none')}
+      return `<div data-act="${act}" data-on="${on ? '1' : '0'}" onmouseover="if(this.getAttribute('data-on')!=='1')this.style.background='${tint}'" onmouseout="if(this.getAttribute('data-on')!=='1')this.style.background='#fff'" style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;background:${on ? tint : '#fff'};border:1px solid ${bd};border-left:3px solid ${col};border-radius:4px;padding:0 12px;overflow:hidden;cursor:pointer">
+        ${this.ico('error', 18, 'color:' + col + ';flex:none')}
         <span style="flex:none;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${head}</span>
         <span style="flex:1;min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:6px;overflow:hidden">${chips}</span>
       </div>`;
     };
     const b = n => `<span style="font-weight:600">${n}</span>`;
-    const shortHead = c.short
-      ? `${b(c.short)} charge${c.short === 1 ? '' : 's'} missing marketing details`
-      : 'Every charge has its details';
-    const errHead = c.errs
-      ? `${b(c.errs)} listing${c.errs === 1 ? '' : 's'} leaving out a required fee`
-      : 'Every listing shows a complete price';
     // A line is lit while the page below is showing exactly what that line counted.
     const onShort = (st.mcTab || 'Properties') === 'Properties' && !st.mcProp && st.ftFilter === 'short';
     const onErrs = st.mcTab === 'Listings' && !!st.ltErrOnly;
-    return `<div style="display:grid;grid-template-columns:250px minmax(0,1fr) minmax(0,1fr);gap:16px;height:60px;flex:none">
-      <div style="display:flex;flex-direction:column;justify-content:center;gap:3px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:0 14px;overflow:hidden">
+    const lines = (c.short ? work('amber',
+        `${b(c.short)} charge${c.short === 1 ? '' : 's'} missing marketing details`,
+        'mcShort', strip(c.shortBy, 'mcOpenProp', 'mcShort'), onShort) : '')
+      + (c.errs ? work('red',
+        `${b(c.errs)} listing${c.errs === 1 ? '' : 's'} leaving out a required fee`,
+        'mcErrs', strip(c.errBy, 'mcErrProp', 'mcErrs'), onErrs) : '');
+    return `<div style="display:flex;align-items:stretch;gap:16px;height:60px;flex:none">
+      <div style="flex:none;width:250px;display:flex;flex-direction:column;justify-content:center;gap:3px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:0 14px;overflow:hidden">
         ${stat('Marketed online', c.marketed, 'of ' + c.props)}
         ${stat('Total price advertised', c.published, 'of ' + c.marketed)}
       </div>
-      ${work(c.short ? 'amber' : 'ok', shortHead, 'mcShort', c.short ? strip(c.shortBy, 'mcOpenProp', 'mcShort') : '', onShort)}
-      ${work(c.errs ? 'red' : 'ok', errHead, 'mcErrs', c.errs ? strip(c.errBy, 'mcErrProp', 'mcErrs') : '', onErrs)}
+      ${lines}
     </div>`;
   }
   mcTabs(){

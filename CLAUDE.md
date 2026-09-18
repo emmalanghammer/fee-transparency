@@ -123,8 +123,9 @@ That is the only route that opens on Pricing; browsing the left list always open
 (Marketed online, Total price advertised), then two **work lines**. A line names the job rather
 than a metric ("90 charges missing marketing details") and carries the properties it lands on as
 chips, worst first, two then `+N more`. Chips shrink to an ellipsis rather than being clipped by
-the strip. A line with nothing to do turns green and says so; a line stays tinted while the page
-below is showing exactly what it counted, and clicking a lit line takes that filter back off.
+the strip. **A line is a thing to do, so a line with nothing to do is not rendered** — the row
+just gets quieter, down to the context card alone. A line stays tinted while the page below is
+showing exactly what it counted, and clicking a lit line takes that filter back off.
 
 Every one of those is a destination, which is the point — the fix is one click from the number
 that reported it:
