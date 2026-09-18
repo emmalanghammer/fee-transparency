@@ -130,6 +130,12 @@ amber and red — and are the only two that do anything: `mcShort` filters the O
 `short`, `mcErrs` opens Listings with errors-only ticked. Each tints on hover and stays tinted
 while the page below is showing what it counted; clicking a lit card takes the filter back off.
 
+The rent quote's charge step borrows the Pricing Preview's UI outright — picker left, price card on
+a tinted pane right. Each row wears its **charge level** as a pill, because two charges can share a
+name and differ only in what they attach to. `rqRows`' `applies()` offers only what would actually
+price for the chosen unit: the level has to point at it, and an **exception naming that unit or its
+unit type takes the charge off the quote**.
+
 ## Where marketing details live
 
 `mktSetupBody()` is the Marketing Setup itself, and matches Figma `3457:41815`: the property

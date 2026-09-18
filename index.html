@@ -4844,6 +4844,11 @@ class Component extends DCLogic {
       if (r.level === 'ORI') return false;
       if (r.level === 'Unit') return !!(unit && r.target === q.unit);
       if (r.level === 'Unit Type') return !!(unit && r.target === unit.type);
+      // An exception is the charge saying it doesn't reach this unit, so the quote must not price it.
+      const ex = this.exclOf(r);
+      if (ex.prop) return false;
+      if (unit && (ex.units || []).indexOf(q.unit) >= 0) return false;
+      if (unit && (ex.types || []).indexOf(unit.type) >= 0) return false;
       return true;
     };
     // A charge can only be held on the quote if the charge itself says it is required — every other
@@ -5068,13 +5073,17 @@ class Component extends DCLogic {
       ${rws.map(r => line(r.comment || r.type, money(r.amount) + (suffix || ''))).join('')}
       ${subLabel ? line(subLabel, money(rws.reduce((n, r) => n + r.amount, 0)), true) : ''}</div>`;
 
+    // Two charges can share a name and differ only in what they attach to, so every row wears its
+    // level — that is the whole answer to "which rent is this?".
+    const LVL = { 'Property':'lvl-prop', 'Unit Type':'lvl-ut', 'Unit':'lvl-unit', 'ORI':'lvl-ori' };
     const pickRow = (r, one) => {
       const on = r.lock ? true : this.rqOn(r);
       const act = r.lock ? '' : ` data-act="rqTog" data-arg="${r.id}"`;
       return `<label${act} style="display:flex;align-items:center;gap:10px;padding:5px 0;cursor:${r.lock ? 'default' : 'pointer'};font-size:14px;color:var(--rmx-brand-dark, #13314c)">
         ${box(on, r.lock, r.id)}
         <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.comment || r.type}</span>
-        <span style="flex:none;text-align:right;font-size:14px;color:var(--rmx-ink-2, #424e5b);white-space:nowrap">${money(r.amount)}${one ? '/one-time' : '/mo'}</span>
+        <span class="lvl ${LVL[r.level] || 'lvl-prop'}" style="flex:none;font-size:12px;padding:1px 8px">${r.level === 'ORI' ? 'Other Rentable Item' : (r.level || 'Property')}</span>
+        <span style="flex:none;min-width:116px;text-align:right;font-size:14px;color:var(--rmx-ink-2, #424e5b);white-space:nowrap">${money(r.amount)}${one ? '/one-time' : '/mo'}</span>
       </label>`;
     };
     const subLbl = (t) => `<span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3);margin-top:4px">${t}</span>`;
