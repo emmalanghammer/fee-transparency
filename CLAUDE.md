@@ -63,39 +63,29 @@ only journey left is: fill in each charge's marketing details → convert to Fee
 ## Marketing defaults by charge type
 
 `state.mktDef` maps a charge type code to the marketing details a charge of that type starts
-with. It is portfolio-wide and set from one overlay — `mktDefBody()` inside `mktDefOvHTML()` — opened
-by the **Charge Type Defaults** button pinned to the right of the Marketing Center's tab strip:
-the charge types the portfolio uses down the left, and on the right the selected type's info
-strip (code, GL account, the properties using it, charge counts) over a Marketing Details tile.
-A Save / Cancel footer appears only once something has been typed (`window.__mdDirty`).
-
-The same fields also sit on the charge type itself, as a **Marketing Details** tile in the Charge
-Type Details overlay (`ctDetailHTML`, ids `ctd-mkt-*`, saved by `ctSave`). It writes the same
-`state.mktDef` entry, and follows the code if the code is renamed — so a default set in either
-place is the same default. Saving there only affects charges created afterwards; filling charges
-that already exist is the defaults overlay's job, because that is where the question is asked.
+with. It is set **on the charge type itself** — a **Marketing Details** tile in the Charge Type Details
+overlay (`ctDetailHTML`, ids `ctd-mkt-*`, saved by `ctSave`), carrying Name, Charge Category,
+Marketing Description, Charge Requirement, Charge Schedule, Fee Due and Refundable. The entry
+follows the code if the code is renamed. **The Marketing Center has no Charge Type Defaults
+button, tab or overlay** — that was the old home and it is gone.
 
 `saveFee` runs `mktDefFill` on a charge being **created**, so it starts filled in; editing an
 existing charge never re-applies them.
 
-**How far a default reaches is asked, not assumed.** `mktDefSave` only reads the panes into
-`state.mktDefDraft` and raises `mktDefAskHTML()` — "How do you want to apply these charge type
-defaults?" — with three answers, applied by `mktDefApply`:
+**How far a default reaches is asked, not assumed.** When `ctSave` sees the marketing details
+changed *and* charges of that type already exist, it holds them in `state.mktDefDraft` and raises
+`mktDefAskHTML()` — "How do you want to apply these marketing details?" — with three answers,
+applied by `mktDefApply`:
 
 - `new` — save the defaults and touch nothing that exists.
 - `blank` — fill the fields still empty on existing charges (`mktDefFill`, no force). The default.
 - `all` — overwrite these fields on every charge of the types **this save changed**
   (`mktDefChanged`), values someone typed included (`mktDefFill(..., true)`).
 
-Nothing is written until an answer comes back, and the dialog's Cancel returns to the panes with
-everything typed still on them — which is why the panes render from `mktDefDraft` when it exists
-rather than from `state.mktDef`.
-
-The overlay matches Figma `3431:38347` in `43F6y97LDzYBgL4CZAEO82`; keep them in step.
-
-Every type's pane is rendered and all but the selected one hidden, and selection is a DOM swap
-(`window.__mdPick`, `__mdFill`) — so clicking down the list never loses what has been typed, and
-nothing here re-renders, which would wipe a pane half filled in. `mktDefSave` reads every pane.
+`mktDefApply` is what commits `state.mktDef`, not `ctSave` — otherwise `mktDefChanged` would be
+diffing against the values it just wrote. The dialog's Cancel returns to the form with everything
+typed still on it, which is why the tile renders from `mktDefDraft` when one exists rather than
+from `state.mktDef`. A charge type with no charges yet skips the dialog and just saves.
 
 ## The Marketing Center
 

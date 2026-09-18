@@ -198,7 +198,6 @@ class Component extends DCLogic {
     mktSetup: false, // Marketing Setup overlay (opened from the action rail's copy flyout)
     mktTab: 'General', // Marketing Setup's own tabs: General or Pricing
     mcProp: null, // Marketing Center > Properties: the selected property; null is All Properties
-    mktDefOv: false, // Charge Type Defaults overlay — a portfolio-wide setting, not a tab
     mktDefDraft: null, // what Save read off the defaults panes, held while the apply dialog is up
     mktDefAsk: false, // the "how do you want to apply these" confirmation
     mktDefMode: 'blank', // its answer: 'new' | 'blank' | 'all'
@@ -987,11 +986,6 @@ class Component extends DCLogic {
       case 'mcTab': this.setState({ mcTab: arg }); break;
       // Charge Type Defaults is a setting for the whole portfolio, so it opens over the page rather
       // than taking a seat in the tab strip beside the two things you work in every day.
-      case 'mktDefOpen': this.setState({ mktDefOv: true }); break;
-      case 'mktDefClose': this.setState({ mktDefOv: false, mktDefDraft: null, mktDefAsk: false }); break;
-      // The grid is held on the DOM, so closing the overlay is what discards it.
-      case 'mktDefCancel': this.setState({ mktDefOv: false, mktDefDraft: null, mktDefAsk: false });
-        this.flash('Changes discarded'); break;
       // The register, filtered to the properties whose charges are still short of their details —
       // and clicking the lit line again takes the filter back off, since that is what it looks like.
       case 'mcShort': this.setState(s2 => (s2.mcTab || 'Properties') === 'Properties' && !s2.mcProp
@@ -1054,6 +1048,14 @@ class Component extends DCLogic {
         const defs = Object.assign({}, this.mktDefs());
         if (newCode !== code) delete defs[code];
         if (Object.keys(mk).some(k => mk[k])) defs[newCode] = mk; else delete defs[newCode];
+        // Changing the details on a type that charges already run on is the one case where how far
+        // the change reaches is the user's call — so `mktDefApply` commits them, not this.
+        const reaches = this.mktDefChanged(defs).length > 0 && this.mktDefChargeCount([newCode]) > 0;
+        if (reaches) {
+          this.setState({ chargeTypes: next, ctDetail: arg === 'close' ? null : newCode,
+            mktDefDraft: defs, mktDefAsk: true, mktDefMode: 'blank' });
+          break;
+        }
         this.setState({ chargeTypes: next, mktDef: defs, ctDetail: arg === 'close' ? null : newCode });
         this.flash('Charge type saved'); break; }
       case 'ctDelete': { const code = this.state.ctDetail; if (!code) break;
@@ -1068,22 +1070,6 @@ class Component extends DCLogic {
       // Everything in the grid is read off the DOM: a re-render while it was open would have wiped it.
       // Save reads every pane off the DOM and stops there: how far the defaults reach is the
       // user's call, so it is asked before anything is written.
-      case 'mktDefSave': {
-        const q = id => { const e = this.q('#' + id); return e ? String(e.value || '').trim() : ''; };
-        const defs = {};
-        this.mktDefTypes().forEach(t => {
-          const d = { name:q('md-name-' + t.code), marketing:q('md-marketing-' + t.code),
-            category:q('md-category-' + t.code), requirement:q('md-requirement-' + t.code),
-            // Fee Due is asked of one-time charges and Charge Schedule of recurring ones, so each is
-            // only kept where some charge of this type could use it.
-            feeDue: t.one ? q('md-feeDue-' + t.code) : '',
-            schedule: t.rec ? q('md-schedule-' + t.code) : '',
-            refundable:q('md-refundable-' + t.code) };
-          if (d.name || d.marketing || d.category || d.requirement || d.feeDue || d.schedule || d.refundable) defs[t.code] = d;
-        });
-        if (!Object.keys(defs).length) { this.flash('Set a default on at least one charge type'); break; }
-        this.setState({ mktDefDraft: defs, mktDefAsk: true });
-        break; }
       case 'mktDefMode': this.setState({ mktDefMode: arg }); break;
       // Back to the panes, with everything typed still on them.
       case 'mktDefAskCancel': this.setState({ mktDefAsk: false }); break;
@@ -1115,7 +1101,7 @@ class Component extends DCLogic {
           });
           return { mktDef: draft, profileFees: fees };
         });
-        this.setState({ mktDefOv: false, mktDefAsk: false, mktDefDraft: null });
+        this.setState({ mktDefAsk: false, mktDefDraft: null });
         const head = 'Defaults saved on ' + nTypes + ' charge type' + (nTypes === 1 ? '' : 's');
         this.flash(mode === 'new' ? head + ' · new charges only'
           : mode === 'all' ? head + ' · ' + hit + ' charge' + (hit === 1 ? '' : 's') + ' updated'
@@ -2518,7 +2504,7 @@ class Component extends DCLogic {
       recView: null, rowMenu: null, pubModal: null, ftSel: null, mktDef: {},
       mktSetup: false, mktAdv: false, mktTab: 'General', petType: null, spBanner: true, ftHelp: false,
       lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false, mcTab: 'Properties',
-      mcProp: null, mktDefOv: false, mktDefDraft: null, mktDefAsk: false, mktDefMode: 'blank'
+      mcProp: null, mktDefDraft: null, mktDefAsk: false, mktDefMode: 'blank'
     });
     window.scrollTo(0, 0);
   }
@@ -2703,10 +2689,9 @@ class Component extends DCLogic {
     const c = this.mcCounts();
     const cur = this.state.mcTab || 'Properties';
     const tabs = [['Properties', 'Marketing Setup', ''], ['Listings', 'Listings', String(c.listings)]];
-    // The two things you work in are tabs. Charge Type Defaults is a setting you visit occasionally,
-    // so it sits beside them as a button and opens over the page.
-    const right = (cur === 'Listings' ? this.mcListingsActions() : '')
-      + `<button data-act="mktDefOpen" style="display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 15px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${this.ico('tune', 18, 'flex:none')}Charge Type Defaults</button>`;
+    // Charge type defaults are set on the charge type itself, so the Marketing Center carries no
+    // entry point for them.
+    const right = cur === 'Listings' ? this.mcListingsActions() : '';
     return `<div style="display:flex;align-items:stretch;padding:0 16px;box-shadow:inset 0 -1px 0 var(--rmx-line, #cedbe7);flex:none">
       <div style="flex:1;min-width:0;display:flex;align-items:stretch;gap:16px;overflow-x:auto;overflow-y:hidden">${tabs.map(t => {
         const on = t[0] === cur;
@@ -2815,7 +2800,7 @@ class Component extends DCLogic {
     return `<div style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:150">
       <div data-act="noop" style="width:600px;max-width:94vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 20px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
-          <span style="font-size:18px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">How do you want to apply these charge type defaults?</span>
+          <span style="font-size:18px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">How do you want to apply these marketing details?</span>
           <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="mktDefAskCancel" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;flex:none"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
         </div>
         <div style="padding:16px 20px;display:flex;flex-direction:column;gap:10px;overflow-y:auto">
@@ -2835,18 +2820,6 @@ class Component extends DCLogic {
     </div>`;
   }
   // Charge Type Defaults, over the page.
-  mktDefOvHTML(){
-    if (!this.state.mktDefOv) return '';
-    return `<div style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:146">
-      <div data-act="noop" style="width:1100px;max-width:calc(100vw - 24px);height:760px;max-height:calc(100vh - 24px);background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
-          <span style="font-size:20px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Charge Type Marketing Defaults</span>
-          <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="mktDefClose" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
-        </div>
-        <div style="flex:1;min-height:0;display:flex;flex-direction:column">${this.mktDefBody()}</div>
-      </div>
-    </div>`;
-  }
   feeTransBody(){
     // One register of every property, in the order the work happens; Group by Status splits the same
     // rows into a section per status (mock 2699-105683).
@@ -3266,123 +3239,6 @@ class Component extends DCLogic {
   // selected one's details on the right. Every type's pane is rendered and all but one hidden, so
   // clicking down the list never loses what has been typed — and nothing here re-renders, which
   // would wipe a pane half filled in.
-  mktDefBody(){
-    const types = this.mktDefTypes();
-    if (!types.length) return '';
-    // Once Save has read the panes, the draft is what they show — so the apply dialog going up and
-    // coming back cannot lose what was typed.
-    const draft = this.state.mktDefDraft;
-    const defs = draft || this.mktDefs();
-    const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
-    const REQ = ['Required','Optional','Situational'];
-    const DUE = [{value:'At Application',label:'At Application'},{value:'Move-In',label:'At Move-In'},
-      {value:'During Term',label:'During Term'},{value:'Move-Out',label:'At Move-Out'}];
-    const SCHED = ['Weekly','Monthly','Annually'];
-    const REF = [{value:'yes',label:'Refundable'},{value:'no',label:'Not Refundable'}];
-
-    // ---- left: one row per charge type ----
-    const li = (t, i) => `<div id="md-li-${t.code}" data-k="${esc((t.code + ' ' + t.desc).toLowerCase())}" onclick="if(window.__mdPick)window.__mdPick('${t.code}')" onmouseover="if(this.getAttribute('data-on')!=='1')this.style.background='var(--rmx-bg-subtle, #f5f8fa)'" onmouseout="if(this.getAttribute('data-on')!=='1')this.style.background=''" data-on="${i === 0 ? '1' : '0'}" style="display:flex;align-items:center;gap:10px;min-height:32px;box-sizing:border-box;padding:6px 12px;cursor:pointer;${i === 0 ? 'background:rgba(0,141,213,0.15)' : ''}">
-      <span style="width:114px;flex:none;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.code}</span>
-      <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.desc)}</span>
-    </div>`;
-
-    // ---- right: the selected type, then its marketing details ----
-    const fieldBox = (inner, h) => `<div style="display:flex;align-items:${h ? 'flex-start' : 'center'};gap:6px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:${h || 36}px;box-sizing:border-box;padding:${h ? '8px 10px' : '0 10px'}">${inner}</div>`;
-    const dirty = `if(window.__mdDirty)window.__mdDirty()`;
-    const txt = (id, val) => fieldBox(`<input id="${id}" value="${esc(val)}" oninput="${dirty}" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">`);
-    const area = (id, val) => `<textarea id="${id}" oninput="${dirty}" style="box-sizing:border-box;height:60px;padding:8px 10px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);line-height:1.5;resize:vertical;width:100%">${esc(val)}</textarea>`;
-    const dd = (id, opts, val) => this.singleSelect(id, opts, val, { noSearch:true, blank:true, placeholder:' ', js:dirty });
-    const lab = (t, help) => `<span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--rmx-text, #666666)">${t}${help || ''}</span>`;
-    const fld = (label, ctl, help) => `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">${lab(label, help)}${ctl}</div>`;
-    // Charge Category comes from the charge type's own setup, so the default here is an override.
-    const catHelp = this.infoTip('<span style="display:block;white-space:normal">Listing sites group fees by category. A charge already inherits the category of its charge type — setting one here overrides it.</span>', 290);
-
-    const pane = (t, i) => {
-      const d = defs[t.code] || {};
-      const more = t.propList.length - 1;
-      const props = esc(t.propList.map(n => (this.propInfo(n) || {}).short || n).join(', '));
-      return `<div id="md-pane-${t.code}" style="display:${i === 0 ? 'flex' : 'none'};flex-direction:column;gap:20px">
-
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:14px 16px">
-          <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t.code}</span>
-          <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${esc(t.gl || t.desc)}</span>
-          <span title="${props}" style="display:inline-flex;align-items:center;gap:5px">
-            ${this.ico('home', 16, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}
-            <span style="font-size:14px;color:var(--rmx-text, #666666)">${esc((this.propInfo(t.propList[0]) || {}).short || t.propList[0])}</span>
-            ${more > 0 ? `<span style="display:inline-flex;align-items:center;gap:2px;height:20px;padding:0 4px 0 9px;border-radius:10px;border:1px solid var(--ac,var(--rmx-brand, #008dd5));font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap">+${more}${this.ico('arrow_drop_down', 16, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>` : ''}
-          </span>
-          <div style="flex:1"></div>
-          <span style="display:inline-flex;align-items:center;gap:14px;flex:none">
-            <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">Total Charges: <strong>${t.charges}</strong></span>
-            ${t.short ? `<span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap">${this.ico('error', 16, 'color:var(--rmx-attention, #f58220)')}<span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${t.short} need${t.short === 1 ? 's' : ''} detail${t.short === 1 ? '' : 's'}</span></span>`
-              : `<span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap">${this.ico('check_circle', 16, 'color:var(--rmx-success, #6eb744)')}<span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">All complete</span></span>`}
-          </span>
-        </div>
-
-        <div style="display:flex;flex-direction:column;gap:12px">
-          <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Marketing Details</span>
-          <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:16px;display:flex;flex-direction:column;gap:16px">
-            <div style="display:flex;gap:16px">
-              ${fld('Name', txt('md-name-' + t.code, d.name || ''))}
-              ${fld('Charge Category', dd('md-category-' + t.code, this.chargeCategoryOptions(), d.category || ''), catHelp)}
-            </div>
-            ${fld('Marketing Description', area('md-marketing-' + t.code, d.marketing || ''))}
-            <div style="display:flex;gap:16px">
-              ${fld('Charge Requirement', dd('md-requirement-' + t.code, REQ, d.requirement || ''))}
-              ${fld('Charge Schedule', dd('md-schedule-' + t.code, SCHED, d.schedule || ''))}
-            </div>
-            <div style="display:flex;gap:16px">
-              ${fld('Fee Due', dd('md-feeDue-' + t.code, DUE, d.feeDue || ''))}
-              ${fld('Refundable', dd('md-refundable-' + t.code, REF, d.refundable || ''))}
-            </div>
-          </div>
-        </div>
-
-      </div>`;
-    };
-
-    // Selection is a DOM swap: every pane is already rendered, so nothing typed is thrown away.
-    // Nothing to save until something is typed, so the footer stays out of the way until then.
-    window.__mdDirty = () => { const f = this.q('#md-foot'); if (f) f.style.display = 'flex'; };
-    window.__mdPick = (code) => {
-      types.forEach(t => {
-        const on = t.code === code;
-        const row = this.q('#md-li-' + t.code);
-        if (row) { row.setAttribute('data-on', on ? '1' : '0');
-          row.style.background = on ? 'rgba(0,141,213,0.15)' : ''; }
-        const pn = this.q('#md-pane-' + t.code);
-        if (pn) pn.style.display = on ? 'flex' : 'none';
-      });
-    };
-
-    return `<div style="display:flex;flex-direction:column;height:100%;min-height:0">
-        <div style="flex:none;padding:14px 20px 0;font-size:14px;color:var(--rmx-text, #666666);line-height:1.45">Set the marketing details a charge of each type should start with. Every property uses them: a new charge picks them up as it is created, and charges that already exist are filled when you save.</div>
-
-        <div style="flex:1;min-height:0;display:flex;gap:20px;padding:16px 20px 20px">
-
-          <div style="width:300px;flex:none;display:flex;flex-direction:column;min-height:0;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;overflow:hidden">
-            <div style="flex:none;padding:12px 12px 8px">
-              <div style="display:flex;align-items:center;gap:8px;height:36px;box-sizing:border-box;padding:0 8px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px">
-                ${this.ico('search', 18, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}
-                <input id="md-q" placeholder="Find a charge type" oninput="var q=this.value.toLowerCase();document.querySelectorAll('[id^=&quot;md-li-&quot;]').forEach(function(r){var k=r.getAttribute('data-k')||'';r.style.display=k.indexOf(q)<0?'none':'flex'})" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:italic 400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">
-              </div>
-            </div>
-            <div style="flex:1;min-height:0;overflow-y:auto">${types.map(li).join('')}</div>
-            <div style="flex:none;display:flex;justify-content:flex-end;padding:8px 14px;font-size:14px;color:var(--rmx-text-muted, #b3b3b3)">${types.length} charge type${types.length === 1 ? '' : 's'}</div>
-          </div>
-
-          <div style="flex:1;min-width:0;min-height:0;overflow-y:auto">${types.map(pane).join('')}</div>
-
-        </div>
-
-
-        <div id="md-foot" style="display:${draft ? 'flex' : 'none'};align-items:center;gap:16px;flex:none;padding:12px 20px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7)">
-          <div style="flex:1"></div>
-          <button data-act="mktDefSave" class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px">Save</button>
-          <button data-act="mktDefCancel" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Cancel</button>
-        </div>
-      </div>`;
-  }
   ftSelHTML(){
     const f = this.state.ftSel;
     if (!f) return '';
@@ -3882,7 +3738,10 @@ class Component extends DCLogic {
     // The marketing details every charge of this type starts with — the same fields the Charge Type
     // Defaults overlay sets, on the charge type itself, writing to the same `state.mktDef` store.
     const mesc = t => ('' + (t == null ? '' : t)).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
-    const d = this.mktDefFor(code) || {};
+    // While the apply dialog is up nothing is committed yet, so the tile reads the draft — cancelling
+    // comes back to the form with what was typed still on it.
+    const draft = this.state.mktDefDraft;
+    const d = (draft && draft[code]) || (draft ? {} : this.mktDefFor(code)) || {};
     const REQ = ['Required','Optional','Situational'];
     const DUE = [{value:'At Application',label:'At Application'},{value:'Move-In',label:'At Move-In'},
       {value:'During Term',label:'During Term'},{value:'Move-Out',label:'At Move-Out'}];
@@ -3893,7 +3752,7 @@ class Component extends DCLogic {
     const mfld = (label, ctl, help) => `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0"><span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--rmx-text, #666666)">${label}${help || ''}</span>${ctl}</div>`;
     const mCatHelp = this.infoTip('<span style="display:block;white-space:normal">Listing sites group fees by category. A charge already inherits the category of its charge type \u2014 setting one here overrides it on listings.</span>', 290);
     const mktTile = tile('Marketing Details', '',
-      `<span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.45">Every charge of this type starts with these. Changing them here only affects charges created from now on \u2014 to fill charges that already exist, use <strong style="color:var(--rmx-brand-dark, #13314c)">Charge Type Defaults</strong> in the Marketing Center.</span>
+      `<span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.45">Every charge of this type starts with these. If charges of this type already exist, saving asks how far the change should reach.</span>
        <div style="display:flex;gap:16px">
          ${mfld('Name', F.txt('ctd-mkt-name', d.name || ''))}
          ${mfld('Charge Category', mdd('ctd-mkt-category', this.chargeCategoryOptions(), d.category || ''), mCatHelp)}
@@ -7998,7 +7857,6 @@ class Component extends DCLogic {
     out += this.pubModalHTML();
     out += this.ftSelHTML();
     out += this.mktSetupHTML();
-    out += this.mktDefOvHTML();
     out += this.mktDefAskHTML();
     out += this.mktAdvHTML();
     out += this.petTypeHTML();
