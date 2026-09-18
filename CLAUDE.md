@@ -158,7 +158,7 @@ and the kebab's Pricing Setup link is gone.
 
 ## Test feature states
 
-The Test Feature State selector is hidden by default; reveal it by clicking the logo or with
-`?test=1`. **Happy Path** is the default and the one used for walkthroughs: four properties, all
+The Test Feature State selector shows by default while the prototype is being worked on; hide it
+for a walkthrough by clicking the logo, or start hidden with `?test=0`. **Happy Path** is the default and the one used for walkthroughs: four properties, all
 marketed online, three with every marketing detail in place and waiting to convert, Riverview
 Apartments still missing details on all five of its charges.
