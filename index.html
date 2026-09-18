@@ -197,6 +197,8 @@ class Component extends DCLogic {
     pubModal: null, // { prop, ack } — Convert to Fee Transparency confirmation
     mktSetup: false, // Marketing Setup overlay (opened from the action rail's copy flyout)
     mktTab: 'General', // Marketing Setup's own tabs: General or Pricing
+    mcProp: null, // Marketing Center > Properties: the selected property; null is All Properties
+    mktDefOv: false, // Charge Type Defaults overlay — a portfolio-wide setting, not a tab
     mktAdv: false, // Advanced Settings overlay on top of Marketing Setup
     ftSel: null, // { mode:'pub' } — Select Properties dialog on the tracker
     ltProp: 'all', // Listings page property filter
@@ -953,16 +955,29 @@ class Component extends DCLogic {
       case 'navFullMenu': this.go('fullmenu'); break;
       case 'navProspect': this.go('prospect'); break;
       case 'navRegister': this.go('register'); break;
-      case 'navFeeTrans': this.go('feetrans', { profMenu: null, mcTab: 'Properties' }); break;
+      case 'navFeeTrans': this.go('feetrans', { profMenu: null, mcTab: 'Properties', mcProp: null }); break;
       // Listings is a tab of the Marketing Center, so the nav entry lands on that tab.
       case 'navListings': this.go('feetrans', { profMenu: null, mcTab: 'Listings' }); break;
       case 'mcTab': this.setState({ mcTab: arg }); break;
-      // The grid is held on the DOM, so a re-render is what discards it.
-      case 'mktDefCancel': this.setState({ mcTab: 'Charge Type Defaults' }); this.flash('Changes discarded'); break;
+      // Charge Type Defaults is a setting for the whole portfolio, so it opens over the page rather
+      // than taking a seat in the tab strip beside the two things you work in every day.
+      case 'mktDefOpen': this.setState({ mktDefOv: true }); break;
+      case 'mktDefClose': this.setState({ mktDefOv: false }); break;
+      // The grid is held on the DOM, so closing the overlay is what discards it.
+      case 'mktDefCancel': this.setState({ mktDefOv: false }); this.flash('Changes discarded'); break;
+      // The register, filtered to the properties whose charges are still short of their details.
+      case 'mcShort': this.setState({ mcTab: 'Properties', mcProp: null, ftFilter: 'short' }); break;
+      // Picking in the property list. An empty arg is the All Properties row, which shows the
+      // register; a property shows its Marketing Setup, on the tab where its work is waiting.
+      case 'mcPick': { const short = arg ? this.ftCharges(arg).incomplete : 0;
+        this.setState({ mcProp: arg || null, property: arg || this.state.property,
+          mktTab: short ? 'Pricing' : 'General' });
+        break; }
       // The Marketing Center's whole point: a property opens its Marketing Setup, on the Pricing tab
       // when that is where the outstanding work is.
       case 'mcOpenProp': { const short = this.ftCharges(arg).incomplete;
-        this.go('property', { property: arg, propTab: 'General', mktSetup: true, mktTab: short ? 'Pricing' : 'General' });
+        this.go('feetrans', { mcTab: 'Properties', mcProp: arg, property: arg, propTab: 'General',
+          profMenu: null, rowMenu: null, mktTab: short ? 'Pricing' : 'General' });
         break; }
       case 'navPetTypes': this.go('pettypes'); break;
       case 'navChargeTypes': this.go('chargetypes'); break;
@@ -1041,7 +1056,7 @@ class Component extends DCLogic {
           });
           return { mktDef: defs, profileFees: fees };
         });
-        this.setState({ mcTab: 'Charge Type Defaults' });
+        this.setState({ mktDefOv: false });
         this.flash(fill
           ? 'Defaults saved on ' + nTypes + ' charge type' + (nTypes === 1 ? '' : 's') + ' · ' + filled + ' field' + (filled === 1 ? '' : 's') + ' filled'
           : 'Defaults saved on ' + nTypes + ' charge type' + (nTypes === 1 ? '' : 's'));
@@ -2440,7 +2455,8 @@ class Component extends DCLogic {
       copyFees: null, pricePreview: null, profMenu: null, profHist: null,
       recView: null, rowMenu: null, pubModal: null, ftSel: null, mktDef: {},
       mktSetup: false, mktAdv: false, mktTab: 'General', petType: null, spBanner: true, ftHelp: false,
-      lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false, mcTab: 'Properties'
+      lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false, mcTab: 'Properties',
+      mcProp: null, mktDefOv: false
     });
     window.scrollTo(0, 0);
   }
@@ -2573,7 +2589,7 @@ class Component extends DCLogic {
       ${card('Marketed online', c.marketed, 'of ' + c.props + ' properties')}
       ${card('Advertising a total price', c.published, 'of ' + c.marketed + ' marketed')}
       ${card('Charges missing details', c.short, 'across ' + c.shortProps + ' propert' + (c.shortProps === 1 ? 'y' : 'ies'),
-        c.short ? { act:'mcTab', arg:'Charge Type Defaults', border:'#f6d9ac', icon:this.ico('error', 18, 'color:var(--rmx-attention, #f58220)') } : {})}
+        c.short ? { act:'mcShort', border:'#f6d9ac', icon:this.ico('error', 18, 'color:var(--rmx-attention, #f58220)') } : {})}
       ${card('Listings with errors', c.errs, 'of ' + c.listings + ' listings',
         c.errs ? { act:'mcTab', arg:'Listings', border:'#f3b3b6', icon:this.ico('error', 18, 'color:var(--rmx-error, #eb343c)') } : {})}
     </div>`;
@@ -2581,10 +2597,11 @@ class Component extends DCLogic {
   mcTabs(){
     const c = this.mcCounts();
     const cur = this.state.mcTab || 'Properties';
-    const tabs = [['Properties', String(c.props)], ['Listings', String(c.listings)],
-      ['Charge Type Defaults', c.defTypes + '/' + c.allTypes]];
-    const right = cur === 'Charge Type Defaults' ? ''
-      : cur === 'Listings' ? this.mcListingsActions() : this.mcPropsActions();
+    const tabs = [['Properties', String(c.props)], ['Listings', String(c.listings)]];
+    // The two things you work in are tabs. Charge Type Defaults is a setting you visit occasionally,
+    // so it sits beside them as a button and opens over the page.
+    const right = (cur === 'Listings' ? this.mcListingsActions() : this.mcPropsActions())
+      + `<button data-act="mktDefOpen" style="display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 15px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${this.ico('tune', 18, 'flex:none')}Charge Type Defaults</button>`;
     return `<div style="display:flex;align-items:stretch;padding:0 16px;box-shadow:inset 0 -1px 0 var(--rmx-line, #cedbe7);flex:none">
       <div style="flex:1;min-width:0;display:flex;align-items:stretch;gap:16px;overflow-x:auto;overflow-y:hidden">${tabs.map(t => {
         const on = t[0] === cur;
@@ -2594,10 +2611,13 @@ class Component extends DCLogic {
     </div>`;
   }
   mcPropsActions(){
+    // Converting is a portfolio-level action, so it belongs to the register — not to one property's
+    // Marketing Setup, which has its own footer.
+    if (this.state.mcProp) return '';
     const convertable = this.propertiesData().map(p => p.name).filter(n => this.ftStatus(n).key === 'ready');
-    return `${this.mcSearch('Find a property')}${convertable.length
+    return convertable.length
       ? `<button data-act="ftSelOpen" data-arg="pub" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Convert to Fee Transparency</button>`
-      : ''}`;
+      : '';
   }
   mcListingsActions(){ return this.mcSearch('Find a listing'); }
   mcSearch(ph){
@@ -2607,14 +2627,89 @@ class Component extends DCLogic {
   }
   marketingCenterBody(){
     const cur = this.state.mcTab || 'Properties';
-    const panel = cur === 'Listings' ? this.listingsBody()
-      : cur === 'Charge Type Defaults' ? this.mktDefBody()
-      : this.feeTransBody();
+    const panel = cur === 'Listings'
+      ? `<div style="flex:1;min-height:0;overflow:auto">${this.listingsBody()}</div>`
+      : `<div style="flex:1;min-height:0;display:flex">${this.mcPropsPanel()}</div>`;
     return `<div style="padding:16px 24px 24px;display:flex;flex-direction:column;gap:16px;flex:1;min-height:0">
       ${this.mcScoreboard()}
       <div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden">
         ${this.mcTabs()}
-        <div style="flex:1;min-height:0;overflow:auto">${panel}</div>
+        ${panel}
+      </div>
+    </div>`;
+  }
+
+  // ---------- Properties: the portfolio down the left, one property's setup on the right ----------
+  // All Properties is the first row of the list, so the register that says how everyone is doing is
+  // always one click away — and opening a property never takes the list off the screen.
+  mcPropsPanel(){
+    const sel = this.state.mcProp || '';
+    const esc = s2 => (''+s2).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+    const names = this.propertiesData().map(p => p.name);
+    const c = this.mcCounts();
+    const dotFor = (n) => {
+      const st = this.ftStatus(n);
+      const col = st.loz === 'amber' ? 'var(--rmx-attention, #f58220)'
+        : st.loz === 'red' ? 'var(--rmx-error, #eb343c)'
+        : st.loz === 'blue' ? 'var(--ac,var(--rmx-brand, #008dd5))' : 'var(--rmx-success, #6eb744)';
+      return `<span title="${esc(st.status)}" style="width:9px;height:9px;border-radius:50%;flex:none;background:${col}"></span>`;
+    };
+    // One line under the name, saying the only thing the list can usefully say about a property.
+    const summary = (n) => {
+      const st = this.ftStatus(n);
+      if (!this.ftApplicable(n)) return 'Not marketed online';
+      if (st.key === 'short' || st.key === 'attention')
+        return st.issues + ' charge' + (st.issues === 1 ? '' : 's') + ' missing details';
+      return st.status;
+    };
+    const row = (arg, on, lead, title, sub) => `<div data-mcrow data-k="${esc((title + ' ' + sub).toLowerCase())}" data-act="mcPick" data-arg="${esc(arg)}" data-on="${on ? '1' : '0'}" onmouseover="if(this.getAttribute('data-on')!=='1')this.style.background='var(--rmx-bg-subtle, #f5f8fa)'" onmouseout="if(this.getAttribute('data-on')!=='1')this.style.background=''" style="display:flex;align-items:center;gap:10px;box-sizing:border-box;padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);${on ? 'background:rgba(0,141,213,0.15)' : ''}">
+      ${lead}
+      <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+        <span style="font-size:14px;${on ? 'font-weight:600;' : ''}color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(title)}</span>
+        <span style="font-size:12px;color:var(--rmx-text, #666666);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(sub)}</span>
+      </span>
+    </div>`;
+    const list = row('', !sel, this.ico('apartment', 18, 'color:var(--rmx-text, #666666);flex:none'), 'All Properties',
+        c.short ? c.short + ' charges missing details across ' + c.shortProps + ' propert' + (c.shortProps === 1 ? 'y' : 'ies')
+                : 'Every charge has its marketing details')
+      + names.map(n => row(n, n === sel, dotFor(n), n, summary(n))).join('');
+    const filter = "var q=this.value.toLowerCase();document.querySelectorAll('[data-mcrow]').forEach(function(r){var k=r.getAttribute('data-k')||'';r.style.display=k.indexOf(q)<0?'none':'flex'})";
+    return `<div style="flex:1;min-width:0;display:flex;align-items:stretch;min-height:0">
+      <div style="width:290px;flex:none;display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--rmx-line, #cedbe7)">
+        <div style="flex:none;padding:12px 14px">
+          <div style="display:flex;align-items:center;gap:8px;height:36px;box-sizing:border-box;padding:0 8px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px">
+            ${this.ico('search', 18, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}
+            <input id="mc-q" placeholder="Find a property" oninput="${filter}" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:italic 400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">
+          </div>
+        </div>
+        <div style="flex:1;min-height:0;overflow-y:auto">${list}</div>
+        <div style="flex:none;display:flex;justify-content:flex-end;padding:8px 14px;font-size:14px;color:var(--rmx-text-muted, #b3b3b3);border-top:1px solid var(--rmx-line, #cedbe7)">${names.length} propert${names.length === 1 ? 'y' : 'ies'}</div>
+      </div>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;min-height:0;background:var(--rmx-bg-subtle, #f5f8fa)">${sel
+        ? this.mcPropDetail()
+        : `<div style="flex:1;min-height:0;overflow:auto;background:#fff">${this.feeTransBody()}</div>`}</div>
+    </div>`;
+  }
+  // The Marketing Setup, rendered where it is read — the same markup the overlay uses, so the two
+  // can't drift. The footer is the overlay's, minus the close: Cancel goes back to the portfolio.
+  mcPropDetail(){
+    return `${this.mktSetupBody()}
+      <div style="display:flex;justify-content:flex-end;gap:10px;background:#fff;border-top:1px solid var(--rmx-line, #cedbe7);padding:12px 20px;flex:none">
+        <button data-act="mktAdvOpen" style="height:34px;min-height:34px;padding:0 20px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Advanced</button>
+        <button data-act="mktSave" class="btn-pri" style="height:34px;min-height:34px;padding:0 24px;border-radius:4px;font-size:14px">Save</button>
+        <button data-act="mcPick" data-arg="" style="height:34px;min-height:34px;padding:0 18px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Cancel</button>
+      </div>`;
+  }
+  // Charge Type Defaults, over the page.
+  mktDefOvHTML(){
+    if (!this.state.mktDefOv) return '';
+    return `<div style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:146">
+      <div data-act="noop" style="width:1100px;max-width:calc(100vw - 24px);height:760px;max-height:calc(100vh - 24px);background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
+          <span style="font-size:20px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Charge Type Marketing Defaults</span>
+          <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="mktDefClose" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
+        </div>
+        <div style="flex:1;min-height:0;display:flex;flex-direction:column">${this.mktDefBody()}</div>
       </div>
     </div>`;
   }
@@ -7438,8 +7533,10 @@ class Component extends DCLogic {
       </div>
     </div>`;
   }
-  mktSetupHTML(){
-    if (!this.state.mktSetup) return '';
+  // The Marketing Setup itself (Figma 3457:41815): the property header strip, its General and
+  // Pricing tabs, and the selected tab. The Marketing Center renders this inline beside its
+  // property list; the property page wraps the same markup in an overlay — one source, no drift.
+  mktSetupBody(){
     const P = this.propInfo();
     const card = (title, inner, right, wide) => `<div style="${wide?'grid-column:span 2;':''}background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;display:flex;flex-direction:column;min-width:0">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;border-bottom:2px solid var(--ac,var(--rmx-brand, #008dd5))"><span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title}</span>${right||''}</div>
@@ -7469,19 +7566,7 @@ class Component extends DCLogic {
       `<a data-act="toast" data-arg="Add from UDF" style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap"><svg class="ico" width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M450-450H200v-60h250v-250h60v250h250v60H510v250h-60v-250Z"/></svg>Add from UDF</a>`);
     const preview = `<button data-act="toast" data-arg="Preview" class="btn-pri" style="height:34px;min-height:34px;padding:0 18px;border-radius:4px;font-size:14px;flex:none">Preview</button>`;
     const mkProp = this.state.property;
-    const mkPub = !!this.state.publishedProps[mkProp];
-    // Mock 2791-152711: the callout offers the unit pricing preview — and once the property has
-    // converted, it says what its listings now advertise.
-    const mkLine = mkPub
-      ? "This property is converted to fee transparency, so its listings advertise a total monthly price. Preview what a unit shows."
-      : "Preview pricing for an individual unit to see the total that would display on a listing.";
-    const ftCallout = `<div style="display:flex;align-items:flex-start;gap:10px;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;padding:11px 13px">
-          <svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5));flex:none;margin-top:1px"><path d="M453-280h60v-240h-60v240Zm50.5-323.2q9.5-9.2 9.5-22.8 0-14.45-9.48-24.22-9.48-9.78-23.5-9.78t-23.52 9.78Q447-640.45 447-626q0 13.6 9.48 22.8 9.48 9.2 23.5 9.2t23.52-9.2ZM480.27-80q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg>
-          <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">${mkLine}</span>
-          <a data-act="pricePreviewOpen" style="flex:none;margin-top:1px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Preview Pricing</a>
-        </div>`;
     const listing = card('Listing Details', `
-      ${ftCallout}
       <label style="display:inline-flex;align-items:center;gap:9px;cursor:pointer"><input type="checkbox" style="accent-color:var(--rmx-attention, #f58220);width:15px;height:15px;margin:0"><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Exclude Unit-specific information</span></label>
       ${field('Lease Terms', { t:'' })}
       <div style="display:flex;flex-direction:column;gap:4px">${lab('Property Images')}<div style="display:flex;gap:10px;align-items:center"><div style="flex:1;min-width:0">${ddPh({ t:'Property Image' })}</div>${preview}</div></div>
@@ -7512,19 +7597,7 @@ class Component extends DCLogic {
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;padding:4px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);border-bottom:1px solid var(--rmx-line, #cedbe7)"><span>Name</span><span>Unit Type</span><span>Unit Count</span><span>Beds</span><span>Baths</span></div>
       ${uts.length ? uts.map(t => fpRow(t.name, t.units, (t.name.match(/^(\d)/)||[,'2'])[1], ((t.name.match(/(\d)B$/)||t.name.match(/\/ ?(\d)/)||[,'2'])[1]) + '.0')).join('') : fpRow('2B / 2B', 14, 2, '2.0') + fpRow('1B / 1B', 18, 1, '1.0')}`,
       `<a data-act="toast" data-arg="Add Item" style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap"><svg class="ico" width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M450-450H200v-60h250v-250h60v250h250v60H510v250h-60v-250Z"/></svg>Add Item</a>`);
-    return `<div style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:145">
-      <div data-act="noop" style="width:calc(100vw - 24px);height:calc(100vh - 24px);background:var(--rmx-bg-subtle, #f5f8fa);border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
-        <div style="display:flex;align-items:center;justify-content:space-between;background:#fff;padding:13px 20px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
-          <span style="font-size:18px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Marketing Setup</span>
-          <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="mktClose" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
-        </div>
-        <div style="display:flex;align-items:center;gap:14px;background:#e8f4fb;padding:10px 20px;flex:none">
-          <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Include/Exclude</span>
-          <div style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:32px;padding:0 8px 0 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:default">Use System Preferences<svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-text, #666666)"><path d="M480-344 240-584l43-43 197 197 197-197 43 43-240 240Z"/></svg></div>
-          <div style="flex:1"></div>
-          <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Feed Type: Single Family</span>
-        </div>
-        <div style="flex:1;min-height:0;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:16px">
+    return `<div style="flex:1;min-height:0;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:16px">
           <div style="display:flex;align-items:center;gap:22px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:14px 20px;flex-wrap:wrap">
             <span style="font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${P.name}</span>
             <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Owner: ${P.manager}</span>
@@ -7540,7 +7613,23 @@ class Component extends DCLogic {
           ${(this.state.mktTab || 'General') === 'Pricing' ? this.mktPricingBody() : `
           <div style="display:grid;grid-template-columns:repeat(3, minmax(0,1fr));gap:16px;align-items:stretch">${contact1}${contact2}${listing}</div>
           <div style="display:grid;grid-template-columns:repeat(2, minmax(0,1fr));gap:16px;align-items:stretch">${features}${floor}</div>`}
+        </div>`;
+  }
+  mktSetupHTML(){
+    if (!this.state.mktSetup) return '';
+    return `<div style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:145">
+      <div data-act="noop" style="width:calc(100vw - 24px);height:calc(100vh - 24px);background:var(--rmx-bg-subtle, #f5f8fa);border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;background:#fff;padding:13px 20px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
+          <span style="font-size:18px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Marketing Setup</span>
+          <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="mktClose" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
         </div>
+        <div style="display:flex;align-items:center;gap:14px;background:#e8f4fb;padding:10px 20px;flex:none">
+          <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Include/Exclude</span>
+          <div style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:32px;padding:0 8px 0 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:default">Use System Preferences<svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-text, #666666)"><path d="M480-344 240-584l43-43 197 197 197-197 43 43-240 240Z"/></svg></div>
+          <div style="flex:1"></div>
+          <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Feed Type: Single Family</span>
+        </div>
+        ${this.mktSetupBody()}
         <div style="display:flex;justify-content:flex-end;gap:10px;background:#fff;border-top:1px solid var(--rmx-line, #cedbe7);padding:12px 20px;flex:none">
           <button data-act="mktAdvOpen" style="height:34px;min-height:34px;padding:0 20px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Advanced</button>
           <button data-act="mktSave" class="btn-pri" style="height:34px;min-height:34px;padding:0 24px;border-radius:4px;font-size:14px">Save</button>
@@ -7743,6 +7832,7 @@ class Component extends DCLogic {
     out += this.pubModalHTML();
     out += this.ftSelHTML();
     out += this.mktSetupHTML();
+    out += this.mktDefOvHTML();
     out += this.mktAdvHTML();
     out += this.petTypeHTML();
     out += this.pricePreviewHTML();

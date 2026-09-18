@@ -63,10 +63,11 @@ only journey left is: fill in each charge's marketing details → convert to Fee
 ## Marketing defaults by charge type
 
 `state.mktDef` maps a charge type code to the marketing details a charge of that type starts
-with. It is portfolio-wide and set from one overlay, `mktDefHTML()`, opened by the **Marketing
-Defaults** button in the Pricing Setup toolbar: the charge types the portfolio uses down the
-left, and on the right the selected type's info strip (code, GL account, the properties using
-it, charge counts) over a Marketing Details tile.
+with. It is portfolio-wide and set from one overlay — `mktDefBody()` inside `mktDefOvHTML()` — opened
+by the **Charge Type Defaults** button pinned to the right of the Marketing Center's tab strip:
+the charge types the portfolio uses down the left, and on the right the selected type's info
+strip (code, GL account, the properties using it, charge counts) over a Marketing Details tile.
+A Save / Cancel footer appears only once something has been typed (`window.__mdDirty`).
 
 Two things happen with a default: `mktDefSave` fills the blank fields on charges that already
 exist (a value someone typed is never overwritten), and `saveFee` runs `mktDefFill` on a charge
@@ -83,17 +84,36 @@ nothing here re-renders, which would wipe a pane half filled in. `mktDefSave` re
 
 `view: 'feetrans'` is the **Marketing Center** — one page for everything that decides what a
 listing advertises. `marketingCenterBody()` stacks `mcScoreboard()` (four portfolio numbers; the
-two that mean work link into the tab that fixes them) over `mcTabs()` and one panel:
+two that mean work are clickable) over `mcTabs()` and one panel. Two tabs:
 
-- **Properties** — `feeTransBody()`, the old Pricing Setup register.
+- **Properties** — `mcPropsPanel()`, a master–detail (below).
 - **Listings** — `listingsBody()`, one row per unit floor plan. The nav's Listings entry now
   lands here (`mcTab: 'Listings'`); there is no separate listings view.
-- **Charge Type Defaults** — `mktDefBody()`, formerly an overlay.
 
-Clicking a property, or its Next Step, runs `mcOpenProp`: it opens that property's **Marketing
-Setup**, on the Pricing tab when charges are still missing details, else General.
+**Charge Type Defaults is not a tab.** It is a portfolio-wide setting, so it is a button beside
+the tabs (`mktDefOpen`) that opens `mktDefOvHTML()` over the page.
+
+`mcPropsPanel()` is a 290px list on the left and one pane on the right. The list's first row is
+**All Properties**; every other row is a property with a status dot and a one-line summary.
+Selecting a row runs `mcPick` (empty arg = All Properties), which also moves `state.property`,
+so everything the detail renders reads the right property.
+
+- **All Properties** — `feeTransBody()`, the register that says how everyone is doing.
+- **a property** — `mcPropDetail()`: `mktSetupBody()` plus an Advanced / Save / Cancel footer,
+  landing on the Pricing tab when charges are still missing details, else General. Cancel goes
+  back to All Properties.
+
+`mcOpenProp` (the register's rows and its Next Step links) is the same thing from elsewhere: it
+lands on the Marketing Center with that property selected. The scoreboard's amber
+**Charges missing details** card runs `mcShort` — All Properties, with the register filtered to
+the properties whose charges are short.
 
 ## Where marketing details live
+
+`mktSetupBody()` is the Marketing Setup itself, and matches Figma `3457:41815`: the property
+header strip, the General / Pricing tabs, and the selected tab. The Marketing Center renders it
+inline; the property page's own overlay (`mktSetupHTML`) wraps the same markup in chrome. One
+source, so the two cannot drift.
 
 **Marketing Setup › Pricing** (`mktPricingBody`, saved by `mktPricingSave`) is the only place a
 charge's marketing details are edited: the property's charges down the left, the selected one's
@@ -104,7 +124,8 @@ from `state.mktDef`.
 The **Charges overlay carries none of it**: no Marketing Details section on the charge form, no
 Marketing Name / Listing Ready / requirement / category columns, no Group by Requirement, no
 completeness banner (`mitsBanner` returns ''), and Bulk Update is General-only. **Preview
-Pricing** moved to the Pricing tab too, and the kebab's Pricing Setup link is gone.
+Pricing** moved to the Pricing tab too — General's Listing Details carries no pricing callout —
+and the kebab's Pricing Setup link is gone.
 
 ## Test feature states
 
