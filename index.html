@@ -967,6 +967,8 @@ class Component extends DCLogic {
       case 'mktDefCancel': this.setState({ mktDefOv: false }); this.flash('Changes discarded'); break;
       // The register, filtered to the properties whose charges are still short of their details.
       case 'mcShort': this.setState({ mcTab: 'Properties', mcProp: null, ftFilter: 'short' }); break;
+      // The listings the card counted, and only those.
+      case 'mcErrs': this.setState({ mcTab: 'Listings', ltErrOnly: true }); break;
       // Picking in the property list. An empty arg is the All Properties row, which shows the
       // register; a property shows its Marketing Setup. Browsing the list always opens on General —
       // only the register's Add Charge Details link, which names the work, lands on Pricing.
@@ -2590,13 +2592,13 @@ class Component extends DCLogic {
       ${card('Charges missing details', c.short, 'across ' + c.shortProps + ' propert' + (c.shortProps === 1 ? 'y' : 'ies'),
         c.short ? { act:'mcShort', border:'#f6d9ac', icon:this.ico('error', 18, 'color:var(--rmx-attention, #f58220)') } : {})}
       ${card('Listings with errors', c.errs, 'of ' + c.listings + ' listings',
-        c.errs ? { act:'mcTab', arg:'Listings', border:'#f3b3b6', icon:this.ico('error', 18, 'color:var(--rmx-error, #eb343c)') } : {})}
+        c.errs ? { act:'mcErrs', border:'#f3b3b6', icon:this.ico('error', 18, 'color:var(--rmx-error, #eb343c)') } : {})}
     </div>`;
   }
   mcTabs(){
     const c = this.mcCounts();
     const cur = this.state.mcTab || 'Properties';
-    const tabs = [['Properties', String(c.props)], ['Listings', String(c.listings)]];
+    const tabs = [['Properties', 'Setup', ''], ['Listings', 'Listings', String(c.listings)]];
     // The two things you work in are tabs. Charge Type Defaults is a setting you visit occasionally,
     // so it sits beside them as a button and opens over the page.
     const right = (cur === 'Listings' ? this.mcListingsActions() : '')
@@ -2604,7 +2606,7 @@ class Component extends DCLogic {
     return `<div style="display:flex;align-items:stretch;padding:0 16px;box-shadow:inset 0 -1px 0 var(--rmx-line, #cedbe7);flex:none">
       <div style="flex:1;min-width:0;display:flex;align-items:stretch;gap:16px;overflow-x:auto;overflow-y:hidden">${tabs.map(t => {
         const on = t[0] === cur;
-        return `<span data-act="mcTab" data-arg="${t[0]}" style="display:inline-flex;align-items:center;gap:8px;box-sizing:border-box;padding:16px 8px;font-size:14px;white-space:nowrap;cursor:pointer;${on ? 'font-weight:600;color:var(--rmx-brand-dark, #13314c);border-bottom:3px solid var(--ac,var(--rmx-brand, #008dd5))' : 'font-weight:400;color:var(--rmx-text, #666666);border-bottom:3px solid transparent'}">${t[0]}<span style="display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;box-sizing:border-box;padding:0 6px;border-radius:10px;font-size:12px;${on ? 'background:var(--rmx-brand-tint-bg, #ebf1f5);color:var(--rmx-brand-hover, #0071aa)' : 'background:var(--rmx-bg-muted, #f2f2f2);color:var(--rmx-text, #666666)'}">${t[1]}</span></span>`;
+        return `<span data-act="mcTab" data-arg="${t[0]}" style="display:inline-flex;align-items:center;gap:8px;box-sizing:border-box;padding:16px 8px;font-size:14px;white-space:nowrap;cursor:pointer;${on ? 'font-weight:600;color:var(--rmx-brand-dark, #13314c);border-bottom:3px solid var(--ac,var(--rmx-brand, #008dd5))' : 'font-weight:400;color:var(--rmx-text, #666666);border-bottom:3px solid transparent'}">${t[1]}${t[2] ? `<span style="display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;box-sizing:border-box;padding:0 6px;border-radius:10px;font-size:12px;${on ? 'background:var(--rmx-brand-tint-bg, #ebf1f5);color:var(--rmx-brand-hover, #0071aa)' : 'background:var(--rmx-bg-muted, #f2f2f2);color:var(--rmx-text, #666666)'}">${t[2]}</span>` : ''}</span>`;
       }).join('')}</div>
       <span style="display:inline-flex;align-items:center;gap:8px;flex:none;padding-left:16px">${right}</span>
     </div>`;

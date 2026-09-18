@@ -84,9 +84,10 @@ nothing here re-renders, which would wipe a pane half filled in. `mktDefSave` re
 
 `view: 'feetrans'` is the **Marketing Center** — one page for everything that decides what a
 listing advertises. `marketingCenterBody()` stacks `mcScoreboard()` (four portfolio numbers; the
-two that mean work are clickable) over `mcTabs()` and one panel. Two tabs:
+two that mean work are clickable) over `mcTabs()` and one panel. Two tabs — the label and the
+`mcTab` key are not the same thing:
 
-- **Properties** — `mcPropsPanel()`, a master–detail (below).
+- **Setup** (key `Properties`) — `mcPropsPanel()`, a master–detail (below). No count pill.
 - **Listings** — `listingsBody()`, one row per unit floor plan. The nav's Listings entry now
   lands here (`mcTab: 'Listings'`); there is no separate listings view.
 
@@ -108,8 +109,9 @@ is left on the **Next Step** link and the kebab's Marketing Setup item: it lands
 Center with that property selected, on the Pricing tab when charges are still missing details.
 That is the only route that opens on Pricing; browsing the left list always opens on General.
 
-The scoreboard's amber **Charges missing details** card runs `mcShort` — All Properties, with
-the register filtered to the properties whose charges are short.
+The scoreboard's two amber cards each land on the thing they counted: **Charges missing details**
+runs `mcShort` (All Properties, register filtered to `short`), and **Listings with errors** runs
+`mcErrs` (the Listings tab with Hide listings without errors ticked).
 
 ## Where marketing details live
 
