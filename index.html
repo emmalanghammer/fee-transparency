@@ -2599,7 +2599,7 @@ class Component extends DCLogic {
     const tabs = [['Properties', String(c.props)], ['Listings', String(c.listings)]];
     // The two things you work in are tabs. Charge Type Defaults is a setting you visit occasionally,
     // so it sits beside them as a button and opens over the page.
-    const right = (cur === 'Listings' ? this.mcListingsActions() : this.mcPropsActions())
+    const right = (cur === 'Listings' ? this.mcListingsActions() : '')
       + `<button data-act="mktDefOpen" style="display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 15px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${this.ico('tune', 18, 'flex:none')}Charge Type Defaults</button>`;
     return `<div style="display:flex;align-items:stretch;padding:0 16px;box-shadow:inset 0 -1px 0 var(--rmx-line, #cedbe7);flex:none">
       <div style="flex:1;min-width:0;display:flex;align-items:stretch;gap:16px;overflow-x:auto;overflow-y:hidden">${tabs.map(t => {
@@ -2608,15 +2608,6 @@ class Component extends DCLogic {
       }).join('')}</div>
       <span style="display:inline-flex;align-items:center;gap:8px;flex:none;padding-left:16px">${right}</span>
     </div>`;
-  }
-  mcPropsActions(){
-    // Converting is a portfolio-level action, so it belongs to the register — not to one property's
-    // Marketing Setup, which has its own footer.
-    if (this.state.mcProp) return '';
-    const convertable = this.propertiesData().map(p => p.name).filter(n => this.ftStatus(n).key === 'ready');
-    return convertable.length
-      ? `<button data-act="ftSelOpen" data-arg="pub" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Convert to Fee Transparency</button>`
-      : '';
   }
   mcListingsActions(){ return this.mcSearch('Find a listing'); }
   mcSearch(ph){
@@ -2738,7 +2729,9 @@ class Component extends DCLogic {
       </div>
       <span style="margin-left:8px">${this.regCheck('Group by Status', 'ftGroupToggle', this.state.ftGroup)}</span>
       <div style="flex:1"></div>
-      
+      ${convertable.length
+        ? `<button data-act="ftSelOpen" data-arg="pub" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Convert to Fee Transparency</button>`
+        : ''}
     </div>`;
 
     // ---- register ----
