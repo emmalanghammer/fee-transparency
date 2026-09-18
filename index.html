@@ -1000,8 +1000,10 @@ class Component extends DCLogic {
       // Picking in the property list. An empty arg is the All Properties row, which shows the
       // register; a property shows its Marketing Setup. Browsing the list always opens on General —
       // only the register's Add Charge Details link, which names the work, lands on Pricing.
-      case 'mcPick': this.setState({ mcProp: arg || null, property: arg || this.state.property,
-        mktTab: 'General' }); break;
+      case 'mcPick': this.mpCapture();
+        this._mpDraft = null; this._mpDraftProp = null;
+        this.setState({ mcProp: arg || null, property: arg || this.state.property,
+          mktTab: 'General', mpExp: null }); break;
       // The Marketing Center's whole point: a property opens its Marketing Setup, on the Pricing tab
       // when that is where the outstanding work is.
       case 'mcOpenProp': { const short = this.ftCharges(arg).incomplete;
@@ -7392,6 +7394,7 @@ class Component extends DCLogic {
     const q = id => { const e = this.q('#' + id); return e ? String(e.value || '').trim() : ''; };
     const one = /-one$/.test(r.group || '');
     const box = this.q('#mp-ils-box-' + r.id);
+    if (this._mpDraftProp !== this.state.property) { this._mpDraft = null; this._mpDraftProp = this.state.property; }
     this._mpDraft = Object.assign({}, this._mpDraft);
     this._mpDraft[r.id] = { name: q('mp-name-' + r.id), marketing: q('mp-marketing-' + r.id),
       category: q('mp-category-' + r.id), requirement: q('mp-requirement-' + r.id),
@@ -7403,7 +7406,7 @@ class Component extends DCLogic {
     const q = id => { const e = this.q('#' + id); return e ? String(e.value || '').trim() : ''; };
     const on = id => { const e = this.q('#' + id); return !!(e && e.getAttribute('data-on') === '1'); };
     this.mpCapture();
-    const draft = this._mpDraft || {};
+    const draft = (this._mpDraftProp === this.state.property && this._mpDraft) || {};
     const patch = {};
     this.appliedRows().forEach(r => {
       const d = draft[r.id]; if (!d) return;
@@ -7413,7 +7416,7 @@ class Component extends DCLogic {
         feeDue: one ? d.feeDue : ((r.listing || {}).feeDue || 'During Term'),
         schedule: one ? '' : d.schedule } };
     });
-    this._mpDraft = null;
+    this._mpDraft = null; this._mpDraftProp = null;
     if (!Object.keys(patch).length) return;
     this.setProfileRows(rows => rows.map(r => {
       const pt = patch[r.id]; if (!pt) return r;
@@ -7432,7 +7435,7 @@ class Component extends DCLogic {
     const DUE = [{value:'At Application',label:'At Application'},{value:'Move-In',label:'At Move-In'},
       {value:'During Term',label:'During Term'},{value:'Move-Out',label:'At Move-Out'}];
     const SCHED = ['Weekly','Monthly','Annually'];
-    const draft = this._mpDraft || {};
+    const draft = (this._mpDraftProp === this.state.property && this._mpDraft) || {};
 
     // What a field opens on: anything typed since the last save, else what the charge carries, else
     // its charge type's default.

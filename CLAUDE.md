@@ -153,6 +153,10 @@ Only the open row's inputs exist in the DOM, and expanding is a re-render — so
 the open charge into `this._mpDraft` before every toggle and tab change, the render reads the
 draft back, and `mktPricingSave` merges it. Without that, collapsing a row would discard it.
 
+**Charge ids restart at 1 on every property**, so the draft is stamped with `this._mpDraftProp` and
+thrown away the moment the property changes. Without that stamp one property's typing shows up on
+another's rows, which reads as a charge whose badge says complete over fields that look empty.
+
 The **Charges overlay carries none of it**: no Marketing Details section on the charge form, no
 Marketing Name / Listing Ready / requirement / category columns, no Group by Requirement, no
 completeness banner (`mitsBanner` returns ''), and Bulk Update is General-only. **Preview
