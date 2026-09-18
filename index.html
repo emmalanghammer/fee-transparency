@@ -197,6 +197,7 @@ class Component extends DCLogic {
     pubModal: null, // { prop, ack } — Convert to Fee Transparency confirmation
     mktSetup: false, // Marketing Setup overlay (opened from the action rail's copy flyout)
     mktTab: 'General', // Marketing Setup's own tabs: General or Pricing
+    mpExp: null, // Pricing tab: the charge whose marketing details are expanded
     mcProp: null, // Marketing Center > Properties: the selected property; null is All Properties
     mktDefDraft: null, // what Save read off the defaults panes, held while the apply dialog is up
     mktDefAsk: false, // the "how do you want to apply these" confirmation
@@ -1185,7 +1186,11 @@ class Component extends DCLogic {
           return { petTypes: list, petType: null }; });
         this.flash(name + ' saved'); break; }
       case 'mktOpen': this.setState({ mktSetup: true, mktTab: 'General' }); break;
-      case 'mktTab': this.setState({ mktTab: arg }); break;
+      case 'mktTab': this.mpCapture(); this.setState({ mktTab: arg }); break;
+      // Expanding is a re-render, so whatever is half-typed in the open charge is banked first.
+      case 'mpToggle': { this.mpCapture(); const id = String(arg);
+        this.setState(s2 => ({ mpExp: String(s2.mpExp == null ? '' : s2.mpExp) === id ? null : id }));
+        break; }
       case 'mktClose': this.setState({ mktSetup: false }); break;
       case 'navMktCenter': this.setState({ mktSetup: false, mktAdv: false });
         this.go('feetrans', { profMenu: null, mcTab: 'Properties', mcProp: null }); break;
@@ -2503,7 +2508,7 @@ class Component extends DCLogic {
       recView: null, rowMenu: null, pubModal: null, ftSel: null, mktDef: {},
       mktSetup: false, mktAdv: false, mktTab: 'General', petType: null, spBanner: true, ftHelp: false,
       lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false, mcTab: 'Overview',
-      mcProp: null, mktDefDraft: null, mktDefAsk: false, mktDefMode: 'blank'
+      mcProp: null, mktDefDraft: null, mktDefAsk: false, mktDefMode: 'blank', mpExp: null
     });
     window.scrollTo(0, 0);
   }
@@ -7378,21 +7383,37 @@ class Component extends DCLogic {
   }
   // ---------- Marketing Setup overlay (mock 2791-148966) ----------
   // The Pricing tab holds its fields on the DOM while it is open, so saving reads them back.
+  // The Pricing tab shows one charge's fields at a time, so anything typed is banked on the way out
+  // and merged back in on save — otherwise collapsing a row would throw it away.
+  mpCapture(){
+    const exp = this.state.mpExp; if (exp == null) return;
+    const r = this.appliedRows().filter(x => String(x.id) === String(exp))[0];
+    if (!r || !this.q('#mp-name-' + r.id)) return;
+    const q = id => { const e = this.q('#' + id); return e ? String(e.value || '').trim() : ''; };
+    const one = /-one$/.test(r.group || '');
+    const box = this.q('#mp-ils-box-' + r.id);
+    this._mpDraft = Object.assign({}, this._mpDraft);
+    this._mpDraft[r.id] = { name: q('mp-name-' + r.id), marketing: q('mp-marketing-' + r.id),
+      category: q('mp-category-' + r.id), requirement: q('mp-requirement-' + r.id),
+      feeDue: one ? q('mp-feeDue-' + r.id) : undefined,
+      schedule: one ? undefined : q('mp-schedule-' + r.id),
+      __ils: box ? box.getAttribute('data-on') === '1' : undefined };
+  }
   mktPricingSave(){
     const q = id => { const e = this.q('#' + id); return e ? String(e.value || '').trim() : ''; };
     const on = id => { const e = this.q('#' + id); return !!(e && e.getAttribute('data-on') === '1'); };
+    this.mpCapture();
+    const draft = this._mpDraft || {};
     const patch = {};
     this.appliedRows().forEach(r => {
-      if (!this.q('#mp-name-' + r.id)) return;
-      const ref = q('mp-refundable-' + r.id);
+      const d = draft[r.id]; if (!d) return;
       const one = /-one$/.test(r.group || '');
-      patch[r.id] = { ils: on('mp-ils-box-' + r.id), listing: {
-        name: q('mp-name-' + r.id), marketing: q('mp-marketing-' + r.id),
-        category: q('mp-category-' + r.id), requirement: q('mp-requirement-' + r.id),
-        feeDue: one ? q('mp-feeDue-' + r.id) : ((r.listing || {}).feeDue || 'During Term'),
-        schedule: one ? '' : q('mp-schedule-' + r.id),
-        refundable: ref === '' ? undefined : ref === 'yes' } };
+      patch[r.id] = { ils: d.__ils == null ? r.ils !== false : d.__ils, listing: {
+        name: d.name, marketing: d.marketing, category: d.category, requirement: d.requirement,
+        feeDue: one ? d.feeDue : ((r.listing || {}).feeDue || 'During Term'),
+        schedule: one ? '' : d.schedule } };
     });
+    this._mpDraft = null;
     if (!Object.keys(patch).length) return;
     this.setProfileRows(rows => rows.map(r => {
       const pt = patch[r.id]; if (!pt) return r;
@@ -7411,133 +7432,128 @@ class Component extends DCLogic {
     const DUE = [{value:'At Application',label:'At Application'},{value:'Move-In',label:'At Move-In'},
       {value:'During Term',label:'During Term'},{value:'Move-Out',label:'At Move-Out'}];
     const SCHED = ['Weekly','Monthly','Annually'];
-    const REF = [{value:'yes',label:'Refundable'},{value:'no',label:'Not Refundable'}];
+    const draft = this._mpDraft || {};
 
-    // What the field opens on: what the charge carries, else its charge type's default.
+    // What a field opens on: anything typed since the last save, else what the charge carries, else
+    // its charge type's default.
     const eff = (r) => {
-      const L = r.listing || {};
+      const L = Object.assign({}, r.listing, draft[r.id] || {});
       const d = defs[String(r.mits || '').toUpperCase()] || {};
       const pick = (k) => { const v = L[k]; return (v == null || String(v).trim() === '') ? (d[k] || '') : v; };
       return { name: pick('name'), marketing: pick('marketing'),
         category: L.category || d.category || this.chargeCategoryFor(r.mits),
-        requirement: pick('requirement'), feeDue: pick('feeDue'), schedule: pick('schedule'),
-        refundable: L.refundable == null ? (d.refundable || '') : (L.refundable ? 'yes' : 'no'),
-        fromDefault: !!(defs[String(r.mits || '').toUpperCase()]) };
+        requirement: pick('requirement'), feeDue: pick('feeDue'), schedule: pick('schedule') };
     };
 
+    const expId = String(this.state.mpExp == null ? '' : this.state.mpExp);
+    const short = rows.filter(r => !this.mitsComplete(r)).length;
+
+    // ---- register bits ----
+    const hcell = (t, extra) => `<span style="display:flex;align-items:center;min-height:32px;box-sizing:border-box;padding:0 10px;font:500 12.6px Roboto,sans-serif;letter-spacing:1.13px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
+    const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:0 10px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
+    const chip = (t) => `<span style="display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:0 10px"><span style="display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:4px;background:var(--rmx-brand-tint-bg, #ebf1f5);font-size:13px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t)}</span></span>`;
+    const chev = (r, open) => `<span data-act="mpToggle" data-arg="${r.id}" style="display:flex;align-items:center;justify-content:center;min-height:44px;cursor:pointer;color:var(--ac,var(--rmx-brand, #008dd5))">${this.ico(open ? 'keyboard_arrow_down' : 'arrow_right', 20, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>`;
+    const readyCell = (r) => {
+      const miss = this.mitsMissing(r);
+      if (!miss.length) return `<span style="display:flex;align-items:center;min-height:44px;padding:0 10px">${this.ico('check_circle', 20, 'color:var(--rmx-success, #6eb744)')}</span>`;
+      const tip = this.infoTip(`<span style="display:block;white-space:normal"><strong style="color:var(--rmx-brand-dark, #13314c)">Still needed</strong><br>${miss.map(esc).join('<br>')}</span>`, 240,
+        { trigger: `<span style="display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 9px;border-radius:4px;background:#fdf3e7;font-size:13px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;cursor:default">${this.ico('error', 15, 'color:var(--rmx-attention, #f58220)')}${miss.length} field${miss.length === 1 ? '' : 's'} needed</span>` });
+      return `<span style="display:flex;align-items:center;gap:12px;min-height:44px;padding:0 10px;white-space:nowrap">${tip}<a data-act="mpToggle" data-arg="${r.id}" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Add Marketing Details</a></span>`;
+    };
+
+    // ---- the expanded marketing details ----
     const fieldBox = (inner) => `<div style="display:flex;align-items:center;gap:6px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:36px;box-sizing:border-box;padding:0 10px">${inner}</div>`;
     const txt = (id, val) => fieldBox(`<input id="${id}" value="${esc(val)}" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">`);
-    const area = (id, val) => `<textarea id="${id}" style="box-sizing:border-box;height:60px;padding:8px 10px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);line-height:1.5;resize:vertical;width:100%">${esc(val)}</textarea>`;
-    const dd = (id, opts, val) => this.singleSelect(id, opts, val, { noSearch:true, blank:true, placeholder:' ' });
-    const lab = (t) => `<span style="font-size:14px;color:var(--rmx-text, #666666)">${t}</span>`;
-    const fld = (label, ctl) => `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">${lab(label)}${ctl}</div>`;
-    // Read-only, because the charge itself is edited on the property's Charges.
-    const ro = (label, val) => `<div style="display:flex;flex-direction:column;gap:3px;min-width:0">
-      <span style="font-size:12px;color:var(--rmx-text, #666666)">${label}</span>
-      <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(val || '—')}</span></div>`;
+    const dd = (id, opts, val) => this.singleSelect(id, opts, val, { noSearch:true, blank:true, placeholder:' ' });
+    const lab = (t, help) => `<span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--rmx-text, #666666)">${t}${help || ''}</span>`;
+    const fld = (label, ctl, help) => `<div style="display:flex;flex-direction:column;gap:4px;min-width:0">${lab(label, help)}${ctl}</div>`;
+    const catHelp = this.infoTip('<span style="display:block;white-space:normal">A charge inherits the category of its charge type. Change it on Charge Types &gt; Charge Type Details.</span>', 280);
+    const schedHelp = this.infoTip('<span style="display:block;white-space:normal">How often listing sites should say this charge is collected.</span>', 250);
 
-    const li = (r, i) => {
-      const done = this.mitsComplete(r);
-      return `<div id="mp-li-${r.id}" data-k="${esc(((r.mits || '') + ' ' + (r.desc || r.name || '')).toLowerCase())}" onclick="if(window.__mpPick)window.__mpPick('${r.id}')" onmouseover="if(this.getAttribute('data-on')!=='1')this.style.background='var(--rmx-bg-subtle, #f5f8fa)'" onmouseout="if(this.getAttribute('data-on')!=='1')this.style.background=''" data-on="${i === 0 ? '1' : '0'}" style="display:flex;align-items:center;gap:10px;min-height:32px;box-sizing:border-box;padding:6px 12px;cursor:pointer;${i === 0 ? 'background:rgba(0,141,213,0.15)' : ''}">
-        <span style="width:104px;flex:none;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.mits)}</span>
-        <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.desc || r.name || '')}</span>
-        <span style="flex:none;display:inline-flex;align-items:center">${done ? this.ico('check_circle', 16, 'color:var(--rmx-success, #6eb744)') : this.ico('error', 16, 'color:var(--rmx-attention, #f58220)')}</span>
-      </div>`;
-    };
-
-    const pane = (r, i) => {
+    const panel = (r) => {
       const e = eff(r);
       const one = /-one$/.test(r.group || '');
       const miss = this.mitsMissing(r);
-      return `<div id="mp-pane-${r.id}" style="display:${i === 0 ? 'flex' : 'none'};flex-direction:column;gap:20px">
-
-        <div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:14px 16px;display:flex;flex-direction:column;gap:12px">
-          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-            <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${esc(r.mits)}</span>
-            <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${esc(r.desc || r.name || '')}</span>
-            <div style="flex:1"></div>
-            ${miss.length
-              ? `<span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap">${this.ico('error', 16, 'color:var(--rmx-attention, #f58220)')}<span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${miss.length} field${miss.length === 1 ? '' : 's'} still needed</span></span>`
-              : `<span style="display:inline-flex;align-items:center;gap:5px;white-space:nowrap">${this.ico('check_circle', 16, 'color:var(--rmx-success, #6eb744)')}<span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Listing ready</span></span>`}
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(5, minmax(0,1fr));gap:12px 16px">
-            ${ro('Charge Level', r.level === 'Property' ? this.propInfo().name : (r.target || r.level))}
-            ${ro(one ? 'Charged' : 'Frequency', one ? 'One-time' : ('Every ' + (this.freqNum(r) || 1) + ' month'))}
-            ${ro('From', r.from)}
-            ${ro('To', r.to)}
-            ${ro('Amount', String(r.amount || '').replace(/^\$/, '') || '—')}
-          </div>
+      const ilsOn = draft[r.id] && draft[r.id].__ils != null ? draft[r.id].__ils : r.ils !== false;
+      return `<div style="grid-column:1/-1;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:16px 20px 18px;display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Marketing Details</span>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span style="font-size:14px;color:var(--rmx-text, #666666)">${miss.length ? 'Fill in the following fields to have this charge appear on listings:' : 'This charge has everything listings need.'}</span>
+          ${miss.map(m => `<span style="display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 9px;border-radius:4px;background:#fdf3e7;font-size:13px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${this.ico('error', 15, 'color:var(--rmx-attention, #f58220)')}${esc(m)}</span>`).join('')}
         </div>
-
-        <div style="display:flex;flex-direction:column;gap:12px">
-          <div style="display:flex;align-items:center;gap:10px">
-            <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Marketing Details</span>
-            ${e.fromDefault ? `<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--rmx-brand-hover, #0071aa)">${this.ico('check', 13, 'color:var(--rmx-brand-hover, #0071aa)')}Started from the ${esc(r.mits)} defaults</span>` : ''}
-          </div>
-          <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:16px;display:flex;flex-direction:column;gap:16px;background:#fff">
-            <div style="display:flex;gap:16px">
-              ${fld('Name', txt('mp-name-' + r.id, e.name))}
-              ${fld('Charge Category', dd('mp-category-' + r.id, this.chargeCategoryOptions(), e.category))}
-            </div>
-            ${fld('Marketing Description', area('mp-marketing-' + r.id, e.marketing))}
-            <div style="display:flex;gap:16px">
-              ${fld('Charge Requirement', dd('mp-requirement-' + r.id, REQ, e.requirement))}
-              ${fld('Charge Schedule', one ? fieldBox(`<span style="flex:1;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">One-time charge</span>`) : dd('mp-schedule-' + r.id, SCHED, e.schedule))}
-            </div>
-            <div style="display:flex;gap:16px">
-              ${fld('Fee Due', one ? dd('mp-feeDue-' + r.id, DUE, e.feeDue) : fieldBox(`<span style="flex:1;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">Collected across the term</span>`))}
-              ${fld('Refundable', dd('mp-refundable-' + r.id, REF, e.refundable))}
-            </div>
-            <label onclick="if(window.__mpIls)window.__mpIls('${r.id}')" style="display:inline-flex;align-items:center;gap:10px;cursor:pointer;align-self:flex-start">
-              <span id="mp-ils-box-${r.id}" data-on="${r.ils ? '1' : '0'}" style="width:20px;height:20px;flex:none;border-radius:2px;box-sizing:border-box;border:2px solid ${r.ils ? 'var(--rmx-attention, #f58220)' : 'var(--rmx-text-muted, #b3b3b3)'};background:${r.ils ? 'var(--rmx-attention, #f58220)' : '#fff'};display:inline-flex;align-items:center;justify-content:center">${r.ils ? this.ico('check', 14, 'color:#fff') : ''}</span>
-              <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Include on listings</span>
-            </label>
-          </div>
+        <div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:16px;display:grid;grid-template-columns:repeat(3, minmax(0,1fr));gap:14px 20px">
+          ${fld('Name', txt('mp-name-' + r.id, e.name))}
+          ${fld('Marketing Description', txt('mp-marketing-' + r.id, e.marketing))}
+          ${fld('Charge Category', `<span style="display:flex;align-items:center;height:36px;font-size:14px;color:var(--rmx-brand-dark, #13314c)">${esc(e.category || '—')}</span><input id="mp-category-${r.id}" type="hidden" value="${esc(e.category)}">`, catHelp)}
+          ${fld('Charge Requirement', dd('mp-requirement-' + r.id, REQ, e.requirement))}
+          ${one ? fld('Fee Due', dd('mp-feeDue-' + r.id, DUE, e.feeDue)) : fld('Fee Due', `<span style="display:flex;align-items:center;height:36px;font-size:14px;color:var(--rmx-text, #666666)">Collected across the term</span>`)}
+          ${one ? '<div></div>' : fld('Charge Schedule', dd('mp-schedule-' + r.id, SCHED, e.schedule), schedHelp)}
         </div>
-
+        <div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:12px 16px;display:flex;align-items:center;gap:12px">
+          <span id="mp-ils-box-${r.id}" data-on="${ilsOn ? '1' : '0'}" onclick="if(window.__mpIls)window.__mpIls('${r.id}')" style="display:inline-flex;align-items:center;flex:none;width:38px;height:20px;box-sizing:border-box;padding:2px;border-radius:10px;background:${ilsOn ? 'var(--ac,var(--rmx-brand, #008dd5))' : 'var(--rmx-text-muted, #b3b3b3)'};cursor:pointer">
+            <span style="width:16px;height:16px;border-radius:50%;background:#fff;transform:translateX(${ilsOn ? '18px' : '0'})"></span></span>
+          <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Include on listings</span>
+        </div>
       </div>`;
     };
 
-    const ids = rows.map(r => String(r.id));
-    window.__mpPick = (id) => {
-      ids.forEach(x => {
-        const on = x === String(id);
-        const row = this.q('#mp-li-' + x);
-        if (row) { row.setAttribute('data-on', on ? '1' : '0'); row.style.background = on ? 'rgba(0,141,213,0.15)' : ''; }
-        const pn = this.q('#mp-pane-' + x);
-        if (pn) pn.style.display = on ? 'flex' : 'none';
-      });
+    const group = (title, list, one) => {
+      if (!list.length) return '';
+      const cols = one
+        ? '34px minmax(90px,120fr) minmax(150px,280fr) minmax(90px,120fr) minmax(70px,100fr) minmax(90px,120fr) minmax(110px,150fr) minmax(210px,250fr)'
+        : '34px minmax(90px,120fr) minmax(150px,280fr) minmax(80px,110fr) minmax(90px,120fr) minmax(70px,100fr) minmax(90px,120fr) minmax(110px,150fr) minmax(210px,250fr)';
+      const heads = one
+        ? ['','Charge Type','Comment','From','To','Amount','Charge Level','Listing Ready']
+        : ['','Charge Type','Comment','Frequency','From','To','Amount','Charge Level','Listing Ready'];
+      return `<div style="display:flex;flex-direction:column;gap:8px">
+        <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title} (${list.length})</span>
+        <div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
+          <div style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7)">
+            ${heads.map((h, k) => hcell(h, k === heads.length - 1 ? '' : '')).join('')}
+          </div>
+          ${list.map(r => {
+            const open = String(r.id) === expId;
+            return `<div style="display:grid;grid-template-columns:${cols};align-items:stretch;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa)">
+              ${chev(r, open)}
+              ${cell(esc(r.mits))}
+              ${cell(esc(r.desc || r.name || ''))}
+              ${one ? '' : cell(String(this.freqNum(r) || 1))}
+              ${cell(esc(r.from || '–'))}
+              ${cell(esc(r.to || '–'))}
+              ${cell(esc(String(r.amount || '').replace(/^\$/, '') || '—'), 'justify-content:flex-end')}
+              ${chip(r.level === 'Property' ? this.propInfo().name : (r.target || r.level))}
+              ${readyCell(r)}
+              ${open ? panel(r) : ''}
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
     };
+
     window.__mpIls = (id) => {
       const b = this.q('#mp-ils-box-' + id); if (!b) return;
       const on = b.getAttribute('data-on') !== '1';
       b.setAttribute('data-on', on ? '1' : '0');
-      b.style.background = on ? 'var(--rmx-attention, #f58220)' : '#fff';
-      b.style.borderColor = on ? 'var(--rmx-attention, #f58220)' : 'var(--rmx-text-muted, #b3b3b3)';
-      b.innerHTML = on ? this.ico('check', 14, 'color:#fff') : '';
+      b.style.background = on ? 'var(--ac,var(--rmx-brand, #008dd5))' : 'var(--rmx-text-muted, #b3b3b3)';
+      const knob = b.firstElementChild; if (knob) knob.style.transform = 'translateX(' + (on ? '18px' : '0') + ')';
     };
 
-    const short = rows.filter(r => !this.mitsComplete(r)).length;
-    return `<div style="display:flex;flex-direction:column;gap:14px;flex:1;min-height:0">
-      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-        <span style="flex:1;min-width:280px;font-size:14px;color:var(--rmx-text, #666666);line-height:1.45">Select a charge to fill in the details listings need. ${short ? short + ' of ' + rows.length + ' still need something.' : 'Every charge has what listings need.'} The charge itself — amount, dates, level — is edited on the property’s Charges.</span>
-        <span style="display:inline-flex;align-items:center;gap:14px;flex:none">
-          <button data-act="pricePreviewOpen" class="btn-out" style="height:34px;min-height:34px;padding:0 14px;border-radius:4px;font-size:14px;white-space:nowrap">Preview Pricing</button>
-        </span>
-      </div>
-      <div style="flex:1;min-height:0;display:flex;gap:20px">
-        <div style="width:300px;flex:none;display:flex;flex-direction:column;min-height:0;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;overflow:hidden">
-          <div style="flex:none;padding:12px 12px 8px">
-            <div style="display:flex;align-items:center;gap:8px;height:36px;box-sizing:border-box;padding:0 8px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px">
-              ${this.ico('search', 18, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}
-              <input id="mp-q" placeholder="Find a charge" oninput="var q=this.value.toLowerCase();document.querySelectorAll('[id^=&quot;mp-li-&quot;]').forEach(function(r){var k=r.getAttribute('data-k')||'';r.style.display=k.indexOf(q)<0?'none':'flex'})" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:italic 400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">
-            </div>
-          </div>
-          <div style="flex:1;min-height:0;overflow-y:auto">${rows.map(li).join('')}</div>
-          <div style="flex:none;display:flex;justify-content:flex-end;padding:8px 14px;font-size:14px;color:var(--rmx-text-muted, #b3b3b3)">${rows.length} charge${rows.length === 1 ? '' : 's'}</div>
-        </div>
-        <div style="flex:1;min-width:0;min-height:0;overflow-y:auto">${rows.map(pane).join('')}</div>
-      </div>
+    const rec = rows.filter(r => !/-one$/.test(r.group || ''));
+    const one = rows.filter(r => /-one$/.test(r.group || ''));
+    const banner = short
+      ? `<div style="display:flex;align-items:flex-start;gap:10px;background:#fdf3e7;border:1px solid var(--rmx-attention, #f58220);border-radius:4px;padding:11px 14px">
+          ${this.ico('error', 18, 'color:var(--rmx-attention, #f58220);flex:none;margin-top:1px')}
+          <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.45">${short} of ${rows.length} charges still need marketing details, so this property can’t convert yet. Open a charge to fill in what’s missing, or hover its Listing Ready count to see which fields.</span>
+        </div>`
+      : `<div style="display:flex;align-items:center;gap:10px;background:var(--rmx-success-bg, #e2f1da);border:1px solid var(--rmx-success, #6eb744);border-radius:4px;padding:11px 14px">
+          ${this.ico('check_circle', 18, 'color:var(--rmx-success, #6eb744);flex:none')}
+          <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c)">Every charge has the details listings need.</span>
+        </div>`;
+
+    return `<div style="display:flex;flex-direction:column;gap:14px">
+      ${banner}
+      ${group('Recurring Charges', rec, false)}
+      ${group('One-Time Charges', one, true)}
     </div>`;
   }
   // The Marketing Setup itself (Figma 3457:41815): the property header strip, its General and
@@ -7611,12 +7627,15 @@ class Component extends DCLogic {
             <span style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--rmx-brand-dark, #13314c)"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5))"><path d="M140-160q-24 0-42-18t-18-42v-520q0-24 18-42t42-18h680q24 0 42 18t18 42v520q0 24-18 42t-42 18H140Zm340-302L140-685v465h680v-465L480-462Zm0-60 336-218H145l335 218ZM140-685v-55 520-465Z"/></svg>${P.email}</span>
             <span style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--rmx-brand-dark, #13314c)"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5))"><path d="M795-120q-116 0-236.5-56T335-335Q232-438 176-558.5T120-795q0-19.29 12.86-32.14Q145.71-840 165-840h140q14 0 24 10t14 25l26.93 125.64Q372-665 369.5-653.5t-10.73 19.73L259-533q26 44 55 82t64 72q37 38 78 69.5t86 55.5l95-98q10-11 23.15-15 13.15-4 25.85-2l119 26q15 4 25 16.04 10 12.05 10 26.96v135q0 19.29-12.86 32.14Q814.29-120 795-120ZM229-588l81-82-23-110H180q2 42 13.5 88.5T229-588Zm369 363q41 19 89 31t93 14v-107l-103-21-79 83ZM229-588Zm369 363Z"/></svg><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5))"><path d="M334.5-534.5Q346-546 346-563t-11.5-28.5Q323-603 306-603t-28.5 11.5Q266-580 266-563t11.5 28.5Q289-523 306-523t28.5-11.5Zm177 0Q523-546 523-563t-11.5-28.5Q500-603 483-603t-28.5 11.5Q443-580 443-563t11.5 28.5Q466-523 483-523t28.5-11.5Zm170 0Q693-546 693-563t-11.5-28.5Q670-603 653-603t-28.5 11.5Q613-580 613-563t11.5 28.5Q636-523 653-523t28.5-11.5ZM80-80v-740q0-24 18-42t42-18h680q24 0 42 18t18 42v520q0 24-18 42t-42 18H240L80-80Zm134-220h606v-520H140v600l74-80Zm-74 0v-520 520Z"/></svg>513-838-7264</span>
             <div style="flex:1"></div>
-            <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Occupied Units: <strong>${P.occupied != null ? P.occupied : 30}</strong></span>
+            ${this.ftStatus(P.name).key === 'ready'
+              ? `<button data-act="pubOpen" data-arg="${P.name}" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap;flex:none">Convert to Fee Transparency</button>`
+              : `<span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Occupied Units: <strong>${P.occupied != null ? P.occupied : 30}</strong></span>`}
           </div>
-          <div style="display:flex;align-items:flex-start;flex:none;border-bottom:1px solid var(--rmx-line, #cedbe7);margin:0 -20px;padding:0 20px">${['General','Pricing'].map(t => {
+          <div style="display:flex;align-items:center;flex:none;border-bottom:1px solid var(--rmx-line, #cedbe7);margin:0 -20px;padding:0 20px">${['General','Pricing'].map(t => {
             const on = t === (this.state.mktTab || 'General');
             return `<span data-act="mktTab" data-arg="${t}" style="display:inline-flex;align-items:center;justify-content:center;min-width:153px;box-sizing:border-box;padding:14px 8px;margin-bottom:-1px;font-size:14px;white-space:nowrap;cursor:pointer;${on ? 'font-weight:600;color:var(--rmx-brand-dark, #13314c);border-bottom:3px solid var(--ac,var(--rmx-brand, #008dd5))' : 'font-weight:400;color:var(--rmx-text, #666666);border-bottom:3px solid transparent'}">${t}</span>`;
-          }).join('')}</div>
+          }).join('')}<div style="flex:1"></div>${(this.state.mktTab || 'General') === 'Pricing'
+            ? `<button data-act="pricePreviewOpen" class="btn-out" style="height:34px;min-height:34px;padding:0 14px;border-radius:4px;font-size:14px;white-space:nowrap;flex:none">Preview Pricing</button>` : ''}</div>
           ${(this.state.mktTab || 'General') === 'Pricing' ? this.mktPricingBody() : `
           <div style="display:grid;grid-template-columns:repeat(3, minmax(0,1fr));gap:16px;align-items:stretch">${contact1}${contact2}${listing}</div>
           <div style="display:grid;grid-template-columns:repeat(2, minmax(0,1fr));gap:16px;align-items:stretch">${features}${floor}</div>`}

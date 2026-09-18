@@ -137,10 +137,19 @@ inline; the property page's own overlay (`mktSetupHTML`) wraps the same markup i
 source, so the two cannot drift.
 
 **Marketing Setup › Pricing** (`mktPricingBody`, saved by `mktPricingSave`) is the only place a
-charge's marketing details are edited: the property's charges down the left, the selected one's
-read-only facts on the right — level, frequency, dates, amount — over the marketing fields and
-the Include-on-listings toggle. A field with nothing entered opens on its charge type's default
-from `state.mktDef`.
+charge's marketing details are edited, and it matches Figma `3490:98757` / `3493:102283`: the
+same two registers the Charges overlay shows — Recurring and One-Time — with a **Listing Ready**
+column and a chevron that expands the row into its Marketing Details. A banner above says how
+many charges are still short and why that blocks converting.
+
+The expanded panel carries the missing fields as amber chips, then Name / Marketing Description /
+Charge Category (read-only, inherited from the charge type) over Charge Requirement / Fee Due /
+Charge Schedule, then the Include-on-listings switch. A field with nothing entered opens on its
+charge type's default from `state.mktDef`.
+
+Only the open row's inputs exist in the DOM, and expanding is a re-render — so `mpCapture()` banks
+the open charge into `this._mpDraft` before every toggle and tab change, the render reads the
+draft back, and `mktPricingSave` merges it. Without that, collapsing a row would discard it.
 
 The **Charges overlay carries none of it**: no Marketing Details section on the charge form, no
 Marketing Name / Listing Ready / requirement / category columns, no Group by Requirement, no
