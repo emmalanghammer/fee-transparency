@@ -14,6 +14,14 @@ Two whole prototypes are served off the same deploy, so they can be compared liv
 | `index.html` | `…/fee-transparency/` | **A — Marketing Center**: marketing details are edited in Marketing Setup › Pricing, and charge-type defaults live on Charge Type Details. |
 | `original.html` | `…/fee-transparency/original.html` | **B — Details on Charges**: the 2026-09-17 design (`main`) — Pricing Setup register, marketing details and Listing Ready columns inside the Charges overlay, Group by Requirement, Bulk Update with marketing fields — **plus** charge-type defaults, which `main` itself has no concept of. |
 
+**B has no centralization step either.** `seededProfiles()` returns every property, so the whole
+portfolio is centralized from the first look and `profileRows` falls back to the charges the
+property already runs with their marketing details blank. Everything that asks "is this property
+centralized" goes through `profStatus`, so that one line also hides the Not Centralized status,
+the set-up banner, the wizard and Bulk Centralize — they have nothing left to do. What remains is
+the same two-step journey A has: fill in each charge's marketing details, then convert to fee
+transparency.
+
 **B is a fixed comparison point.** It is `main`'s design with exactly one thing added, and the
 things deliberately left out of it are: Charge Category required on the charge, the collapsed
 Marketing Details section on the charge form, and everything Marketing Center. Don't drift it
@@ -22,11 +30,11 @@ toward A.
 **So a change request needs a variant named.** "Change X" is ambiguous now — ask which file, or
 do both, but never assume `index.html`.
 
-`variantSwitch()` is the segmented control that links them. It lives in the same prototype-only
-strip as Test Feature State, so the logo click and `?test=0` hide both together and a
-walkthrough shows neither. The link carries `location.search`, and `scenarioApply` writes the
-scenario into it as `?scen=<key>` (read back once in `componentDidMount`) — so the scenario
-you are testing survives the hop.
+`variantSwitch()` is the **Version** control that links them, in the header beside the logo.
+Unlike Test Feature State it always shows — which design is on screen is worth knowing in a
+walkthrough too. The link carries `location.search`, and `scenarioApply` writes the scenario into
+it as `?scen=<key>` (read back once in `componentDidMount`) — so the scenario you are testing
+survives the hop.
 
 The two files share every asset: the workflow uploads the repo root with no build step,
 `.nojekyll` is present, and every path in the head is document-relative.
@@ -204,7 +212,9 @@ and the kebab's Pricing Setup link is gone.
 
 ## Test feature states
 
-The Test Feature State selector shows by default while the prototype is being worked on; hide it
-for a walkthrough by clicking the logo, or start hidden with `?test=0`. **Happy Path** is the default and the one used for walkthroughs: four properties, all
+The Test Feature State selector starts **hidden**, so a demo never opens with a control that
+isn't part of the product. **Full Menu › Prototype › Show Test Feature State** turns it on (the
+menu item's label flips to Hide), clicking the Rent Manager logo toggles it, and `?test=1` on the
+URL starts with it showing. The Version switcher is not affected — it always shows. **Happy Path** is the default and the one used for walkthroughs: four properties, all
 marketed online, three with every marketing detail in place and waiting to convert, Riverview
 Apartments still missing details on all five of its charges.

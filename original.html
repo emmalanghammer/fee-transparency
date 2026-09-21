@@ -299,10 +299,12 @@ class Component extends DCLogic {
   // walkthrough has a finished property to open on.
   happyPublished(){ return ['Oakwood Manor']; }
   seededProfiles(){
-    // Outside Happy Path nobody starts set up — the tracker opens with every property at Not Set Up
-    // so the demo walks the real first-run journey. Setting up a property writes
-    // profileStatus/profileFees.
-    return this.scenarioKey() === 'happy' ? this.happyReadyProps() : [];
+    // Every property's charges are centralized from the first look. This version has no set-up step
+    // to walk: the journey is edit each charge's marketing details, then convert to fee
+    // transparency. Everything that reads "is this property centralized" comes through profStatus,
+    // so this one line turns the whole portfolio on — the Not Centralized status, the set-up banner,
+    // the wizard and Bulk Centralize all hide themselves once there is nothing left to centralize.
+    return this.propNames();
   }
   usingProfile(p){ return this.profStatus(p) === 'active'; }
   profStatus(p){
@@ -564,7 +566,9 @@ class Component extends DCLogic {
     const rows = this.state.profileFees[n];
     if (rows) return rows;
     if (this.listingReadyProps().indexOf(n) >= 0) return this.listingReadyRows(n);
-    return this.seededProfiles().indexOf(n) >= 0 ? this.propCharges(n) : [];
+    // Centralized from the start, so a property nobody has edited still reads the charges it
+    // actually runs — with the marketing details blank, which is exactly what is left to fill in.
+    return this.propCharges(n);
   }
   // The worked example: a property whose profile is finished — every charge carries its marketing
   // details and is included on listings — so the "done" state can be shown next to the properties
@@ -971,6 +975,9 @@ class Component extends DCLogic {
     switch (act) {
       case 'accToggle': { const ao = Object.assign({}, this.state.accOpen); ao[arg] = !ao[arg]; this.setState({ accOpen: ao }); break; }
       case 'scenSet': this.scenarioApply(arg); break;
+      // Flips the picker and re-renders, so the Full Menu's own label reads the other way round.
+      // Safe to re-render here: the Full Menu is a list of links with nothing typed into it.
+      case 'scenToggle': this._scenShow = !this.scenShow(); this.setState({}); break;
       case 'navFullMenu': this.go('fullmenu'); break;
       case 'navProspect': this.go('prospect'); break;
       case 'navRegister': this.go('register'); break;
@@ -2304,27 +2311,27 @@ class Component extends DCLogic {
         </div>
       </div></div>`;
   }
-  // Prototype-only: the Test Feature State picker is hidden during a walkthrough, so a demo doesn't
-  // open with a control that isn't part of the product. Clicking the Rent Manager logo shows or hides
-  // it; ?test=1 on the URL starts with it showing.
   // Prototype-only: the two designs under test are served side by side off the same deploy, so the
-  // switcher rides in the same strip as Test Feature State — the logo click and ?test=0 hide both
-  // together, and a walkthrough shows neither. `location.search` carries the scenario across.
+  // Version switcher sits in the header beside the logo. Unlike Test Feature State it always shows
+  // — which design you are reading is worth knowing in a walkthrough too. `location.search` carries
+  // the scenario across.
   variantSwitch(){
     const me = 'b';
     const btn = (label, file, on) => on
       ? `<span style="display:inline-flex;align-items:center;height:28px;box-sizing:border-box;padding:0 11px;border-radius:3px;background:#fff;font-size:13px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${label}</span>`
       : `<a href="${file}${location.search}" style="display:inline-flex;align-items:center;height:28px;box-sizing:border-box;padding:0 11px;border-radius:3px;font-size:13px;color:#fff;text-decoration:none;white-space:nowrap;opacity:0.9">${label}</a>`;
     return `<span style="display:inline-flex;align-items:center;gap:8px;flex:none">
-      <span style="font-size:14px;color:#fff;white-space:nowrap">Design</span>
+      <span style="font-size:14px;color:#fff;white-space:nowrap">Version</span>
       <span style="display:inline-flex;align-items:center;gap:2px;height:32px;box-sizing:border-box;padding:2px;background:rgba(255,255,255,0.18);border-radius:4px">
         ${btn('Marketing Center', 'index.html', me === 'a')}${btn('Details on Charges', 'original.html', me === 'b')}
       </span>
-      <span style="width:1px;height:20px;background:rgba(255,255,255,0.3)"></span>
     </span>`;
   }
+  // Prototype-only: the Test Feature State picker starts hidden, so a demo never opens with a
+  // control that isn't part of the product. Full Menu › Prototype turns it on, the Rent Manager
+  // logo toggles it, and ?test=1 on the URL starts with it showing.
   scenShow(){
-    if (this._scenShow == null) this._scenShow = !/[?&]test=0/.test(String(location.search || ''));
+    if (this._scenShow == null) this._scenShow = /[?&]test=1/.test(String(location.search || ''));
     return this._scenShow;
   }
   // Toggled straight on the DOM rather than through state: the header sits over every screen, and a
@@ -2344,7 +2351,7 @@ class Component extends DCLogic {
     const sc = this.state.scenario || 'on';
     const srow = (o, i) => `<div data-act="scenSet" data-arg="${o.key}" style="padding:9px 12px;font-size:14px;white-space:nowrap;cursor:pointer;${i?'border-top:1px solid var(--rmx-line, #cedbe7);':''}${sc===o.key?'background:var(--rmx-brand, #008dd5);color:#fff':'color:var(--rmx-brand-dark, #13314c)'}"${sc===o.key?'':` onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''"`}>${o.label}</div>`;
     const scen = `<span id="scen-wrap" style="position:relative;display:${this.scenShow() ? 'flex' : 'none'};align-items:center;gap:8px;flex:none">
-      ${this.variantSwitch()}
+      <span style="width:1px;height:20px;background:rgba(255,255,255,0.3)"></span>
       <span style="font-size:14px;color:#fff;white-space:nowrap">Test Feature State</span>
       <span onclick="var p=document.getElementById('scen-pnl');p.style.display=(p.style.display==='block'?'none':'block')" style="display:flex;align-items:center;gap:6px;width:150px;height:32px;box-sizing:border-box;background:#fff;border-radius:4px;padding:0 10px;cursor:pointer">
         <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${this.scenarioLabel()}</span>
@@ -2357,7 +2364,7 @@ class Component extends DCLogic {
     return `<div style="background:var(--rmx-brand-dark, #13314c);display:flex;align-items:center;padding:8px 16px;flex:none">
       <div style="flex:0 0 auto;display:flex;align-items:center;gap:16px">
         <img src="assets/logo-rentmanager-white.svg" alt="Rent Manager" onclick="window.__scenPeek&&window.__scenPeek()" style="height:32px;width:175px;object-fit:contain;object-position:left;flex:none">
-        ${scen}
+        ${this.variantSwitch()}${scen}
       </div>
       <div style="flex:1"></div>
       <div style="flex:1 1 auto;min-width:0;display:flex;align-items:center;justify-content:center;gap:8px">
@@ -3105,6 +3112,10 @@ class Component extends DCLogic {
       ['Announcements', [
         ['Coming Soon', 'kickoffOpen'],
         ['New Feature', 'announceOpen']
+      ]],
+      // Not part of the product — the way back to the Test Feature State picker once it is hidden.
+      ['Prototype', [
+        [`${this.scenShow() ? 'Hide' : 'Show'} Test Feature State`, 'scenToggle']
       ]]
     ];
   }
