@@ -35,8 +35,10 @@ three different places: `ltChargeIssues` (charges whose marketing details are sh
 no complete price to publish), the listing's `rm` errors (Rent Manager's own fields) and its `tz`
 errors, attributed to whichever providers carry `err`. `ltIssues` totals them and takes the worst
 tone — a rejected feed is red, charges alone are amber. The badge always opens `ltErrHTML`, which
-shows all three as collapsible sections with a green tick on the clean ones, so it answers "is it
-this?" for each source without the reader having to know the sources exist. `ltErrOnly` and the
+shows all three as collapsible sections — icon, title, count — with a green tick on the clean
+ones, so it answers "is it this?" for each source without the reader having to know the sources
+exist. No explanatory line under a heading: the icon already says clean or not and the count
+already says how much. `ltErrOnly` and the
 red scoreboard card stay on feed errors only, which is what the checkbox says. Total Monthly reads *Fees not set* exactly when Fees is Not started — with nothing
 filled in there is no total to advertise. The register has **no selection column**, and
 Property / Unit is plain text: the kebab is the only way into a row, so nothing on it invites a
