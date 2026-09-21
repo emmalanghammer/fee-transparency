@@ -30,8 +30,9 @@ Attention. Four derivations carry it, all in C: `ltFeed` (Sent / Partly sent / N
 and Stopped set on the listing), `ltFees` (Complete / N missing / Not started, from
 `ftCharges(prop)`), `ltAttention` (one badge, red feed errors before amber missing details) and
 `ltLabel`. Total Monthly reads *Fees not set* exactly when Fees is Not started — with nothing
-filled in there is no total to advertise. Row selection is drawn by `ltSelInstall` on the DOM
-only: nothing acts on a selection yet.
+filled in there is no total to advertise. The register has **no selection column**, and
+Property / Unit is plain text: the kebab is the only way into a row, so nothing on it invites a
+click that goes nowhere.
 
 **C is A minus a page, not a different model.** Marketing details are still edited in Marketing
 Setup › Pricing; the property page's own overlay (`mktSetupHTML`) is the only way in, and

@@ -3414,21 +3414,6 @@ class Component extends DCLogic {
     ].concat(port);
   }
   // Required recurring charges that ride on top of base rent in the total monthly price.
-  // Row selection is drawn, not stored: nothing acts on a selection yet, and a re-render here
-  // would cost more than it buys. Installed once, like the other DOM-only helpers.
-  ltSelInstall(){
-    if (window.__ltSel) return;
-    const paint = (el, on) => { el.setAttribute('data-on', on ? '1' : '0');
-      el.style.background = on ? 'var(--rmx-attention, #f58220)' : '#fff';
-      el.style.borderColor = on ? 'var(--rmx-attention, #f58220)' : 'var(--ac,var(--rmx-brand, #008dd5))';
-      el.innerHTML = on ? '<svg width="11" height="11" viewBox="0 -960 960 960" fill="#fff" aria-hidden="true"><path d="M378-246 154-470l43-43 181 181 384-384 43 43-427 427Z"/></svg>' : ''; };
-    window.__ltSel = (el) => paint(el, el.getAttribute('data-on') !== '1');
-    window.__ltSelAll = (el) => { const on = el.getAttribute('data-on') !== '1';
-      el.setAttribute('data-on', on ? '1' : '0');
-      el.style.background = on ? '#fff' : 'transparent';
-      el.innerHTML = on ? '<svg width="11" height="11" viewBox="0 -960 960 960" fill="var(--rmx-register-header, #737373)" aria-hidden="true"><path d="M378-246 154-470l43-43 181 181 384-384 43 43-427 427Z"/></svg>' : '';
-      document.querySelectorAll('[data-ltsel]').forEach(b => paint(b, on)); };
-  }
   // ---- What each column of the listings register says, and where it gets it from ----
   // How a listing is named wherever it is named — the row, the errors popup. A house has no unit
   // designation, so it reads as the property alone.
@@ -3573,12 +3558,10 @@ class Component extends DCLogic {
       <button data-act="toast" data-arg="Update Listings Feed" class="btn-pri" style="display:inline-flex;align-items:center;gap:8px;height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M483-120q-75 0-141-28.5T226.5-226q-49.5-49-78-115T120-482q0-75 28.5-140t78-113.5Q276-784 342-812t141-28q80 0 151.5 35T758-709v-106h60v208H609v-60h105q-44-51-103.5-82T483-780q-125 0-214 85.5T180-485q0 127 88 216t215 89q125 0 211-88t86-213h60q0 150-104 255.5T483-120Zm122-197L451-469v-214h60v189l137 134-43 43Z"/></svg>Update Listings Feed</button>
     </div>`;
     const colK = 'listings';
-    const cols = this.colTracks(colK, '34px 250fr 145fr 120fr 140fr 140fr 120fr 250fr 150fr 38px');
-    const hc = (t, first, right) => `<span style="display:flex;align-items:center;${right?'justify-content:flex-end;':''}gap:8px;height:26px;box-sizing:border-box;padding:0 ${first?'0':'12px'};font-size:14px;font-weight:600;color:#fff;white-space:nowrap;${first?'':'border-left:1px solid rgba(255,255,255,0.35)'}">${t}</span>`;
-    this.ltSelInstall();
-    const selBox = `<span style="display:flex;align-items:center;justify-content:center;height:26px"><span onclick="window.__ltSelAll&&window.__ltSelAll(this)" data-on="0" style="display:flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:2px;box-sizing:border-box;border:2px solid #fff;background:transparent;cursor:pointer"></span></span>`;
+    const cols = this.colTracks(colK, '285fr 125fr 100fr 125fr 120fr 100fr 275fr 130fr 38px');
+    const hc = (t, first, right) => `<span style="display:flex;align-items:center;${right?'justify-content:flex-end;':''}gap:8px;height:26px;box-sizing:border-box;padding:0 ${first?'0 0 0 17px':'12px'};font-size:14px;font-weight:600;color:#fff;white-space:nowrap;${first?'':'border-left:1px solid rgba(255,255,255,0.35)'}">${t}</span>`;
     const header = `<div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">
-      ${selBox}${hc('Property / Unit', true)}${hc('Feed Status')}${hc('Base Rent', false, true)}${hc('Total Monthly', false, true)}${hc('Fees')}${hc('Available')}${hc('Providers')}${hc('Needs Attention')}
+      ${hc('Property / Unit', true)}${hc('Feed Status')}${hc('Base Rent', false, true)}${hc('Total Monthly', false, true)}${hc('Fees')}${hc('Available')}${hc('Providers')}${hc('Needs Attention')}
       <span style="display:flex;align-items:center;justify-content:center;height:26px;border-left:1px solid rgba(255,255,255,0.35)"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:#fff"><path d="M120-260v-440q0-24.75 17.63-42.38Q155.25-760 180-760h600q24.75 0 42.38 17.62Q840-724.75 840-700v440q0 24.75-17.62 42.37Q804.75-200 780-200H180q-24.75 0-42.37-17.63Q120-235.25 120-260Zm60 0h160v-440H180v440Zm220 0h160v-440H400v440Zm220 0h160v-440H620v440Z"/></svg></span>
     </div>`;
     const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:39px;box-sizing:border-box;padding:0 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
@@ -3611,9 +3594,8 @@ class Component extends DCLogic {
         + mitem('Marketing setup','mcOpenProp',l.prop)
         + mitem('Add charge details','mcOpenProp',l.prop);
       return `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background='#fff'">
-        <span style="display:flex;align-items:center;justify-content:center;min-height:39px"><span data-ltsel="1" data-on="0" onclick="window.__ltSel&&window.__ltSel(this)" style="display:flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:2px;box-sizing:border-box;border:2px solid var(--ac,var(--rmx-brand, #008dd5));background:#fff;cursor:pointer"></span></span>
-        <span style="display:flex;align-items:center;gap:8px;min-height:39px;box-sizing:border-box;padding:0 0 0 4px;white-space:nowrap;overflow:hidden">
-          <a data-act="navProperty" data-arg="${(''+l.prop).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;overflow:hidden;text-overflow:ellipsis">${this.ltLabel(l)}</a>
+        <span style="display:flex;align-items:center;gap:8px;min-height:39px;box-sizing:border-box;padding:0 12px 0 17px;white-space:nowrap;overflow:hidden">
+          <span style="min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);overflow:hidden;text-overflow:ellipsis">${this.ltLabel(l)}</span>
           <span style="flex:none;font-size:12px;color:var(--rmx-text, #666666)">${this.ltBedBath(l)}</span>
         </span>
         ${dotText(feed.label, feed.tone)}
@@ -3622,7 +3604,7 @@ class Component extends DCLogic {
         ${dotText(fees.label, fees.tone)}
         ${l.avail ? cell(l.avail) : cell('<span style="color:var(--rmx-text-muted, #b3b3b3)">—</span>')}
         ${ps.length
-          ? `<span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-height:39px;box-sizing:border-box;padding:5px 12px">${ps.map(provPill).join('')}</span>`
+          ? `<span style="display:flex;align-items:center;gap:6px;min-height:39px;box-sizing:border-box;padding:0 12px;overflow:hidden">${ps.map(provPill).join('')}</span>`
           : muted('Not sent to any provider')}
         ${attCell}
         <span style="position:relative;display:flex;align-items:center;justify-content:center;min-height:39px">
@@ -3636,7 +3618,7 @@ class Component extends DCLogic {
       ${needsFT ? banner : ''}
       ${toolbar}
       <div style="display:flex;flex-direction:column;gap:6px;flex:1;min-height:0">
-        <div style="overflow-x:auto"><div style="min-width:1240px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${header}${body || empty}</div></div>
+        <div style="overflow-x:auto"><div style="min-width:1330px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${header}${body || empty}</div></div>
         <div style="flex:1"></div>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
           <span style="font-size:12px;color:var(--rmx-error, #eb343c)">ILS providers may require a paid account before your listings can be posted</span>
