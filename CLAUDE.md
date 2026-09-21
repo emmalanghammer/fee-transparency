@@ -25,11 +25,19 @@ transparency.
 
 **C's listings register is a feed register, not a pricing one.** A row is an advertised **unit**
 (`listingsData()` in C is unit-level, with bed/bath and per-provider state), and the columns are
-Property / Unit · Feed Status · Base Rent · Total Monthly · Fees · Available · Providers · Needs
-Attention. Four derivations carry it, all in C: `ltFeed` (Sent / Partly sent / Not sent, with Held
-and Stopped set on the listing), `ltFees` (Complete / N missing / Not started, from
-`ftCharges(prop)`), `ltAttention` (one badge, red feed errors before amber missing details) and
-`ltLabel`. Total Monthly reads *Fees not set* exactly when Fees is Not started — with nothing
+Property · Unit · Feed Status · Base Rent · Total Monthly · Fees · Available · Providers · Needs
+Attention. Derivations, all in C: `ltFeed` (Sent / Partly sent / Not sent, with Held and Stopped
+set on the listing), `ltFees` (Complete / N missing / Not started, from `ftCharges(prop)`),
+`ltLabel`, and `ltIssues` — which is the whole of Needs Attention.
+
+**Needs Attention is one badge over three sources**, because what holds a listing back is fixed in
+three different places: `ltChargeIssues` (charges whose marketing details are short, so there is
+no complete price to publish), the listing's `rm` errors (Rent Manager's own fields) and its `tz`
+errors, attributed to whichever providers carry `err`. `ltIssues` totals them and takes the worst
+tone — a rejected feed is red, charges alone are amber. The badge always opens `ltErrHTML`, which
+shows all three as collapsible sections with a green tick on the clean ones, so it answers "is it
+this?" for each source without the reader having to know the sources exist. `ltErrOnly` and the
+red scoreboard card stay on feed errors only, which is what the checkbox says. Total Monthly reads *Fees not set* exactly when Fees is Not started — with nothing
 filled in there is no total to advertise. The register has **no selection column**, and
 Property / Unit is plain text: the kebab is the only way into a row, so nothing on it invites a
 click that goes nowhere.
