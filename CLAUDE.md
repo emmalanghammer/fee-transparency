@@ -24,7 +24,8 @@ the same two-step journey A has: fill in each charge's marketing details, then c
 transparency.
 
 **C's listings register is a feed register, not a pricing one.** A row is an advertised **unit**
-(`listingsData()` in C is unit-level, with bed/bath and per-provider state), and the columns are
+(`listingsData()` in C is unit-level, with bed/bath and per-provider state; `provCell` names the
+first provider and hides the rest behind a **+N** that opens to list them all), and the columns are
 Property · Unit · Feed Status · Base Rent · Total Monthly · Fees · Available · Providers · Needs
 Attention. Derivations, all in C: `ltFeed` (Sent / Partly sent / Not sent, with Held and Stopped
 set on the listing), `ltFees` (Complete / N missing / Not started, from `ftCharges(prop)`),
