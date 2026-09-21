@@ -5,14 +5,15 @@ A Rent Manager Express pricing-setup / fee-transparency prototype. Everything li
 delegated `data-act` / `data-arg` dispatcher in `onClick`. `support.js` and `ds/` are the
 Design Components runtime and the RMX design system; don't edit them.
 
-## Two designs, side by side
+## Three designs, side by side
 
-Two whole prototypes are served off the same deploy, so they can be compared live:
+Three whole prototypes are served off the same deploy, so they can be compared live:
 
 | File | URL | Design |
 |---|---|---|
 | `index.html` | `…/fee-transparency/` | **A — Marketing Center**: marketing details are edited in Marketing Setup › Pricing, and charge-type defaults live on Charge Type Details. |
 | `original.html` | `…/fee-transparency/original.html` | **B — Details on Charges**: the 2026-09-17 design (`main`) — Pricing Setup register, marketing details and Listing Ready columns inside the Charges overlay, Group by Requirement, Bulk Update with marketing fields — **plus** charge-type defaults, which `main` itself has no concept of. |
+| `listings.html` | `…/fee-transparency/listings.html` | **C — Listings Only**: A with the Marketing Center removed. There is no portfolio register and no Property Marketing Setup tab — the **Listings** page is the portfolio view, so it carries the scoreboard and every listing row wears its property's Listing Ready fraction and Next Step. |
 
 **B has no centralization step either.** `seededProfiles()` returns every property, so the whole
 portfolio is centralized from the first look and `profileRows` falls back to the charges the
@@ -22,21 +23,29 @@ the set-up banner, the wizard and Bulk Centralize — they have nothing left to 
 the same two-step journey A has: fill in each charge's marketing details, then convert to fee
 transparency.
 
+**C is A minus a page, not a different model.** Marketing details are still edited in Marketing
+Setup › Pricing; the property page's own overlay (`mktSetupHTML`) is the only way in, and
+`mcOpenProp` — still the name on the Next Step link — opens it there rather than in a Marketing
+Center. `listingsData()` is filtered to `propNames()` in C and only in C: once Listings is the
+portfolio view, a scoreboard reading 4/4 over thirteen properties' listings is a contradiction.
+
 **B is a fixed comparison point.** It is `main`'s design with exactly one thing added, and the
 things deliberately left out of it are: Charge Category required on the charge, the collapsed
 Marketing Details section on the charge form, and everything Marketing Center. Don't drift it
 toward A.
 
-**So a change request needs a variant named.** "Change X" is ambiguous now — ask which file, or
-do both, but never assume `index.html`.
+**So a change request needs a variant named.** "Change X" is ambiguous now — ask which of the
+three, or do all of them, but never assume `index.html`. A change to the charge form, the Charges
+overlay or Marketing Setup usually belongs in A **and** C, since C only removed the Marketing
+Center.
 
-`variantSwitch()` is the **Version** control that links them, in the header beside the logo.
+`variantSwitch()` is the **Version** control that links all three, in the header beside the logo.
 Unlike Test Feature State it always shows — which design is on screen is worth knowing in a
 walkthrough too. The link carries `location.search`, and `scenarioApply` writes the scenario into
 it as `?scen=<key>` (read back once in `componentDidMount`) — so the scenario you are testing
 survives the hop.
 
-The two files share every asset: the workflow uploads the repo root with no build step,
+The three files share every asset: the workflow uploads the repo root with no build step,
 `.nojekyll` is present, and every path in the head is document-relative.
 
 ## Branches
