@@ -5,6 +5,32 @@ A Rent Manager Express pricing-setup / fee-transparency prototype. Everything li
 delegated `data-act` / `data-arg` dispatcher in `onClick`. `support.js` and `ds/` are the
 Design Components runtime and the RMX design system; don't edit them.
 
+## Two designs, side by side
+
+Two whole prototypes are served off the same deploy, so they can be compared live:
+
+| File | URL | Design |
+|---|---|---|
+| `index.html` | `…/fee-transparency/` | **A — Marketing Center**: marketing details are edited in Marketing Setup › Pricing, and charge-type defaults live on Charge Type Details. |
+| `original.html` | `…/fee-transparency/original.html` | **B — Details on Charges**: the 2026-09-17 design (`main`) — Pricing Setup register, marketing details and Listing Ready columns inside the Charges overlay, Group by Requirement, Bulk Update with marketing fields — **plus** charge-type defaults, which `main` itself has no concept of. |
+
+**B is a fixed comparison point.** It is `main`'s design with exactly one thing added, and the
+things deliberately left out of it are: Charge Category required on the charge, the collapsed
+Marketing Details section on the charge form, and everything Marketing Center. Don't drift it
+toward A.
+
+**So a change request needs a variant named.** "Change X" is ambiguous now — ask which file, or
+do both, but never assume `index.html`.
+
+`variantSwitch()` is the segmented control that links them. It lives in the same prototype-only
+strip as Test Feature State, so the logo click and `?test=0` hide both together and a
+walkthrough shows neither. The link carries `location.search`, and `scenarioApply` writes the
+scenario into it as `?scen=<key>` (read back once in `componentDidMount`) — so the scenario
+you are testing survives the hop.
+
+The two files share every asset: the workflow uploads the repo root with no build step,
+`.nojekyll` is present, and every path in the head is document-relative.
+
 ## Branches
 
 - **`experiment`** is where the work happens, and it is what GitHub Pages serves.
@@ -35,7 +61,8 @@ it should be a **new** artifact rather than this one.
   why the design system lives in `ds/` rather than `_ds/`.
 - **Check the syntax before you deploy.** The whole app is one `<script>` block inside a
   template-literal-heavy file; a stray backtick breaks the page silently. Parse each `<script>`
-  with `new Function` and fail on the first error.
+  with `new Function` and fail on the first error — over **both** `index.html` and
+  `original.html`, whichever one you edited: `node .claude/check-syntax.mjs`.
 - **Edit by exact-string replacement, with an assert on the match count.** Several blocks in
   `index.html` are near-identical (the charge callout appears three times, `Transactions` tiles
   twice); a loose match patches the wrong one.
