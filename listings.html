@@ -1556,7 +1556,8 @@ class Component extends DCLogic {
       case 'profMenuClose': this.setState({ profMenu: null }); break;
 
       // ---- pricing preview ----
-      case 'pricePreviewOpen': this.setState({ pricePreview: { prop: this.state.property, unit: (this.units()[1]||{}).u || '1B', term: '12 Months', opt: this.ppSeedOpt(this.state.property), sitOpen: true } }); break;
+      case 'pricePreviewOpen': { const pp = arg || this.state.property;
+        this.setState({ property: pp, pricePreview: { prop: pp, unit: (this.units()[1]||{}).u || '1B', term: '12 Months', opt: this.ppSeedOpt(pp), sitOpen: true } }); break; }
       case 'pricePreviewClose': this.setState({ pricePreview: null }); break;
       case 'ppTerm': this.setState(s => ({ pricePreview: Object.assign({}, s.pricePreview, { term: arg }) })); break;
       case 'ppUnit': if (arg) this.setState(s => ({ pricePreview: Object.assign({}, s.pricePreview, { unit: arg }) })); break;
@@ -3356,27 +3357,47 @@ class Component extends DCLogic {
   // ---------- Listings page (mock 2720-130062) ----------
   // One row per advertised unit. Pricing and errors derive live from the property's Fee
   // Transparency state, so publishing or fixing charges moves these rows in real time.
+  // Providers a listing can be syndicated to. Prototype seed — swap in the real feed accounts when
+  // there are any. `err` marks a provider that rejected the listing, which is what turns the feed
+  // status red.
+  ltProviders(){ return ['Zillow', 'Apts.com', 'Zumper']; }
   listingsData(){
+    // One row per advertised UNIT, not per floor plan: two units of the same plan can sit at
+    // different points in the feed, and the feed is what this page is about. A house has no unit
+    // designation, so `unit` is empty and the row reads as the property alone.
     // Only properties enabled for online listings have listings, and each row's pricing follows that
-    // property's live Fee Transparency status — so this register can never contradict the tracker.
+    // property's live Fee Transparency status — so this register can never contradict the scoreboard.
+    const P = (name, sent, err) => ({ name, sent: sent !== false, err: !!err });
+    const all3 = (a, b, c) => [P('Zillow', a), P('Apts.com', b), P('Zumper', c)];
     const port = [
-      { prop:'Riverview Apartments', plan:'RV-114', type:'2B / 2B',   avail:'09/01/2026', base:1254.75 },
-      { prop:'Riverview Apartments', plan:'RV-3C',  type:'1B / 1B',   avail:'10/01/2026', base:1050.00 },
-      { prop:'The Berkshires',       plan:'BK-2',   type:'2B / 2B',   avail:'12/31/2026', base:750.00 },
-      { prop:'The Windermere',       plan:'WIN-4',  type:'1B / 1B',   avail:'09/15/2026', base:985.00 },
-      { prop:'The Estates',          plan:'EST-22', type:'3B / 2B',   avail:'10/15/2026', base:1875.00 },
-      { prop:'Willow Creek',         plan:'WC-7',   type:'2B / 1B',   avail:'09/01/2026', base:1125.00 },
-      { prop:'Greenbriar Village',   plan:'GB-31',  type:'2B / 2B',   avail:'11/01/2026', base:1340.00 },
-      { prop:'Oakwood Manor',        plan:'OAK-5',  type:'1B / 1B',   avail:'09/30/2026', base:890.00 },
-      { prop:'Pinewood Place',       plan:'PW-18',  type:'2B / 2B',   avail:'10/01/2026', base:1195.00 },
-      { prop:'Cedar Ridge',          plan:'CR-9',   type:'SFH',       avail:'11/15/2026', base:2100.00 },
-      { prop:'The Highlands',        plan:'HL-2',   type:'3B / 2.5B', avail:'12/01/2026', base:2250.00 },
-      { prop:'Valley Forge',         plan:'VF-6',   type:'1B / 1B',   avail:'09/15/2026', base:940.00 },
-      { prop:'The Arbors',           plan:'AR-14',  type:'2B / 2B',   avail:'10/31/2026', base:1080.00 },
-      { prop:'Stonegate Village',    plan:'SG-8',   type:'2B / 2B',   avail:'11/01/2026', base:1260.00 },
-      { prop:'The Hamptons',         plan:'HAM-12', type:'2B / 2B',   avail:'09/01/2026', base:1300.00 },
-      { prop:'The Hamptons',         plan:'HAM-8',  type:'SFH',       avail:'12/31/2026', base:2500.00 }
-    ]
+      { prop:'Riverview Apartments', unit:'3B',  beds:1, baths:1,   avail:'10/01/26', base:1375.00, providers:all3(true, true, true) },
+      { prop:'Riverview Apartments', unit:'5A',  beds:0, baths:1,   avail:'10/15/26', base:990.00,  providers:all3(true, true, false) },
+      { prop:'Riverview Apartments', unit:'4C',  beds:3, baths:2,   avail:'11/01/26', base:2050.00, providers:[] },
+      { prop:'The Berkshires',       unit:'214', beds:2, baths:2,   avail:'09/15/26', base:750.00,  providers:all3(true, true, true) },
+      { prop:'The Berkshires',       unit:'302', beds:1, baths:1,   avail:'10/20/26', base:810.00,  providers:[] },
+      { prop:'The Windermere',       unit:'12',  beds:3, baths:2.5, avail:'09/01/26', base:985.00,  providers:[P('Zillow'), P('Apts.com')] },
+      { prop:'The Windermere',       unit:'4',   beds:3, baths:2.5, avail:'10/05/26', base:1040.00, providers:[P('Zillow', true, true)], feed:'Held', rmErrors:5, tzErrors:3 },
+      { prop:'The Estates',          unit:'108', beds:0, baths:1,   avail:'11/15/26', base:1875.00, providers:[] },
+      { prop:'The Estates',          unit:'210', beds:1, baths:1,   avail:'09/01/26', base:1640.00, providers:[P('Zillow'), P('Apts.com', false)] },
+      { prop:'Willow Creek',         unit:'',    beds:4, baths:2,   avail:'',         base:1125.00, providers:[], feed:'Stopped' },
+      { prop:'Greenbriar Village',   unit:'31',  beds:2, baths:2,   avail:'11/01/26', base:1340.00, providers:all3(true, true, false) },
+      { prop:'Oakwood Manor',        unit:'5',   beds:1, baths:1,   avail:'09/30/26', base:890.00,  providers:all3(true, true, true) },
+      { prop:'Oakwood Manor',        unit:'22',  beds:2, baths:2,   avail:'12/01/26', base:1150.00, providers:all3(true, true, true) },
+      { prop:'Pinewood Place',       unit:'18',  beds:2, baths:2,   avail:'10/01/26', base:1195.00, providers:[P('Zillow')] },
+      { prop:'Cedar Ridge',          unit:'',    beds:3, baths:2,   avail:'11/15/26', base:2100.00, providers:[], rmErrors:2 },
+      { prop:'The Highlands',        unit:'2',   beds:3, baths:2.5, avail:'12/01/26', base:2250.00, providers:[P('Zillow'), P('Apts.com')] },
+      { prop:'Valley Forge',         unit:'6',   beds:1, baths:1,   avail:'09/15/26', base:940.00,  providers:[] },
+      { prop:'The Arbors',           unit:'14',  beds:2, baths:2,   avail:'10/31/26', base:1080.00, providers:all3(true, true, true) },
+      { prop:'Stonegate Village',    unit:'8',   beds:2, baths:2,   avail:'11/01/26', base:1260.00, providers:[P('Zillow'), P('Apts.com')] },
+      { prop:'The Hamptons',         unit:'12',  beds:2, baths:2,   avail:'09/01/26', base:1300.00, providers:all3(true, true, true) },
+      { prop:'The Hamptons',         unit:'',    beds:4, baths:2,   avail:'12/31/26', base:2500.00, providers:[P('Zillow')], rmErrors:1 }
+    ].map(l => Object.assign({}, l, {
+      // What the old floor-plan register called plan/type, kept so the errors popup and anything
+      // else reading a listing still has them.
+      plan: l.unit || l.prop,
+      type: this.ltBedBath(l)
+    }));
+    return port
       // Listings is the portfolio view in this version, so it has to be the same portfolio the
       // scoreboard counts — a walkthrough scenario that trims to four properties trims here too.
       .filter(l => this.propNames().indexOf(l.prop) >= 0)
@@ -3393,6 +3414,59 @@ class Component extends DCLogic {
     ].concat(port);
   }
   // Required recurring charges that ride on top of base rent in the total monthly price.
+  // Row selection is drawn, not stored: nothing acts on a selection yet, and a re-render here
+  // would cost more than it buys. Installed once, like the other DOM-only helpers.
+  ltSelInstall(){
+    if (window.__ltSel) return;
+    const paint = (el, on) => { el.setAttribute('data-on', on ? '1' : '0');
+      el.style.background = on ? 'var(--rmx-attention, #f58220)' : '#fff';
+      el.style.borderColor = on ? 'var(--rmx-attention, #f58220)' : 'var(--ac,var(--rmx-brand, #008dd5))';
+      el.innerHTML = on ? '<svg width="11" height="11" viewBox="0 -960 960 960" fill="#fff" aria-hidden="true"><path d="M378-246 154-470l43-43 181 181 384-384 43 43-427 427Z"/></svg>' : ''; };
+    window.__ltSel = (el) => paint(el, el.getAttribute('data-on') !== '1');
+    window.__ltSelAll = (el) => { const on = el.getAttribute('data-on') !== '1';
+      el.setAttribute('data-on', on ? '1' : '0');
+      el.style.background = on ? '#fff' : 'transparent';
+      el.innerHTML = on ? '<svg width="11" height="11" viewBox="0 -960 960 960" fill="var(--rmx-register-header, #737373)" aria-hidden="true"><path d="M378-246 154-470l43-43 181 181 384-384 43 43-427 427Z"/></svg>' : '';
+      document.querySelectorAll('[data-ltsel]').forEach(b => paint(b, on)); };
+  }
+  // ---- What each column of the listings register says, and where it gets it from ----
+  // How a listing is named wherever it is named — the row, the errors popup. A house has no unit
+  // designation, so it reads as the property alone.
+  ltLabel(l){ return l.unit ? l.prop + ' — ' + l.unit : l.prop; }
+  // Bed/bath the way a listing writes it. Studio has no bedroom count.
+  ltBedBath(l){
+    if (!l.beds) return 'Studio';
+    const b = (n) => (Math.round(n * 10) % 10) ? String(n) : String(Math.round(n));
+    return b(l.beds) + ' bd / ' + b(l.baths) + ' ba';
+  }
+  // Marketing details, from the property's charges. Not started means nobody has filled in a single
+  // charge yet — which is also why that row can't show a total monthly price.
+  ltFees(l){
+    const ch = this.ftCharges(l.prop);
+    const onList = ch.ready + ch.incomplete;
+    if (!onList) return { label:'No charges', tone:'grey' };
+    if (!ch.incomplete) return { label:'Complete', tone:'green' };
+    if (!ch.ready) return { label:'Not started', tone:'grey', none:true };
+    return { label: ch.incomplete + ' missing', tone:'amber' };
+  }
+  // Where the listing actually stands with the providers. A held or stopped feed is set on the
+  // listing; everything else follows from how many providers have it.
+  ltFeed(l){
+    if (l.feed === 'Held') return { label:'Held', tone:'red' };
+    if (l.feed === 'Stopped') return { label:'Stopped', tone:'grey' };
+    const ps = l.providers || [];
+    if (!ps.length) return { label:'Not sent', tone:'grey' };
+    return ps.every(p => p.sent && !p.err)
+      ? { label:'Sent', tone:'green' }
+      : { label:'Partly sent', tone:'amber' };
+  }
+  // One badge, worst first: a rejected listing is a harder stop than charges still missing details.
+  ltAttention(l){
+    const errs = this.ltErrCount(l);
+    if (errs) return { n:errs, tone:'red' };
+    const short = this.ftCharges(l.prop).incomplete;
+    return short ? { n:short, tone:'amber' } : null;
+  }
   ltMonthlyFees(p){
     return this.appliedRows(p)
       .filter(r => !/-one$/.test(r.group) && r.mits !== 'RC' && (this.resolvedListing(r).requirement || '') === 'Required')
@@ -3448,7 +3522,7 @@ class Component extends DCLogic {
     return `<div data-act="ltErrClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:150">
       <div data-act="noop" style="width:640px;max-width:94vw;max-height:90vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="flex:none;display:flex;align-items:center;gap:12px;padding:13px 20px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
-          <span style="font-size:20px;color:var(--rmx-brand-dark, #13314c)">Listing Errors: ${l.prop} ${l.plan} (Property)</span><div style="flex:1"></div>
+          <span style="font-size:20px;color:var(--rmx-brand-dark, #13314c)">Listing Errors: ${this.ltLabel(l)}</span><div style="flex:1"></div>
           <svg class="ico" width="22" height="22" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="ltErrClose" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
         </div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:14px">
@@ -3461,7 +3535,7 @@ class Component extends DCLogic {
       </div></div>`;
   }
   listingsBody(){
-    const money = (n) => n == null ? '-' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const money = (n) => n == null ? '\u2014' : '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
     const all = this.listingsData();
     const props = all.map(l => l.prop).filter((v, i, a) => a.indexOf(v) === i);
     const filt = this.state.ltProp || 'all';
@@ -3499,53 +3573,62 @@ class Component extends DCLogic {
       <button data-act="toast" data-arg="Update Listings Feed" class="btn-pri" style="display:inline-flex;align-items:center;gap:8px;height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M483-120q-75 0-141-28.5T226.5-226q-49.5-49-78-115T120-482q0-75 28.5-140t78-113.5Q276-784 342-812t141-28q80 0 151.5 35T758-709v-106h60v208H609v-60h105q-44-51-103.5-82T483-780q-125 0-214 85.5T180-485q0 127 88 216t215 89q125 0 211-88t86-213h60q0 150-104 255.5T483-120Zm122-197L451-469v-214h60v189l137 134-43 43Z"/></svg>Update Listings Feed</button>
     </div>`;
     const colK = 'listings';
-    const cols = this.colTracks(colK, '200fr 150fr 140fr 150fr 150fr 175fr 185fr 160fr 230fr 38px');
-    const hc = (t, first, right) => `<span style="display:flex;align-items:center;${right?'justify-content:flex-end;':''}gap:8px;height:26px;box-sizing:border-box;padding:0 ${first?'0 0 17px':'12px 0 12px'};font-size:14px;font-weight:600;color:#fff;white-space:nowrap;${first?'':'border-left:1px solid rgba(255,255,255,0.35)'}">${t}</span>`;
+    const cols = this.colTracks(colK, '34px 250fr 145fr 120fr 140fr 140fr 120fr 250fr 150fr 38px');
+    const hc = (t, first, right) => `<span style="display:flex;align-items:center;${right?'justify-content:flex-end;':''}gap:8px;height:26px;box-sizing:border-box;padding:0 ${first?'0':'12px'};font-size:14px;font-weight:600;color:#fff;white-space:nowrap;${first?'':'border-left:1px solid rgba(255,255,255,0.35)'}">${t}</span>`;
+    this.ltSelInstall();
+    const selBox = `<span style="display:flex;align-items:center;justify-content:center;height:26px"><span onclick="window.__ltSelAll&&window.__ltSelAll(this)" data-on="0" style="display:flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:2px;box-sizing:border-box;border:2px solid #fff;background:transparent;cursor:pointer"></span></span>`;
     const header = `<div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">
-      ${hc('Property', true)}${hc('Unit Floor Plan')}${hc('Unit Type')}${hc('Date Available')}${hc('Base Rent', false, true)}${hc('Total Monthly Price', false, true)}${hc('Price Shown')}${hc('Listing Ready')}${hc('Next Step')}
+      ${selBox}${hc('Property / Unit', true)}${hc('Feed Status')}${hc('Base Rent', false, true)}${hc('Total Monthly', false, true)}${hc('Fees')}${hc('Available')}${hc('Providers')}${hc('Needs Attention')}
       <span style="display:flex;align-items:center;justify-content:center;height:26px;border-left:1px solid rgba(255,255,255,0.35)"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:#fff"><path d="M120-260v-440q0-24.75 17.63-42.38Q155.25-760 180-760h600q24.75 0 42.38 17.62Q840-724.75 840-700v440q0 24.75-17.62 42.37Q804.75-200 780-200H180q-24.75 0-42.37-17.63Q120-235.25 120-260Zm60 0h160v-440H180v440Zm220 0h160v-440H400v440Zm220 0h160v-440H620v440Z"/></svg></span>
     </div>`;
-    const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:35px;box-sizing:border-box;padding:0 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
-    const pill = (t, total) => `<span style="display:inline-flex;align-items:center;border-radius:2px;padding:3px 10px;font-size:14px;white-space:nowrap;${total?'background:#e4f1da;color:#2f5d43':'background:#e8eaec;color:var(--rmx-brand-dark, #13314c)'}">${t}</span>`;
-    const body = rows.map(l => {
-      const live = this.ltStatus(l.prop);
-      const st = l.fixed || live;
-      const basePrice = l.base == null ? '-' : money(l.base);
-      // Only a property that has published complete pricing advertises a total; everything else
-      // advertises base rent, which is what its listing actually says today.
-      const total = l.fixed
-        ? (l.total != null ? money(l.total) : '-')
-        : (!!this.state.publishedProps[l.prop] && l.base != null ? money(l.base + this.ltMonthlyFees(l.prop)) : '-');
-      const warn = st.warn ? `<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#7a5a2a;line-height:1.35">${this.ico('warning', 14, 'color:var(--rmx-attention, #f58220);flex:none')}${st.warn}</span>` : '';
-      const pricing = l.base == null ? '<span style="color:var(--rmx-brand-dark, #13314c)">-</span>'
-        : (warn ? `<span style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:6px 0">${pill(st.pill, st.total)}${warn}</span>` : pill(st.pill, st.total));
-      // The property's charge progress, on every listing it feeds — a fraction with a dot that
-      // goes green only when it is whole, the same signal the Overview register gave per property.
-      const ch = this.ftCharges(l.prop);
-      const onList = ch.ready + ch.incomplete;
-      const whole = onList > 0 && ch.incomplete === 0;
-      const readyCell = !this.ilsOn(l.prop) ? cell('—')
-        : `<span style="display:flex;align-items:center;gap:9px;min-height:35px;box-sizing:border-box;padding:0 12px;font-size:14px;font-style:italic;color:var(--rmx-brand-dark, #13314c);white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;flex:none;background:${whole ? 'var(--rmx-success, #6eb744)' : 'var(--rmx-attention, #f58220)'}"></span>${ch.ready}/${onList}</span>`;
-      // What to do about it, on the row that reports it — the whole reason this page replaced a
-      // separate register.
-      const pst = this.ftStatus(l.prop);
-      const nextCell = pst.next
-        ? `<a data-act="${pst.act}" data-arg="${(''+l.prop).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" style="display:flex;align-items:center;min-height:35px;padding:0 12px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${pst.next}</a>`
-        : cell('<span style="color:var(--rmx-text-muted, #b3b3b3)">—</span>');
-      // One icon and a count — the popup is where the errors themselves live.
-      const nErr = this.ltErrCount(l);
-      const err = nErr
-        ? `<svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-error, #eb343c)"><path d="M503.5-289.48q9.5-9.48 9.5-23.5t-9.48-23.52q-9.48-9.5-23.5-9.5t-23.52 9.48q-9.5 9.48-9.5 23.5t9.48 23.52q9.48 9.5 23.5 9.5t23.52-9.48ZM453-433h60v-253h-60v253Zm27.27 353q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Z"/></svg><span>${nErr} error${nErr===1?'':'s'}</span>`
-        : `<svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-success, #6eb744)"><path d="m421-298 283-283-46-45-237 237-120-120-45 45 165 166Zm59 218q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 31.5-156t86-127Q252-817 325-848.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 82-31.5 155T763-197.5q-54 54.5-127 86T480-80Z"/></svg>`;
-      return `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff">
-        ${cell(l.prop, 'padding-left:17px')}
-        ${cell(l.plan)}${cell(l.type)}${cell(l.avail)}
-        ${cell(basePrice, 'justify-content:flex-end;text-align:right')}
-        ${cell(total, 'justify-content:flex-end;text-align:right')}
-        <span style="display:flex;align-items:center;gap:8px;min-height:35px;box-sizing:border-box;padding:4px 12px;white-space:normal">${pricing}<span ${nErr?`data-act="ltErrOpen" data-arg="${all.indexOf(l)}"`:''} style="display:inline-flex;align-items:center;gap:6px;font-size:13px;white-space:nowrap;${nErr?'color:var(--rmx-error, #eb343c);cursor:pointer':'color:var(--rmx-success, #6eb744)'}">${err}</span></span>
-        ${readyCell}
-        ${nextCell}
-        <span data-act="toast" data-arg="Listing actions" style="display:flex;align-items:center;justify-content:center;min-height:35px;cursor:pointer"><svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5))"><path d="M400-720a80 80 0 1 0 160 0 80 80 0 1 0-160 0ZM400-480a80 80 0 1 0 160 0 80 80 0 1 0-160 0ZM400-240a80 80 0 1 0 160 0 80 80 0 1 0-160 0Z"/></svg></span>
+    const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:39px;box-sizing:border-box;padding:0 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
+    // A status reads as a coloured dot and an italic word — the same shape in Feed Status and Fees,
+    // so the two scan as one thing the row is telling you rather than two unrelated codes.
+    const TONE = { green:'var(--rmx-success, #6eb744)', amber:'var(--rmx-attention, #f58220)',
+      red:'var(--rmx-error, #eb343c)', grey:'var(--rmx-text-muted, #b3b3b3)' };
+    const dotText = (label, tone) => `<span style="display:flex;align-items:center;gap:9px;min-height:39px;box-sizing:border-box;padding:0 12px;font-size:14px;font-style:italic;color:${tone==='grey'?'var(--rmx-text, #666666)':'var(--rmx-brand-dark, #13314c)'};white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;flex:none;background:${TONE[tone]}"></span>${label}</span>`;
+    const provPill = (p) => `<span style="display:inline-flex;align-items:center;gap:5px;border:1px solid ${p.err?'var(--rmx-error, #eb343c)':'var(--rmx-line, #cedbe7)'};border-radius:3px;padding:2px 8px;font-size:12px;white-space:nowrap;background:#fff;color:${p.err?'#a3252c':'var(--rmx-ink-2, #424e5b)'}"><span style="width:6px;height:6px;border-radius:50%;flex:none;background:${p.err?'var(--rmx-error, #eb343c)':(p.sent?'var(--rmx-success, #6eb744)':'var(--rmx-text-muted, #b3b3b3)')}"></span>${p.name}</span>`;
+    const muted = (t) => `<span style="display:flex;align-items:center;min-height:39px;box-sizing:border-box;padding:0 12px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3);white-space:nowrap">${t}</span>`;
+    const body = rows.map((l, ri) => {
+      const i = all.indexOf(l);
+      const fees = this.ltFees(l);
+      const feed = this.ltFeed(l);
+      const att = this.ltAttention(l);
+      const ps = l.providers || [];
+      // Without a single charge filled in there is no total to advertise, so the cell says that
+      // rather than showing base rent twice or a zero.
+      const totalCell = fees.none
+        ? muted('Fees not set')
+        : cell(money(l.base + this.ltMonthlyFees(l.prop)), 'font-weight:600;justify-content:flex-end;text-align:right');
+      const attCell = !att ? cell('<span style="color:var(--rmx-text-muted, #b3b3b3)">—</span>')
+        : `<span ${att.tone === 'red' ? `data-act="ltErrOpen" data-arg="${i}"` : `data-act="mcOpenProp" data-arg="${(''+l.prop).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}"`} style="display:flex;align-items:center;gap:7px;min-height:39px;box-sizing:border-box;padding:0 12px;font-size:14px;cursor:pointer;color:${att.tone==='red'?'#a3252c':'#7a5a2a'};white-space:nowrap">${att.tone === 'red'
+            ? `<svg class="ico" width="17" height="17" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-error, #eb343c);flex:none"><path d="M503.5-289.48q9.5-9.48 9.5-23.5t-9.48-23.52q-9.48-9.5-23.5-9.5t-23.52 9.48q-9.5 9.48-9.5 23.5t9.48 23.52q9.48 9.5 23.5 9.5t23.52-9.48ZM453-433h60v-253h-60v253Zm27.27 353q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Z"/></svg>`
+            : `<svg class="ico" width="17" height="17" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-attention, #f58220);flex:none"><path d="m40-120 440-760 440 760H40Zm465.5-125.68q8.5-8.67 8.5-21.5 0-12.82-8.68-21.32-8.67-8.5-21.5-8.5-12.82 0-21.32 8.68-8.5 8.67-8.5 21.5 0 12.82 8.68 21.32 8.67 8.5 21.5 8.5 12.82 0 21.32-8.68ZM454-348h60v-224h-60v224Z"/></svg>`}${att.n}</span>`;
+      const menuId = `lt${ri}-pnl`;
+      const mitem = (t, act, arg) => `<div data-act="${act}" data-arg="${(''+arg).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" style="display:flex;align-items:center;gap:10px;padding:9px 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">${t}</div>`;
+      const menuPos = `event.stopPropagation();var t=document.getElementById('${menuId}');if(t.style.display==='block'){t.style.display='none';}else{t.style.display='block';var r=this.getBoundingClientRect();var w=t.offsetWidth,h=t.offsetHeight;var l=r.right-w;if(l<8)l=8;var y=r.bottom+4;if(y+h>window.innerHeight-8)y=r.top-h-4;t.style.left=l+'px';t.style.top=y+'px';}`;
+      const items = mitem('Preview pricing','pricePreviewOpen',l.prop)
+        + mitem('Marketing setup','mcOpenProp',l.prop)
+        + mitem('Add charge details','mcOpenProp',l.prop);
+      return `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background='#fff'">
+        <span style="display:flex;align-items:center;justify-content:center;min-height:39px"><span data-ltsel="1" data-on="0" onclick="window.__ltSel&&window.__ltSel(this)" style="display:flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:2px;box-sizing:border-box;border:2px solid var(--ac,var(--rmx-brand, #008dd5));background:#fff;cursor:pointer"></span></span>
+        <span style="display:flex;align-items:center;gap:8px;min-height:39px;box-sizing:border-box;padding:0 0 0 4px;white-space:nowrap;overflow:hidden">
+          <a data-act="navProperty" data-arg="${(''+l.prop).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;overflow:hidden;text-overflow:ellipsis">${this.ltLabel(l)}</a>
+          <span style="flex:none;font-size:12px;color:var(--rmx-text, #666666)">${this.ltBedBath(l)}</span>
+        </span>
+        ${dotText(feed.label, feed.tone)}
+        ${cell(money(l.base), 'justify-content:flex-end;text-align:right')}
+        ${totalCell}
+        ${dotText(fees.label, fees.tone)}
+        ${l.avail ? cell(l.avail) : cell('<span style="color:var(--rmx-text-muted, #b3b3b3)">—</span>')}
+        ${ps.length
+          ? `<span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-height:39px;box-sizing:border-box;padding:5px 12px">${ps.map(provPill).join('')}</span>`
+          : muted('Not sent to any provider')}
+        ${attCell}
+        <span style="position:relative;display:flex;align-items:center;justify-content:center;min-height:39px">
+          <span onclick="${menuPos}" style="display:flex;cursor:pointer"><svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5))"><path d="M400-720a80 80 0 1 0 160 0 80 80 0 1 0-160 0ZM400-480a80 80 0 1 0 160 0 80 80 0 1 0-160 0ZM400-240a80 80 0 1 0 160 0 80 80 0 1 0-160 0Z"/></svg></span>
+          <div id="${menuId}" style="display:none;position:fixed;z-index:1200;min-width:200px;background:#fff;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);padding:4px 0" onclick="this.style.display='none'">${items}</div>
+        </span>
       </div>`;
     }).join('');
     const empty = `<div style="background:#fff;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);padding:26px 17px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No listings — no properties are enabled for online listings.</div>`;
@@ -3553,7 +3636,7 @@ class Component extends DCLogic {
       ${needsFT ? banner : ''}
       ${toolbar}
       <div style="display:flex;flex-direction:column;gap:6px;flex:1;min-height:0">
-        <div style="overflow-x:auto"><div style="min-width:1100px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${header}${body || empty}</div></div>
+        <div style="overflow-x:auto"><div style="min-width:1240px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${header}${body || empty}</div></div>
         <div style="flex:1"></div>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
           <span style="font-size:12px;color:var(--rmx-error, #eb343c)">ILS providers may require a paid account before your listings can be posted</span>

@@ -23,6 +23,16 @@ the set-up banner, the wizard and Bulk Centralize — they have nothing left to 
 the same two-step journey A has: fill in each charge's marketing details, then convert to fee
 transparency.
 
+**C's listings register is a feed register, not a pricing one.** A row is an advertised **unit**
+(`listingsData()` in C is unit-level, with bed/bath and per-provider state), and the columns are
+Property / Unit · Feed Status · Base Rent · Total Monthly · Fees · Available · Providers · Needs
+Attention. Four derivations carry it, all in C: `ltFeed` (Sent / Partly sent / Not sent, with Held
+and Stopped set on the listing), `ltFees` (Complete / N missing / Not started, from
+`ftCharges(prop)`), `ltAttention` (one badge, red feed errors before amber missing details) and
+`ltLabel`. Total Monthly reads *Fees not set* exactly when Fees is Not started — with nothing
+filled in there is no total to advertise. Row selection is drawn by `ltSelInstall` on the DOM
+only: nothing acts on a selection yet.
+
 **C is A minus a page, not a different model.** Marketing details are still edited in Marketing
 Setup › Pricing; the property page's own overlay (`mktSetupHTML`) is the only way in, and
 `mcOpenProp` — still the name on the Next Step link — opens it there rather than in a Marketing
