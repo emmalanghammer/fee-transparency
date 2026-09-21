@@ -86,7 +86,8 @@ from the first look. Nothing is migrated or turned on: `profileRows(prop)` falls
 details blank. `profileFees[prop]` only exists once someone edits something.
 
 A charge keeps the level it was written at (Property, Unit Type, Unit, Other Rentable Item — the
-level's stored value is still the string `ORI`, only what a user reads changed) and is editable from
+level's stored value is still the string `ORI`, only what a user reads changed; `levelLabel()` is
+the one place that turns the value into words, so nothing renders it raw) and is editable from
 **either** that level's own page or the property's Charges — the unit and unit-type Recurring
 Charges tiles are full add / edit / remove, not a read-only mirror. The property's General tab
 carries no Recurring Charges tile, because Charges opens over that same page.

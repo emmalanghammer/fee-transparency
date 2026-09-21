@@ -4123,7 +4123,11 @@ class Component extends DCLogic {
 
   // ================= RENTAL FEE PROFILE (property tab) =================
   feeProfileTab(){ return this.feeProfileBody(); }
-  // Charge Level pill — Property / a unit-type name / Unit N / ORI.
+  // The one place a Charge Level turns into words. The stored value is still the string 'ORI' —
+  // it is what every level test and colour map keys off — so nothing that renders a level may
+  // print it raw.
+  levelLabel(v){ return v === 'ORI' ? 'Other Rentable Item' : (v || 'Property'); }
+  // Charge Level pill — Property / a unit-type name / Unit N / Other Rentable Item.
   // Every level names what it applies to: the unit, the unit type, the rentable-item type — and, at
   // property level, the property itself. prop is the property the row belongs to, which is the one on
   // screen everywhere except the copy flows.
@@ -5120,7 +5124,7 @@ class Component extends DCLogic {
       return `<label${act} style="display:flex;align-items:center;gap:10px;padding:5px 0;cursor:${r.lock ? 'default' : 'pointer'};font-size:14px;color:var(--rmx-brand-dark, #13314c)">
         ${box(on, r.lock, r.id)}
         <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.comment || r.type}</span>
-        <span class="lvl ${LVL[r.level] || 'lvl-prop'}" style="flex:none;font-size:12px;padding:1px 8px">${r.level === 'ORI' ? 'Other Rentable Item' : (r.level || 'Property')}</span>
+        <span class="lvl ${LVL[r.level] || 'lvl-prop'}" style="flex:none;font-size:12px;padding:1px 8px">${this.levelLabel(r.level)}</span>
         <span style="flex:none;min-width:116px;text-align:right;font-size:14px;color:var(--rmx-ink-2, #424e5b);white-space:nowrap">${money(r.amount)}${one ? '/one-time' : '/mo'}</span>
       </label>`;
     };
@@ -5622,7 +5626,7 @@ class Component extends DCLogic {
     const body = rows.map((r,i) => `<div style="display:grid;grid-template-columns:${cols};align-items:center;background:${i%2?'#f7fafc':'#fff'}">
       <span style="align-self:stretch;display:flex;justify-content:flex-end"><span style="width:6px;background:${lvl[r.level]||lvl['Property']}"></span></span>
       <span style="display:flex;align-items:center;justify-content:center;height:44px">${orange}</span>
-      ${cell(r.level)}
+      ${cell(this.levelLabel(r.level))}
       ${cell(r.mits)}${cell(r.desc||r.name)}
       ${cell(this.freqNum(r)||'1','justify-content:flex-end')}
       ${cell(r.from||'')}${cell(r.to||'')}
