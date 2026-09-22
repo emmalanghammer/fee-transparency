@@ -3547,7 +3547,9 @@ class Component extends DCLogic {
     const rows = this.listingsData()
       .map((l, i) => ({ l, i }))
       .filter(r => filt === 'all' || r.l.prop === filt)
-      .filter(r => !this.state.ltErrOnly || this.ltErrCount(r.l) > 0);
+      // "without errors" means the green tick in the Errors column — so charge details count too,
+      // not just the feed. It is the same question the column answers.
+      .filter(r => !this.state.ltErrOnly || this.ltIssues(r.l).total > 0);
     const out = [];
     rows.forEach(r => {
       let g = out.find(x => x.prop === r.l.prop);
@@ -3621,7 +3623,10 @@ class Component extends DCLogic {
       const convert = !canConvert ? ''
         : whole
         ? `<button data-act="pubOpen" data-arg="${esc(g.prop)}" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Convert to Fee Transparency</button>`
-        : `<button disabled title="${ch.incomplete} charge${ch.incomplete === 1 ? '' : 's'} still need marketing details" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font:500 14px Roboto,sans-serif;white-space:nowrap;background:var(--rmx-bg-muted, #f2f2f2);color:var(--rmx-text-muted, #b3b3b3);border:none;cursor:default">Convert to Fee Transparency</button>`;
+        // RMX's disabled primary: the brand blue at half alpha, white text — Foundations'
+        // Background/Color/brand-primary-disabled, which is `Light Alpha/Blue/50-500`. Not a grey
+        // button; it stays recognisably the same button, just not pressable yet.
+        : `<button disabled title="${ch.incomplete} charge${ch.incomplete === 1 ? '' : 's'} still need marketing details" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font:500 14px Roboto,sans-serif;white-space:nowrap;background:rgba(0,141,213,0.5);color:#fff;border:none;cursor:default">Convert to Fee Transparency</button>`;
       const bodyId = `ltg${gi}`;
       const toggle = `var b=document.getElementById('${bodyId}');var c=this.querySelector('.ico');var on=b.style.display==='none';b.style.display=on?'block':'none';if(window.__icoSwap)window.__icoSwap(c,on?'keyboard_arrow_up':'keyboard_arrow_down');`;
 
