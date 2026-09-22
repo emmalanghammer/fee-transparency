@@ -6538,7 +6538,7 @@ class Component extends DCLogic {
     const amtFlat = ed && /^\$/.test(ed.amount||'') ? (ed.amount||'').replace(/^\$/,'') : '';
     const radio = (label,value,blk) => `<label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--rmx-text, #666666);cursor:pointer"><input type="radio" name="m-amt-r" value="${value}" data-blk="${blk}" ${src===value?'checked':''} onchange="var b=this.getAttribute('data-blk');document.getElementById('m-source').value=this.value;['flat','ref','calc'].forEach(function(k){document.getElementById('m-blk-'+k).style.display=(k===b?'flex':'none')});if(window.__calcNote)window.__calcNote()" style="accent-color:var(--ac,var(--rmx-brand, #008dd5));width:16px;height:16px;margin:0">${label}</label>`;
     // A calendar icon opens the date picker; every other trailing icon is decoration.
-    const iconInput = (id,val,ph,icon) => `<div style="display:flex;align-items:center;gap:4px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><input id="${id}" value="${esc(val)}" placeholder="${ph}" oninput="if(window.__mitsRecheck)window.__mitsRecheck()" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">${icon === 'calendar_month'
+    const iconInput = (id,val,ph,icon) => `<div style="display:flex;align-items:center;gap:4px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><input id="${id}" value="${esc(val)}" placeholder="${ph}" oninput="if(window.__mitsRecheck)window.__mitsRecheck()" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">${!icon ? '' : icon === 'calendar_month'
       ? this.ico(icon, 18, 'color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer').replace('<svg ', `<svg onclick="if(window.__dpOpen)window.__dpOpen('${id}',this)" `)
       : this.ico(icon, 18, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</div>`;
     // A calculated amount has no single figure to publish, so listing providers show it as a varying
@@ -6561,7 +6561,7 @@ class Component extends DCLogic {
     const amountFields = `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Amount Method')}${dd('m-method',['Flat','Reference','Calculation'],src,{noSearch:true,js:methodJs})}</div>
       <div style="flex:1;min-width:0">
         <input type="hidden" id="m-source" value="${src}">
-        <div id="m-blk-flat" style="display:${src==='Flat'?'flex':'none'};flex-direction:column;gap:4px">${lab('Amount')}${iconInput('m-amount',amtFlat,'00.00','calculate')}</div>
+        <div id="m-blk-flat" style="display:${src==='Flat'?'flex':'none'};flex-direction:column;gap:4px">${lab('Amount')}${iconInput('m-amount',amtFlat,'00.00','')}</div>
         <div id="m-blk-ref" style="display:${src==='Reference'?'flex':'none'};flex-direction:column;gap:4px">${lab('Amount')}${dd('m-ref',['Market Rent','Field: Market Rent','Unit UDF: Parking Spot #'],'Market Rent',{noSearch:true})}</div>
         <div id="m-blk-calc" style="display:${src==='Calculation'?'flex':'none'};flex-direction:column;gap:4px">${lab('Amount')}${iconInput('m-calc','','','edit')}</div>
       </div>`;
