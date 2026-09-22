@@ -64,9 +64,9 @@ overlay or Marketing Setup usually belongs in A **and** C, since C only removed 
 Center.
 
 `variantSwitch()` is the **Version** dropdown that links all three, in the header beside the logo.
-Each option carries a second line saying what that design does with a charge's marketing details —
-on charges (B), in Marketing Setup (A), or both (C) — because the names alone don't say, and that
-is the whole comparison. Unlike Test Feature State it always shows: which design is on screen is
+Each option carries a second line saying what that design does with a charge's marketing details,
+because the names alone don't say and that is the whole comparison. The wording is the user's:
+B and C both read "Marketing details on both" and A reads "Marketing setup charge details". Unlike Test Feature State it always shows: which design is on screen is
 worth knowing in a walkthrough too. The link carries `location.search`, and `scenarioApply` writes the scenario into
 it as `?scen=<key>` (read back once in `componentDidMount`) — so the scenario you are testing
 survives the hop.
