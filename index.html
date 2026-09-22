@@ -160,7 +160,7 @@ class Component extends DCLogic {
       'The Highlands': true, 'Stonegate Village': true, 'The Hamptons': true },
     profileFees: {},
     // Marketing details a charge of each type should start with: code -> { name, marketing,
-    // requirement, feeDue, schedule, refundable }. Set from Pricing Setup, portfolio-wide.
+    // requirement, feeDue, schedule, refundable }. Set on the charge type itself, portfolio-wide.
     mktDef: {},
     profHist: null,
     // Bulk Update Charges: { idx, open:{rec,one} }. state.modal carries the charge being edited, so the
@@ -285,7 +285,7 @@ class Component extends DCLogic {
   // ---------- per-property Fee Transparency ----------
   // Properties that already have Fee Transparency on — the register's "Fee Transparency"
   // Happy Path opens part-way through: three of the four properties already have every marketing
-  // detail in place, so Pricing Setup has properties waiting to convert on the first screen and one
+  // detail in place, so the register has properties waiting to convert on the first screen and one
   // whose charges still need their details.
   happyReadyProps(){ return ['The Berkshires','The Windermere','Oakwood Manor']; }
   // Oakwood Manor has been through the whole thing — complete and converted — so the
@@ -1882,7 +1882,7 @@ class Component extends DCLogic {
     };
   }
   // The hairline between two header cells, marking where a column can be grabbed — same as the one
-  // on Pricing Setup. Purely visual: the drag itself comes off the header row's own mousedown, so
+  // on the property register. Purely visual: the drag comes off the header row's own mousedown, so
   // this only needs to sit at the boundary and carry the cursor. The cell must be position:relative.
   colDivider(){ return `<span title="Drag to resize" style="position:absolute;top:0;bottom:0;right:-4px;width:9px;display:flex;align-items:center;justify-content:center;cursor:col-resize;z-index:2"><span style="width:1px;height:calc(100% - 7px);background:var(--rmx-line, #cedbe7)"></span></span>`; }
   // Attributes a header row needs to be resizable. The key names the table for saved widths.
@@ -2490,7 +2490,7 @@ class Component extends DCLogic {
       // The Berkshires, The Highlands, Valley Forge and The Arbors are still on legacy charges.
     } else if (key === 'happy') {
       // The walkthrough opens with one property still on legacy charges and the rest waiting to
-      // convert, so both halves of the job are on screen from the first look at Pricing Setup.
+      // convert, so both halves of the job are on screen from the first look at the Marketing Center.
       ['The Berkshires','The Windermere'].forEach(n => convert(n, true, false));
       // Oakwood Manor is the finished one: complete and converted.
       convert('Oakwood Manor', true, true);
@@ -2640,7 +2640,7 @@ class Component extends DCLogic {
   }
   // ================= MARKETING CENTER =================
   // One page for everything that decides what a listing advertises. Three grains, so three tabs:
-  // properties (Pricing Setup), listings (one row per floor plan) and charge type defaults
+  // properties (the register), listings (one row per floor plan) and charge type defaults
   // (portfolio-wide). The scoreboard over them ties the three together — each amber number links
   // into the tab that fixes it.
   mcCounts(){
@@ -3364,7 +3364,7 @@ class Component extends DCLogic {
     // legacy way: rent only, with fees left off the listing.
     if (st.key === 'none' || st.ft === 'na') return { pill: 'Legacy', legacy: true };
     // The pill says how the listing is priced. A property that hasn't converted advertises rent the
-    // legacy way, however far along its charges are — that is the same thing Pricing Setup says
+    // legacy way, however far along its charges are — that is the same thing the register says
     // about it. A converted one stays Fee Transparent, and if it has since drifted it carries the
     // reason beside the pill rather than dropping back to Legacy and contradicting the hub.
     if (!published) return { pill: 'Legacy' };
@@ -4489,7 +4489,7 @@ class Component extends DCLogic {
     return this.acc(`${title} (${rows.length})`, sub, inner, null, 'pf-'+key, opts);
   }
   // Marketing details live on Marketing Setup's Pricing tab, so the Charges overlay no longer
-  // reports on them. Pricing Setup and that tab both carry the outstanding count.
+  // reports on them. The register and that tab both carry the outstanding count.
   mitsBanner(){ return ''; }
   mitsBannerOld(){
     const need = this.mitsIncompleteCount();
