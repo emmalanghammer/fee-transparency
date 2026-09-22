@@ -24,7 +24,9 @@ A card's header carries the property name, its **Listing Ready Charges** fractio
 greens only when whole, a **Convert to Fee Transparency** button, and a **Marketing Setup** link.
 The button shows from the start so the destination is obvious, but it is **disabled until every
 charge listings carry is ready** — its tooltip names how many are short — and it disappears once
-the property has converted, because there is nothing left to press. Its register is **Unit · Unit Type · Base Rent · Total Monthly Price ·
+the property has converted, because there is nothing left to press. Disabled is RMX's own
+`Background/Color/brand-primary-disabled` — the brand blue at half alpha with white text — so it
+stays recognisably the same button rather than turning grey. Its register is **Unit · Unit Type · Base Rent · Total Monthly Price ·
 Available · Errors**, one row per advertised unit (`listingsData()` in C is unit-level, with
 bed/bath and per-provider state). **Total Monthly Price reads `-` until the property has actually
 converted** (`publishedProps`): a property that hasn't still advertises rent alone, so it has no
@@ -37,7 +39,9 @@ takes the worst tone: a rejected feed is a red circle, charges alone an amber tr
 outstanding a green tick. Clicking any of them opens `ltErrHTML`, which shows all three as
 collapsible sections with a green tick on the clean ones, so it answers "is it this?" for each
 source. No explanatory line under a heading: the icon already says clean or not and the count
-already says how much.
+already says how much. **Hide listings without errors** (`ltErrOnly`) filters on
+`ltIssues().total`, so it hides exactly the rows whose Errors column shows a green tick — charge
+details count, not just the feed.
 
 `ltGroups()` stamps each row with its index in `listingsData()`, because that index is what the
 errors dialog looks a listing up by and `listingsData()` builds fresh objects on every call —
