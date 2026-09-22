@@ -41,9 +41,11 @@ errors dialog looks a listing up by and `listingsData()` builds fresh objects on
 identity can't do it.
 
 **C is A minus a page, not a different model.** Marketing details are still edited in Marketing
-Setup › Pricing; the property page's own overlay (`mktSetupHTML`) is the only way in, and
-`mcOpenProp` — still the name on the Next Step link — opens it there rather than in a Marketing
-Center. `listingsData()` is filtered to `propNames()` in C and only in C: once Listings is the
+Setup › Pricing, through the same `mktSetupHTML` overlay. `mcOpenProp` is what opens it — from a
+card's **Marketing Setup** link and from the breakdown's **Add charge details** — and when it is
+called from Listings it does **not** navigate: `mktSetupHTML` renders after the view switch, so the
+overlay lands over whatever page is current and Cancel leaves you on Listings rather than stranding
+you on the property. Called from anywhere else it still goes to the property page. `listingsData()` is filtered to `propNames()` in C and only in C: once Listings is the
 portfolio view, a scoreboard reading 4/4 over thirteen properties' listings is a contradiction.
 
 **So a change request needs a variant named.** "Change X" is ambiguous — ask which of the two, or

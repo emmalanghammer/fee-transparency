@@ -1012,9 +1012,14 @@ class Component extends DCLogic {
       case 'mcOpenProp': { const short = this.ftCharges(arg).incomplete;
         this._mpDraft = null; this._mpDraftProp = null;
         // ltErr clears too: this is also the way out of the Needs Attention breakdown, and the
-        // dialog would otherwise sit over the page it just sent you to.
-        this.go('property', { property: arg, propTab: 'General', profMenu: null, rowMenu: null,
-          ltErr: null, mktSetup: true, mktTab: short ? 'Pricing' : 'General', mpExp: null });
+        // dialog would otherwise sit over the page it just opened.
+        const opens = { property: arg, profMenu: null, rowMenu: null, ltErr: null,
+          mktSetup: true, mktTab: short ? 'Pricing' : 'General', mpExp: null };
+        // Opened from Listings, it stays there: the overlay renders over whatever view is current,
+        // so Cancel closes it and leaves you on the page you called it from rather than stranding
+        // you on the property.
+        if (this.state.view === 'feetrans') { this._resetScroll = false; this.setState(opens); }
+        else this.go('property', Object.assign({ propTab: 'General' }, opens));
         break; }
       case 'navPetTypes': this.go('pettypes'); break;
       case 'navChargeTypes': this.go('chargetypes'); break;
