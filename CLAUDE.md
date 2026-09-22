@@ -28,7 +28,9 @@ transparency.
 first provider and hides the rest behind a **+N** that opens to list them all), and the columns are
 Property · Unit · Feed Status · Base Rent · Total Monthly · Fees · Available · Providers · Needs
 Attention. Derivations, all in C: `ltFeed` (Sent / Partly sent / Not sent, with Held and Stopped
-set on the listing), `ltFees` (Complete / N missing / Not started, from `ftCharges(prop)`),
+set on the listing), `ltFees` (a **Listing Ready Charges** fraction from `ftCharges(prop)`, with a
+dot that greens only when it is whole — or **Not applicable** where complete pricing can never
+apply, which is manufactured housing on MH Village),
 `ltLabel`, and `ltIssues` — which is the whole of Needs Attention.
 
 **Needs Attention is one badge over three sources**, because what holds a listing back is fixed in

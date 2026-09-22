@@ -3363,7 +3363,10 @@ class Component extends DCLogic {
       { prop:'The Arbors',           unit:'14',  beds:2, baths:2,   avail:'10/31/26', base:1080.00, providers:all3(true, true, true) },
       { prop:'Stonegate Village',    unit:'8',   beds:2, baths:2,   avail:'11/01/26', base:1260.00, providers:[P('Zillow'), P('Apts.com')] },
       { prop:'The Hamptons',         unit:'12',  beds:2, baths:2,   avail:'09/01/26', base:1300.00, providers:all3(true, true, true) },
-      { prop:'The Hamptons',         unit:'',    beds:4, baths:2,   avail:'12/31/26', base:2500.00, providers:[P('Zillow')], rmErrors:1 }
+      { prop:'The Hamptons',         unit:'',    beds:4, baths:2,   avail:'12/31/26', base:2500.00, providers:[P('Zillow')], rmErrors:1 },
+      // Manufactured housing: listed, but on a feed that carries no complete pricing — so Listing
+      // Ready Charges reads Not applicable rather than a fraction nobody can ever finish.
+      { prop:'Clearcreek Condominiums', unit:'7', beds:2, baths:1, avail:'10/10/26', base:1080.00, providers:[P('MH Village')] }
     ].map(l => Object.assign({}, l, {
       // What the old floor-plan register called plan/type, kept so the errors popup and anything
       // else reading a listing still has them.
@@ -3400,12 +3403,15 @@ class Component extends DCLogic {
   // Marketing details, from the property's charges. Not started means nobody has filled in a single
   // charge yet — which is also why that row can't show a total monthly price.
   ltFees(l){
+    if (!this.ftApplicable(l.prop)) return { na:true };
     const ch = this.ftCharges(l.prop);
     const onList = ch.ready + ch.incomplete;
-    if (!onList) return { label:'No charges', tone:'grey' };
-    if (!ch.incomplete) return { label:'Complete', tone:'green' };
-    if (!ch.ready) return { label:'Not started', tone:'grey', none:true };
-    return { label: ch.incomplete + ' missing', tone:'amber' };
+    if (!onList) return { na:true };
+    return { ready: ch.ready, total: onList,
+      // Green only when the fraction is whole — the same signal the Overview register gave.
+      tone: ch.incomplete ? 'amber' : 'green',
+      // Nothing filled in yet, so there is no total monthly price to advertise either.
+      none: !ch.ready };
   }
   // Where the listing actually stands with the providers. A held or stopped feed is set on the
   // listing; everything else follows from how many providers have it.
@@ -3582,10 +3588,10 @@ class Component extends DCLogic {
       <button data-act="toast" data-arg="Update Listings Feed" class="btn-pri" style="display:inline-flex;align-items:center;gap:8px;height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M483-120q-75 0-141-28.5T226.5-226q-49.5-49-78-115T120-482q0-75 28.5-140t78-113.5Q276-784 342-812t141-28q80 0 151.5 35T758-709v-106h60v208H609v-60h105q-44-51-103.5-82T483-780q-125 0-214 85.5T180-485q0 127 88 216t215 89q125 0 211-88t86-213h60q0 150-104 255.5T483-120Zm122-197L451-469v-214h60v189l137 134-43 43Z"/></svg>Update Listings Feed</button>
     </div>`;
     const colK = 'listings';
-    const cols = this.colTracks(colK, '235fr 150fr 125fr 105fr 130fr 125fr 105fr 165fr 135fr 38px');
+    const cols = this.colTracks(colK, '225fr 145fr 120fr 100fr 125fr 165fr 100fr 160fr 130fr 38px');
     const hc = (t, first, right) => `<span style="display:flex;align-items:center;${right?'justify-content:flex-end;':''}gap:8px;height:26px;box-sizing:border-box;padding:${first?'0 12px 0 17px':'0 12px'};font-size:14px;font-weight:600;color:#fff;white-space:nowrap;${first?'':'border-left:1px solid rgba(255,255,255,0.35)'}">${t}</span>`;
     const header = `<div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">
-      ${hc('Property', true)}${hc('Unit')}${hc('Feed Status')}${hc('Base Rent', false, true)}${hc('Total Monthly', false, true)}${hc('Fees')}${hc('Available')}${hc('Providers')}${hc('Needs Attention')}
+      ${hc('Property', true)}${hc('Unit')}${hc('Feed Status')}${hc('Base Rent', false, true)}${hc('Total Monthly', false, true)}${hc('Listing Ready Charges')}${hc('Available')}${hc('Providers')}${hc('Needs Attention')}
       <span style="display:flex;align-items:center;justify-content:center;height:26px;border-left:1px solid rgba(255,255,255,0.35)"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:#fff"><path d="M120-260v-440q0-24.75 17.63-42.38Q155.25-760 180-760h600q24.75 0 42.38 17.62Q840-724.75 840-700v440q0 24.75-17.62 42.37Q804.75-200 780-200H180q-24.75 0-42.37-17.63Q120-235.25 120-260Zm60 0h160v-440H180v440Zm220 0h160v-440H400v440Zm220 0h160v-440H620v440Z"/></svg></span>
     </div>`;
     const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:39px;box-sizing:border-box;padding:0 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
@@ -3616,7 +3622,7 @@ class Component extends DCLogic {
       const att = this.ltAttention(l);
       // Without a single charge filled in there is no total to advertise, so the cell says that
       // rather than showing base rent twice or a zero.
-      const totalCell = fees.none
+      const totalCell = (fees.na || fees.none)
         ? muted('Fees not set')
         : cell(money(l.base + this.ltMonthlyFees(l.prop)), 'font-weight:600;justify-content:flex-end;text-align:right');
       const attCell = !att ? cell('<span style="color:var(--rmx-text-muted, #b3b3b3)">—</span>')
@@ -3638,7 +3644,7 @@ class Component extends DCLogic {
         ${dotText(feed.label, feed.tone)}
         ${cell(money(l.base), 'justify-content:flex-end;text-align:right')}
         ${totalCell}
-        ${dotText(fees.label, fees.tone)}
+        ${fees.na ? muted('Not applicable') : dotText(fees.ready + '/' + fees.total, fees.tone)}
         ${l.avail ? cell(l.avail) : cell('<span style="color:var(--rmx-text-muted, #b3b3b3)">—</span>')}
         ${provCell(l, ri)}
         ${attCell}
