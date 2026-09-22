@@ -3607,16 +3607,21 @@ class Component extends DCLogic {
       const ch = this.ftCharges(g.prop);
       const onList = ch.ready + ch.incomplete;
       const whole = onList > 0 && ch.incomplete === 0;
-      const st = this.ftStatus(g.prop);
       // The fraction sits on the property, because that is the level the work happens at. A property
       // with nothing listings can carry has none to report.
       const ready = !this.ftApplicable(g.prop) || !onList ? ''
         : `<span style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap">Listing Ready Charges:
             <span style="display:inline-flex;align-items:center;gap:7px;font-style:italic;color:var(--rmx-brand-dark, #13314c)"><span style="width:8px;height:8px;border-radius:50%;flex:none;background:${whole ? 'var(--rmx-success, #6eb744)' : 'var(--rmx-attention, #f58220)'}"></span>${ch.ready}/${onList}</span>
           </span>`;
-      // The one move a property that is ready still has to make.
-      const convert = st.key === 'ready'
-        ? `<button data-act="pubOpen" data-arg="${esc(g.prop)}" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Convert to Fee Transparency</button>` : '';
+      // The one move a property still has to make — shown from the start so it is clear that is
+      // where this ends up, but only live once every charge listings carry is ready. A property
+      // that has already converted has nothing left to press.
+      const converted = !!this.state.publishedProps[g.prop];
+      const canConvert = this.ftApplicable(g.prop) && onList > 0 && !converted;
+      const convert = !canConvert ? ''
+        : whole
+        ? `<button data-act="pubOpen" data-arg="${esc(g.prop)}" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Convert to Fee Transparency</button>`
+        : `<button disabled title="${ch.incomplete} charge${ch.incomplete === 1 ? '' : 's'} still need marketing details" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font:500 14px Roboto,sans-serif;white-space:nowrap;background:var(--rmx-bg-muted, #f2f2f2);color:var(--rmx-text-muted, #b3b3b3);border:none;cursor:default">Convert to Fee Transparency</button>`;
       const bodyId = `ltg${gi}`;
       const toggle = `var b=document.getElementById('${bodyId}');var c=this.querySelector('.ico');var on=b.style.display==='none';b.style.display=on?'block':'none';if(window.__icoSwap)window.__icoSwap(c,on?'keyboard_arrow_up':'keyboard_arrow_down');`;
 
@@ -3638,7 +3643,9 @@ class Component extends DCLogic {
       const body = g.rows.map(({ l, i }) => {
         const fees = this.ltFees(l);
         const is = this.ltIssues(l);
-        const total = (fees.na || fees.none) ? '-' : money(l.base + this.ltMonthlyFees(l.prop));
+        // Only a converted property advertises a total; everything else still lists rent alone,
+        // so there is no total monthly price to show yet.
+        const total = this.state.publishedProps[l.prop] ? money(l.base + this.ltMonthlyFees(l.prop)) : '-';
         // One icon, worst first: a rejected feed outranks charges still missing their details.
         const mark = is.tone === 'red' ? ERR : is.tone === 'amber' ? WARN : OK;
         return `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background='#fff'">

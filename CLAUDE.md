@@ -21,11 +21,14 @@ the page is the register and nothing else. Above it sit the fee-transparency cal
 card each.
 
 A card's header carries the property name, its **Listing Ready Charges** fraction with a dot that
-greens only when whole, a **Convert to Fee Transparency** button when `ftStatus` says ready, and a
-**Marketing Setup** link. Its register is **Unit · Unit Type · Base Rent · Total Monthly Price ·
+greens only when whole, a **Convert to Fee Transparency** button, and a **Marketing Setup** link.
+The button shows from the start so the destination is obvious, but it is **disabled until every
+charge listings carry is ready** — its tooltip names how many are short — and it disappears once
+the property has converted, because there is nothing left to press. Its register is **Unit · Unit Type · Base Rent · Total Monthly Price ·
 Available · Errors**, one row per advertised unit (`listingsData()` in C is unit-level, with
-bed/bath and per-provider state). Total Monthly Price reads `-` when no marketing details are
-filled in — there is no total to advertise yet.
+bed/bath and per-provider state). **Total Monthly Price reads `-` until the property has actually
+converted** (`publishedProps`): a property that hasn't still advertises rent alone, so it has no
+total to show — finishing its charges is not the same as publishing them.
 
 **Errors is one icon per row, and it opens the breakdown.** `ltIssues` totals three sources —
 `ltChargeIssues` (charges whose marketing details are short), the listing's `rm` errors (Rent
