@@ -5,23 +5,14 @@ A Rent Manager Express pricing-setup / fee-transparency prototype. Everything li
 delegated `data-act` / `data-arg` dispatcher in `onClick`. `support.js` and `ds/` are the
 Design Components runtime and the RMX design system; don't edit them.
 
-## Three designs, side by side
+## Two designs, side by side
 
-Three whole prototypes are served off the same deploy, so they can be compared live:
+Two whole prototypes are served off the same deploy, so they can be compared live:
 
 | File | URL | Design |
 |---|---|---|
 | `index.html` | `…/fee-transparency/` | **A — Marketing Center**: marketing details are edited in Marketing Setup › Pricing, and charge-type defaults live on Charge Type Details. |
-| `original.html` | `…/fee-transparency/original.html` | **B — Pricing Setup**: the 2026-09-17 design (`main`) — Pricing Setup register, marketing details and Listing Ready columns inside the Charges overlay, Group by Requirement, Bulk Update with marketing fields — **plus** charge-type defaults, which `main` itself has no concept of. |
 | `listings.html` | `…/fee-transparency/listings.html` | **C — Listings**: A with the Marketing Center removed. There is no portfolio register and no Property Marketing Setup tab — the **Listings** page is the portfolio view, so it carries the scoreboard and every listing row wears its property's Listing Ready fraction and Next Step. |
-
-**B has no centralization step either.** `seededProfiles()` returns every property, so the whole
-portfolio is centralized from the first look and `profileRows` falls back to the charges the
-property already runs with their marketing details blank. Everything that asks "is this property
-centralized" goes through `profStatus`, so that one line also hides the Not Centralized status,
-the set-up banner, the wizard and Bulk Centralize — they have nothing left to do. What remains is
-the same two-step journey A has: fill in each charge's marketing details, then convert to fee
-transparency.
 
 **C's listings register is a feed register, not a pricing one.** A row is an advertised **unit**
 (`listingsData()` in C is unit-level, with bed/bath and per-provider state; `provCell` names the
@@ -53,30 +44,27 @@ Setup › Pricing; the property page's own overlay (`mktSetupHTML`) is the only 
 Center. `listingsData()` is filtered to `propNames()` in C and only in C: once Listings is the
 portfolio view, a scoreboard reading 4/4 over thirteen properties' listings is a contradiction.
 
-**B is a fixed comparison point.** It is `main`'s design with exactly one thing added, and the
-things deliberately left out of it are: Charge Category required on the charge, the collapsed
-Marketing Details section on the charge form, and everything Marketing Center. Don't drift it
-toward A.
+**So a change request needs a variant named.** "Change X" is ambiguous — ask which of the two, or
+do both, but never assume `index.html`. A change to the charge form, the Charges overlay or
+Marketing Setup almost always belongs in **both**, since C only removed the Marketing Center.
 
-**So a change request needs a variant named.** "Change X" is ambiguous now — ask which of the
-three, or do all of them, but never assume `index.html`. A change to the charge form, the Charges
-overlay or Marketing Setup usually belongs in A **and** C, since C only removed the Marketing
-Center.
+**A third design, Pricing Setup, was removed on 2026-09-22** — `main`'s design with charge-type
+defaults added, served as `original.html`. `git show 346a980:original.html` brings it back if it
+is ever wanted; `main` still holds the design without the defaults.
 
-`variantSwitch()` is the **Version** dropdown that links all three, in the header beside the logo.
+`variantSwitch()` is the **Version** dropdown that links both, in the header beside the logo.
 Each option carries a second line saying what that design does with a charge's marketing details,
-because the names alone don't say and that is the whole comparison. The wording is the user's:
-B reads "Marketing details on charge", A "Marketing setup charge details", C "Marketing details
-on both".
+because the names alone don't say and that is the whole comparison. The wording is the user's: A reads "Marketing setup charge
+details", C "Marketing details on both".
 
-**Charge-type marketing defaults are in all three**, identically — the Marketing Details tile on
+**Charge-type marketing defaults are in both**, identically — the Marketing Details tile on
 Charge Type Details, the "How do you want to apply these?" dialog, and `saveFee` pre-filling a
 newly created charge. A change to `mktDef*` belongs in every file. Unlike Test Feature State it always shows: which design is on screen is
 worth knowing in a walkthrough too. The link carries `location.search`, and `scenarioApply` writes the scenario into
 it as `?scen=<key>` (read back once in `componentDidMount`) — so the scenario you are testing
 survives the hop.
 
-The three files share every asset: the workflow uploads the repo root with no build step,
+Both files share every asset: the workflow uploads the repo root with no build step,
 `.nojekyll` is present, and every path in the head is document-relative.
 
 ## Branches
@@ -110,7 +98,7 @@ it should be a **new** artifact rather than this one.
 - **Check the syntax before you deploy.** The whole app is one `<script>` block inside a
   template-literal-heavy file; a stray backtick breaks the page silently. Parse each `<script>`
   with `new Function` and fail on the first error — over **both** `index.html` and
-  `original.html`, whichever one you edited: `node .claude/check-syntax.mjs`.
+  `listings.html`, whichever one you edited: `node .claude/check-syntax.mjs`.
 - **Edit by exact-string replacement, with an assert on the match count.** Several blocks in
   `index.html` are near-identical (the charge callout appears three times, `Transactions` tiles
   twice); a loose match patches the wrong one.
