@@ -26,8 +26,8 @@ transparency.
 **C's listings register is a feed register, not a pricing one.** A row is an advertised **unit**
 (`listingsData()` in C is unit-level, with bed/bath and per-provider state; `provCell` names the
 first provider and hides the rest behind a **+N** that opens to list them all), and the columns are
-Property · Unit · Feed Status · Base Rent · Total Monthly · Fees · Available · Providers · Needs
-Attention. Derivations, all in C: `ltFeed` (Sent / Partly sent / Not sent, with Held and Stopped
+Property · Unit · Base Rent · Total Monthly · Available · Feed Status · Listing Ready Charges ·
+Providers · Needs Attention — what the unit is and what it costs, then how it is doing. Derivations, all in C: `ltFeed` (Sent / Partly sent / Not sent, with Held and Stopped
 set on the listing), `ltFees` (a **Listing Ready Charges** fraction from `ftCharges(prop)`, with a
 dot that greens only when it is whole — or **Not applicable** where complete pricing can never
 apply, which is manufactured housing on MH Village),
