@@ -14,29 +14,31 @@ Two whole prototypes are served off the same deploy, so they can be compared liv
 | `index.html` | `…/fee-transparency/` | **A — Marketing Center**: marketing details are edited in Marketing Setup › Pricing, and charge-type defaults live on Charge Type Details. |
 | `listings.html` | `…/fee-transparency/listings.html` | **C — Listings**: A with the Marketing Center removed. There is no portfolio register and no Property Marketing Setup tab — the **Listings** page is the portfolio view, so it carries the scoreboard and every listing row wears its property's Listing Ready fraction and Next Step. |
 
-**C's listings register is a feed register, not a pricing one.** A row is an advertised **unit**
-(`listingsData()` in C is unit-level, with bed/bath and per-provider state; `provCell` names the
-first provider and hides the rest behind a **+N** that opens to list them all), and the columns are
-Property · Unit · Base Rent · Total Monthly · Available · Feed Status · Listing Ready Charges ·
-Providers · Needs Attention — what the unit is and what it costs, then how it is doing. Derivations, all in C: `ltFeed` (Sent / Partly sent / Not sent, with Held and Stopped
-set on the listing), `ltFees` (a **Listing Ready Charges** fraction from `ftCharges(prop)`, with a
-dot that greens only when it is whole — or **Not applicable** where complete pricing can never
-apply, which is manufactured housing on MH Village),
-`ltLabel`, and `ltIssues` — which is the whole of Needs Attention.
+**C's Listings page is a stack of property cards**, matching Figma `3508:74061`. No scoreboard:
+the page is the register and nothing else. Above it sit the fee-transparency callout and a toolbar
+(Find a listing · Property · Hide listings without errors · Update Listings Feed); below it,
+`ltGroups()` gathers the listings under their property and `listingsBody` renders one collapsible
+card each.
 
-**Needs Attention is one badge over three sources**, because what holds a listing back is fixed in
-three different places: `ltChargeIssues` (charges whose marketing details are short, so there is
-no complete price to publish), the listing's `rm` errors (Rent Manager's own fields) and its `tz`
-errors, attributed to whichever providers carry `err`. `ltIssues` totals them and takes the worst
-tone — a rejected feed is red, charges alone are amber. The badge always opens `ltErrHTML`, which
-shows all three as collapsible sections — icon, title, count — with a green tick on the clean
-ones, so it answers "is it this?" for each source without the reader having to know the sources
-exist. No explanatory line under a heading: the icon already says clean or not and the count
-already says how much. `ltErrOnly` and the
-red scoreboard card stay on feed errors only, which is what the checkbox says. Total Monthly reads *Fees not set* exactly when Fees is Not started — with nothing
-filled in there is no total to advertise. The register has **no selection column**, and
-Property / Unit is plain text: the kebab is the only way into a row, so nothing on it invites a
-click that goes nowhere.
+A card's header carries the property name, its **Listing Ready Charges** fraction with a dot that
+greens only when whole, a **Convert to Fee Transparency** button when `ftStatus` says ready, and a
+**Marketing Setup** link. Its register is **Unit · Unit Type · Base Rent · Total Monthly Price ·
+Available · Errors**, one row per advertised unit (`listingsData()` in C is unit-level, with
+bed/bath and per-provider state). Total Monthly Price reads `-` when no marketing details are
+filled in — there is no total to advertise yet.
+
+**Errors is one icon per row, and it opens the breakdown.** `ltIssues` totals three sources —
+`ltChargeIssues` (charges whose marketing details are short), the listing's `rm` errors (Rent
+Manager's own fields) and its `tz` errors, attributed to whichever providers carry `err` — and
+takes the worst tone: a rejected feed is a red circle, charges alone an amber triangle, nothing
+outstanding a green tick. Clicking any of them opens `ltErrHTML`, which shows all three as
+collapsible sections with a green tick on the clean ones, so it answers "is it this?" for each
+source. No explanatory line under a heading: the icon already says clean or not and the count
+already says how much.
+
+`ltGroups()` stamps each row with its index in `listingsData()`, because that index is what the
+errors dialog looks a listing up by and `listingsData()` builds fresh objects on every call —
+identity can't do it.
 
 **C is A minus a page, not a different model.** Marketing details are still edited in Marketing
 Setup › Pricing; the property page's own overlay (`mktSetupHTML`) is the only way in, and

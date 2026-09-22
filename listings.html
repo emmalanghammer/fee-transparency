@@ -212,7 +212,6 @@ class Component extends DCLogic {
     spNav: 'Tenant Charge Setup', // System Preferences left-nav selection
     spBanner: true, // System Preferences Fee Transparency banner not yet dismissed
     ltErrOnly: false,
-    ltShortOnly: false,   // Listings: only the listings their property's missing details block
  // Listings page: hide listings without errors
     ltErr: null, // { i, open } — Listing Errors popup for one listing
     // Charges register columns: chgCols is the chosen keys in order (null = defaults), colNames holds
@@ -1210,7 +1209,6 @@ class Component extends DCLogic {
       case 'mktAdvSave': this.setState({ mktAdv: false }); this.flash('Advanced settings saved'); break;
       case 'ltPropSet': this.setState({ ltProp: arg }); break;
       case 'ltErrToggle': this.setState(s => ({ ltErrOnly: !s.ltErrOnly })); break;
-      case 'ltShortToggle': this.setState(s => ({ ltShortOnly: !s.ltShortOnly })); break;
       case 'colSetupOpen': this.setState({ colSetup: true }); break;
       case 'colSetupClose': this.setState({ colSetup: false }); break;
       case 'colSetupApply': { const r = this.colSetupRead();
@@ -2534,7 +2532,7 @@ class Component extends DCLogic {
       copyFees: null, pricePreview: null, profMenu: null, profHist: null,
       recView: null, rowMenu: null, pubModal: null, ftSel: null, mktDef: {},
       mktSetup: false, mktAdv: false, mktTab: 'General', petType: null, spBanner: true, ftHelp: false,
-      lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false, ltShortOnly: false, mcTab: 'Overview',
+      lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false, mcTab: 'Overview',
       mcProp: null, mktDefDraft: null, mktDefAsk: false, mktDefMode: 'blank', mpExp: null
     });
     try {
@@ -2724,31 +2722,12 @@ class Component extends DCLogic {
   // This version has no Marketing Center. The Listings page IS the portfolio view, so it carries
   // the scoreboard the Overview register used to, and every listing row wears its property's
   // listing-ready fraction and next step — the two things you used to have to leave for.
+  // The design has no scoreboard: the Listings page is the register and nothing else. What the
+  // cards used to report now sits where the work is — each property group carries its own Listing
+  // Ready Charges fraction, and each row its own error state.
   listingsPageBody(){
     return `<div style="display:flex;flex-direction:column;flex:1;min-height:0">
-      <div style="padding:16px 24px 0;flex:none">${this.ltScoreboard()}</div>
       <div style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column">${this.listingsBody()}</div>
-    </div>`;
-  }
-  // The same four numbers, over the only page there is. The two that mean work still filter the
-  // table below them and stay tinted while they are the filter on screen.
-  ltScoreboard(){
-    const c = this.mcCounts();
-    const st = this.state;
-    const card = (label, value, tone, act, on) => {
-      const col = tone === 'red' ? 'var(--rmx-error, #eb343c)' : tone === 'amber' ? 'var(--rmx-attention, #f58220)' : '';
-      const tint = tone === 'red' ? '#fdecee' : '#fdf3e7';
-      const hov = act ? ` data-act="${act}" data-on="${on ? '1' : '0'}" onmouseover="if(this.getAttribute('data-on')!=='1')this.style.background='${tint}'" onmouseout="if(this.getAttribute('data-on')!=='1')this.style.background='#fff'"` : '';
-      return `<div${hov} style="display:flex;flex-direction:column;gap:6px;background:${on && act ? tint : '#fff'};border:1px solid var(--rmx-line, #cedbe7);${col ? 'border-left:4px solid ' + col + ';' : ''}border-radius:4px;padding:13px 16px;min-width:0;${act ? 'cursor:pointer' : ''}">
-        <span style="font-size:13px;color:var(--rmx-text, #666666);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}</span>
-        <span style="font-size:18px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${value}</span>
-      </div>`;
-    };
-    return `<div style="display:grid;grid-template-columns:repeat(4, minmax(0,1fr));gap:16px;flex:none">
-      ${card('Properties being marketed', c.marketed + '/' + c.props)}
-      ${card('Total price advertised', c.published + '/' + c.props)}
-      ${card('Charges missing marketing details', String(c.short), 'amber', 'ltShortToggle', !!st.ltShortOnly)}
-      ${card('Listings that have errors', String(c.errs), 'red', 'ltErrToggle', !!st.ltErrOnly)}
     </div>`;
   }
   marketingCenterBody(){
@@ -3432,24 +3411,6 @@ class Component extends DCLogic {
       // Nothing filled in yet, so there is no total monthly price to advertise either.
       none: !ch.ready };
   }
-  // Where the listing actually stands with the providers. A held or stopped feed is set on the
-  // listing; everything else follows from how many providers have it.
-  ltFeed(l){
-    if (l.feed === 'Held') return { label:'Held', tone:'red' };
-    if (l.feed === 'Stopped') return { label:'Stopped', tone:'grey' };
-    const ps = l.providers || [];
-    if (!ps.length) return { label:'Not sent', tone:'grey' };
-    return ps.every(p => p.sent && !p.err)
-      ? { label:'Sent', tone:'green' }
-      : { label:'Partly sent', tone:'amber' };
-  }
-  // One badge for everything holding the listing up, coloured by the worst of it. It opens the
-  // breakdown rather than jumping somewhere, because the three sources are fixed in three
-  // different places and the row can't know which one you came for.
-  ltAttention(l){
-    const is = this.ltIssues(l);
-    return is.total ? { n: is.total, tone: is.tone } : null;
-  }
   ltMonthlyFees(p){
     return this.appliedRows(p)
       .filter(r => !/-one$/.test(r.group) && r.mits !== 'RC' && (this.resolvedListing(r).requirement || '') === 'Required')
@@ -3567,21 +3528,40 @@ class Component extends DCLogic {
         </div>
       </div></div>`;
   }
+  // Which floor plan a listing is, the way a listing writes it.
+  ltUnitType(l){
+    if (!l.beds) return 'Studio';
+    const b = (n) => (Math.round(n * 10) % 10) ? String(n) : String(Math.round(n));
+    return b(l.beds) + 'B/' + b(l.baths) + 'BA';
+  }
+  // The listings that survive the filters, gathered under their property in portfolio order. Each
+  // row keeps the index it had in `listingsData()` — that index is what the errors dialog looks a
+  // listing up by, and `listingsData()` builds fresh objects on every call, so identity can't do it.
+  ltGroups(){
+    const filt = this.state.ltProp || 'all';
+    const rows = this.listingsData()
+      .map((l, i) => ({ l, i }))
+      .filter(r => filt === 'all' || r.l.prop === filt)
+      .filter(r => !this.state.ltErrOnly || this.ltErrCount(r.l) > 0);
+    const out = [];
+    rows.forEach(r => {
+      let g = out.find(x => x.prop === r.l.prop);
+      if (!g) { g = { prop: r.l.prop, rows: [] }; out.push(g); }
+      g.rows.push(r);
+    });
+    return out;
+  }
   listingsBody(){
-    const money = (n) => n == null ? '\u2014' : '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    const money = (n) => n == null ? '-' : '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    const esc = s2 => (''+s2).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
     const all = this.listingsData();
     const props = all.map(l => l.prop).filter((v, i, a) => a.indexOf(v) === i);
     const filt = this.state.ltProp || 'all';
-    const rows = all
-      .filter(l => filt === 'all' || l.prop === filt)
-      // Still feed errors only — it is what the checkbox says and what the red card counts.
-      .filter(l => !this.state.ltErrOnly || this.ltErrCount(l) > 0)
-      // The scoreboard's amber card narrows the table to the listings the missing details block.
-      .filter(l => !this.state.ltShortOnly || this.ftCharges(l.prop).incomplete > 0);
+    const groups = this.ltGroups();
     // Nothing to warn about once every listing already advertises complete pricing.
     const needsFT = all.some(l => { const st = l.fixed || this.ltStatus(l.prop); return !st.total || !!st.warn; });
     const banner = `<div style="display:flex;align-items:center;gap:12px;background:#fef4e8;border:1px solid #f6b26b;border-radius:4px;padding:12px 16px">
-      <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-attention, #f58220);flex:none"><path d="m40-120 440-760 440 760H40Zm104-60h672L480-760 144-180Zm361.5-65.68q8.5-8.67 8.5-21.5 0-12.82-8.68-21.32-8.67-8.5-21.5-8.5-12.82 0-21.32 8.68-8.5 8.67-8.5 21.5 0 12.82 8.68 21.32 8.67 8.5 21.5 8.5 12.82 0 21.32-8.68ZM454-348h60v-224h-60v224Zm26-122Z"/></svg>
+      ${this.ico('warning', 20, 'color:var(--rmx-attention, #f58220);flex:none')}
       <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">A growing number of states require advertised rent to include every required fee, and listing sites are asking for the same. Fill in each charge's marketing details, convert the property to fee transparency, and its listings advertise a total monthly price instead of rent alone.</span>
     </div>`;
     const fopt = (v, t) => `<div data-act="ltPropSet" data-arg="${v}" style="padding:7px 14px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">${t}</div>`;
@@ -3589,101 +3569,97 @@ class Component extends DCLogic {
       <div style="display:flex;flex-direction:column;gap:4px;width:248px">
         <span style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))">Search</span>
         <div style="display:flex;align-items:center;gap:8px;height:36px;box-sizing:border-box;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;padding:0 8px">
-          <svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5))"><path d="M796-121 533-384q-30 26-70 40.5T378-329q-108 0-183-75t-75-181q0-106 75-181t182-75q106 0 180.5 75T632-585q0 43-14 83t-42 75l264 262-44 44ZM377-389q81 0 138-57.5T572-585q0-81-57-138.5T377-781q-82 0-139.5 57.5T180-585q0 81 57.5 138.5T377-389Z"/></svg>
+          ${this.ico('search', 18, 'color:var(--ac,var(--rmx-brand, #008dd5))')}
           <span style="flex:1;min-width:0;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">Find a listing</span>
         </div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:4px;width:220px">
+      <div style="display:flex;flex-direction:column;gap:4px;width:248px">
         <span style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))">Property</span>
         <span style="position:relative;display:flex">
-          <div onclick="var p=document.getElementById('lt-prop-pnl');p.style.display=(p.style.display==='block'?'none':'block')" style="flex:1;display:flex;align-items:center;height:36px;box-sizing:border-box;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;padding:0 8px;cursor:pointer"><span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden">${filt==='all'?'':filt}</span><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-text, #666666)"><path d="M480-344 240-584l43-43 197 197 197-197 43 43-240 240Z"/></svg></div>
-          <div id="lt-prop-pnl" style="display:none;position:absolute;left:0;top:38px;z-index:1000;min-width:220px;background:#fff;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);padding:4px 0">
+          <div onclick="var p=document.getElementById('lt-prop-pnl');p.style.display=(p.style.display==='block'?'none':'block')" style="flex:1;display:flex;align-items:center;height:36px;box-sizing:border-box;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;padding:0 8px;cursor:pointer"><span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden">${filt==='all'?'':filt}</span>${this.ico('keyboard_arrow_down', 18, 'color:var(--rmx-text, #666666)')}</div>
+          <div id="lt-prop-pnl" style="display:none;position:absolute;left:0;top:38px;z-index:1000;min-width:248px;background:#fff;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);padding:4px 0">
             ${fopt('all','All Properties')}${props.map(n => fopt(n, n)).join('')}
           </div>
         </span>
       </div>
       ${this.regCheck('Hide listings without errors', 'ltErrToggle', this.state.ltErrOnly)}
       <div style="flex:1"></div>
-      <button data-act="toast" data-arg="Update Listings Feed" class="btn-pri" style="display:inline-flex;align-items:center;gap:8px;height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M483-120q-75 0-141-28.5T226.5-226q-49.5-49-78-115T120-482q0-75 28.5-140t78-113.5Q276-784 342-812t141-28q80 0 151.5 35T758-709v-106h60v208H609v-60h105q-44-51-103.5-82T483-780q-125 0-214 85.5T180-485q0 127 88 216t215 89q125 0 211-88t86-213h60q0 150-104 255.5T483-120Zm122-197L451-469v-214h60v189l137 134-43 43Z"/></svg>Update Listings Feed</button>
+      <button data-act="toast" data-arg="Update Listings Feed" class="btn-pri" style="display:inline-flex;align-items:center;gap:8px;height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">${this.ico('autorenew', 18)}Update Listings Feed</button>
     </div>`;
+
+    // ---- one card per property: a header that says where the property stands, then its listings ----
     const colK = 'listings';
-    const cols = this.colTracks(colK, '225fr 145fr 100fr 125fr 100fr 120fr 165fr 160fr 130fr 38px');
-    const hc = (t, first, right) => `<span style="display:flex;align-items:center;${right?'justify-content:flex-end;':''}gap:8px;height:26px;box-sizing:border-box;padding:${first?'0 12px 0 17px':'0 12px'};font-size:14px;font-weight:600;color:#fff;white-space:nowrap;${first?'':'border-left:1px solid rgba(255,255,255,0.35)'}">${t}</span>`;
-    const header = `<div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">
-      ${hc('Property', true)}${hc('Unit')}${hc('Base Rent', false, true)}${hc('Total Monthly', false, true)}${hc('Available')}${hc('Feed Status')}${hc('Listing Ready Charges')}${hc('Providers')}${hc('Needs Attention')}
-      <span style="display:flex;align-items:center;justify-content:center;height:26px;border-left:1px solid rgba(255,255,255,0.35)"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:#fff"><path d="M120-260v-440q0-24.75 17.63-42.38Q155.25-760 180-760h600q24.75 0 42.38 17.62Q840-724.75 840-700v440q0 24.75-17.62 42.37Q804.75-200 780-200H180q-24.75 0-42.37-17.63Q120-235.25 120-260Zm60 0h160v-440H180v440Zm220 0h160v-440H400v440Zm220 0h160v-440H620v440Z"/></svg></span>
-    </div>`;
-    const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:39px;box-sizing:border-box;padding:0 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
-    // A status reads as a coloured dot and an italic word — the same shape in Feed Status and Fees,
-    // so the two scan as one thing the row is telling you rather than two unrelated codes.
-    const TONE = { green:'var(--rmx-success, #6eb744)', amber:'var(--rmx-attention, #f58220)',
-      red:'var(--rmx-error, #eb343c)', grey:'var(--rmx-text-muted, #b3b3b3)' };
-    const dotText = (label, tone) => `<span style="display:flex;align-items:center;gap:9px;min-height:39px;box-sizing:border-box;padding:0 12px;font-size:14px;font-style:italic;color:${tone==='grey'?'var(--rmx-text, #666666)':'var(--rmx-brand-dark, #13314c)'};white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;flex:none;background:${TONE[tone]}"></span>${label}</span>`;
-    // The first provider reads as plain text; the rest sit behind a +N that opens to list them all.
-    // A provider that rejected the listing stays red wherever its name appears — it is the only
-    // place the offending provider is named, and that is colour rather than more chrome.
-    const provName = (p) => `<span style="color:${p.err?'var(--rmx-error, #eb343c)':'var(--rmx-brand-dark, #13314c)'}">${p.name}</span>`;
-    const provCell = (l, ri) => {
-      const ps = l.providers || [];
-      if (!ps.length) return muted('Not sent to any provider');
-      const pid = `ltprov${ri}-pnl`;
-      // Positioned fixed and measured on open, like the row kebab — the cell clips its overflow.
-      const openJs = `event.stopPropagation();var t=document.getElementById('${pid}');if(t.style.display==='block'){t.style.display='none';return}t.style.display='block';var r=this.getBoundingClientRect();var h=t.offsetHeight;var y=r.bottom+4;if(y+h>window.innerHeight-8)y=r.top-h-4;t.style.left=r.left+'px';t.style.top=y+'px';`;
-      const more = ps.length < 2 ? '' : `<span onclick="${openJs}" style="display:inline-flex;align-items:center;gap:2px;flex:none;height:22px;box-sizing:border-box;padding:0 6px 0 9px;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:11px;font-size:13px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;background:#fff">+${ps.length - 1}<svg class="ico" width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M480-344 240-584l43-43 197 197 197-197 43 43-240 240Z"/></svg></span>
-        <div id="${pid}" onclick="this.style.display='none'" style="display:none;position:fixed;z-index:1200;min-width:150px;background:#fff;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);padding:4px 0">${ps.map(p => `<div style="padding:8px 16px;font-size:14px;white-space:nowrap">${provName(p)}</div>`).join('')}</div>`;
-      return `<span style="display:flex;align-items:center;gap:8px;min-height:39px;box-sizing:border-box;padding:0 12px;font-size:14px;white-space:nowrap;overflow:hidden">${provName(ps[0])}${more}</span>`;
-    };
-    const muted = (t) => `<span style="display:flex;align-items:center;min-height:39px;box-sizing:border-box;padding:0 12px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3);white-space:nowrap">${t}</span>`;
-    const body = rows.map((l, ri) => {
-      const i = all.indexOf(l);
-      const fees = this.ltFees(l);
-      const feed = this.ltFeed(l);
-      const att = this.ltAttention(l);
-      // Without a single charge filled in there is no total to advertise, so the cell says that
-      // rather than showing base rent twice or a zero.
-      const totalCell = (fees.na || fees.none)
-        ? muted('Fees not set')
-        : cell(money(l.base + this.ltMonthlyFees(l.prop)), 'font-weight:600;justify-content:flex-end;text-align:right');
-      const attCell = !att ? cell('<span style="color:var(--rmx-text-muted, #b3b3b3)">—</span>')
-        : `<span data-act="ltErrOpen" data-arg="${i}" style="display:flex;align-items:center;gap:7px;min-height:39px;box-sizing:border-box;padding:0 12px;font-size:14px;cursor:pointer;color:${att.tone==='red'?'#a3252c':'#7a5a2a'};white-space:nowrap">${att.tone === 'red'
-            ? `<svg class="ico" width="17" height="17" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-error, #eb343c);flex:none"><path d="M503.5-289.48q9.5-9.48 9.5-23.5t-9.48-23.52q-9.48-9.5-23.5-9.5t-23.52 9.48q-9.5 9.48-9.5 23.5t9.48 23.52q9.48 9.5 23.5 9.5t23.52-9.48ZM453-433h60v-253h-60v253Zm27.27 353q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Z"/></svg>`
-            : `<svg class="ico" width="17" height="17" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-attention, #f58220);flex:none"><path d="m40-120 440-760 440 760H40Zm465.5-125.68q8.5-8.67 8.5-21.5 0-12.82-8.68-21.32-8.67-8.5-21.5-8.5-12.82 0-21.32 8.68-8.5 8.67-8.5 21.5 0 12.82 8.68 21.32 8.67 8.5 21.5 8.5 12.82 0 21.32-8.68ZM454-348h60v-224h-60v224Z"/></svg>`}${att.n}</span>`;
-      const menuId = `lt${ri}-pnl`;
-      const mitem = (t, act, arg) => `<div data-act="${act}" data-arg="${(''+arg).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" style="display:flex;align-items:center;gap:10px;padding:9px 16px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">${t}</div>`;
-      const menuPos = `event.stopPropagation();var t=document.getElementById('${menuId}');if(t.style.display==='block'){t.style.display='none';}else{t.style.display='block';var r=this.getBoundingClientRect();var w=t.offsetWidth,h=t.offsetHeight;var l=r.right-w;if(l<8)l=8;var y=r.bottom+4;if(y+h>window.innerHeight-8)y=r.top-h-4;t.style.left=l+'px';t.style.top=y+'px';}`;
-      const items = mitem('Preview pricing','pricePreviewOpen',l.prop)
-        + mitem('Marketing setup','mcOpenProp',l.prop)
-        + mitem('Add charge details','mcOpenProp',l.prop);
-      return `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background='#fff'">
-        ${cell(l.prop, 'padding-left:17px')}
-        <span style="display:flex;align-items:center;gap:8px;min-height:39px;box-sizing:border-box;padding:0 12px;white-space:nowrap;overflow:hidden">
-          ${l.unit ? `<span style="min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);overflow:hidden;text-overflow:ellipsis">${l.unit}</span>` : ''}
-          <span style="flex:none;font-size:12px;color:var(--rmx-text, #666666)">${this.ltBedBath(l)}</span>
+    const cols = this.colTracks(colK, '230fr 200fr 170fr 230fr 180fr 110fr 38px');
+    const hc = (t, first, right) => `<span style="display:flex;align-items:center;${right?'justify-content:flex-end;':''}gap:8px;height:38px;box-sizing:border-box;padding:${first?'0 12px 0 17px':'0 12px'};font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${t}</span>`;
+    const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:0 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
+
+    const OK = `<svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-success, #6eb744)"><path d="m421-298 283-283-46-45-237 237-120-120-45 45 165 166Zm59 218q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 31.5-156t86-127Q252-817 325-848.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 82-31.5 155T763-197.5q-54 54.5-127 86T480-80Z"/></svg>`;
+    const WARN = `<svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-attention, #f58220)"><path d="m40-120 440-760 440 760H40Zm465.5-125.68q8.5-8.67 8.5-21.5 0-12.82-8.68-21.32-8.67-8.5-21.5-8.5-12.82 0-21.32 8.68-8.5 8.67-8.5 21.5 0 12.82 8.68 21.32 8.67 8.5 21.5 8.5 12.82 0 21.32-8.68ZM454-348h60v-224h-60v224Z"/></svg>`;
+    const ERR = `<svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-error, #eb343c)"><path d="M503.5-289.48q9.5-9.48 9.5-23.5t-9.48-23.52q-9.48-9.5-23.5-9.5t-23.52 9.48q-9.5 9.48-9.5 23.5t9.48 23.52q9.48 9.5 23.5 9.5t23.52-9.48ZM453-433h60v-253h-60v253Zm27.27 353q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Z"/></svg>`;
+
+    const group = (g, gi) => {
+      const open = !(this.state.ltClosed || {})[g.prop];
+      const ch = this.ftCharges(g.prop);
+      const onList = ch.ready + ch.incomplete;
+      const whole = onList > 0 && ch.incomplete === 0;
+      const st = this.ftStatus(g.prop);
+      // The fraction sits on the property, because that is the level the work happens at. A property
+      // with nothing listings can carry has none to report.
+      const ready = !this.ftApplicable(g.prop) || !onList ? ''
+        : `<span style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap">Listing Ready Charges:
+            <span style="display:inline-flex;align-items:center;gap:7px;font-style:italic;color:var(--rmx-brand-dark, #13314c)"><span style="width:8px;height:8px;border-radius:50%;flex:none;background:${whole ? 'var(--rmx-success, #6eb744)' : 'var(--rmx-attention, #f58220)'}"></span>${ch.ready}/${onList}</span>
+          </span>`;
+      // The one move a property that is ready still has to make.
+      const convert = st.key === 'ready'
+        ? `<button data-act="pubOpen" data-arg="${esc(g.prop)}" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Convert to Fee Transparency</button>` : '';
+      const bodyId = `ltg${gi}`;
+      const toggle = `var b=document.getElementById('${bodyId}');var c=this.querySelector('.ico');var on=b.style.display==='none';b.style.display=on?'block':'none';if(window.__icoSwap)window.__icoSwap(c,on?'keyboard_arrow_up':'keyboard_arrow_down');`;
+
+      const header = `<div style="display:flex;align-items:center;gap:14px;padding:12px 16px">
+        <span onclick="${toggle}" style="display:flex;align-items:center;gap:12px;cursor:pointer">
+          ${this.ico(open ? 'keyboard_arrow_up' : 'keyboard_arrow_down', 20, 'color:var(--rmx-text, #666666)')}
+          <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${esc(g.prop)}</span>
         </span>
-        ${cell(money(l.base), 'justify-content:flex-end;text-align:right')}
-        ${totalCell}
-        ${l.avail ? cell(l.avail) : cell('<span style="color:var(--rmx-text-muted, #b3b3b3)">—</span>')}
-        ${dotText(feed.label, feed.tone)}
-        ${fees.na ? muted('Not applicable') : dotText(fees.ready + '/' + fees.total, fees.tone)}
-        ${provCell(l, ri)}
-        ${attCell}
-        <span style="position:relative;display:flex;align-items:center;justify-content:center;min-height:39px">
-          <span onclick="${menuPos}" style="display:flex;cursor:pointer"><svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5))"><path d="M400-720a80 80 0 1 0 160 0 80 80 0 1 0-160 0ZM400-480a80 80 0 1 0 160 0 80 80 0 1 0-160 0ZM400-240a80 80 0 1 0 160 0 80 80 0 1 0-160 0Z"/></svg></span>
-          <div id="${menuId}" style="display:none;position:fixed;z-index:1200;min-width:200px;background:#fff;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);padding:4px 0" onclick="this.style.display='none'">${items}</div>
-        </span>
+        ${ready}${convert}
+        <div style="flex:1"></div>
+        <a data-act="mcOpenProp" data-arg="${esc(g.prop)}" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Marketing Setup</a>
       </div>`;
-    }).join('');
-    const empty = `<div style="background:#fff;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);padding:26px 17px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No listings — no properties are enabled for online listings.</div>`;
+
+      const head = `<div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};border-top:1px solid var(--rmx-line, #cedbe7);border-bottom:1px solid var(--rmx-line, #cedbe7)">
+        ${hc('Unit', true)}${hc('Unit Type')}${hc('Base Rent')}${hc('Total Monthly Price')}${hc('Available')}${hc('Errors')}
+        <span style="display:flex;align-items:center;justify-content:center;height:38px">${this.ico('view_column', 18, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
+      </div>`;
+
+      const body = g.rows.map(({ l, i }) => {
+        const fees = this.ltFees(l);
+        const is = this.ltIssues(l);
+        const total = (fees.na || fees.none) ? '-' : money(l.base + this.ltMonthlyFees(l.prop));
+        // One icon, worst first: a rejected feed outranks charges still missing their details.
+        const mark = is.tone === 'red' ? ERR : is.tone === 'amber' ? WARN : OK;
+        return `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background='#fff'">
+          ${cell(l.unit || '—', 'padding-left:17px')}
+          ${cell(this.ltUnitType(l))}
+          ${cell(money(l.base))}
+          ${cell(total)}
+          ${cell(l.avail || '—')}
+          <span data-act="ltErrOpen" data-arg="${i}" title="What needs attention" style="display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:0 12px;cursor:pointer">${mark}</span>
+          <span data-act="toast" data-arg="Listing actions" style="display:flex;align-items:center;justify-content:center;min-height:44px;cursor:pointer">${this.ico('more_vert', 20, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
+        </div>`;
+      }).join('');
+
+      return `<div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
+        ${header}
+        <div id="${bodyId}" style="display:${open ? 'block' : 'none'}">${head}${body}</div>
+      </div>`;
+    };
+
+    const empty = `<div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:26px 17px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No listings — no properties are enabled for online listings.</div>`;
+
     return `<div style="padding:16px 24px 24px;display:flex;flex-direction:column;gap:16px;flex:1;min-height:0">
       ${needsFT ? banner : ''}
       ${toolbar}
-      <div style="display:flex;flex-direction:column;gap:6px;flex:1;min-height:0">
-        <div style="overflow-x:auto"><div style="min-width:1240px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${header}${body || empty}</div></div>
-        <div style="flex:1"></div>
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
-          <span style="font-size:12px;color:var(--rmx-error, #eb343c)">ILS providers may require a paid account before your listings can be posted</span>
-          <span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">${rows.length} Listings</span>
-        </div>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        ${groups.length ? groups.map(group).join('') : empty}
       </div>
     </div>`;
   }
