@@ -12,8 +12,8 @@ Three whole prototypes are served off the same deploy, so they can be compared l
 | File | URL | Design |
 |---|---|---|
 | `index.html` | `…/fee-transparency/` | **A — Marketing Center**: marketing details are edited in Marketing Setup › Pricing, and charge-type defaults live on Charge Type Details. |
-| `original.html` | `…/fee-transparency/original.html` | **B — Details on Charges**: the 2026-09-17 design (`main`) — Pricing Setup register, marketing details and Listing Ready columns inside the Charges overlay, Group by Requirement, Bulk Update with marketing fields — **plus** charge-type defaults, which `main` itself has no concept of. |
-| `listings.html` | `…/fee-transparency/listings.html` | **C — Listings Only**: A with the Marketing Center removed. There is no portfolio register and no Property Marketing Setup tab — the **Listings** page is the portfolio view, so it carries the scoreboard and every listing row wears its property's Listing Ready fraction and Next Step. |
+| `original.html` | `…/fee-transparency/original.html` | **B — Pricing Setup**: the 2026-09-17 design (`main`) — Pricing Setup register, marketing details and Listing Ready columns inside the Charges overlay, Group by Requirement, Bulk Update with marketing fields — **plus** charge-type defaults, which `main` itself has no concept of. |
+| `listings.html` | `…/fee-transparency/listings.html` | **C — Listings**: A with the Marketing Center removed. There is no portfolio register and no Property Marketing Setup tab — the **Listings** page is the portfolio view, so it carries the scoreboard and every listing row wears its property's Listing Ready fraction and Next Step. |
 
 **B has no centralization step either.** `seededProfiles()` returns every property, so the whole
 portfolio is centralized from the first look and `profileRows` falls back to the charges the
@@ -63,9 +63,11 @@ three, or do all of them, but never assume `index.html`. A change to the charge 
 overlay or Marketing Setup usually belongs in A **and** C, since C only removed the Marketing
 Center.
 
-`variantSwitch()` is the **Version** control that links all three, in the header beside the logo.
-Unlike Test Feature State it always shows — which design is on screen is worth knowing in a
-walkthrough too. The link carries `location.search`, and `scenarioApply` writes the scenario into
+`variantSwitch()` is the **Version** dropdown that links all three, in the header beside the logo.
+Each option carries a second line saying what that design does with a charge's marketing details —
+on charges (B), in Marketing Setup (A), or both (C) — because the names alone don't say, and that
+is the whole comparison. Unlike Test Feature State it always shows: which design is on screen is
+worth knowing in a walkthrough too. The link carries `location.search`, and `scenarioApply` writes the scenario into
 it as `?scen=<key>` (read back once in `componentDidMount`) — so the scenario you are testing
 survives the hop.
 
