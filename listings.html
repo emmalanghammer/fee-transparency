@@ -3687,13 +3687,18 @@ class Component extends DCLogic {
       // that has already converted has nothing left to press.
       const converted = !!this.state.publishedProps[g.prop];
       const canConvert = this.ftApplicable(g.prop) && onList > 0 && !converted;
+      const whyNot = `${ch.incomplete} charge${ch.incomplete === 1 ? '' : 's'} need${ch.incomplete === 1 ? 's' : ''} details before you can convert.`;
       const convert = !canConvert ? ''
         : whole
         ? `<button data-act="pubOpen" data-arg="${esc(g.prop)}" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Convert to Fee Transparency</button>`
         // RMX's disabled primary: the brand blue at half alpha, white text — Foundations'
         // Background/Color/brand-primary-disabled, which is `Light Alpha/Blue/50-500`. Not a grey
-        // button; it stays recognisably the same button, just not pressable yet.
-        : `<button disabled title="${ch.incomplete} charge${ch.incomplete === 1 ? '' : 's'} still need marketing details" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font:400 14px Roboto,sans-serif;white-space:nowrap;background:rgba(0,141,213,0.5);color:#fff;border:none;cursor:default">Convert to Fee Transparency</button>`;
+        // button; it stays recognisably the same button, just not pressable yet. The sentence beside
+        // it says the rule outright rather than leaving it to be inferred from the fraction, and
+        // counts off `ch.incomplete` — the same number the n/n's denominator minus its numerator is,
+        // so the two cannot drift.
+        : `<button disabled title="${whyNot}" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font:400 14px Roboto,sans-serif;white-space:nowrap;background:rgba(0,141,213,0.5);color:#fff;border:none;cursor:default">Convert to Fee Transparency</button>`
+          + `<span style="font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap">${whyNot}</span>`;
       const bodyId = `ltg${gi}`;
       const toggle = `var b=document.getElementById('${bodyId}');var c=this.querySelector('.ico');var on=b.style.display==='none';b.style.display=on?'block':'none';if(window.__icoSwap)window.__icoSwap(c,on?'keyboard_arrow_up':'keyboard_arrow_down');`;
 
