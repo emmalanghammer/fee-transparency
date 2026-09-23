@@ -56,8 +56,11 @@ title carries an `infoTip` saying the counts cover only properties enabled for o
 can opt in.
 
 `infoTip`'s panel is RMX's **Tooltip** (RMX Components `2944:203796`): 312px wide, 16px padding,
-1px `#cedbe7`, 4px radius, drop shadow `0 3px 6px rgba(0,0,0,0.10)`, Roboto Regular 14/20. Callers
-may still pass a narrower width; everything else is the component's.
+1px `#cedbe7`, 4px radius, drop shadow `0 3px 6px rgba(0,0,0,0.10)`, Roboto Regular 14/20. Its
+trigger is Material Icon / Medium / Brand — the squared `info_outline` at 20px, not the rounded
+Symbols glyph. The panel sets `font:400` on itself: it renders inside whatever triggered it, so a
+bold heading was bleeding into the body text. Callers may still pass a narrower width; everything
+else is the component's.
 
 **Errors is about the feed and nothing else.** `ltIssues` totals only the listing's `rm` errors
 (Rent Manager's own fields) and its `tz` errors, attributed to whichever providers carry `err`. The
