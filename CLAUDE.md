@@ -26,7 +26,13 @@ The button shows from the start so the destination is obvious, but it is **disab
 charge listings carry is ready** — its tooltip names how many are short — and it disappears once
 the property has converted, because there is nothing left to press. Disabled is RMX's own
 `Background/Color/brand-primary-disabled` — the brand blue at half alpha with white text — so it
-stays recognisably the same button rather than turning grey. Its register is **Unit · Unit Type · Base Rent · Total Monthly Price ·
+stays recognisably the same button rather than turning grey.
+
+**The Marketing Setup overlay's property strip carries the same button**, under the same rules, so
+finishing a property's charges and converting it are one sitting rather than two. It sits beside
+Occupied Units rather than replacing it — that count is a fact about the property, not a slot for
+whatever action is going. It reads saved state, like everything else in that overlay, so it only
+changes after Save. Its register is **Unit · Unit Type · Base Rent · Total Monthly Price ·
 Available · Errors**, one row per advertised unit (`listingsData()` in C is unit-level, with
 bed/bath and per-provider state). **Total Monthly Price reads `-` until the property has actually
 converted** (`publishedProps`): a property that hasn't still advertises rent alone, so it has no
