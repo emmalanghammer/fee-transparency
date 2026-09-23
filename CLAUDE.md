@@ -31,8 +31,15 @@ stays recognisably the same button rather than turning grey.
 **The Marketing Setup overlay's property strip carries the same button**, under the same rules, so
 finishing a property's charges and converting it are one sitting rather than two. It sits beside
 Occupied Units rather than replacing it — that count is a fact about the property, not a slot for
-whatever action is going. It reads saved state, like everything else in that overlay, so it only
-changes after Save. Its register is **Unit · Unit Type · Base Rent · Total Monthly Price ·
+whatever action is going. It reads saved state, like everything else in that overlay — which is
+live, because **each charge saves itself**.
+
+**Every expanded charge has its own Save footer**, under the Include-on-listings toggle.
+`mpSaveRow` banks the open charge with `mpCapture()` then commits just that one through
+`mpCommit(id)`, leaving the rest of the draft alone; `mpCancelRow` drops that charge's draft and
+collapses. `mktPricingSave` is now `mpCapture()` + `mpCommit()` with no id, which is the overlay's
+own Save. Because a charge lands in state the moment it is saved, its Listing Ready badge, the
+banner above and the Convert button in the header all move while the overlay is still open. Its register is **Unit · Unit Type · Base Rent · Total Monthly Price ·
 Available · Errors**, one row per advertised unit (`listingsData()` in C is unit-level, with
 bed/bath and per-provider state). **Total Monthly Price reads `-` until the property has actually
 converted** (`publishedProps`): a property that hasn't still advertises rent alone, so it has no

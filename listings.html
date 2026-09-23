@@ -1200,6 +1200,16 @@ class Component extends DCLogic {
         this.flash(name + ' saved'); break; }
       case 'mktOpen': this.setState({ mktSetup: true, mktTab: 'General' }); break;
       case 'mktTab': this.mpCapture(); this.setState({ mktTab: arg }); break;
+      // Each charge saves itself: the marketing details go onto the charge straight away, so the
+      // Listing Ready badge, the banner above and the Convert button in the header all move while
+      // the overlay is still open.
+      case 'mpSaveRow': { this.mpCapture(); const n = this.mpCommit(arg);
+        this.setState({ mpExp: null });
+        this.flash(n ? 'Marketing details saved' : 'Nothing to save on this charge'); break; }
+      // Collapse without keeping what was typed on this charge.
+      case 'mpCancelRow': { const id = this.state.mpExp;
+        if (id != null && this._mpDraft) { this._mpDraft = Object.assign({}, this._mpDraft); delete this._mpDraft[id]; }
+        this.setState({ mpExp: null }); break; }
       // Expanding is a re-render, so whatever is half-typed in the open charge is banked first.
       case 'mpToggle': { this.mpCapture(); const id = String(arg);
         this.setState(s2 => ({ mpExp: String(s2.mpExp == null ? '' : s2.mpExp) === id ? null : id }));
@@ -7562,13 +7572,14 @@ class Component extends DCLogic {
       schedule: one ? undefined : q('mp-schedule-' + r.id),
       __ils: box ? box.getAttribute('data-on') === '1' : undefined };
   }
-  mktPricingSave(){
-    const q = id => { const e = this.q('#' + id); return e ? String(e.value || '').trim() : ''; };
-    const on = id => { const e = this.q('#' + id); return !!(e && e.getAttribute('data-on') === '1'); };
-    this.mpCapture();
+  // Writes what has been typed into the charges themselves. With no argument it commits every
+  // charge the draft holds — the overlay's own Save. With an id it commits that one and leaves the
+  // rest of the draft alone, which is what each charge's own Save footer does.
+  mpCommit(onlyId){
     const draft = (this._mpDraftProp === this.state.property && this._mpDraft) || {};
     const patch = {};
     this.appliedRows().forEach(r => {
+      if (onlyId != null && String(r.id) !== String(onlyId)) return;
       const d = draft[r.id]; if (!d) return;
       const one = /-one$/.test(r.group || '');
       patch[r.id] = { ils: d.__ils == null ? r.ils !== false : d.__ils, listing: {
@@ -7576,13 +7587,16 @@ class Component extends DCLogic {
         feeDue: one ? d.feeDue : ((r.listing || {}).feeDue || 'During Term'),
         schedule: one ? '' : d.schedule } };
     });
-    this._mpDraft = null; this._mpDraftProp = null;
-    if (!Object.keys(patch).length) return;
+    if (onlyId == null) { this._mpDraft = null; this._mpDraftProp = null; }
+    else if (this._mpDraft) { this._mpDraft = Object.assign({}, this._mpDraft); delete this._mpDraft[onlyId]; }
+    if (!Object.keys(patch).length) return 0;
     this.setProfileRows(rows => rows.map(r => {
       const pt = patch[r.id]; if (!pt) return r;
       return Object.assign({}, r, { ils: pt.ils, listing: Object.assign({}, r.listing, pt.listing) });
     }));
+    return Object.keys(patch).length;
   }
+  mktPricingSave(){ this.mpCapture(); this.mpCommit(); }
   // Marketing Setup › Pricing: every charge on the property, with what it is read-only on the right
   // and its marketing details underneath. A charge with nothing entered yet opens on its charge
   // type's defaults, so the common answer is already in the field.
@@ -7659,6 +7673,10 @@ class Component extends DCLogic {
           <span id="mp-ils-box-${r.id}" data-on="${ilsOn ? '1' : '0'}" onclick="if(window.__mpIls)window.__mpIls('${r.id}')" style="display:inline-flex;align-items:center;flex:none;width:38px;height:20px;box-sizing:border-box;padding:2px;border-radius:10px;background:${ilsOn ? 'var(--ac,var(--rmx-brand, #008dd5))' : 'var(--rmx-text-muted, #b3b3b3)'};cursor:pointer">
             <span style="width:16px;height:16px;border-radius:50%;background:#fff;transform:translateX(${ilsOn ? '18px' : '0'})"></span></span>
           <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Include on listings</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;border-top:1px solid var(--rmx-line, #cedbe7);margin:2px -20px -18px;padding:12px 20px">
+          <button data-act="mpCancelRow" style="height:34px;min-height:34px;padding:0 18px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Cancel</button>
+          <button data-act="mpSaveRow" data-arg="${r.id}" class="btn-pri" style="height:34px;min-height:34px;padding:0 24px;border-radius:4px;font-size:14px">Save</button>
         </div>
       </div>`;
     };
