@@ -20,8 +20,10 @@ the page is the register and nothing else. Above it sit the fee-transparency cal
 `ltGroups()` gathers the listings under their property and `listingsBody` renders one collapsible
 card each.
 
-A card's header carries the property name, its **Listing Ready Charges** fraction with a dot that
-greens only when whole, a **Convert to Fee Transparency** button, and a **Marketing Setup** link.
+A card's header carries the property name, its **Listing Ready Charges** fraction, a **Convert to
+Fee Transparency** button, and a **Marketing Setup** link. The fraction wears the same lozenge the
+Pricing tab's Listing Ready column uses — 24px, 4px radius, 13px — amber `#fdf3e7` with the `error`
+icon while charges are short, green `--rmx-success-bg` with `check_circle` once whole.
 The button shows from the start so the destination is obvious, but it is **disabled until every
 charge listings carry is ready** — its tooltip names how many are short — and it disappears once
 the property has converted, because there is nothing left to press. Disabled is RMX's own
