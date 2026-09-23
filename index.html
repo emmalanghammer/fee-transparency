@@ -3026,9 +3026,8 @@ class Component extends DCLogic {
       // property only opened when you mean to fix it.
       const readyCell = !this.ilsOn(r.name) ? cell(String(ch.total) + ' charges')
         : `<span data-act="ltReadyOpen" data-arg="${esc(r.name)}" title="${ch.incomplete ? 'See which charges still need details' : 'Every charge listings carry is ready'}" style="display:flex;align-items:center;gap:9px;min-height:39px;box-sizing:border-box;padding:0 10px;font-size:14px;font-style:italic;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;cursor:pointer">${dot}${ch.ready}/${onList}</span>`;
-      const plans = this.mcPlans(r.name);
-      const planCell = !this.ilsOn(r.name) ? cell('—')
-        : cell(plans + ' plan' + (plans === 1 ? '' : 's'));
+      // The column is headed Listings, so it carries the count and nothing else.
+      const planCell = !this.ilsOn(r.name) ? cell('—') : cell(String(this.mcPlans(r.name)));
       // Conversion state, in the Listings tab's own words and from its own source — this is the one
       // place to read portfolio progress, so it must not invent a second vocabulary for it.
       const lt = this.ltStatus(r.name);
