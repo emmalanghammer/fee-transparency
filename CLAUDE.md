@@ -33,7 +33,7 @@ denominator minus its numerator, so the explanation and the fraction cannot drif
 It is RMX's **Button, Type=Action text** — the label alone in the link colour, no fill and no
 border, `Text/text-disabled` (`#b3b3b3`) when it is not yet pressable. It used to be a filled
 primary, and four of them stacked down the page read as the loudest thing on a surface whose job is
-to be read; the page's one filled button is the tracker's own Bulk Turn On. **The Marketing Setup
+to be read; the page's one filled button is the tracker's own Bulk Convert. **The Marketing Setup
 overlay's copy stays filled** — there it is the only action on the surface, so it carries the
 weight the cards' copies no longer should.
 
@@ -67,7 +67,7 @@ and **Incomplete Charges**.
 (which would multiply each property by its units) can't creep back in. The `infoTip` says the
 counts cover only properties enabled for online listings that can opt in.
 
-**The tile owns the bulk action.** At its right edge sits **Bulk Turn On Fee Transparency**
+**The tile owns the bulk action.** At its right edge sits **Bulk Convert to Fee Transparency**
 (`.btn-out`, `ftSelOpen` with `pub`) — the cards say where the portfolio stands and the button is
 the one move that standing implies. The toolbar's **Convert Properties** is gone: it was the same
 action asked for twice. Both the tile and the button disappear when there is nothing to report.
