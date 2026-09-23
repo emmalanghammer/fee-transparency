@@ -45,6 +45,14 @@ bed/bath and per-provider state). **Total Monthly Price reads `-` until the prop
 converted** (`publishedProps`): a property that hasn't still advertises rent alone, so it has no
 total to show — finishing its charges is not the same as publishing them.
 
+**A one-line Fee Transparency Tracker sits above the groups** — properties ready to convert,
+properties converted, charges missing details. `ltSummary()` walks `ltGroups()`, so it counts the
+same properties the page is showing, once each: "ready to convert" is by construction the number
+of live Convert buttons below it, and a per-listing count (which would multiply each property by
+its units) can't creep back in. Beside **Update Listings Feed** sits **Convert Properties**, which
+is `ftSelOpen` with `pub` — the existing multi-select handing off to the same confirmation, not a
+second bulk path. Both the strip and that button disappear when there is nothing to report.
+
 **Errors is one icon per row, and it opens the breakdown.** `ltIssues` totals three sources —
 `ltChargeIssues` (charges whose marketing details are short), the listing's `rm` errors (Rent
 Manager's own fields) and its `tz` errors, attributed to whichever providers carry `err` — and

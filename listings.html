@@ -3568,6 +3568,20 @@ class Component extends DCLogic {
     });
     return out;
   }
+  // The portfolio in one line. It counts the groups the page is actually showing — per property,
+  // once each — so "ready to convert" is exactly the number of live Convert buttons below it. A
+  // per-listing count would multiply every property by its units and say something else.
+  ltSummary(){
+    let ready = 0, converted = 0, short = 0;
+    this.ltGroups().forEach(g => {
+      const ch = this.ftCharges(g.prop);
+      const onList = ch.ready + ch.incomplete;
+      if (this.state.publishedProps[g.prop]) converted++;
+      else if (this.ftApplicable(g.prop) && onList > 0 && !ch.incomplete) ready++;
+      short += ch.incomplete;
+    });
+    return { ready, converted, short };
+  }
   listingsBody(){
     const money = (n) => n == null ? '-' : '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
     const esc = s2 => (''+s2).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
@@ -3601,6 +3615,7 @@ class Component extends DCLogic {
       </div>
       ${this.regCheck('Hide listings without errors', 'ltErrToggle', this.state.ltErrOnly)}
       <div style="flex:1"></div>
+      ${this.ltSummary().ready ? `<button data-act="ftSelOpen" data-arg="pub" style="display:inline-flex;align-items:center;gap:8px;height:36px;min-height:36px;padding:0 16px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Convert Properties</button>` : ''}
       <button data-act="toast" data-arg="Update Listings Feed" class="btn-pri" style="display:inline-flex;align-items:center;gap:8px;height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">${this.ico('autorenew', 18)}Update Listings Feed</button>
     </div>`;
 
@@ -3682,9 +3697,19 @@ class Component extends DCLogic {
 
     const empty = `<div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:26px 17px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No listings — no properties are enabled for online listings.</div>`;
 
+    const sum = this.ltSummary();
+    const stat = (n, label, tone) => `<span style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;flex:none;background:${tone}"></span><strong style="font-weight:600">${n}</strong> ${label}</span>`;
+    const tracker = `<div style="display:flex;align-items:center;gap:22px;flex-wrap:wrap;padding:0 2px">
+      <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">Fee Transparency Tracker</span>
+      ${stat(sum.ready, 'ready to convert', 'var(--ac,var(--rmx-brand, #008dd5))')}
+      ${stat(sum.converted, 'converted', 'var(--rmx-success, #6eb744)')}
+      ${stat(sum.short, 'charge' + (sum.short === 1 ? '' : 's') + ' missing details', 'var(--rmx-attention, #f58220)')}
+    </div>`;
+
     return `<div style="padding:16px 24px 24px;display:flex;flex-direction:column;gap:16px;flex:1;min-height:0">
       ${needsFT ? banner : ''}
       ${toolbar}
+      ${groups.length ? tracker : ''}
       <div style="display:flex;flex-direction:column;gap:16px">
         ${groups.length ? groups.map(group).join('') : empty}
       </div>
