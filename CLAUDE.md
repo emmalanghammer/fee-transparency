@@ -21,16 +21,21 @@ the page is the register and nothing else. Above it sit the fee-transparency cal
 card each.
 
 A card's header carries the property name, its **Listing Ready Charges** fraction, a **Convert to
-Fee Transparency** button, and a **Marketing Setup** link. The fraction wears the same lozenge the
+Fee Transparency** action-text button, and a **Marketing Setup** link. The fraction wears the same lozenge the
 Pricing tab's Listing Ready column uses — 24px, 4px radius, 13px — amber `#fdf3e7` while charges
 are short, green `--rmx-success-bg` once whole. No icon: the tint carries the state.
 The button shows from the start so the destination is obvious, but it is **disabled until every
 charge listings carry is ready**, and it disappears once the property has converted, because there
 is nothing left to press. While disabled it says why on hover, in its own `title` —
 *"5 charges need details before you can convert."* That reads `ch.incomplete`, which is the n/n's
-denominator minus its numerator, so the explanation and the fraction cannot drift. Disabled is RMX's own
-`Background/Color/brand-primary-disabled` — the brand blue at half alpha with white text — so it
-stays recognisably the same button rather than turning grey.
+denominator minus its numerator, so the explanation and the fraction cannot drift.
+
+It is RMX's **Button, Type=Action text** — the label alone in the link colour, no fill and no
+border, `Text/text-disabled` (`#b3b3b3`) when it is not yet pressable. It used to be a filled
+primary, and four of them stacked down the page read as the loudest thing on a surface whose job is
+to be read; the page's one filled button is the tracker's own Bulk Turn On. **The Marketing Setup
+overlay's copy stays filled** — there it is the only action on the surface, so it carries the
+weight the cards' copies no longer should.
 
 **The Marketing Setup overlay's property strip carries the same button**, under the same rules, so
 finishing a property's charges and converting it are one sitting rather than two. It sits beside
@@ -50,18 +55,27 @@ bed/bath and per-provider state). **Total Monthly Price reads `-` until the prop
 converted** (`publishedProps`): a property that hasn't still advertises rent alone, so it has no
 total to show — finishing its charges is not the same as publishing them.
 
-**A one-line Fee Transparency Tracker sits above the groups** — properties ready to convert,
-properties converted, charges missing details. `ltSummary()` walks `ltGroups()`, so it counts the
-same properties the page is showing, once each: "ready to convert" is by construction the number
-of live Convert buttons below it, and a per-listing count (which would multiply each property by
-its units) can't creep back in. Beside **Update Listings Feed** sits **Convert Properties**, which
-is `ftSelOpen` with `pub` — the existing multi-select handing off to the same confirmation, not a
-second bulk path. Both the strip and that button disappear when there is nothing to report. The
-title carries an `infoTip` saying the counts cover only properties enabled for online listings that
-can opt in.
+**A Fee Transparency Tracker tile sits above the groups**, matching Figma `3530:89817`: a white
+card (1px `#cedbe7`, 4px radius, 16px padding) holding the title at 16/600 with its `infoTip`, then
+three RMX **Status Filter Cards** 24px to its right — 250px wide, 16px apart, each a 4px coloured
+spine (`icon-primary` / `icon-success` / `icon-notice`) with the label at 14/20 on the left and the
+count at 18/24 SemiBold on the right. They read **Ready for Fee Transparency**, **Fee Transparent**
+and **Incomplete Charges**.
 
-**Each of the three numbers is a filter.** `ltFilterSet` sets `state.ltFilter`, `ltStatusMatch`
-applies the same three tests the tracker counts by, and the lit stat keeps its tint while the page
+`ltSummary()` walks `ltGroups()`, so it counts the same properties the page is showing, once each:
+"ready" is by construction the number of live Convert buttons below it, and a per-listing count
+(which would multiply each property by its units) can't creep back in. The `infoTip` says the
+counts cover only properties enabled for online listings that can opt in.
+
+**The tile owns the bulk action.** At its right edge sits **Bulk Turn On Fee Transparency**
+(`.btn-out`, `ftSelOpen` with `pub`) — the cards say where the portfolio stands and the button is
+the one move that standing implies. The toolbar's **Convert Properties** is gone: it was the same
+action asked for twice. Both the tile and the button disappear when there is nothing to report.
+The tile needs `flex:none` — the page body is a column flex with `min-height:0`, so without it the
+tile is squashed to a sliver by the groups below.
+
+**Each of the three cards is a filter.** `ltFilterSet` sets `state.ltFilter`, `ltStatusMatch`
+applies the same three tests the tracker counts by, and the lit card keeps its tint while the page
 below is showing what it counted — clicking it again clears. `ltSummary()` calls `ltGroups(true)`,
 which skips the status filter: the numbers must keep reporting the whole portfolio, or filtering by
 one would zero the other two and strand you there. The strip also renders when a filter empties the

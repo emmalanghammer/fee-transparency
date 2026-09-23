@@ -3658,7 +3658,6 @@ class Component extends DCLogic {
       </div>
       ${this.regCheck('Hide listings without errors', 'ltErrToggle', this.state.ltErrOnly)}
       <div style="flex:1"></div>
-      ${this.ltSummary().ready ? `<button data-act="ftSelOpen" data-arg="pub" style="display:inline-flex;align-items:center;gap:8px;height:36px;min-height:36px;padding:0 16px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Convert Properties</button>` : ''}
       <button data-act="toast" data-arg="Update Listings Feed" class="btn-pri" style="display:inline-flex;align-items:center;gap:8px;height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">${this.ico('autorenew', 18)}Update Listings Feed</button>
     </div>`;
 
@@ -3688,16 +3687,17 @@ class Component extends DCLogic {
       const converted = !!this.state.publishedProps[g.prop];
       const canConvert = this.ftApplicable(g.prop) && onList > 0 && !converted;
       const whyNot = `${ch.incomplete} charge${ch.incomplete === 1 ? '' : 's'} need${ch.incomplete === 1 ? 's' : ''} details before you can convert.`;
+      // RMX's Button, Type=Action text: the label alone in the link colour, no fill and no border.
+      // The header already carries a filled button — the page's own Bulk Turn On — and a row of
+      // them down the cards read as the loudest thing on a page whose job is to be read.
+      // Disabled is `Text/text-disabled`, and the reason is the button's own `title`: hovering the
+      // thing you can't press is where you ask why, and it keeps a busy header row short. It counts
+      // off `ch.incomplete`, which is the n/n's denominator minus its numerator, so the explanation
+      // and the fraction cannot drift.
       const convert = !canConvert ? ''
         : whole
-        ? `<button data-act="pubOpen" data-arg="${esc(g.prop)}" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Convert to Fee Transparency</button>`
-        // RMX's disabled primary: the brand blue at half alpha, white text — Foundations'
-        // Background/Color/brand-primary-disabled, which is `Light Alpha/Blue/50-500`. Not a grey
-        // button; it stays recognisably the same button, just not pressable yet. The reason is the
-        // button's own `title` — hovering the thing you can't press is where you ask why, and it
-        // keeps a busy header row short. It counts off `ch.incomplete`, which is the n/n's
-        // denominator minus its numerator, so the explanation and the fraction cannot drift.
-        : `<button disabled title="${whyNot}" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font:400 14px Roboto,sans-serif;white-space:nowrap;background:rgba(0,141,213,0.5);color:#fff;border:none;cursor:default">Convert to Fee Transparency</button>`;
+        ? `<button data-act="pubOpen" data-arg="${esc(g.prop)}" style="height:34px;min-height:34px;padding:0;border:none;background:none;font:400 14px Roboto,sans-serif;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap;cursor:pointer">Convert to Fee Transparency</button>`
+        : `<button disabled title="${whyNot}" style="height:34px;min-height:34px;padding:0;border:none;background:none;font:400 14px Roboto,sans-serif;color:var(--rmx-text-muted, #b3b3b3);white-space:nowrap;cursor:default">Convert to Fee Transparency</button>`;
       const bodyId = `ltg${gi}`;
       const toggle = `var b=document.getElementById('${bodyId}');var c=this.querySelector('.ico');var on=b.style.display==='none';b.style.display=on?'block':'none';if(window.__icoSwap)window.__icoSwap(c,on?'keyboard_arrow_up':'keyboard_arrow_down');`;
 
@@ -3751,17 +3751,34 @@ class Component extends DCLogic {
     const sum = this.ltSummary();
     // Each number filters the groups to what it counted, and stays tinted while it is the filter on
     // screen — so the page below always says what the lit number means. Clicking it again clears.
+    // Each card filters the groups to what it counted, and stays tinted while it is the filter on
+    // screen — so the page below always says what the lit card means. Clicking it again clears.
+    // RMX's Status Filter Card: a 250px card with a 4px coloured spine, the label left and the count
+    // right (Figma 3530:89817).
     const stat = (key, n, label, tone, tint) => {
       const on = this.state.ltFilter === key;
       return `<span data-act="ltFilterSet" data-arg="${key}" data-on="${on ? '1' : '0'}" title="${on ? 'Show all properties' : 'Show only these'}"
-        onmouseover="if(this.getAttribute('data-on')!=='1')this.style.background='${tint}'" onmouseout="if(this.getAttribute('data-on')!=='1')this.style.background=''"
-        style="display:inline-flex;align-items:center;gap:8px;height:26px;box-sizing:border-box;padding:0 10px;border-radius:4px;background:${on ? tint : 'transparent'};font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;cursor:pointer"><span style="width:8px;height:8px;border-radius:50%;flex:none;background:${tone}"></span><strong style="font-weight:600">${n}</strong> ${label}</span>`;
+        onmouseover="if(this.getAttribute('data-on')!=='1')this.querySelector('span').style.background='${tint}'" onmouseout="if(this.getAttribute('data-on')!=='1')this.querySelector('span').style.background='#fff'"
+        style="display:inline-flex;align-items:stretch;width:250px;box-sizing:border-box;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden;cursor:pointer">
+        <span style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex:1;min-width:0;box-sizing:border-box;border-left:4px solid ${tone};background:${on ? tint : '#fff'};padding:7px 12px">
+          <span style="font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}</span>
+          <span style="font-size:18px;line-height:24px;font-weight:600;color:var(--rmx-brand-dark, #13314c);flex:none">${n}</span>
+        </span>
+      </span>`;
     };
-    const tracker = `<div style="display:flex;align-items:center;gap:22px;flex-wrap:wrap;padding:0 2px">
-      <span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">Fee Transparency Tracker${this.infoTip('<span style="display:block;white-space:normal">This only includes properties that are enabled for online listings and can opt in to fee transparency. A property that isn\'t marketed, or that lists on a provider without complete pricing, is not included.</span>')}</span>
-      ${stat('ready', sum.ready, 'ready to convert', 'var(--ac,var(--rmx-brand, #008dd5))', 'var(--rmx-brand-tint-bg, #ebf1f5)')}
-      ${stat('converted', sum.converted, 'converted', 'var(--rmx-success, #6eb744)', 'var(--rmx-success-bg, #e2f1da)')}
-      ${stat('short', sum.short, 'charge' + (sum.short === 1 ? '' : 's') + ' missing details', 'var(--rmx-attention, #f58220)', '#fdf3e7')}
+    // The tile owns the bulk action: the cards say where the portfolio stands and the button beside
+    // them is the one move that whole standing implies, so there is no second entry point for it in
+    // the toolbar.
+    const tracker = `<div class="tile" style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:16px;flex:none">
+      <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">
+        <span style="display:inline-flex;align-items:center;gap:6px;font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">Fee Transparency Tracker${this.infoTip('<span style="display:block;white-space:normal">This only includes properties that are enabled for online listings and can opt in to fee transparency. A property that isn\'t marketed, or that lists on a provider without complete pricing, is not included.</span>')}</span>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+          ${stat('ready', sum.ready, 'Ready for Fee Transparency', 'var(--ac,var(--rmx-brand, #008dd5))', 'var(--rmx-brand-tint-bg, #ebf1f5)')}
+          ${stat('converted', sum.converted, 'Fee Transparent', 'var(--rmx-success, #6eb744)', 'var(--rmx-success-bg, #e2f1da)')}
+          ${stat('short', sum.short, 'Incomplete Charges', 'var(--rmx-notice, #faa61c)', '#fdf3e7')}
+        </div>
+      </div>
+      ${sum.ready ? `<button data-act="ftSelOpen" data-arg="pub" class="btn-out" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Bulk Turn On Fee Transparency</button>` : ''}
     </div>`;
 
     return `<div style="padding:16px 24px 24px;display:flex;flex-direction:column;gap:16px;flex:1;min-height:0">
