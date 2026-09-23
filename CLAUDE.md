@@ -57,6 +57,13 @@ second bulk path. Both the strip and that button disappear when there is nothing
 title carries an `infoTip` saying the counts cover only properties enabled for online listings that
 can opt in.
 
+**Each of the three numbers is a filter.** `ltFilterSet` sets `state.ltFilter`, `ltStatusMatch`
+applies the same three tests the tracker counts by, and the lit stat keeps its tint while the page
+below is showing what it counted — clicking it again clears. `ltSummary()` calls `ltGroups(true)`,
+which skips the status filter: the numbers must keep reporting the whole portfolio, or filtering by
+one would zero the other two and strand you there. The strip also renders when a filter empties the
+page, so there is always a way back, and the empty state says which filter emptied it.
+
 `infoTip`'s panel is RMX's **Tooltip** (RMX Components `2944:203796`): 312px wide, 16px padding,
 1px `#cedbe7`, 4px radius, drop shadow `0 3px 6px rgba(0,0,0,0.10)`, Roboto Regular 14/20. Its
 trigger is Material Icon / Medium / Brand — the squared `info_outline` at 20px, not the rounded

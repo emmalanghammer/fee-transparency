@@ -213,6 +213,7 @@ class Component extends DCLogic {
     spBanner: true, // System Preferences Fee Transparency banner not yet dismissed
     ltErrOnly: false,
     ltReady: null,        // Listings: the property whose Listing Ready Charges list is open
+    ltFilter: null,       // Listings: 'ready' | 'converted' | 'short' — the tracker stat filtering the groups
  // Listings page: hide listings without errors
     ltErr: null, // { i, open } — Listing Errors popup for one listing
     // Charges register columns: chgCols is the chosen keys in order (null = defaults), colNames holds
@@ -1225,6 +1226,8 @@ class Component extends DCLogic {
       case 'mktAdvSave': this.setState({ mktAdv: false }); this.flash('Advanced settings saved'); break;
       case 'ltPropSet': this.setState({ ltProp: arg }); break;
       case 'ltErrToggle': this.setState(s => ({ ltErrOnly: !s.ltErrOnly })); break;
+      // Clicking the lit one takes the filter back off, so a number is never a trap.
+      case 'ltFilterSet': this.setState(s2 => ({ ltFilter: s2.ltFilter === arg ? null : arg })); break;
       case 'ltReadyOpen': this.setState({ ltReady: arg }); break;
       case 'ltReadyClose': this.setState({ ltReady: null }); break;
       case 'colSetupOpen': this.setState({ colSetup: true }); break;
@@ -2550,7 +2553,7 @@ class Component extends DCLogic {
       copyFees: null, pricePreview: null, profMenu: null, profHist: null,
       recView: null, rowMenu: null, pubModal: null, ftSel: null, mktDef: {},
       mktSetup: false, mktAdv: false, mktTab: 'General', petType: null, spBanner: true, ftHelp: false,
-      lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false, ltReady: null, mcTab: 'Overview',
+      lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false, ltReady: null, ltFilter: null, mcTab: 'Overview',
       mcProp: null, mktDefDraft: null, mktDefAsk: false, mktDefMode: 'blank', mpExp: null
     });
     try {
@@ -3543,14 +3546,29 @@ class Component extends DCLogic {
   // The listings that survive the filters, gathered under their property in portfolio order. Each
   // row keeps the index it had in `listingsData()` — that index is what the errors dialog looks a
   // listing up by, and `listingsData()` builds fresh objects on every call, so identity can't do it.
-  ltGroups(){
+  // Does a property match one of the tracker's three statuses? The same three tests the tracker
+  // counts by, so clicking a number shows exactly what it counted.
+  ltStatusMatch(prop, key){
+    const ch = this.ftCharges(prop);
+    const onList = ch.ready + ch.incomplete;
+    const converted = !!this.state.publishedProps[prop];
+    if (key === 'converted') return converted;
+    if (key === 'short') return ch.incomplete > 0;
+    if (key === 'ready') return this.ftApplicable(prop) && onList > 0 && !converted && !ch.incomplete;
+    return true;
+  }
+  // `skipStatus` is for the tracker itself: its numbers report the whole portfolio, so filtering by
+  // one of them must not shrink the other two to nothing and strand you there.
+  ltGroups(skipStatus){
     const filt = this.state.ltProp || 'all';
+    const status = skipStatus ? null : this.state.ltFilter;
     const rows = this.listingsData()
       .map((l, i) => ({ l, i }))
       .filter(r => filt === 'all' || r.l.prop === filt)
       // "without errors" means the green tick in the Errors column, and that column is now the
       // feed alone — so this is too. Charge details are reported per property, not per listing.
-      .filter(r => !this.state.ltErrOnly || this.ltIssues(r.l).total > 0);
+      .filter(r => !this.state.ltErrOnly || this.ltIssues(r.l).total > 0)
+      .filter(r => !status || this.ltStatusMatch(r.l.prop, status));
     const out = [];
     rows.forEach(r => {
       let g = out.find(x => x.prop === r.l.prop);
@@ -3564,7 +3582,7 @@ class Component extends DCLogic {
   // per-listing count would multiply every property by its units and say something else.
   ltSummary(){
     let ready = 0, converted = 0, short = 0;
-    this.ltGroups().forEach(g => {
+    this.ltGroups(true).forEach(g => {
       const ch = this.ftCharges(g.prop);
       const onList = ch.ready + ch.incomplete;
       if (this.state.publishedProps[g.prop]) converted++;
@@ -3720,21 +3738,32 @@ class Component extends DCLogic {
       </div>`;
     };
 
-    const empty = `<div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:26px 17px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No listings — no properties are enabled for online listings.</div>`;
+    const FILT_LABEL = { ready: 'ready to convert', converted: 'converted', short: 'with charges missing details' };
+    const emptyMsg = this.state.ltFilter ? `No properties ${FILT_LABEL[this.state.ltFilter]}.`
+      : this.state.ltErrOnly ? 'No listings with errors.'
+      : 'No listings — no properties are enabled for online listings.';
+    const empty = `<div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:26px 17px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">${emptyMsg}</div>`;
 
     const sum = this.ltSummary();
-    const stat = (n, label, tone) => `<span style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;flex:none;background:${tone}"></span><strong style="font-weight:600">${n}</strong> ${label}</span>`;
+    // Each number filters the groups to what it counted, and stays tinted while it is the filter on
+    // screen — so the page below always says what the lit number means. Clicking it again clears.
+    const stat = (key, n, label, tone, tint) => {
+      const on = this.state.ltFilter === key;
+      return `<span data-act="ltFilterSet" data-arg="${key}" data-on="${on ? '1' : '0'}" title="${on ? 'Show all properties' : 'Show only these'}"
+        onmouseover="if(this.getAttribute('data-on')!=='1')this.style.background='${tint}'" onmouseout="if(this.getAttribute('data-on')!=='1')this.style.background=''"
+        style="display:inline-flex;align-items:center;gap:8px;height:26px;box-sizing:border-box;padding:0 10px;border-radius:4px;background:${on ? tint : 'transparent'};font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;cursor:pointer"><span style="width:8px;height:8px;border-radius:50%;flex:none;background:${tone}"></span><strong style="font-weight:600">${n}</strong> ${label}</span>`;
+    };
     const tracker = `<div style="display:flex;align-items:center;gap:22px;flex-wrap:wrap;padding:0 2px">
       <span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">Fee Transparency Tracker${this.infoTip('<span style="display:block;white-space:normal">This only includes properties that are enabled for online listings and can opt in to fee transparency. A property that isn\'t marketed, or that lists on a provider without complete pricing, is not included.</span>')}</span>
-      ${stat(sum.ready, 'ready to convert', 'var(--ac,var(--rmx-brand, #008dd5))')}
-      ${stat(sum.converted, 'converted', 'var(--rmx-success, #6eb744)')}
-      ${stat(sum.short, 'charge' + (sum.short === 1 ? '' : 's') + ' missing details', 'var(--rmx-attention, #f58220)')}
+      ${stat('ready', sum.ready, 'ready to convert', 'var(--ac,var(--rmx-brand, #008dd5))', 'var(--rmx-brand-tint-bg, #ebf1f5)')}
+      ${stat('converted', sum.converted, 'converted', 'var(--rmx-success, #6eb744)', 'var(--rmx-success-bg, #e2f1da)')}
+      ${stat('short', sum.short, 'charge' + (sum.short === 1 ? '' : 's') + ' missing details', 'var(--rmx-attention, #f58220)', '#fdf3e7')}
     </div>`;
 
     return `<div style="padding:16px 24px 24px;display:flex;flex-direction:column;gap:16px;flex:1;min-height:0">
       ${needsFT ? banner : ''}
       ${toolbar}
-      ${groups.length ? tracker : ''}
+      ${(groups.length || this.state.ltFilter) ? tracker : ''}
       <div style="display:flex;flex-direction:column;gap:16px">
         ${groups.length ? groups.map(group).join('') : empty}
       </div>
