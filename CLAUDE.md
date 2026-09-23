@@ -38,7 +38,8 @@ Occupied Units rather than replacing it — that count is a fact about the prope
 whatever action is going. It reads saved state, like everything else in that overlay — which is
 live, because **each charge saves itself**.
 
-**Every expanded charge has its own Save footer**, under the Include-on-listings toggle.
+**Every expanded charge has its own Save footer** — in **both** builds — under the
+Include-on-listings toggle.
 `mpSaveRow` banks the open charge with `mpCapture()` then commits just that one through
 `mpCommit(id)`, leaving the rest of the draft alone; `mpCancelRow` drops that charge's draft and
 collapses. `mktPricingSave` is now `mpCapture()` + `mpCommit()` with no id, which is the overlay's
@@ -65,6 +66,10 @@ below is showing what it counted — clicking it again clears. `ltSummary()` cal
 which skips the status filter: the numbers must keep reporting the whole portfolio, or filtering by
 one would zero the other two and strand you there. The strip also renders when a filter empties the
 page, so there is always a way back, and the empty state says which filter emptied it.
+
+**Shared chrome is kept identical in both builds**: `.btn-pri` / `.btn-out` set their label in
+Roboto **Regular** (RMX's Button does), `infoTip` is the RMX Tooltip below, and Marketing Setup ›
+Pricing saves per charge. A change to any of them belongs in both files.
 
 `infoTip`'s panel is RMX's **Tooltip** (RMX Components `2944:203796`): 312px wide, 16px padding,
 1px `#cedbe7`, 4px radius, drop shadow `0 3px 6px rgba(0,0,0,0.10)`, Roboto Regular 14/20. Its
