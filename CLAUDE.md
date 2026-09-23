@@ -51,22 +51,23 @@ same properties the page is showing, once each: "ready to convert" is by constru
 of live Convert buttons below it, and a per-listing count (which would multiply each property by
 its units) can't creep back in. Beside **Update Listings Feed** sits **Convert Properties**, which
 is `ftSelOpen` with `pub` — the existing multi-select handing off to the same confirmation, not a
-second bulk path. Both the strip and that button disappear when there is nothing to report.
+second bulk path. Both the strip and that button disappear when there is nothing to report. The
+title carries an `infoTip` saying the counts cover only properties enabled for online listings that
+can opt in.
 
-**Errors is one icon per row, and it opens the breakdown.** `ltIssues` totals three sources —
-`ltChargeIssues` (charges whose marketing details are short), the listing's `rm` errors (Rent
-Manager's own fields) and its `tz` errors, attributed to whichever providers carry `err` — and
-takes the worst tone: a rejected feed is a red circle, charges alone an amber triangle, nothing
-outstanding a green tick. Clicking any of them opens `ltErrHTML`, which shows all three as
-collapsible sections with a green tick on the clean ones, so it answers "is it this?" for each
-source. No explanatory line under a heading: the icon already says clean or not and the count
-already says how much. **Hide listings without errors** (`ltErrOnly`) filters on
-`ltIssues().total`, so it hides exactly the rows whose Errors column shows a green tick — charge
-details count, not just the feed.
+**Errors is about the feed and nothing else.** `ltIssues` totals only the listing's `rm` errors
+(Rent Manager's own fields) and its `tz` errors, attributed to whichever providers carry `err`. The
+icon is a green tick or a red circle — never amber — and opens `ltErrHTML`, which shows those two
+sources as collapsible sections. Charge completeness is deliberately absent: it is a fact about the
+**property**, and repeating it per unit raised the same warning on every row of a property and
+opened three dialogs listing the same five charges.
 
-`ltGroups()` stamps each row with its index in `listingsData()`, because that index is what the
-errors dialog looks a listing up by and `listingsData()` builds fresh objects on every call —
-identity can't do it.
+**Charge completeness lives on the group header instead.** The **Listing Ready Charges n/n** count
+is the trigger: `ltReadyOpen` opens `ltReadyHTML`, which itemises the charges still short and the
+fields each one is missing, with the way through to Marketing Setup. Same count as the lozenge,
+because it is that count, itemised. `ltChargeIssues` takes a **property**, not a listing.
+
+**Hide listings without errors** (`ltErrOnly`) follows the column: feed errors only.
 
 **C is A minus a page, not a different model.** Marketing details are still edited in Marketing
 Setup › Pricing, through the same `mktSetupHTML` overlay. `mcOpenProp` is what opens it — from a
