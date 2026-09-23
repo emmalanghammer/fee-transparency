@@ -26,9 +26,9 @@ Pricing tab's Listing Ready column uses — 24px, 4px radius, 13px — amber `#f
 are short, green `--rmx-success-bg` once whole. No icon: the tint carries the state.
 The button shows from the start so the destination is obvious, but it is **disabled until every
 charge listings carry is ready**, and it disappears once the property has converted, because there
-is nothing left to press. While disabled it says why, in its `title` and in an `infoTip`
-beside it — *"5 charges need details before you can convert."* Both read `ch.incomplete`, which is
-the n/n's denominator minus its numerator, so the explanation and the fraction cannot drift. Disabled is RMX's own
+is nothing left to press. While disabled it says why on hover, in its own `title` —
+*"5 charges need details before you can convert."* That reads `ch.incomplete`, which is the n/n's
+denominator minus its numerator, so the explanation and the fraction cannot drift. Disabled is RMX's own
 `Background/Color/brand-primary-disabled` — the brand blue at half alpha with white text — so it
 stays recognisably the same button rather than turning grey.
 
