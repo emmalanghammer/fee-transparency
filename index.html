@@ -3338,7 +3338,12 @@ class Component extends DCLogic {
       { prop:'Stonegate Village',    plan:'SG-8',   type:'2B / 2B',   avail:'11/01/2026', base:1260.00 },
       { prop:'The Hamptons',         plan:'HAM-12', type:'2B / 2B',   avail:'09/01/2026', base:1300.00 },
       { prop:'The Hamptons',         plan:'HAM-8',  type:'SFH',       avail:'12/31/2026', base:2500.00 }
-    ].filter(l => this.ilsOn(l.prop));
+    ]
+      // The Listings tab and Overview are two views of one portfolio, so they read the same one:
+      // a walkthrough scenario that trims to four properties trims here too. Without this the tab
+      // showed thirteen listings under a register that said "4 of 4 Properties".
+      .filter(l => this.propNames().indexOf(l.prop) >= 0)
+      .filter(l => this.ilsOn(l.prop));
     // The mock's worked examples: properties outside the demo portfolio with hand-set pricing states.
     // A half-published mix only makes sense mid-conversion, so they sit out the other scenarios.
     if ((this.state.scenario || 'on') !== 'mid') return port;

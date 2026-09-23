@@ -213,7 +213,12 @@ panel. Three tabs, no count pills; the label and the `mcTab` key are not the sam
 - **Overview** — `feeTransBody()`, the property register. The default tab.
 - **Property Marketing Setup** (key `Properties`) — `mcPropsPanel()`, a master–detail (below).
 - **Listings** — `listingsBody()`, one row per unit floor plan. The nav's Listings entry now
-  lands here (`mcTab: 'Listings'`); there is no separate listings view.
+  lands here (`mcTab: 'Listings'`); there is no separate listings view. `listingsData()` is filtered
+  by `propNames()` and `ilsOn()`, so the tab and Overview read one portfolio — the tab used to show
+  thirteen listings under a register that said "4 of 4 Properties". **Mid Conversion is the one
+  exception**: five hand-set worked examples (`1127 Blackwell`, `Kirby`, `Timber Trail`, `Sheehan`,
+  plus Clearcreek) are concatenated *after* the filter on purpose, to show a half-published mix, so
+  that scenario still lists four properties Overview doesn't.
 
 The Overview register's columns are **Property, Marketed, Listing Ready Charges, Listings, Price
 Shown, Next Steps**. Listing Ready Charges is a fraction with a dot that goes green only when it
