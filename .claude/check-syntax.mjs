@@ -4,7 +4,7 @@
 import { readFileSync } from 'node:fs';
 
 const targets = process.argv.slice(2);
-const files = targets.length ? targets : ['index.html', 'listings.html'];
+const files = targets.length ? targets : ['index.html', 'marketing-center.html'];
 let bad = 0;
 
 for (const f of files) {

@@ -11,8 +11,8 @@ Two whole prototypes are served off the same deploy, so they can be compared liv
 
 | File | URL | Design |
 |---|---|---|
-| `index.html` | `…/fee-transparency/` | **A — Marketing Center**: marketing details are edited in Marketing Setup › Pricing, and charge-type defaults live on Charge Type Details. |
-| `listings.html` | `…/fee-transparency/listings.html` | **C — Listings**: A with the Marketing Center removed. There is no portfolio register and no Property Marketing Setup tab — the **Listings** page is the portfolio view, so each property group wears its own Listing Ready Charges count and the page offers Fee Transparency Setup. |
+| `marketing-center.html` | `…/fee-transparency/marketing-center.html` | **A — Marketing Center**: marketing details are edited in Marketing Setup › Pricing, and charge-type defaults live on Charge Type Details. |
+| `index.html` | `…/fee-transparency/` | **C — Listings**: A with the Marketing Center removed. There is no portfolio register and no Property Marketing Setup tab — the **Listings** page is the portfolio view, so each property group wears its own Listing Ready Charges count and the page offers Fee Transparency Setup. |
 
 **C's Listings page matches Figma `3561:122545`.** Top to bottom: the **Fee Transparency Setup**
 banner, a toolbar, then the properties. `ltGroups()` gathers the listings under their property and
@@ -163,8 +163,18 @@ second design is.
 Charge Type Details, the "How do you want to apply these?" dialog, and `saveFee` pre-filling a
 newly created charge. A change to `mktDef*` belongs in every file.
 
+**Listings took the root on 2026-09-24.** It is the design going forward, so it is `index.html`
+and the bare link serves it; the Marketing Center moved to `marketing-center.html`. `listings.html`
+is a redirect stub to `./` — that path was shared before the swap, and it carries the query string
+across so a scenario survives. When work lands in one file and the bare link still shows the other,
+it reads as a deploy that didn't happen; that is what the swap is for.
+
 Both files share every asset: the workflow uploads the repo root with no build step,
 `.nojekyll` is present, and every path in the head is document-relative.
+
+**GitHub Pages sends `cache-control: max-age=600` on HTML.** A reload within ten minutes of a push
+serves the browser's own cached copy, so verify with a cache-busting query (`?cb=<sha>`) and tell
+the user to hard-reload rather than reporting a deploy as not landed.
 
 **The current design set lives on Figma page `3569:42508` ("V3")** in
 `43F6y97LDzYBgL4CZAEO82`: **Listings**, **Fee Transparency Setup overlay**, **Marketing Setup
@@ -202,8 +212,8 @@ it should be a **new** artifact rather than this one.
   why the design system lives in `ds/` rather than `_ds/`.
 - **Check the syntax before you deploy.** The whole app is one `<script>` block inside a
   template-literal-heavy file; a stray backtick breaks the page silently. Parse each `<script>`
-  with `new Function` and fail on the first error — over **both** `index.html` and
-  `listings.html`, whichever one you edited: `node .claude/check-syntax.mjs`.
+  with `new Function` and fail on the first error — over **both** `index.html` (Listings) and
+  `marketing-center.html`, whichever one you edited: `node .claude/check-syntax.mjs`.
 - **Edit by exact-string replacement, with an assert on the match count.** Several blocks in
   `index.html` are near-identical (the charge callout appears three times, `Transactions` tiles
   twice); a loose match patches the wrong one.
