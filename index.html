@@ -1078,7 +1078,7 @@ class Component extends DCLogic {
         const next = this.chargeTypeRows().map(r => r.code !== code ? r : Object.assign({}, r, {
           code: v('ctd-name').toUpperCase() || r.code, desc: v('ctd-desc'), gl: v('ctd-gl'), amount: num('ctd-amt'),
           props: picked.length === this.propNames().length ? null : picked,
-          category: v('ctd-cat'), active: chk2('ctd-active'), prorate: chk2('ctd-prorate'), cre: chk2('ctd-cre') }));
+          active: chk2('ctd-active'), prorate: chk2('ctd-prorate'), cre: chk2('ctd-cre') }));
         // The Marketing Details tile writes the same store the Charge Type Defaults overlay does, so a
         // default set here is the default set there — and it follows the code if the code is renamed.
         const newCode = v('ctd-name').toUpperCase() || code;
@@ -4247,8 +4247,9 @@ class Component extends DCLogic {
       + F.check('ctd-active', r.active, 'Active')
       + pair(F.field('Name', F.txt('ctd-name', r.code), true), F.field('Description', F.txt('ctd-desc', r.desc)))
       + pair(F.field('GL Account', this.singleSelect('ctd-gl', this.ctGLOptions(), r.gl), true), F.field('Default Amount', F.amtField('ctd-amt', money(r.amount))))
-      + pair(F.field('Properties', this.multiSelect('ctd-props', this.propNames(), r.props || this.propNames())),
-             F.field('Charge Category', this.singleSelect('ctd-cat', this.chargeCategoryOptions(), r.category, { placeholder:'Select a category' }), true))
+      // Charge Category is set in the Marketing Details tile below, so it is not asked for twice.
+      // The stored value is still the fallback `chargeCategoryFor` reads, and `ctSave` keeps it.
+      + pair(F.field('Properties', this.multiSelect('ctd-props', this.propNames(), r.props || this.propNames())), '')
       + F.check('ctd-prorate', r.prorate, 'Prorate by Day')
       + F.check('ctd-cre', r.cre, 'CRE Charge Type'));
     const invCols = this.colTracks('ctinv', 'minmax(120px,1fr) minmax(160px,1.6fr)');
@@ -4272,12 +4273,15 @@ class Component extends DCLogic {
     const mdd = (id, opts, val) => this.singleSelect(id, opts, val, { noSearch:true, blank:true, placeholder:'\u00a0' });
     const marea = (id, val) => `<textarea id="${id}" style="box-sizing:border-box;width:100%;height:60px;padding:8px 10px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);line-height:1.5;resize:vertical">${mesc(val)}</textarea>`;
     const mfld = (label, ctl, help) => `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0"><span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--rmx-text, #666666)">${label}${help || ''}</span>${ctl}</div>`;
-    const mCatHelp = this.infoTip('<span style="display:block;white-space:normal">Listing sites group fees by category. A charge already inherits the category of its charge type \u2014 setting one here overrides it on listings.</span>', 290);
-    const mktTile = tile('Marketing Details', '',
-      `<span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.45">Every charge of this type starts with these. If charges of this type already exist, saving asks how far the change should reach.</span>
+    // Figma 3582:1667. The tile is named for what it sets, and the case for setting it moved out of
+    // the field labels into one link in the header \u2014 the fields carry no help icons of their own.
+    const whyTip = this.infoTip('<span style="display:block;white-space:normal">Listing sites need these fields before they will advertise a fee. Setting them on the charge type means every charge of that type starts complete, on every property \u2014 and a property, or a single charge, can still override any of them.</span>', 320,
+      { trigger: `<span style="display:inline-flex;align-items:center;gap:6px;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap">${this.ico('info', 20)}<span style="font-size:14px">Why is this important?</span></span>` });
+    const mktTile = tile('Default Charge Marketing', whyTip,
+      `<span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.45">Set default marketing information for every charge that uses this charge type.</span>
        <div style="display:flex;gap:16px">
          ${mfld('Name', F.txt('ctd-mkt-name', d.name || ''))}
-         ${mfld('Charge Category', mdd('ctd-mkt-category', this.chargeCategoryOptions(), d.category || ''), mCatHelp)}
+         ${mfld('Charge Category', mdd('ctd-mkt-category', this.chargeCategoryOptions(), d.category || ''))}
        </div>
        ${mfld('Marketing Description', marea('ctd-mkt-marketing', d.marketing || ''))}
        <div style="display:flex;gap:16px">

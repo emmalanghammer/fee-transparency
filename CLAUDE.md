@@ -243,9 +243,16 @@ only journey left is: fill in each charge's marketing details → convert to Fee
 ## Marketing defaults by charge type
 
 `state.mktDef` maps a charge type code to the marketing details a charge of that type starts
-with. It is set **on the charge type itself** — a **Marketing Details** tile in the Charge Type Details
-overlay (`ctDetailHTML`, ids `ctd-mkt-*`, saved by `ctSave`), carrying Name, Charge Category,
-Marketing Description, Charge Requirement, Charge Schedule, Fee Due and Refundable. The entry
+with. It is set **on the charge type itself** — the **Default Charge Marketing** tile in the Charge
+Type Details overlay (`ctDetailHTML`, ids `ctd-mkt-*`, saved by `ctSave`), matching Figma
+`3582:1667`: *“Set default marketing information for every charge that uses this charge type”* over
+Name, Charge Category, Marketing Description, Charge Requirement, Charge Schedule, Fee Due and
+Refundable. The case for filling it in is one **Why is this important?** link in the tile header
+(an `infoTip` with a custom `trigger`), not a help icon on each field.
+
+**Charge Category is asked for once.** The Charge Type Information tile no longer carries it — it is
+set in Default Charge Marketing, and `ctSave` leaves the stored `category` alone, so it still serves
+as `chargeCategoryFor`'s fallback. The entry
 follows the code if the code is renamed. **The Marketing Center has no Charge Type Defaults
 button, tab or overlay** — that was the old home and it is gone.
 
