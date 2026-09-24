@@ -45,11 +45,20 @@ every listing already advertises complete pricing (`needsFT`).
   Setup is the nearest real thing.
 
 **The green banner is conditional, and that is the point.** *Ready to display all charges?* with
-**Activate Fee Transparency** (`ftActivateReady`) renders only when at least one property has every
-charge ready and hasn't converted yet. The button acts on exactly that set, handing it to the same
-`pubModal` confirmation a single property uses — so the banner's existence and what the button does
-are the same test, written once. Converting leaves the overlay open: the rows flip to
+**Activate Fee Transparency** (`ftActivateReady`) renders only when `ftReadyProps()` is non-empty —
+properties that are applicable, carry charges, have none outstanding and haven't converted. That
+one helper is also what the button acts on and what the picker lists, so the three cannot disagree.
+
+**One ready property goes straight to the confirmation; several ask which.** With more than one,
+`ftActivateReady` opens `ftSelHTML`'s **Select Properties** picker (z-index 151, above the Setup
+overlay) with everything ready already ticked — you arrived by asking to activate, so the picker is
+for taking one back out, not for building the list from nothing. Next hands the selection to the
+same `pubModal` a single property uses. Converting leaves the Setup overlay open: the rows flip to
 *Fee Transparent* and the banner disappears under you, which is the feedback.
+
+**The confirmation bolds what is being converted** — the property name, or "n selected properties"
+— in both the question and the acknowledgement, since it is the one thing to read twice before
+pressing Convert.
 
 State is `ftSetup: { sec:{what,def}, props:{<name>:true} }` — null when closed. The overlay renders
 at `z-index:150`, under `pubModalHTML`'s 152, so the confirmation lands on top of it.

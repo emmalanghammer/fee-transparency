@@ -1239,13 +1239,14 @@ class Component extends DCLogic {
         o[arg] = !o[arg]; return { ftSetup: Object.assign({}, f2, { sec: o }) }; }); break;
       case 'ftSetupProp': this.setState(s2 => { const f2 = s2.ftSetup, o = Object.assign({}, f2.props || {});
         o[arg] = !o[arg]; return { ftSetup: Object.assign({}, f2, { props: o }) }; }); break;
-      // The banner acts on everything that could be activated right now \u2014 which is exactly what it
-      // counted to decide whether to show itself.
-      case 'ftActivateReady': { const sel = this.propNames().filter(p => {
-          const ch = this.ftCharges(p); const onList = ch.ready + ch.incomplete;
-          return this.ftApplicable(p) && onList > 0 && !ch.incomplete && !this.state.publishedProps[p]; });
+      // One property ready goes straight to the confirmation — there is nothing to choose between.
+      // Several, and you pick which first, because activating is permanent and "all of them" is a
+      // decision rather than a default.
+      case 'ftActivateReady': { const sel = this.ftReadyProps();
         if (!sel.length) break;
-        this.setState({ pubModal: { props: sel, ack: false } }); break; }
+        if (sel.length === 1) this.setState({ pubModal: { props: sel, ack: false } });
+        else this.setState({ ftSel: { mode: 'pub' } });
+        break; }
       case 'ltReadyOpen': this.setState({ ltReady: arg }); break;
       case 'ltReadyClose': this.setState({ ltReady: null }); break;
       case 'colSetupOpen': this.setState({ colSetup: true }); break;
@@ -3275,11 +3276,21 @@ class Component extends DCLogic {
   // selected one's details on the right. Every type's pane is rendered and all but one hidden, so
   // clicking down the list never loses what has been typed — and nothing here re-renders, which
   // would wipe a pane half filled in.
+  // Every property that could be activated right now. The Setup banner shows itself on this, its
+  // button acts on this, and the picker lists this — one test, so the three cannot disagree.
+  ftReadyProps(){
+    return this.propNames().filter(p => {
+      const ch = this.ftCharges(p); const onList = ch.ready + ch.incomplete;
+      return this.ftApplicable(p) && onList > 0 && !ch.incomplete && !this.state.publishedProps[p];
+    });
+  }
   ftSelHTML(){
     const f = this.state.ftSel;
     if (!f) return '';
-    const opts = this.propertiesData().map(p => p.name).filter(n => this.ftStatus(n).key === 'ready');
-    return `<div data-act="ftSelCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:140">
+    const opts = this.ftReadyProps();
+    // Everything ready starts ticked — you arrived here by asking to activate, so the picker is for
+    // taking one back out, not for building the list from nothing. It sits above the Setup overlay.
+    return `<div data-act="ftSelCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:151">
       <div data-act="noop" style="width:360px;max-width:94vw;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 18px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
           <span style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">Select Properties</span>
@@ -3287,7 +3298,7 @@ class Component extends DCLogic {
         </div>
         <div style="padding:14px 18px 18px;display:flex;flex-direction:column;gap:5px">
           <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b)">Properties</span>
-          ${this.multiSelect('ftsel-props', opts, [])}
+          ${this.multiSelect('ftsel-props', opts, opts)}
           <span id="ftsel-err" style="display:none;font-size:14px;color:var(--rmx-error, #eb343c);padding-top:4px">Select at least one property.</span>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:10px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:11px 18px;border-radius:0 0 6px 6px">
@@ -3300,7 +3311,7 @@ class Component extends DCLogic {
   // ---------- Fee Transparency Setup overlay (Figma 3562:42475) ----------
   // What the Listings banner's View Setup opens: everything that has to be true before a property
   // can advertise a total monthly price, in the order it has to become true. Why it matters, the
-  // shortcut that saves the most typing, then the work itself \u2014 one row per property, each saying
+  // shortcut that saves the most typing, then the work itself — one row per property, each saying
   // what it is short and offering the way to fix it. The first two sections start collapsed,
   // because on the second visit you are here for the third.
   ftSetupHTML(){
@@ -3315,7 +3326,7 @@ class Component extends DCLogic {
       return { p, ch, onList, whole: onList > 0 && ch.incomplete === 0,
         converted: !!this.state.publishedProps[p] };
     }).filter(r => r.onList > 0);
-    const canGo = rows.filter(r => r.whole && !r.converted);
+    const canGo = this.ftReadyProps();
 
     const CARD = 'background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px';
     const H = (t) => `<span style="font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${t}</span>`;
@@ -3433,6 +3444,7 @@ class Component extends DCLogic {
     const props = m.props || [m.prop];
     const single = props.length === 1;
     const prop = single ? props[0] : props.length + ' selected properties';
+    const bold = `<strong style="font-weight:600">${prop}</strong>`;
     return `<div data-act="pubCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:152">
       <div data-act="noop" style="width:640px;max-width:94vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
@@ -3442,7 +3454,7 @@ class Component extends DCLogic {
           <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="pubCancel" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
         </div>
         <div style="padding:18px 20px;display:flex;flex-direction:column;gap:14px;overflow-y:auto">
-          <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Are you sure you would like to convert ${prop} to fee transparency?</span>
+          <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Are you sure you would like to convert ${bold} to fee transparency?</span>
           <div style="display:flex;align-items:flex-start;gap:12px;background:#fdf3e3;border:1px solid #f0ad4e;border-radius:4px;padding:12px 14px">
             <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-notice, #faa61c);flex:none;margin-top:1px"><path d="m40-120 440-760 440 760H40Zm104-60h672L480-760 144-180Zm361.5-65.68q8.5-8.67 8.5-21.5 0-12.82-8.68-21.32-8.67-8.5-21.5-8.5-12.82 0-21.32 8.68-8.5 8.67-8.5 21.5 0 12.82 8.68 21.32 8.67 8.5 21.5 8.5 12.82 0 21.32-8.68ZM454-348h60v-224h-60v224Zm26-122Z"/></svg>
             <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Converting switches ${single ? 'this property&#39;s listing feed' : 'these properties&#39; listing feeds'} permanently and can&#39;t be undone. Later changes to these charges appear on the next feed update.</span>
@@ -3450,7 +3462,7 @@ class Component extends DCLogic {
           <div style="height:1px;background:var(--rmx-line, #cedbe7)"></div>
           <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer">
             <input type="checkbox" data-act="pubAck" ${m.ack?'checked':''} style="accent-color:var(--rmx-attention, #f58220);width:16px;height:16px;margin:2px 0 0;flex:none">
-            <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">I understand this permanently changes how pricing displays on ${single ? prop + ' listings' : "the selected properties' listings"}.</span>
+            <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">I understand this permanently changes how pricing displays on ${single ? bold + ' listings' : "the selected properties' listings"}.</span>
           </label>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:10px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:12px 20px;flex:none">
