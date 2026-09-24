@@ -55,7 +55,7 @@ bed/bath and per-provider state). **Total Monthly Price reads `-` until the prop
 converted** (`publishedProps`): a property that hasn't still advertises rent alone, so it has no
 total to show — finishing its charges is not the same as publishing them.
 
-**A Fee Transparency Tracker tile sits above the groups**, matching Figma `3530:89817`: a white
+**A Fee Transparency Status tile sits above the groups**, matching Figma `3530:89817`: a white
 card (1px `#cedbe7`, 4px radius, 16px padding) holding the title at 16/600 with its `infoTip`, then
 three RMX **Status Filter Cards** 24px to its right — 250px wide, 16px apart, each a 4px coloured
 spine (`icon-primary` / `icon-success` / `icon-notice`) with the label at 14/20 on the left and the
