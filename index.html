@@ -8166,18 +8166,21 @@ class Component extends DCLogic {
       return Object.keys(use).sort().map(c => use[c]);
     })();
     const ctmTick = `<svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-success, #6eb744)"><path d="m421-298 283-283-46-45-237 237-120-120-45 45 165 166Zm59 218q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 31.5-156t86-127Q252-817 325-848.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 82-31.5 155T763-197.5q-54 54.5-127 86T480-80Z"/></svg>`;
+    // RMX Iconography's edit-filled (Figma `3595:57346`), harvested rather than drawn. It carries
+    // its own 0 0 20 20 box, so it can't live in the Material `ico` map with the -960 960 glyphs.
+    const EDIT_FILLED = `<svg class="ico" width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5))"><path d="M2.49896 14.376V17.501H5.62396L14.8406 8.28437L11.7156 5.15938L2.49896 14.376Z"/><path d="M17.2573 4.69271L15.3073 2.74271C14.9823 2.41771 14.4573 2.41771 14.1323 2.74271L12.6073 4.26771L15.7323 7.39271L17.2573 5.86771C17.5823 5.54271 17.5823 5.01771 17.2573 4.69271Z"/></svg>`;
     const ctmHead = (t, extra) => `<span style="display:flex;align-items:center;min-height:36px;box-sizing:border-box;padding:0 14px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;${extra||''}">${t}</span>`;
     const ctmCell = (t, extra) => `<span style="display:flex;align-items:center;min-height:38px;box-sizing:border-box;padding:0 14px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;${extra||''}">${t}</span>`;
     const CTMCOLS = 'minmax(90px,1.2fr) minmax(90px,1.2fr) minmax(120px,1.6fr) 44px';
     const ctm = card('Default Charge Marketing', `
       <div style="margin:-14px -16px;overflow-x:auto">
         <div style="min-width:344px;display:grid;grid-template-columns:${CTMCOLS};border-bottom:1px solid var(--rmx-line, #cedbe7)">
-          ${ctmHead('Charge Type')}${ctmHead('Active Charges')}${ctmHead('Override Charge Type')}${ctmHead('')}
+          ${ctmHead('Charge Type')}${ctmHead('Active Charges')}${ctmHead('Property Override')}${ctmHead('')}
         </div>
         ${ctmRows.length ? ctmRows.map(t => `<div style="min-width:344px;display:grid;grid-template-columns:${CTMCOLS};border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa)">
             ${ctmCell(esc2(t.code))}${ctmCell(String(t.n))}
             ${ctmCell(this.ctmOverridden(P.name, t.code) ? ctmTick : '')}
-            <span data-act="ctmOpen" data-arg="${esc2(t.code)}" title="Edit default charge marketing" style="display:flex;align-items:center;justify-content:center;min-height:38px;cursor:pointer">${this.ico('edit_square', 18, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
+            <span data-act="ctmOpen" data-arg="${esc2(t.code)}" title="Edit default charge marketing" style="display:flex;align-items:center;justify-content:center;min-height:38px;cursor:pointer">${EDIT_FILLED}</span>
           </div>`).join('')
           : `<div style="padding:14px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No charges on this property yet.</div>`}
       </div>`);

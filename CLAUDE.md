@@ -403,8 +403,13 @@ a white bubble with a 1px brand border and one square corner (`border-radius:200
 Its mark is the real Orion logo, harvested from the library, not a drawn stand-in. **Features
 stacks**: its amenities list sits above its fields, because a third-width tile has no room for two
 columns. The last is a register of the charge types the property
-actually runs — **Charge Type · Active Charges · Override Charge Type** — with a green tick where
-this property has taken the type over, and an edit pencil (`ctmOpen`).
+actually runs — **Charge Type · Active Charges · Property Override** — with a green tick where
+this property has taken the type over, and an edit pencil (`ctmOpen`). That pencil is RMX
+Iconography's **edit-filled** (Figma `3595:57346`), harvested rather than drawn: it is the filled
+glyph at 20px on its own `0 0 20 20` box, so it can't live in the Material `ico` map with the
+`-960 960` ones and is inlined as `EDIT_FILLED` beside the register. The column is *Property
+Override*; the dialog's checkbox is still *Override Charge Type*, because that one is the decision
+being made rather than a label for the tick.
 
 **`ctmEditHTML()` is the override**, matching Figma `3591:138722`. One checkbox, **Override Charge
 Type**, is the whole decision: off, the fields show the charge type's values greyed and locked, and
