@@ -26,8 +26,33 @@ the Material `checklist` glyph. It replaced the amber callout that argued the ca
 transparency: the page now offers the way in rather than making the argument. It still hides once
 every listing already advertises complete pricing (`needsFT`).
 
-**`ftSetupOpen` is a flash, not a screen.** The setup checklist is designed in Figma
-(`3554:116447`) and is not built here, so *View Setup* says so rather than going nowhere quietly.
+**View Setup opens `ftSetupHTML()`** — the Fee Transparency Setup overlay, matching Figma
+`3562:42475`. A 972px dialog: header, then three cards 8px apart inside a 16px scrolling body.
+
+- **What is Fee Transparency?** — collapsed by default. Open, it carries one line of what changes
+  on a listing, then three notes with tinted 33px icon tiles: *Required in Some States* (amber
+  `error`), *Streamlined Process* (grey `settings`), *Applicable Properties* (brand `apartment`).
+- **Set Defaults** + a blue `Recommended` lozenge — also collapsed. Open, it explains inheritance
+  and offers **Set Defaults on Charge Types** (`navChargeTypes`).
+- **Add Marketing Details to Charges** + a red `Required` lozenge — always open, because on the
+  second visit that is what you came for. One row per property fee transparency can apply to
+  (`ftApplicable`, and only where listings carry charges at all): a home icon, the name, a
+  **Ready** / **Not Ready** lozenge and a chevron. A ready property's row also offers
+  **Activate Fee Transparency** (`pubOpen`); a converted one reads *Fee Transparent* in italic and
+  offers nothing. Expanded, the row shows two grey sub-rows — *Listing Ready Charges: n/n* with
+  **Add Charge Details**, and *Set Property Defaults* with **Edit Defaults**. Both go to
+  `mcOpenProp`: property-level defaults aren't a separate surface in this model, and Marketing
+  Setup is the nearest real thing.
+
+**The green banner is conditional, and that is the point.** *Ready to display all charges?* with
+**Activate Fee Transparency** (`ftActivateReady`) renders only when at least one property has every
+charge ready and hasn't converted yet. The button acts on exactly that set, handing it to the same
+`pubModal` confirmation a single property uses — so the banner's existence and what the button does
+are the same test, written once. Converting leaves the overlay open: the rows flip to
+*Fee Transparent* and the banner disappears under you, which is the feedback.
+
+State is `ftSetup: { sec:{what,def}, props:{<name>:true} }` — null when closed. The overlay renders
+at `z-index:150`, under `pubModalHTML`'s 152, so the confirmation lands on top of it.
 
 **A group's header sits on the page background; only the register is a card.** The header is
 `padding:16px 20px`, gap 16: chevron and property name at 14/600 on the left, then the

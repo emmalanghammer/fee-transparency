@@ -214,6 +214,7 @@ class Component extends DCLogic {
     ltErrOnly: false,
     ltReady: null,        // Listings: the property whose Listing Ready Charges list is open
     ltGroupBy: true,      // Listings: Group by property — off shows one register with a Property column
+    ftSetup: null,        // { sec:{what,def}, props:{<name>:true} } — the Fee Transparency Setup overlay
  // Listings page: hide listings without errors
     ltErr: null, // { i, open } — Listing Errors popup for one listing
     // Charges register columns: chgCols is the chosen keys in order (null = defaults), colNames holds
@@ -1231,8 +1232,20 @@ class Component extends DCLogic {
       case 'ltErrToggle': this.setState(s => ({ ltErrOnly: !s.ltErrOnly })); break;
       // Clicking the lit one takes the filter back off, so a number is never a trap.
       case 'ltGroupToggle': this.setState(s2 => ({ ltGroupBy: s2.ltGroupBy === false })); break;
-      // Setup is where converting lives now. The checklist itself isn't built yet.
-      case 'ftSetupOpen': this.flash('Fee Transparency Setup isn\u2019t built yet'); break;
+      // Setup is where converting lives now.
+      case 'ftSetupOpen': this.setState({ ftSetup: { sec: {}, props: {} } }); break;
+      case 'ftSetupClose': this.setState({ ftSetup: null }); break;
+      case 'ftSetupSec': this.setState(s2 => { const f2 = s2.ftSetup, o = Object.assign({}, f2.sec || {});
+        o[arg] = !o[arg]; return { ftSetup: Object.assign({}, f2, { sec: o }) }; }); break;
+      case 'ftSetupProp': this.setState(s2 => { const f2 = s2.ftSetup, o = Object.assign({}, f2.props || {});
+        o[arg] = !o[arg]; return { ftSetup: Object.assign({}, f2, { props: o }) }; }); break;
+      // The banner acts on everything that could be activated right now \u2014 which is exactly what it
+      // counted to decide whether to show itself.
+      case 'ftActivateReady': { const sel = this.propNames().filter(p => {
+          const ch = this.ftCharges(p); const onList = ch.ready + ch.incomplete;
+          return this.ftApplicable(p) && onList > 0 && !ch.incomplete && !this.state.publishedProps[p]; });
+        if (!sel.length) break;
+        this.setState({ pubModal: { props: sel, ack: false } }); break; }
       case 'ltReadyOpen': this.setState({ ltReady: arg }); break;
       case 'ltReadyClose': this.setState({ ltReady: null }); break;
       case 'colSetupOpen': this.setState({ colSetup: true }); break;
@@ -2522,7 +2535,7 @@ class Component extends DCLogic {
       copyFees: null, pricePreview: null, profMenu: null, profHist: null,
       recView: null, rowMenu: null, pubModal: null, ftSel: null, mktDef: {},
       mktSetup: false, mktAdv: false, mktTab: 'General', petType: null, spBanner: true, ftHelp: false,
-      lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false, ltReady: null, ltGroupBy: true, mcTab: 'Overview',
+      lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false, ltReady: null, ltGroupBy: true, ftSetup: null, mcTab: 'Overview',
       mcProp: null, mktDefDraft: null, mktDefAsk: false, mktDefMode: 'blank', mpExp: null
     });
     try {
@@ -3280,6 +3293,135 @@ class Component extends DCLogic {
         <div style="display:flex;justify-content:flex-end;gap:10px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:11px 18px;border-radius:0 0 6px 6px">
           <button data-act="ftSelNext" class="btn-pri" style="height:32px;min-height:32px;padding:0 20px;border-radius:4px;font-size:14px">Next</button>
           <button data-act="ftSelCancel" style="height:32px;min-height:32px;padding:0 16px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+  }
+  // ---------- Fee Transparency Setup overlay (Figma 3562:42475) ----------
+  // What the Listings banner's View Setup opens: everything that has to be true before a property
+  // can advertise a total monthly price, in the order it has to become true. Why it matters, the
+  // shortcut that saves the most typing, then the work itself \u2014 one row per property, each saying
+  // what it is short and offering the way to fix it. The first two sections start collapsed,
+  // because on the second visit you are here for the third.
+  ftSetupHTML(){
+    const st = this.state.ftSetup; if (!st) return '';
+    const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+    const sec = st.sec || {}, po = st.props || {};
+
+    // Only properties fee transparency can apply to, and only those with charges listings carry.
+    const rows = this.propNames().filter(p => this.ftApplicable(p)).map(p => {
+      const ch = this.ftCharges(p);
+      const onList = ch.ready + ch.incomplete;
+      return { p, ch, onList, whole: onList > 0 && ch.incomplete === 0,
+        converted: !!this.state.publishedProps[p] };
+    }).filter(r => r.onList > 0);
+    const canGo = rows.filter(r => r.whole && !r.converted);
+
+    const CARD = 'background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px';
+    const H = (t) => `<span style="font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${t}</span>`;
+    const DESC = (t) => `<span style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">${t}</span>`;
+    const loz = (t, bg, fg, dot) => `<span style="display:inline-flex;align-items:center;gap:8px;height:24px;box-sizing:border-box;padding:0 9px;border-radius:4px;background:${bg};font-size:13px;color:${fg};white-space:nowrap;flex:none">${dot ? `<span style="width:8px;height:8px;border-radius:50%;flex:none;background:${dot}"></span>` : ''}${t}</span>`;
+    const chev = (open) => this.ico(open ? 'keyboard_arrow_up' : 'keyboard_arrow_down', 24, 'color:var(--rmx-text, #666666);flex:none');
+    const link = (t, act, arg) => `<span data-act="${act}"${arg ? ` data-arg="${esc(arg)}"` : ''} style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${t}</span>`;
+    const SETTINGS = `<svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="flex:none"><path d="M405-120 373-266q-15-6-29-14t-27-19l-140 44-95-165 111-97q-1-8-1.5-15.5T190-547q0-8 .5-15.5T192-578L81-675l95-165 140 44q13-11 27-19t29-14l32-146h190l32 146q15 6 29.5 14t26.5 19l140-44 95 165-111 97q1 8 1.5 15.5t.5 15.5q0 8-.5 15.5T806-562l111 97-95 165-140-44q-12 11-26.5 19T626-311l-32 146H405Zm75-260q41 0 70.5-29.5T580-480q0-41-29.5-70.5T480-580q-41 0-70.5 29.5T380-480q0 41 29.5 70.5T480-380Z"/></svg>`;
+    const MEGAPHONE = `<svg class="ico" width="24" height="24" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="flex:none"><path d="M720-440v-80h160v80H720Zm48 280-128-96 48-64 128 96-48 64Zm-80-480-48-64 128-96 48 64-128 96ZM200-200v-160h-40q-33 0-56.5-23.5T80-440v-80q0-33 23.5-56.5T160-600h160l200-120v520L320-320h-40v160h-80Z"/></svg>`;
+
+    // ---- the green banner: only when at least one property could be activated right now ----
+    const banner = !canGo.length ? '' : `<div style="display:flex;align-items:center;gap:16px;background:#f8fbf6;border:1px solid #94cc86;border-radius:4px;padding:16px">
+      <span style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;flex:none;background:var(--rmx-success, #6eb744);color:#fff">${MEGAPHONE}</span>
+      <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
+        <span style="font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Ready to display all charges?</span>
+        ${DESC('Once activated, listings will use all charges you want to show to residents.')}
+      </div>
+      <button data-act="ftActivateReady" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;border:none;font:400 14px Roboto,sans-serif;background:var(--rmx-success, #6eb744);color:#fff;cursor:pointer;white-space:nowrap;flex:none">Activate Fee Transparency</button>
+    </div>`;
+
+    // ---- section 1: why ----
+    const notif = (icon, tint, fg, title, body) => `<div style="display:flex;align-items:flex-start;gap:8px">
+      <span style="display:flex;align-items:center;justify-content:center;width:33px;height:33px;border-radius:4px;flex:none;background:${tint};color:${fg}">${icon}</span>
+      <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
+        <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title}</span>
+        ${DESC(body)}
+      </div>
+    </div>`;
+    const rule = `<div style="height:1px;background:var(--rmx-line, #cedbe7)"></div>`;
+    const whatOpen = !!sec.what;
+    const what = `<div style="${CARD};padding:17px;display:flex;flex-direction:column;gap:16px">
+      <div data-act="ftSetupSec" data-arg="what" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        ${H('What is Fee Transparency?')}<div style="flex:1"></div>${chev(whatOpen)}
+      </div>
+      ${whatOpen ? `${DESC('Listings show every required fee itemized, plus a Total Monthly Price, instead of base rent alone.')}
+      <div style="display:flex;flex-direction:column;gap:12px">
+        ${notif(this.ico('error', 20, 'flex:none'), '#fdf3e7', 'var(--rmx-notice, #faa61c)', 'Required in Some States', 'CA, MN, CO, CT and others require advertised rent to include mandatory fees, and Zillow flags listings that don&#39;t.')}
+        ${rule}
+        ${notif(SETTINGS, '#eef1f4', 'var(--rmx-ink-2, #424e5b)', 'Streamlined Process', 'Add marketing details on the charge type, property, or individual charge to simplify the setup and get fee transparent.')}
+        ${rule}
+        ${notif(this.ico('apartment', 20, 'flex:none'), 'var(--rmx-brand-tint-bg, #ebf1f5)', 'var(--ac,var(--rmx-brand, #008dd5))', 'Applicable Properties', 'Fee Transparency can only be activated for properties that are using online listings with providers that have total pricing/complete pricing')}
+      </div>` : ''}
+    </div>`;
+
+    // ---- section 2: the shortcut ----
+    const defOpen = !!sec.def;
+    const defaults = `<div style="${CARD};padding:17px;display:flex;flex-direction:column;gap:16px">
+      <div data-act="ftSetupSec" data-arg="def" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        ${H('Set Defaults')}${loz('Recommended', 'var(--rmx-brand-tint-bg, #ebf1f5)', 'var(--rmx-brand-hover, #0071aa)')}<div style="flex:1"></div>${chev(defOpen)}
+      </div>
+      ${defOpen ? `${DESC('Fill in marketing details once per charge type, and every charge of that type inherits them. You can still override on any property or charge.')}
+      <span data-act="navChargeTypes" style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;color:var(--ac,var(--rmx-brand, #008dd5))">${SETTINGS}<span style="font-size:14px">Set Defaults on Charge Types</span></span>` : ''}
+    </div>`;
+
+    // ---- section 3: the work, one row per property ----
+    const prop = (r) => {
+      const open = !!po[r.p];
+      const status = r.converted ? '' : r.whole
+        ? loz('Ready', 'var(--rmx-success-bg, #e2f1da)', 'var(--rmx-brand-dark, #13314c)', 'var(--rmx-success, #6eb744)')
+        : loz('Not Ready', '#fdf3e7', 'var(--rmx-brand-dark, #13314c)', 'var(--rmx-notice, #faa61c)');
+      // A property that is ready offers the move here; one that has already made it just says so.
+      const lead = r.converted
+        ? `<span style="font-size:14px;font-style:italic;color:var(--rmx-text, #666666);white-space:nowrap">Fee Transparent</span>`
+        : r.whole ? link('Activate Fee Transparency', 'pubOpen', r.p) : '';
+      const sub = (icon, label, value, action) => `<div style="display:flex;align-items:center;gap:12px;min-height:36px;box-sizing:border-box;padding:8px;background:var(--rmx-bg-subtle, #f5f8fa)">
+        ${icon}
+        <span style="flex:1;min-width:0;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}${value ? ` <strong style="font-weight:600">${value}</strong>` : ''}</span>
+        ${action || ''}
+      </div>`;
+      const tick = this.ico(r.whole ? 'check_circle' : 'error', 20, `color:${r.whole ? 'var(--rmx-success, #6eb744)' : 'var(--rmx-notice, #faa61c)'};flex:none`);
+      return `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
+        <div data-act="ftSetupProp" data-arg="${esc(r.p)}" style="display:flex;align-items:center;gap:8px;min-height:40px;box-sizing:border-box;padding:8px;background:#fff;cursor:pointer">
+          ${this.ico('home', 20, 'color:var(--rmx-brand-dark, #13314c);flex:none')}
+          <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${esc(r.p)}</span>
+          ${lead}
+          <div style="flex:1"></div>
+          ${status}${chev(open)}
+        </div>
+        ${open ? `<div>
+          ${sub(tick, 'Listing Ready Charges:', `${r.ch.ready}/${r.onList}`, r.converted ? '' : link('Add Charge Details', 'mcOpenProp', r.p))}
+          ${rule}
+          ${sub(this.ico('info', 20, 'color:var(--rmx-text, #666666);flex:none'), 'Set Property Defaults', '', link('Edit Defaults', 'mcOpenProp', r.p))}
+        </div>` : ''}
+      </div>`;
+    };
+    const charges = `<div style="${CARD};padding:17px;display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:center;gap:8px">
+          ${H('Add Marketing Details to Charges')}${loz('Required', '#fdecee', '#a3252c')}
+        </div>
+        ${DESC('A property can activate fee transparency once every charge shown on listings has marketing details.')}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${rows.length ? rows.map(prop).join('') : DESC('No properties are enabled for online listings yet.')}
+      </div>
+    </div>`;
+
+    return `<div data-act="ftSetupClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:150">
+      <div data-act="noop" style="width:972px;max-width:94vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:14px;height:48px;box-sizing:border-box;padding:0 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
+          <span style="font-size:18px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Fee Transparency Setup</span>
+          <div style="flex:1"></div>
+          <span data-act="ftSetupClose" style="display:flex;cursor:pointer">${this.ico('close', 24, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
+        </div>
+        <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px;background:#fff">
+          ${banner}${what}${defaults}${charges}
         </div>
       </div>
     </div>`;
@@ -8092,6 +8234,7 @@ class Component extends DCLogic {
     out += this.colSetupHTML();
     out += this.addPropHTML();
     out += this.pfFilterHTML();
+    out += this.ftSetupHTML();
     out += this.pubModalHTML();
     out += this.ftSelHTML();
     out += this.mktSetupHTML();
