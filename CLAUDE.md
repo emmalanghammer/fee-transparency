@@ -388,6 +388,12 @@ are not inputs at all; on, they are this property's to set, seeded from the char
 override is an edit of it rather than an empty form. `Reset` shows only once an override exists and
 puts the type back. Saving writes `state.propDef[prop][CODE]`; unticking and saving deletes it.
 
+**The dialog is built from `ctFieldBits()`**, the shared RMX field bits, not one-off markup: `txt`
+is the enabled Input Field on `Component/input-default` (`#f5f8fa`, never white — a white input reads
+as a different control from the dropdown beside it), `check` is RMX's Checkbox in attention orange,
+and `lab` is `Text/text-primary`. The checkbox's label swallows its own clicks
+(`pointer-events:none`) so the delegated `ctmToggle` fires once rather than twice.
+
 **The locked fields are RMX's disabled Input Field**, to Figma `3595:57087`: 1px
 `Border/border-disabled` `#ebf1f5`, the two-layer white-over-`#f2f2f2` ground, `Text/text-disabled`
 `#b3b3b3`, 36px, and the chevron stays on a dropdown. Marketing Description is the disabled Text

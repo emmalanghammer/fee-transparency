@@ -3375,7 +3375,8 @@ class Component extends DCLogic {
       {value:'During Term',label:'During Term'},{value:'Move-Out',label:'At Move-Out'}];
     const SCHED = ['Weekly','Monthly','Annually'];
     const REF = [{value:'yes',label:'Refundable'},{value:'no',label:'Not Refundable'}];
-    const lab = (t) => `<span style="font-size:14px;color:var(--rmx-ink-2, #424e5b)">${t}</span>`;
+    const F = this.ctFieldBits();
+    const lab = F.lab;
     // Locked fields are the charge type's values, shown so the decision is informed \u2014 not inputs.
     const DIS_BG = 'linear-gradient(90deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.5) 100%), linear-gradient(90deg, #f2f2f2 0%, #f2f2f2 100%)';
     const DIS_LINE = '#ebf1f5';
@@ -3386,8 +3387,8 @@ class Component extends DCLogic {
     // The multi-line one is RMX's Text Box, disabled: same ground, 56px tall, text at the top.
     const roArea = (t) => `<div style="display:flex;align-items:flex-start;height:56px;box-sizing:border-box;padding:8px 12px;background:${DIS_BG};border:1px solid ${DIS_LINE};border-radius:4px;font-size:14px;line-height:20px;color:${DIS_INK};overflow:hidden">${esc(t)}</div>`;
     const fld = (label, ctl) => `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">${lab(label)}${ctl}</div>`;
-    const txt = (id, val) => `<input id="${id}" type="text" value="${esc(val)}" style="box-sizing:border-box;width:100%;height:36px;padding:0 10px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">`;
-    const area = (id, val) => `<textarea id="${id}" style="box-sizing:border-box;width:100%;height:60px;padding:8px 10px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);resize:none">${esc(val)}</textarea>`;
+    const txt = (id, val) => F.txt(id, val);
+    const area = (id, val) => `<textarea id="${id}" style="box-sizing:border-box;width:100%;height:60px;padding:8px 10px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);resize:none">${esc(val)}</textarea>`;
     const dd = (id, opts, val) => this.singleSelect(id, opts, val, { noSearch:true, blank:true, placeholder:'\u00a0' });
 
     const pair = (a, b) => `<div style="display:flex;gap:16px">${a}${b}</div>`;
@@ -3401,9 +3402,9 @@ class Component extends DCLogic {
         + pair(fld('Charge Requirement', ro(v('requirement'), true)), fld('Charge Schedule', ro(v('schedule'), true)))
         + pair(fld('Fee Due', ro(v('feeDue'), true)), fld('Refundable', ro(v('refundable'), true)));
 
-    const box = on
-      ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;box-sizing:border-box;flex:none;background:var(--rmx-attention, #f58220);border:1px solid var(--rmx-attention, #f58220);border-radius:2px">${this.ico('check', 16, 'color:#fff')}</span>`
-      : `<span style="display:inline-block;width:20px;height:20px;box-sizing:border-box;flex:none;background:#fff;border:2px solid var(--rmx-text-disabled, #b3b3b3);border-radius:2px"></span>`;
+    // RMX's own Checkbox, not a hand-drawn box. The label swallows its clicks so the delegated
+    // handler fires once rather than twice.
+    const box = `<span style="display:inline-flex;pointer-events:none">${F.check('ctm-on', on, 'Override Charge Type')}</span>`;
 
     return `<div data-act="ctmCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:150">
       <div data-act="noop" style="width:560px;max-width:94vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
@@ -3414,9 +3415,7 @@ class Component extends DCLogic {
         </div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:14px">
           <div style="display:flex;align-items:center;gap:10px">
-            <label data-act="ctmToggle" style="display:inline-flex;align-items:center;gap:10px;cursor:pointer">
-              ${box}<span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Override Charge Type</span>
-            </label>
+            <span data-act="ctmToggle" style="display:inline-flex;align-items:center;cursor:pointer">${box}</span>
             ${this.ctmOverridden(prop, code) ? `<a data-act="ctmReset" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Reset</a>` : ''}
           </div>
           <div style="display:flex;flex-direction:column;gap:12px;padding:14px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px">${body}</div>
