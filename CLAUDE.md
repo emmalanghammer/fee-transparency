@@ -118,17 +118,26 @@ Symbols glyph. The panel sets `font:400` on itself: it renders inside whatever t
 bold heading was bleeding into the body text. Callers may still pass a narrower width; everything
 else is the component's.
 
-**Errors is about the feed and nothing else.** `ltIssues` totals only the listing's `rm` errors
-(Rent Manager's own fields) and its `tz` errors, attributed to whichever providers carry `err`. The
-icon is a green tick or a red circle — never amber — and opens `ltErrHTML`, which shows those two
-sources as collapsible sections. Charge completeness is deliberately absent: it is a fact about the
-**property**, and repeating it per unit raised the same warning on every row of a property and
-opened three dialogs listing the same five charges.
+**Charges is a column, beside Errors.** Every listing of a property fee transparency can apply to
+wears that property's **Listing Ready Charges n/n** — the same fraction the group header carries,
+because it is the same `ftCharges(prop)` — amber while short, green once whole. A property
+fee transparency cannot apply to (`ftApplicable` is false: not on an ILS feed, or on MH Village)
+reads `—`, because the question isn't asked of it. In the ungrouped view the group header is gone,
+so the column is the only place the count can be read; grouped, the two agree by construction.
 
-**Charge completeness lives on the group header instead.** The **Listing Ready Charges n/n** count
-is the trigger: `ltReadyOpen` opens `ltReadyHTML`, which itemises the charges still short and the
-fields each one is missing, with the way through to Marketing Setup. Same count as the lozenge,
-because it is that count, itemised. `ltChargeIssues` takes a **property**, not a listing.
+**Errors counts the feed and the charges, apart.** `ltIssues` returns `rm` (Rent Manager's own
+fields), `prov` (the `tz` errors, attributed to whichever providers carry `err`) and `charges`
+(`ltChargeIssues(prop)`, only when `ftApplicable`). The icon reads **red when the feed has an
+error, amber when only the charges are short**, green otherwise — a listing whose charges are
+incomplete can't advertise a Total Monthly Price, which is a real reason the row publishes wrong,
+but the feed itself still goes out, so it is not red. `ltErrHTML` shows all three as collapsible
+sections; the charges one itemises each charge and the fields it lacks, with **Add charge details**
+through to Marketing Setup.
+
+**Charge completeness is also on the group header.** The **Listing Ready Charges n/n** count is a
+trigger: `ltReadyOpen` opens `ltReadyHTML`, which itemises the same charges. Same count as the
+lozenge and the Charges column, because it is that count, itemised. `ltChargeIssues` takes a
+**property**, not a listing.
 
 **Hide listings without errors** (`ltErrOnly`) follows the column: feed errors only.
 
@@ -217,6 +226,14 @@ it should be a **new** artifact rather than this one.
 - **Edit by exact-string replacement, with an assert on the match count.** Several blocks in
   `index.html` are near-identical (the charge callout appears three times, `Transactions` tiles
   twice); a loose match patches the wrong one.
+- **Unbuilt chrome is `data-act="todo"`, and it does nothing.** The surrounding Express furniture —
+  rail buttons, kebabs, Add links, Print, Refresh, Help, Merge, Mass Edit, Update Listings Feed —
+  exists so the screen reads as the real product, and none of it is built. Its dispatcher case
+  dismisses whatever menu it sits in and stops; `data-arg` survives as the affordance's own label.
+  It used to raise a toast saying what had been clicked, which is the one thing a toast must never
+  do: a Toast follows a **completed action**, and acknowledging a click with one tells a walkthrough
+  audience something happened when nothing did. `flash()` is still right for a real confirmation —
+  a save, a convert, a validation failure — and every one of those is left alone.
 - **Re-rendering wipes form state.** Live form updates go through the DOM-only helpers
   (`window.__attrCheck`, `__mitsRecheck`, `__nameMode`, `__exclSync` and friends) rather than
   `setState`.
@@ -446,9 +463,15 @@ The **Charges overlay carries almost none of it**. The charge form does have a *
 section again, but collapsed by default with the outstanding count in its header — collapsing hides
 the body rather than dropping it, so `saveFee` still reads every field. Beyond that: no
 Marketing Name / Listing Ready / requirement / category columns, no Group by Requirement, no
-completeness banner (`mitsBanner` returns ''), and Bulk Update is General-only. **Preview
-Pricing** moved to the Pricing tab too — General's Listing Details carries no pricing callout —
-and the kebab's Pricing Setup link is gone.
+completeness banner (`mitsBanner` returns ''), no Marketing Name / requirement / category columns,
+and Bulk Update is General-only. General's Listing Details carries no pricing callout and the
+kebab's Pricing Setup link is gone.
+
+**Two things the overlay does carry, and only where they mean something.** A **Listing Ready**
+column (`chargeColDefs`' `base:'ft'`) and a **Preview Pricing** button on the toolbar both render
+only when `ftApplicable(state.property)` — whether a charge is ready to advertise, and what the
+advertised price would look like, are not questions a property that doesn't list online is being
+asked. `chargeColsDefault()` is what honours the gate, beside the existing `base:'ils'` one.
 
 ## Test feature states
 
