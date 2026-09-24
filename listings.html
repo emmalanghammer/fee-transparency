@@ -213,7 +213,7 @@ class Component extends DCLogic {
     spBanner: true, // System Preferences Fee Transparency banner not yet dismissed
     ltErrOnly: false,
     ltReady: null,        // Listings: the property whose Listing Ready Charges list is open
-    ltFilter: null,       // Listings: 'ready' | 'converted' | 'short' — the tracker stat filtering the groups
+    ltGroupBy: true,      // Listings: Group by property — off shows one register with a Property column
  // Listings page: hide listings without errors
     ltErr: null, // { i, open } — Listing Errors popup for one listing
     // Charges register columns: chgCols is the chosen keys in order (null = defaults), colNames holds
@@ -1230,7 +1230,9 @@ class Component extends DCLogic {
       case 'ltPropSet': this.setState({ ltProp: arg }); break;
       case 'ltErrToggle': this.setState(s => ({ ltErrOnly: !s.ltErrOnly })); break;
       // Clicking the lit one takes the filter back off, so a number is never a trap.
-      case 'ltFilterSet': this.setState(s2 => ({ ltFilter: s2.ltFilter === arg ? null : arg })); break;
+      case 'ltGroupToggle': this.setState(s2 => ({ ltGroupBy: s2.ltGroupBy === false })); break;
+      // Setup is where converting lives now. The checklist itself isn't built yet.
+      case 'ftSetupOpen': this.flash('Fee Transparency Setup isn\u2019t built yet'); break;
       case 'ltReadyOpen': this.setState({ ltReady: arg }); break;
       case 'ltReadyClose': this.setState({ ltReady: null }); break;
       case 'colSetupOpen': this.setState({ colSetup: true }); break;
@@ -2520,7 +2522,7 @@ class Component extends DCLogic {
       copyFees: null, pricePreview: null, profMenu: null, profHist: null,
       recView: null, rowMenu: null, pubModal: null, ftSel: null, mktDef: {},
       mktSetup: false, mktAdv: false, mktTab: 'General', petType: null, spBanner: true, ftHelp: false,
-      lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false, ltReady: null, ltFilter: null, mcTab: 'Overview',
+      lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false, ltReady: null, ltGroupBy: true, mcTab: 'Overview',
       mcProp: null, mktDefDraft: null, mktDefAsk: false, mktDefMode: 'blank', mpExp: null
     });
     try {
@@ -3516,27 +3518,14 @@ class Component extends DCLogic {
   // listing up by, and `listingsData()` builds fresh objects on every call, so identity can't do it.
   // Does a property match one of the tracker's three statuses? The same three tests the tracker
   // counts by, so clicking a number shows exactly what it counted.
-  ltStatusMatch(prop, key){
-    const ch = this.ftCharges(prop);
-    const onList = ch.ready + ch.incomplete;
-    const converted = !!this.state.publishedProps[prop];
-    if (key === 'converted') return converted;
-    if (key === 'short') return ch.incomplete > 0;
-    if (key === 'ready') return this.ftApplicable(prop) && onList > 0 && !converted && !ch.incomplete;
-    return true;
-  }
-  // `skipStatus` is for the tracker itself: its numbers report the whole portfolio, so filtering by
-  // one of them must not shrink the other two to nothing and strand you there.
-  ltGroups(skipStatus){
+  ltGroups(){
     const filt = this.state.ltProp || 'all';
-    const status = skipStatus ? null : this.state.ltFilter;
     const rows = this.listingsData()
       .map((l, i) => ({ l, i }))
       .filter(r => filt === 'all' || r.l.prop === filt)
       // "without errors" means the green tick in the Errors column, and that column is now the
       // feed alone — so this is too. Charge details are reported per property, not per listing.
-      .filter(r => !this.state.ltErrOnly || this.ltIssues(r.l).total > 0)
-      .filter(r => !status || this.ltStatusMatch(r.l.prop, status));
+      .filter(r => !this.state.ltErrOnly || this.ltIssues(r.l).total > 0);
     const out = [];
     rows.forEach(r => {
       let g = out.find(x => x.prop === r.l.prop);
@@ -3544,20 +3533,6 @@ class Component extends DCLogic {
       g.rows.push(r);
     });
     return out;
-  }
-  // The portfolio in one line. It counts the groups the page is actually showing — per property,
-  // once each — so "ready to convert" is exactly the number of live Convert buttons below it. A
-  // per-listing count would multiply every property by its units and say something else.
-  ltSummary(){
-    let ready = 0, converted = 0, short = 0;
-    this.ltGroups(true).forEach(g => {
-      const ch = this.ftCharges(g.prop);
-      const onList = ch.ready + ch.incomplete;
-      if (this.state.publishedProps[g.prop]) converted++;
-      else if (this.ftApplicable(g.prop) && onList > 0 && !ch.incomplete) ready++;
-      short += ch.incomplete;
-    });
-    return { ready, converted, short };
   }
   // What the group header's Listing Ready Charges count opens: the charges that still need
   // marketing details, each naming the fields it is short. Same n/n as the lozenge — this is that
@@ -3600,11 +3575,22 @@ class Component extends DCLogic {
     const props = all.map(l => l.prop).filter((v, i, a) => a.indexOf(v) === i);
     const filt = this.state.ltProp || 'all';
     const groups = this.ltGroups();
+    // Group by property is on by default — the property is the level the charge work happens at, so
+    // it is the level the page reads at. Off, the same listings are one register with a Property
+    // column, for when you are looking for a unit rather than reviewing a property.
+    const grouped = this.state.ltGroupBy !== false;
     // Nothing to warn about once every listing already advertises complete pricing.
     const needsFT = all.some(l => { const st = l.fixed || this.ltStatus(l.prop); return !st.total || !!st.warn; });
-    const banner = `<div style="display:flex;align-items:center;gap:12px;background:#fef4e8;border:1px solid #f6b26b;border-radius:4px;padding:12px 16px">
-      ${this.ico('warning', 20, 'color:var(--rmx-attention, #f58220);flex:none')}
-      <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">A growing number of states require advertised rent to include every required fee, and listing sites are asking for the same. Fill in each charge's marketing details, convert the property to fee transparency, and its listings advertise a total monthly price instead of rent alone.</span>
+    // Figma 3561:122549. The page no longer argues the case for fee transparency — it offers the
+    // way in. Setup is where the work is now, so the banner is an invitation, not a warning: the
+    // brand-tinted info surface rather than the amber one.
+    const CHECKLIST = `<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="flex:none"><path d="M3.55 17.5375L0 13.9875L1.4 12.5875L3.525 14.7125L7.775 10.4625L9.175 11.8875L3.55 17.5375ZM3.55 9.5375L0 5.9875L1.4 4.5875L3.525 6.7125L7.775 2.4625L9.175 3.8875L3.55 9.5375ZM11 15.5375V13.5375H20V15.5375H11ZM11 7.5375V5.5375H20V7.5375H11Z"/></svg>`;
+    const banner = `<div style="display:flex;align-items:center;gap:16px;background:rgba(232,246,250,0.5);border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;padding:16px">
+      <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
+        <span style="font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Fee Transparency Setup</span>
+        <span style="font-size:14px;line-height:20px;color:#616466">We&#39;ll walk you through everything that needs updating before activating fee transparency on your listings.</span>
+      </div>
+      <button data-act="ftSetupOpen" class="btn-pri" style="display:inline-flex;align-items:center;gap:8px;height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;flex:none;white-space:nowrap">${CHECKLIST}View Setup</button>
     </div>`;
     const fopt = (v, t) => `<div data-act="ltPropSet" data-arg="${v}" style="padding:7px 14px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">${t}</div>`;
     const toolbar = `<div style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap">
@@ -3624,6 +3610,7 @@ class Component extends DCLogic {
           </div>
         </span>
       </div>
+      ${this.regCheck('Group by property', 'ltGroupToggle', grouped)}
       ${this.regCheck('Hide listings without errors', 'ltErrToggle', this.state.ltErrOnly)}
       <div style="flex:1"></div>
       <button data-act="toast" data-arg="Update Listings Feed" class="btn-pri" style="display:inline-flex;align-items:center;gap:8px;height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">${this.ico('autorenew', 18)}Update Listings Feed</button>
@@ -3646,40 +3633,26 @@ class Component extends DCLogic {
       // The fraction sits on the property, because that is the level the work happens at. A property
       // with nothing listings can carry has none to report.
       const ready = !this.ftApplicable(g.prop) || !onList ? ''
-        : `<span data-act="ltReadyOpen" data-arg="${esc(g.prop)}" title="${ch.incomplete ? 'See which charges still need details' : 'Every charge listings carry is ready'}" style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap;cursor:pointer">Listing Ready Charges:
-            <span style="display:inline-flex;align-items:center;height:24px;padding:0 9px;border-radius:4px;background:${whole ? 'var(--rmx-success-bg, #e2f1da)' : '#fdf3e7'};font-size:13px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${ch.ready}/${onList}</span>
+        : `<span data-act="ltReadyOpen" data-arg="${esc(g.prop)}" title="${ch.incomplete ? 'See which charges still need details' : 'Every charge listings carry is ready'}" style="display:inline-flex;align-items:center;gap:8px;white-space:nowrap;cursor:pointer">
+            ${this.ico(whole ? 'check_circle' : 'error', 20, `color:${whole ? 'var(--rmx-success, #6eb744)' : 'var(--rmx-notice, #faa61c)'};flex:none`)}
+            <span style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">Listing Ready Charges:</span>
+            <span style="font-size:14px;line-height:20px;font-weight:600;color:var(--rmx-text, #666666)">${ch.ready}/${onList}</span>
           </span>`;
-      // The one move a property still has to make — shown from the start so it is clear that is
-      // where this ends up, but only live once every charge listings carry is ready. A property
-      // that has already converted has nothing left to press.
-      const converted = !!this.state.publishedProps[g.prop];
-      const canConvert = this.ftApplicable(g.prop) && onList > 0 && !converted;
-      const whyNot = `${ch.incomplete} charge${ch.incomplete === 1 ? '' : 's'} need${ch.incomplete === 1 ? 's' : ''} details before you can convert.`;
-      // RMX's Button, Type=Action text: the label alone in the link colour, no fill and no border.
-      // The header already carries a filled button — the page's own Bulk Turn On — and a row of
-      // them down the cards read as the loudest thing on a page whose job is to be read.
-      // Disabled is `Text/text-disabled`, and the reason is the button's own `title`: hovering the
-      // thing you can't press is where you ask why, and it keeps a busy header row short. It counts
-      // off `ch.incomplete`, which is the n/n's denominator minus its numerator, so the explanation
-      // and the fraction cannot drift.
-      const convert = !canConvert ? ''
-        : whole
-        ? `<button data-act="pubOpen" data-arg="${esc(g.prop)}" style="height:34px;min-height:34px;padding:0;border:none;background:none;font:400 14px Roboto,sans-serif;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap;cursor:pointer">Convert to Fee Transparency</button>`
-        : `<button disabled title="${whyNot}" style="height:34px;min-height:34px;padding:0;border:none;background:none;font:400 14px Roboto,sans-serif;color:var(--rmx-text-muted, #b3b3b3);white-space:nowrap;cursor:default">Convert to Fee Transparency</button>`;
       const bodyId = `ltg${gi}`;
       const toggle = `var b=document.getElementById('${bodyId}');var c=this.querySelector('.ico');var on=b.style.display==='none';b.style.display=on?'block':'none';if(window.__icoSwap)window.__icoSwap(c,on?'keyboard_arrow_up':'keyboard_arrow_down');`;
 
-      const header = `<div style="display:flex;align-items:center;gap:14px;padding:12px 16px">
-        <span onclick="${toggle}" style="display:flex;align-items:center;gap:12px;cursor:pointer">
+      // Figma 3561:122545: the header sits on the page background, not on the card — the white card
+      // is the register alone. Chevron and name left, the charge count right, nothing between.
+      const header = `<div style="display:flex;align-items:center;gap:16px;padding:16px 20px">
+        <span onclick="${toggle}" style="display:flex;align-items:center;gap:16px;cursor:pointer">
           ${this.ico(open ? 'keyboard_arrow_up' : 'keyboard_arrow_down', 20, 'color:var(--rmx-text, #666666)')}
           <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${esc(g.prop)}</span>
         </span>
-        ${ready}${convert}
         <div style="flex:1"></div>
-        <a data-act="mcOpenProp" data-arg="${esc(g.prop)}" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Marketing Setup</a>
+        ${ready}
       </div>`;
 
-      const head = `<div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};border-top:1px solid var(--rmx-line, #cedbe7);border-bottom:1px solid var(--rmx-line, #cedbe7)">
+      const head = `<div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7)">
         ${hc('Unit', true)}${hc('Unit Type')}${hc('Base Rent')}${hc('Total Monthly Price')}${hc('Available')}${hc('Errors')}
         <span style="display:flex;align-items:center;justify-content:center;height:38px">${this.ico('view_column', 18, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
       </div>`;
@@ -3704,57 +3677,48 @@ class Component extends DCLogic {
         </div>`;
       }).join('');
 
-      return `<div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
+      return `<div>
         ${header}
-        <div id="${bodyId}" style="display:${open ? 'block' : 'none'}">${head}${body}</div>
+        <div id="${bodyId}" style="display:${open ? 'block' : 'none'};background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${head}${body}</div>
       </div>`;
     };
 
-    const FILT_LABEL = { ready: 'ready to convert', converted: 'converted', short: 'with charges missing details' };
-    const emptyMsg = this.state.ltFilter ? `No properties ${FILT_LABEL[this.state.ltFilter]}.`
-      : this.state.ltErrOnly ? 'No listings with errors.'
-      : 'No listings — no properties are enabled for online listings.';
+    const emptyMsg = this.state.ltErrOnly ? 'No listings with errors.'
+      : 'No listings \u2014 no properties are enabled for online listings.';
     const empty = `<div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:26px 17px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">${emptyMsg}</div>`;
 
-    const sum = this.ltSummary();
-    // Each number filters the groups to what it counted, and stays tinted while it is the filter on
-    // screen — so the page below always says what the lit number means. Clicking it again clears.
-    // Each card filters the groups to what it counted, and stays tinted while it is the filter on
-    // screen — so the page below always says what the lit card means. Clicking it again clears.
-    // RMX's Status Filter Card: a 250px card with a 4px coloured spine, the label left and the count
-    // right (Figma 3530:89817).
-    const stat = (key, n, label, tone, tint) => {
-      const on = this.state.ltFilter === key;
-      return `<span data-act="ltFilterSet" data-arg="${key}" data-on="${on ? '1' : '0'}" title="${on ? 'Show all properties' : 'Show only these'}"
-        onmouseover="if(this.getAttribute('data-on')!=='1')this.querySelector('span').style.background='${tint}'" onmouseout="if(this.getAttribute('data-on')!=='1')this.querySelector('span').style.background='#fff'"
-        style="display:inline-flex;align-items:stretch;width:250px;box-sizing:border-box;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden;cursor:pointer">
-        <span style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex:1;min-width:0;box-sizing:border-box;border-left:4px solid ${tone};background:${on ? tint : '#fff'};padding:7px 12px">
-          <span style="font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}</span>
-          <span style="font-size:18px;line-height:24px;font-weight:600;color:var(--rmx-brand-dark, #13314c);flex:none">${n}</span>
-        </span>
-      </span>`;
+    // ---- ungrouped: the same listings as one register, with the property named on each row ----
+    const flatK = 'listings-flat';
+    const fcols = this.colTracks(flatK, '230fr 160fr 170fr 160fr 210fr 170fr 110fr 38px');
+    const flat = () => {
+      const rows = groups.reduce((a, g) => a.concat(g.rows), []);
+      if (!rows.length) return empty;
+      const head = `<div ${this.colHead(flatK)} style="display:grid;grid-template-columns:${fcols};border-bottom:1px solid var(--rmx-line, #cedbe7)">
+        ${hc('Property', true)}${hc('Unit')}${hc('Unit Type')}${hc('Base Rent')}${hc('Total Monthly Price')}${hc('Available')}${hc('Errors')}
+        <span style="display:flex;align-items:center;justify-content:center;height:38px">${this.ico('view_column', 18, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
+      </div>`;
+      const body = rows.map(({ l, i }) => {
+        const is = this.ltIssues(l);
+        const total = this.state.publishedProps[l.prop] ? money(l.base + this.ltMonthlyFees(l.prop)) : '-';
+        return `<div style="display:grid;grid-template-columns:${fcols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background='#fff'">
+          ${cell(esc(l.prop), 'padding-left:17px')}
+          ${cell(l.unit || '\u2014')}
+          ${cell(this.ltUnitType(l))}
+          ${cell(money(l.base))}
+          ${cell(total)}
+          ${cell(l.avail || '\u2014')}
+          <span data-act="ltErrOpen" data-arg="${i}" title="What needs attention" style="display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:0 12px;cursor:pointer">${is.tone === 'red' ? ERR : OK}</span>
+          <span data-act="toast" data-arg="Listing actions" style="display:flex;align-items:center;justify-content:center;min-height:44px;cursor:pointer">${this.ico('more_vert', 20, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
+        </div>`;
+      }).join('');
+      return `<div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${head}${body}</div>`;
     };
-    // The tile owns the bulk action: the cards say where the portfolio stands and the button beside
-    // them is the one move that whole standing implies, so there is no second entry point for it in
-    // the toolbar.
-    const tracker = `<div class="tile" style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:16px;flex:none">
-      <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">
-        <span style="display:inline-flex;align-items:center;gap:6px;font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">Fee Transparency Status${this.infoTip('<span style="display:block;white-space:normal">This only includes properties that are enabled for online listings and can opt in to fee transparency. A property that isn\'t marketed, or that lists on a provider without complete pricing, is not included.</span>')}</span>
-        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-          ${stat('ready', sum.ready, 'Ready for Fee Transparency', 'var(--ac,var(--rmx-brand, #008dd5))', 'var(--rmx-brand-tint-bg, #ebf1f5)')}
-          ${stat('converted', sum.converted, 'Fee Transparent', 'var(--rmx-success, #6eb744)', 'var(--rmx-success-bg, #e2f1da)')}
-          ${stat('short', sum.short, 'Incomplete Charges', 'var(--rmx-notice, #faa61c)', '#fdf3e7')}
-        </div>
-      </div>
-      ${sum.ready ? `<button data-act="ftSelOpen" data-arg="pub" class="btn-out" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Bulk Convert to Fee Transparency</button>` : ''}
-    </div>`;
 
     return `<div style="padding:16px 24px 24px;display:flex;flex-direction:column;gap:16px;flex:1;min-height:0">
       ${needsFT ? banner : ''}
       ${toolbar}
-      ${(groups.length || this.state.ltFilter) ? tracker : ''}
       <div style="display:flex;flex-direction:column;gap:16px">
-        ${groups.length ? groups.map(group).join('') : empty}
+        ${grouped ? (groups.length ? groups.map(group).join('') : empty) : flat()}
       </div>
     </div>`;
   }

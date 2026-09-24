@@ -12,74 +12,61 @@ Two whole prototypes are served off the same deploy, so they can be compared liv
 | File | URL | Design |
 |---|---|---|
 | `index.html` | `…/fee-transparency/` | **A — Marketing Center**: marketing details are edited in Marketing Setup › Pricing, and charge-type defaults live on Charge Type Details. |
-| `listings.html` | `…/fee-transparency/listings.html` | **C — Listings**: A with the Marketing Center removed. There is no portfolio register and no Property Marketing Setup tab — the **Listings** page is the portfolio view, so it carries the scoreboard and every listing row wears its property's Listing Ready fraction and Next Step. |
+| `listings.html` | `…/fee-transparency/listings.html` | **C — Listings**: A with the Marketing Center removed. There is no portfolio register and no Property Marketing Setup tab — the **Listings** page is the portfolio view, so each property group wears its own Listing Ready Charges count and the page offers Fee Transparency Setup. |
 
-**C's Listings page is a stack of property cards**, matching Figma `3508:74061`. No scoreboard:
-the page is the register and nothing else. Above it sit the fee-transparency callout and a toolbar
-(Find a listing · Property · Hide listings without errors · Update Listings Feed); below it,
-`ltGroups()` gathers the listings under their property and `listingsBody` renders one collapsible
-card each.
+**C's Listings page matches Figma `3561:122545`.** Top to bottom: the **Fee Transparency Setup**
+banner, a toolbar, then the properties. `ltGroups()` gathers the listings under their property and
+`listingsPageBody` renders each group.
 
-A card's header carries the property name, its **Listing Ready Charges** fraction, a **Convert to
-Fee Transparency** action-text button, and a **Marketing Setup** link. The fraction wears the same lozenge the
-Pricing tab's Listing Ready column uses — 24px, 4px radius, 13px — amber `#fdf3e7` while charges
-are short, green `--rmx-success-bg` once whole. No icon: the tint carries the state.
-The button shows from the start so the destination is obvious, but it is **disabled until every
-charge listings carry is ready**, and it disappears once the property has converted, because there
-is nothing left to press. While disabled it says why on hover, in its own `title` —
-*"5 charges need details before you can convert."* That reads `ch.incomplete`, which is the n/n's
-denominator minus its numerator, so the explanation and the fraction cannot drift.
+**The banner is an invitation, not a warning.** It is the brand-tinted info surface — background
+`rgba(232,246,250,0.5)`, 1px brand border, 4px radius, 16px padding — with *Fee Transparency Setup*
+at 16/600 over *"We'll walk you through everything that needs updating before activating fee
+transparency on your listings."* at 14/20 `#616466`, and a primary **View Setup** button carrying
+the Material `checklist` glyph. It replaced the amber callout that argued the case for fee
+transparency: the page now offers the way in rather than making the argument. It still hides once
+every listing already advertises complete pricing (`needsFT`).
 
-It is RMX's **Button, Type=Action text** — the label alone in the link colour, no fill and no
-border, `Text/text-disabled` (`#b3b3b3`) when it is not yet pressable. It used to be a filled
-primary, and four of them stacked down the page read as the loudest thing on a surface whose job is
-to be read; the page's one filled button is the tracker's own Bulk Convert. **The Marketing Setup
-overlay's copy stays filled** — there it is the only action on the surface, so it carries the
-weight the cards' copies no longer should.
+**`ftSetupOpen` is a flash, not a screen.** The setup checklist is designed in Figma
+(`3554:116447`) and is not built here, so *View Setup* says so rather than going nowhere quietly.
 
-**The Marketing Setup overlay's property strip carries the same button**, under the same rules, so
-finishing a property's charges and converting it are one sitting rather than two. It sits beside
-Occupied Units rather than replacing it — that count is a fact about the property, not a slot for
-whatever action is going. It reads saved state, like everything else in that overlay — which is
-live, because **each charge saves itself**.
+**A group's header sits on the page background; only the register is a card.** The header is
+`padding:16px 20px`, gap 16: chevron and property name at 14/600 on the left, then the
+**Listing Ready Charges** count on the right — a 20px icon (`error` in `--rmx-notice` while charges
+are short, `check_circle` in `--rmx-success` once whole), the label at 14/20 `#666`, and the
+fraction at 14/20 SemiBold. No lozenge. The count is still the trigger for `ltReadyOpen`, and since
+the header no longer carries a Marketing Setup link, that dialog's **Add charge details** is now
+the only way from Listings into Marketing Setup › Pricing.
+
+**Converting is gone from this page.** The per-property Convert button, the Marketing Setup link
+and the Fee Transparency Status tile (with `ltSummary`, `ltStatusMatch` and `state.ltFilter`) were
+all removed with this design — the whole journey now runs through Setup. `pubOpen` and its
+confirmation still exist and are still reached from the Marketing Setup overlay's property strip,
+which keeps its filled Convert button; nothing on Listings calls them.
+
+**Group by property** (`ltGroupToggle`, `state.ltGroupBy`, on by default) is the toolbar checkbox
+between Property and Hide listings without errors. On, the page reads at the property — the level
+the charge work happens at. Off, the same listings are one register whose first column is
+**Property**, for when you are looking for a unit rather than reviewing a property.
+
+A register is **Unit · Unit Type · Base Rent · Total Monthly Price · Available · Errors**, one row
+per advertised unit (`listingsData()` in C is unit-level, with bed/bath and per-provider state).
+**Total Monthly Price reads `-` until the property has actually converted** (`publishedProps`): a
+property that hasn't still advertises rent alone, so it has no total to show — finishing its
+charges is not the same as publishing them.
+
+**The Marketing Setup overlay's property strip carries a filled Convert to Fee Transparency
+button**, under the usual rules: shown from the start, disabled until every charge listings carry
+is ready, absent once the property has converted. It sits beside Occupied Units rather than
+replacing it — that count is a fact about the property, not a slot for whatever action is going.
+It reads saved state, like everything else in that overlay — which is live, because **each charge
+saves itself**.
 
 **Every expanded charge has its own Save footer** — in **both** builds — under the
-Include-on-listings toggle.
-`mpSaveRow` banks the open charge with `mpCapture()` then commits just that one through
-`mpCommit(id)`, leaving the rest of the draft alone; `mpCancelRow` drops that charge's draft and
-collapses. `mktPricingSave` is now `mpCapture()` + `mpCommit()` with no id, which is the overlay's
-own Save. Because a charge lands in state the moment it is saved, its Listing Ready badge, the
-banner above and the Convert button in the header all move while the overlay is still open. Its register is **Unit · Unit Type · Base Rent · Total Monthly Price ·
-Available · Errors**, one row per advertised unit (`listingsData()` in C is unit-level, with
-bed/bath and per-provider state). **Total Monthly Price reads `-` until the property has actually
-converted** (`publishedProps`): a property that hasn't still advertises rent alone, so it has no
-total to show — finishing its charges is not the same as publishing them.
-
-**A Fee Transparency Status tile sits above the groups**, matching Figma `3530:89817`: a white
-card (1px `#cedbe7`, 4px radius, 16px padding) holding the title at 16/600 with its `infoTip`, then
-three RMX **Status Filter Cards** 24px to its right — 250px wide, 16px apart, each a 4px coloured
-spine (`icon-primary` / `icon-success` / `icon-notice`) with the label at 14/20 on the left and the
-count at 18/24 SemiBold on the right. They read **Ready for Fee Transparency**, **Fee Transparent**
-and **Incomplete Charges**.
-
-`ltSummary()` walks `ltGroups()`, so it counts the same properties the page is showing, once each:
-"ready" is by construction the number of live Convert buttons below it, and a per-listing count
-(which would multiply each property by its units) can't creep back in. The `infoTip` says the
-counts cover only properties enabled for online listings that can opt in.
-
-**The tile owns the bulk action.** At its right edge sits **Bulk Convert to Fee Transparency**
-(`.btn-out`, `ftSelOpen` with `pub`) — the cards say where the portfolio stands and the button is
-the one move that standing implies. The toolbar's **Convert Properties** is gone: it was the same
-action asked for twice. Both the tile and the button disappear when there is nothing to report.
-The tile needs `flex:none` — the page body is a column flex with `min-height:0`, so without it the
-tile is squashed to a sliver by the groups below.
-
-**Each of the three cards is a filter.** `ltFilterSet` sets `state.ltFilter`, `ltStatusMatch`
-applies the same three tests the tracker counts by, and the lit card keeps its tint while the page
-below is showing what it counted — clicking it again clears. `ltSummary()` calls `ltGroups(true)`,
-which skips the status filter: the numbers must keep reporting the whole portfolio, or filtering by
-one would zero the other two and strand you there. The strip also renders when a filter empties the
-page, so there is always a way back, and the empty state says which filter emptied it.
+Include-on-listings toggle. `mpSaveRow` banks the open charge with `mpCapture()` then commits just
+that one through `mpCommit(id)`, leaving the rest of the draft alone; `mpCancelRow` drops that
+charge's draft and collapses. `mktPricingSave` is `mpCapture()` + `mpCommit()` with no id, which is
+the overlay's own Save. Because a charge lands in state the moment it is saved, its Listing Ready
+badge, the banner above and the strip's Convert button all move while the overlay is still open.
 
 **Shared chrome is kept identical in both builds**: `.btn-pri` / `.btn-out` set their label in
 Roboto **Regular** (RMX's Button does), `infoTip` is the RMX Tooltip below, and Marketing Setup ›
