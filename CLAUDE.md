@@ -122,17 +122,20 @@ Marketing Setup almost always belongs in **both**, since C only removed the Mark
 defaults added, served as `original.html`. `git show 346a980:original.html` brings it back if it
 is ever wanted; `main` still holds the design without the defaults.
 
-`variantSwitch()` is the **Version** dropdown that links both, in the header beside the logo.
-Each option carries a second line saying what that design does with a charge's marketing details,
-because the names alone don't say and that is the whole comparison. The wording is the user's: A reads "Marketing setup charge
-details", C "Marketing details on both".
+**C is the design going forward, so the header carries no Version switcher.** `variantSwitch()`
+and its dropdown are gone from both files. The way across is **Full Menu › Prototype**, beside
+Show Test Feature State — C offers *Marketing Center version*, A offers *Listings version*, both
+through the `variantGo` case, which is `location.href = arg + location.search`. A now sits where
+the second design belongs: reachable when you want it, not on screen in a walkthrough. The
+Prototype group is already the page's "not part of the product" shelf, which is exactly what a
+second design is.
+
+`location.search` rides along, and `scenarioApply` writes the scenario into it as `?scen=<key>`
+(read back once in `componentDidMount`) — so the scenario you are testing survives the hop.
 
 **Charge-type marketing defaults are in both**, identically — the Marketing Details tile on
 Charge Type Details, the "How do you want to apply these?" dialog, and `saveFee` pre-filling a
-newly created charge. A change to `mktDef*` belongs in every file. Unlike Test Feature State it always shows: which design is on screen is
-worth knowing in a walkthrough too. The link carries `location.search`, and `scenarioApply` writes the scenario into
-it as `?scen=<key>` (read back once in `componentDidMount`) — so the scenario you are testing
-survives the hop.
+newly created charge. A change to `mktDef*` belongs in every file.
 
 Both files share every asset: the workflow uploads the repo root with no build step,
 `.nojekyll` is present, and every path in the head is document-relative.
