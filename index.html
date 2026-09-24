@@ -3325,7 +3325,8 @@ class Component extends DCLogic {
     if (!m) return '';
     const props = m.props || [m.prop];
     const single = props.length === 1;
-    const prop = single ? props[0] : props.length + ' selected properties';
+    const prop = single ? props[0]
+      : props.slice(0, -1).join(', ') + ' and ' + props[props.length - 1];
     const bold = `<strong style="font-weight:600">${prop}</strong>`;
     return `<div data-act="pubCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:152">
       <div data-act="noop" style="width:640px;max-width:94vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
@@ -3344,7 +3345,7 @@ class Component extends DCLogic {
           <div style="height:1px;background:var(--rmx-line, #cedbe7)"></div>
           <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer">
             <input type="checkbox" data-act="pubAck" ${m.ack?'checked':''} style="accent-color:var(--rmx-attention, #f58220);width:16px;height:16px;margin:2px 0 0;flex:none">
-            <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">I understand this permanently changes how pricing displays on ${single ? bold + ' listings' : "the selected properties' listings"}.</span>
+            <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">I understand this permanently changes how pricing displays on ${bold} listings.</span>
           </label>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:10px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:12px 20px;flex:none">

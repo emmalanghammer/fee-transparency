@@ -56,9 +56,10 @@ for taking one back out, not for building the list from nothing. Next hands the 
 same `pubModal` a single property uses. Converting leaves the Setup overlay open: the rows flip to
 *Fee Transparent* and the banner disappears under you, which is the feedback.
 
-**The confirmation bolds what is being converted** — the property name, or "n selected properties"
-— in both the question and the acknowledgement, since it is the one thing to read twice before
-pressing Convert.
+**The confirmation names every property it is about to convert**, bolded, in the question and the
+acknowledgement both — *"The Berkshires and The Windermere"*, not *"2 selected properties"*. A
+count says how many feeds change permanently, not which, and that is the one thing to read twice
+before pressing Convert.
 
 State is `ftSetup: { sec:{what,def}, props:{<name>:true} }` — null when closed. The overlay renders
 at `z-index:150`, under `pubModalHTML`'s 152, so the confirmation lands on top of it.
