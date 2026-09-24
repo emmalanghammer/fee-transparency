@@ -341,7 +341,38 @@ never leave the screen. The Marketing Center renders it
 inline; the property page's own overlay (`mktSetupHTML`) wraps the same markup in chrome. One
 source, so the two cannot drift.
 
-**Marketing Setup › Pricing** (`mktPricingBody`, saved by `mktPricingSave`) is the only place a
+## Marketing details inherit: charge type → property → charge
+
+**`resolvedListing(r)` is the one place the chain is walked**: the charge's own value, then the
+property's override of that charge's **charge type**, then the charge type's default. `ctmFor(prop,
+code)` returns the middle two — the property's override when it has one (`state.propDef[prop][CODE]`
+with `on: true`), otherwise `mktDefFor(code)`. Because a charge is resolved through its property,
+`profileRows(p)` stamps `_prop` on every row it hands back; `mitsMissing(r)` is called from loops
+over a property other than the one on screen, and without the stamp it would resolve against the
+wrong one.
+
+**A default that reaches a charge satisfies the field.** `mitsMissing` now tests the resolved value
+for every field, Charge Category included — it used to demand a category typed on the charge itself.
+That was right when nothing cascaded; with the chain it would mark a charge short of a field its
+charge type supplies.
+
+**Marketing Setup has no tabs.** It is one page of six tiles, three across on the page ground,
+matching Figma `3576:12748`: Contact Information, Descriptions, Listing Details, Features, Floor
+Plans and **Default Charge Marketing**. The last is a register of the charge types the property
+actually runs — **Charge Type · Active Charges · Override Charge Type** — with a green tick where
+this property has taken the type over, and an edit pencil (`ctmOpen`).
+
+**`ctmEditHTML()` is the override**, matching Figma `3591:138722`. One checkbox, **Override Charge
+Type**, is the whole decision: off, the fields show the charge type's values greyed and locked, and
+are not inputs at all; on, they are this property's to set, seeded from the charge type so the
+override is an edit of it rather than an empty form. `Reset` shows only once an override exists and
+puts the type back. Saving writes `state.propDef[prop][CODE]`; unticking and saving deletes it.
+
+**`mktPricingBody` is no longer reachable in C.** The Pricing tab it lived on is gone with this
+design, and the per-charge Save footers (`mpSaveRow`, `mpCommit`, `mpCapture`) go with it. The code
+is still in the file because A still uses it — delete it from `listings.html` when the model settles.
+
+**Marketing Setup › Pricing** (`mktPricingBody`, saved by `mktPricingSave`) is where **A** edits a
 charge's marketing details are edited, and it matches Figma `3490:98757` / `3493:102283`: the
 same two registers the Charges overlay shows — Recurring and One-Time — with a **Listing Ready**
 column and a chevron that expands the row into its Marketing Details. A banner above says how

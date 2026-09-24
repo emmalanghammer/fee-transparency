@@ -215,6 +215,8 @@ class Component extends DCLogic {
     ltReady: null,        // Listings: the property whose Listing Ready Charges list is open
     ltGroupBy: true,      // Listings: Group by property — off shows one register with a Property column
     ftSetup: null,        // { sec:{what,def}, props:{<name>:true} } — the Fee Transparency Setup overlay
+    propDef: {},          // { '<Property>': { '<CODE>': { on:true, name, category, … } } } — a property's override of a charge type
+    ctmEdit: null,        // { prop, code } — the Edit Default Charge Marketing dialog
  // Listings page: hide listings without errors
     ltErr: null, // { i, open } — Listing Errors popup for one listing
     // Charges register columns: chgCols is the chosen keys in order (null = defaults), colNames holds
@@ -471,17 +473,20 @@ class Component extends DCLogic {
     return this.profileRows().filter(r => String(r.level || 'Property') === lvl
       && String(r.id) !== String(exceptId) && this.leaseRoleOf(r) === 'rent')[0] || null;
   }
+  // Charge first, then the property's override of its charge type, then the charge type itself.
   resolvedListing(r){
     const L = (r && r.listing) || {};
+    const D = this.ctmFor(r && r._prop, r && r.mits) || {};
+    const pick = (k) => { const v = L[k]; return (v == null || v === '') ? (D[k] || '') : v; };
     return {
       leaseRole: this.leaseRoleOf(r),
-      name: L.name,
-      category: L.category || this.chargeCategoryFor(r.mits),
-      requirement: L.requirement || '',
-      feeDue: L.feeDue,
-      schedule: /-one$/.test(r.group || '') ? '' : L.schedule,
-      marketing: L.marketing,
-      refundable: L.refundable
+      name: pick('name'),
+      category: L.category || D.category || this.chargeCategoryFor(r.mits),
+      requirement: pick('requirement'),
+      feeDue: pick('feeDue'),
+      schedule: /-one$/.test(r.group || '') ? '' : pick('schedule'),
+      marketing: pick('marketing'),
+      refundable: pick('refundable')
     };
   }
   mitsMissing(r){
@@ -489,14 +494,13 @@ class Component extends DCLogic {
     // Fields whose dropdowns carry a default are already satisfied — only the ones with nothing to
     // fall back on (a typed Name, an unmapped Charge Category) count as missing.
     const resolved = this.resolvedListing(r);
-    // Charge Category is inherited from the charge type for display, but listings need the one that
-    // was chosen for this charge — so it counts as missing until it is set here.
-    const own = (r && r.listing) || {};
+    // Charge Category is inherited like every other field now: a default that reaches the charge
+    // satisfies it, so it is only missing when nothing in the chain supplies one.
     // Payment frequency only applies to recurring charges, and a recurring charge is collected across
     // the term by definition — Fee Due is held for it, but never asked for, so it can't be missing.
     return this.mitsFields()
       .filter(f => !(f.recurringOnly && oneTime) && !(f.oneTimeOnly && !oneTime))
-      .filter(f => !String((f.key === 'category' ? own.category : resolved[f.key]) || '').trim())
+      .filter(f => !String(resolved[f.key] || '').trim())
       .map(f => f.label);
   }
   mitsComplete(r){ return this.mitsMissing(r).length === 0; }
@@ -506,6 +510,19 @@ class Component extends DCLogic {
   // fill the blank marketing fields on charges that already exist, and seed every charge made after.
   mktDefs(){ return this.state.mktDef || {}; }
   mktDefFor(code){ return this.mktDefs()[String(code || '').toUpperCase()] || null; }
+  // What a charge of this type starts with **at this property**: the property's own override of the
+  // charge type when it has one, otherwise the charge type's default. One function, so the chain is
+  // resolved the same way everywhere it is read.
+  ctmFor(prop, code){
+    const c = String(code || '').toUpperCase();
+    const own = ((this.state.propDef || {})[prop || this.state.property] || {})[c];
+    if (own && own.on) return own;
+    return this.mktDefFor(c) || {};
+  }
+  ctmOverridden(prop, code){
+    const own = ((this.state.propDef || {})[prop || this.state.property] || {})[String(code || '').toUpperCase()];
+    return !!(own && own.on);
+  }
   // Every charge type the portfolio actually uses, and what uses it — the rows of the grid. A type is
   // listed by how much it would fill, so the biggest wins are at the top.
   mktDefTypes(){
@@ -569,11 +586,15 @@ class Component extends DCLogic {
   profileRows(p){
     const n = p || this.state.property;
     const rows = this.state.profileFees[n];
-    if (rows) return rows;
-    if (this.listingReadyProps().indexOf(n) >= 0) return this.listingReadyRows(n);
+    // A charge resolves its marketing details through its property, so every row carries the
+    // property it came from \u2014 `mitsMissing(r)` is called from places that are looping over a
+    // property other than the one on screen.
+    const stamp = (out) => { out.forEach(r => { if (r) r._prop = n; }); return out; };
+    if (rows) return stamp(rows);
+    if (this.listingReadyProps().indexOf(n) >= 0) return stamp(this.listingReadyRows(n));
     // Nothing has to be migrated before a property's charges can be read in one place, so a
     // property nobody has edited yet reads the charges it already runs.
-    return this.defaultCharges(n);
+    return stamp(this.defaultCharges(n));
   }
   // The worked example: a property whose profile is finished — every charge carries its marketing
   // details and is included on listings — so the "done" state can be shown next to the properties
@@ -1234,6 +1255,36 @@ class Component extends DCLogic {
       case 'ltGroupToggle': this.setState(s2 => ({ ltGroupBy: s2.ltGroupBy === false })); break;
       // Setup is where converting lives now.
       case 'ftSetupOpen': this.setState({ ftSetup: { sec: {}, props: {} } }); break;
+      // A property's override of one charge type. The dialog holds a draft so ticking the box
+      // doesn't commit anything until Save.
+      case 'ctmOpen': { const prop = this.state.property;
+        const code = String(arg || '').toUpperCase();
+        const own = ((this.state.propDef || {})[prop] || {})[code];
+        this.setState({ ctmEdit: { prop: prop, code: code, on: !!(own && own.on),
+          vals: Object.assign({}, this.mktDefFor(code) || {}, own || {}) } }); break; }
+      case 'ctmCancel': this.setState({ ctmEdit: null }); break;
+      case 'ctmToggle': this.setState(s2 => { const e = s2.ctmEdit;
+        // Turning it on starts from the charge type's values, so the override is an edit of them
+        // rather than an empty form.
+        const vals = e.on ? e.vals : Object.assign({}, this.mktDefFor(e.code) || {}, e.vals || {});
+        return { ctmEdit: Object.assign({}, e, { on: !e.on, vals: vals }) }; }); break;
+      case 'ctmReset': this.setState(s2 => { const e = s2.ctmEdit;
+        const pd = Object.assign({}, s2.propDef);
+        const byProp = Object.assign({}, pd[e.prop] || {}); delete byProp[e.code]; pd[e.prop] = byProp;
+        return { propDef: pd, ctmEdit: Object.assign({}, e, { on: false, vals: Object.assign({}, this.mktDefFor(e.code) || {}) }) }; }); break;
+      case 'ctmSave': { const e = this.state.ctmEdit; if (!e) break;
+        const read = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+        const pd = Object.assign({}, this.state.propDef);
+        const byProp = Object.assign({}, pd[e.prop] || {});
+        if (e.on) {
+          byProp[e.code] = { on: true, name: read('ctm-name'), category: read('ctm-category'),
+            marketing: read('ctm-marketing'), requirement: read('ctm-requirement'),
+            schedule: read('ctm-schedule'), feeDue: read('ctm-feeDue'), refundable: read('ctm-refundable') };
+        } else { delete byProp[e.code]; }
+        pd[e.prop] = byProp;
+        this.setState({ propDef: pd, ctmEdit: null });
+        this.flash(e.on ? e.code + ' overridden for ' + e.prop : e.code + ' follows the charge type again');
+        break; }
       case 'ftSetupClose': this.setState({ ftSetup: null }); break;
       case 'ftSetupSec': this.setState(s2 => { const f2 = s2.ftSetup, o = Object.assign({}, f2.sec || {});
         o[arg] = !o[arg]; return { ftSetup: Object.assign({}, f2, { sec: o }) }; }); break;
@@ -2536,7 +2587,7 @@ class Component extends DCLogic {
       copyFees: null, pricePreview: null, profMenu: null, profHist: null,
       recView: null, rowMenu: null, pubModal: null, ftSel: null, mktDef: {},
       mktSetup: false, mktAdv: false, mktTab: 'General', petType: null, spBanner: true, ftHelp: false,
-      lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false, ltReady: null, ltGroupBy: true, ftSetup: null, mcTab: 'Overview',
+      lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false, ltReady: null, ltGroupBy: true, ftSetup: null, propDef: {}, ctmEdit: null, mcTab: 'Overview',
       mcProp: null, mktDefDraft: null, mktDefAsk: false, mktDefMode: 'blank', mpExp: null
     });
     try {
@@ -3308,6 +3359,71 @@ class Component extends DCLogic {
       </div>
     </div>`;
   }
+  // ---------- Edit Default Charge Marketing (Figma 3591:138722) ----------
+  // A property's override of one charge type. The checkbox is the whole decision: off, the fields
+  // show the charge type's defaults, greyed and locked; on, they are this property's to set, and
+  // every charge of that type here inherits them unless the charge itself says otherwise.
+  ctmEditHTML(){
+    const e = this.state.ctmEdit; if (!e) return '';
+    const prop = e.prop, code = String(e.code || '').toUpperCase();
+    const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+    const on = !!e.on;
+    const base = this.mktDefFor(code) || {};
+    const v = (k) => (on ? (e.vals && e.vals[k] != null ? e.vals[k] : '') : (base[k] || ''));
+    const REQ = ['Required','Optional','Situational'];
+    const DUE = [{value:'At Application',label:'At Application'},{value:'Move-In',label:'At Move-In'},
+      {value:'During Term',label:'During Term'},{value:'Move-Out',label:'At Move-Out'}];
+    const SCHED = ['Weekly','Monthly','Annually'];
+    const REF = [{value:'yes',label:'Refundable'},{value:'no',label:'Not Refundable'}];
+    const lab = (t) => `<span style="font-size:14px;color:var(--rmx-ink-2, #424e5b)">${t}</span>`;
+    // Locked fields are the charge type's values, shown so the decision is informed \u2014 not inputs.
+    const ro = (t) => `<div style="display:flex;align-items:center;height:36px;box-sizing:border-box;padding:0 10px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;font-size:14px;color:var(--rmx-text-muted, #b3b3b3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t) || '&nbsp;'}</div>`;
+    const fld = (label, ctl) => `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">${lab(label)}${ctl}</div>`;
+    const txt = (id, val) => `<input id="${id}" type="text" value="${esc(val)}" style="box-sizing:border-box;width:100%;height:36px;padding:0 10px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">`;
+    const area = (id, val) => `<textarea id="${id}" style="box-sizing:border-box;width:100%;height:60px;padding:8px 10px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);resize:none">${esc(val)}</textarea>`;
+    const dd = (id, opts, val) => this.singleSelect(id, opts, val, { noSearch:true, blank:true, placeholder:'\u00a0' });
+
+    const pair = (a, b) => `<div style="display:flex;gap:16px">${a}${b}</div>`;
+    const body = on
+      ? pair(fld('Name', txt('ctm-name', v('name'))), fld('Charge Category', dd('ctm-category', this.chargeCategoryOptions(), v('category'))))
+        + fld('Marketing Description', area('ctm-marketing', v('marketing')))
+        + pair(fld('Charge Requirement', dd('ctm-requirement', REQ, v('requirement'))), fld('Charge Schedule', dd('ctm-schedule', SCHED, v('schedule'))))
+        + pair(fld('Fee Due', dd('ctm-feeDue', DUE, v('feeDue'))), fld('Refundable', dd('ctm-refundable', REF, v('refundable'))))
+      : pair(fld('Name', ro(v('name'))), fld('Charge Category', ro(v('category'))))
+        + fld('Marketing Description', ro(v('marketing')))
+        + pair(fld('Charge Requirement', ro(v('requirement'))), fld('Charge Schedule', ro(v('schedule'))))
+        + pair(fld('Fee Due', ro(v('feeDue'))), fld('Refundable', ro(v('refundable'))));
+
+    const box = on
+      ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;box-sizing:border-box;flex:none;background:var(--rmx-attention, #f58220);border:1px solid var(--rmx-attention, #f58220);border-radius:2px">${this.ico('check', 16, 'color:#fff')}</span>`
+      : `<span style="display:inline-block;width:18px;height:18px;box-sizing:border-box;flex:none;background:#fff;border:1.5px solid var(--rmx-text, #666666);border-radius:2px"></span>`;
+
+    return `<div data-act="ctmCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:150">
+      <div data-act="noop" style="width:560px;max-width:94vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:14px;padding:10px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
+          <span style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">Edit Default Charge Marketing</span>
+          <div style="flex:1"></div>
+          <span data-act="ctmCancel" style="display:flex;cursor:pointer">${this.ico('close', 20, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
+        </div>
+        <div style="flex:1;min-height:0;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <label data-act="ctmToggle" style="display:inline-flex;align-items:center;gap:10px;cursor:pointer">
+              ${box}<span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Override Charge Type</span>
+            </label>
+            ${this.ctmOverridden(prop, code) ? `<a data-act="ctmReset" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Reset</a>` : ''}
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px;padding:14px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px">${body}</div>
+          <span style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">${on
+            ? `Every ${esc(code)} charge at ${esc(prop)} uses these, unless the charge sets its own.`
+            : `${esc(code)} charges at ${esc(prop)} follow the charge type.`}</span>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:11px 16px;flex:none">
+          <button data-act="ctmSave" class="btn-pri" style="height:34px;min-height:34px;padding:0 20px;border-radius:4px;font-size:14px">Save</button>
+          <button data-act="ctmCancel" class="btn-out" style="height:34px;min-height:34px;padding:0 18px;border-radius:4px;font-size:14px">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+  }
   // ---------- Fee Transparency Setup overlay (Figma 3562:42475) ----------
   // What the Listings banner's View Setup opens: everything that has to be true before a property
   // can advertise a total monthly price, in the order it has to become true. Why it matters, the
@@ -3335,6 +3451,7 @@ class Component extends DCLogic {
     const chev = (open) => this.ico(open ? 'keyboard_arrow_up' : 'keyboard_arrow_down', 24, 'color:var(--rmx-text, #666666);flex:none');
     const link = (t, act, arg) => `<span data-act="${act}"${arg ? ` data-arg="${esc(arg)}"` : ''} style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${t}</span>`;
     const SETTINGS = `<svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="flex:none"><path d="M405-120 373-266q-15-6-29-14t-27-19l-140 44-95-165 111-97q-1-8-1.5-15.5T190-547q0-8 .5-15.5T192-578L81-675l95-165 140 44q13-11 27-19t29-14l32-146h190l32 146q15 6 29.5 14t26.5 19l140-44 95 165-111 97q1 8 1.5 15.5t.5 15.5q0 8-.5 15.5T806-562l111 97-95 165-140-44q-12 11-26.5 19T626-311l-32 146H405Zm75-260q41 0 70.5-29.5T580-480q0-41-29.5-70.5T480-580q-41 0-70.5 29.5T380-480q0 41 29.5 70.5T480-380Z"/></svg>`;
+    const PROPERTY = `<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="flex:none"><path d="M19.8376 10.8469L9.99318 1L0.148804 10.8469H1.76693L3.0763 9.5375V18.0306H7.56068V10.4712H12.4201V18.0306H16.9044V9.5375L18.2169 10.8469H19.8376Z"/></svg>`;
     const MEGAPHONE = `<svg class="ico" width="24" height="24" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="flex:none"><path d="M720-440v-80h160v80H720Zm48 280-128-96 48-64 128 96-48 64Zm-80-480-48-64 128-96 48 64-128 96ZM200-200v-160h-40q-33 0-56.5-23.5T80-440v-80q0-33 23.5-56.5T160-600h160l200-120v520L320-320h-40v160h-80Z"/></svg>`;
 
     // ---- the green banner: only when at least one property could be activated right now ----
@@ -3367,7 +3484,7 @@ class Component extends DCLogic {
         ${rule}
         ${notif(SETTINGS, '#eef1f4', 'var(--rmx-ink-2, #424e5b)', 'Streamlined Process', 'Add marketing details on the charge type, property, or individual charge to simplify the setup and get fee transparent.')}
         ${rule}
-        ${notif(this.ico('home', 20, 'flex:none'), 'var(--rmx-brand-tint-bg, #ebf1f5)', 'var(--ac,var(--rmx-brand, #008dd5))', 'Applicable Properties', 'Fee Transparency can only be activated for properties that are using online listings with providers that have total pricing/complete pricing')}
+        ${notif(PROPERTY, 'var(--rmx-brand-tint-bg, #ebf1f5)', 'var(--ac,var(--rmx-brand, #008dd5))', 'Applicable Properties', 'Fee Transparency can only be activated for properties that are using online listings with providers that have total pricing/complete pricing')}
       </div>` : ''}
     </div>`;
 
@@ -3399,7 +3516,7 @@ class Component extends DCLogic {
       const tick = this.ico(r.whole ? 'check_circle' : 'error', 20, `color:${r.whole ? 'var(--rmx-success, #6eb744)' : 'var(--rmx-notice, #faa61c)'};flex:none`);
       return `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
         <div data-act="ftSetupProp" data-arg="${esc(r.p)}" style="display:flex;align-items:center;gap:8px;min-height:40px;box-sizing:border-box;padding:8px;background:#fff;cursor:pointer">
-          ${this.ico('home', 20, 'color:var(--rmx-brand-dark, #13314c);flex:none')}
+          <span style="display:inline-flex;color:var(--rmx-brand-dark, #13314c);flex:none">${PROPERTY}</span>
           <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${esc(r.p)}</span>
           ${lead}
           <div style="flex:1"></div>
@@ -7931,6 +8048,7 @@ class Component extends DCLogic {
   // property list; the property page wraps the same markup in an overlay — one source, no drift.
   mktSetupBody(){
     const P = this.propInfo();
+    const esc2 = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
     const card = (title, inner, right, wide) => `<div style="${wide?'grid-column:span 2;':''}background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;display:flex;flex-direction:column;min-width:0">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;border-bottom:2px solid var(--ac,var(--rmx-brand, #008dd5))"><span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title}</span>${right||''}</div>
       <div style="flex:1;padding:14px 16px;display:flex;flex-direction:column;gap:12px;min-height:0">${inner}</div></div>`;
@@ -7943,7 +8061,7 @@ class Component extends DCLogic {
       ${field('Contact Email', entry)}
       ${field('Contact Phone', entry)}
       ${field('Company Website', entry)}`);
-    const contact2 = card('Marketing Description', `
+    const contact2 = card('Descriptions', `
       <div style="flex:1;min-height:220px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px"></div>
       <span data-act="toast" data-arg="Refresh contact block" title="Refresh contact block" style="align-self:flex-start;display:inline-flex;cursor:pointer">
         <svg width="40" height="40" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -7990,6 +8108,34 @@ class Component extends DCLogic {
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;padding:4px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);border-bottom:1px solid var(--rmx-line, #cedbe7)"><span>Name</span><span>Unit Type</span><span>Unit Count</span><span>Beds</span><span>Baths</span></div>
       ${uts.length ? uts.map(t => fpRow(t.name, t.units, (t.name.match(/^(\d)/)||[,'2'])[1], ((t.name.match(/(\d)B$/)||t.name.match(/\/ ?(\d)/)||[,'2'])[1]) + '.0')).join('') : fpRow('2B / 2B', 14, 2, '2.0') + fpRow('1B / 1B', 18, 1, '1.0')}`,
       `<a data-act="toast" data-arg="Add Item" style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap"><svg class="ico" width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M450-450H200v-60h250v-250h60v250h250v60H510v250h-60v-250Z"/></svg>Add Item</a>`);
+    // Figma 3576:12748. The property's charges roll up to their charge types here: one row per
+    // type, the count it covers, and whether this property has taken the type's defaults over.
+    // Editing happens in a dialog, so the tile stays a sixth of the screen.
+    const ctmRows = (() => {
+      const use = {};
+      this.appliedRows(P.name).forEach(r => {
+        const c = String(r.mits || '').toUpperCase(); if (!c) return;
+        (use[c] || (use[c] = { code: c, n: 0 })).n++;
+      });
+      return Object.keys(use).sort().map(c => use[c]);
+    })();
+    const ctmTick = `<svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-success, #6eb744)"><path d="m421-298 283-283-46-45-237 237-120-120-45 45 165 166Zm59 218q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 31.5-156t86-127Q252-817 325-848.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 82-31.5 155T763-197.5q-54 54.5-127 86T480-80Z"/></svg>`;
+    const ctmHead = (t, extra) => `<span style="display:flex;align-items:center;min-height:36px;box-sizing:border-box;padding:0 14px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;${extra||''}">${t}</span>`;
+    const ctmCell = (t, extra) => `<span style="display:flex;align-items:center;min-height:38px;box-sizing:border-box;padding:0 14px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;${extra||''}">${t}</span>`;
+    const CTMCOLS = 'minmax(90px,1.2fr) minmax(90px,1.2fr) minmax(120px,1.6fr) 44px';
+    const ctm = card('Default Charge Marketing', `
+      <div style="margin:-14px -16px;display:flex;flex-direction:column">
+        <div style="display:grid;grid-template-columns:${CTMCOLS};border-bottom:1px solid var(--rmx-line, #cedbe7)">
+          ${ctmHead('Charge Type')}${ctmHead('Active Charges')}${ctmHead('Override Charge Type')}${ctmHead('')}
+        </div>
+        ${ctmRows.length ? ctmRows.map(t => `<div style="display:grid;grid-template-columns:${CTMCOLS};border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa)">
+            ${ctmCell(esc2(t.code))}${ctmCell(String(t.n))}
+            ${ctmCell(this.ctmOverridden(P.name, t.code) ? ctmTick : '')}
+            <span data-act="ctmOpen" data-arg="${esc2(t.code)}" title="Edit default charge marketing" style="display:flex;align-items:center;justify-content:center;min-height:38px;cursor:pointer">${this.ico('edit_square', 18, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
+          </div>`).join('')
+          : `<div style="padding:14px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No charges on this property yet.</div>`}
+      </div>`);
+
     return `<div style="flex:1;min-height:0;display:flex;flex-direction:column;background:#fff">
         <div style="flex:none;padding:16px 20px 0;display:flex;flex-direction:column;gap:16px;background:#fff">
           <div style="display:flex;align-items:center;gap:22px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:14px 20px;flex-wrap:wrap">
@@ -8016,16 +8162,8 @@ class Component extends DCLogic {
                 : `<button data-act="pubOpen" data-arg="${arg}" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap;flex:none">Convert to Fee Transparency</button>`;
             })()}
           </div>
-          <div style="display:flex;align-items:center;flex:none;border-bottom:1px solid var(--rmx-line, #cedbe7);margin:0 -20px;padding:0 20px">${['General','Pricing'].map(t => {
-            const on = t === (this.state.mktTab || 'General');
-            return `<span data-act="mktTab" data-arg="${t}" style="display:inline-flex;align-items:center;justify-content:center;min-width:153px;box-sizing:border-box;padding:14px 8px;margin-bottom:-1px;font-size:14px;white-space:nowrap;cursor:pointer;${on ? 'font-weight:600;color:var(--rmx-brand-dark, #13314c);border-bottom:3px solid var(--ac,var(--rmx-brand, #008dd5))' : 'font-weight:400;color:var(--rmx-text, #666666);border-bottom:3px solid transparent'}">${t}</span>`;
-          }).join('')}<div style="flex:1"></div>${(this.state.mktTab || 'General') === 'Pricing'
-            ? `<button data-act="pricePreviewOpen" class="btn-out" style="height:34px;min-height:34px;padding:0 14px;border-radius:4px;font-size:14px;white-space:nowrap;flex:none">Preview Pricing</button>` : ''}</div>
-        </div>
-        <div style="flex:1;min-height:0;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:16px;background:#fff">
-          ${(this.state.mktTab || 'General') === 'Pricing' ? this.mktPricingBody() : `
-          <div style="display:grid;grid-template-columns:repeat(3, minmax(0,1fr));gap:16px;align-items:stretch">${contact1}${contact2}${listing}</div>
-          <div style="display:grid;grid-template-columns:repeat(2, minmax(0,1fr));gap:16px;align-items:stretch">${features}${floor}</div>`}
+        <div style="flex:1;min-height:0;overflow-y:auto;padding:16px 20px;display:grid;grid-template-columns:repeat(3, minmax(0,1fr));gap:16px;align-items:stretch;align-content:start;background:var(--rmx-bg-subtle, #f5f8fa)">
+          ${contact1}${contact2}${listing}${features}${floor}${ctm}
         </div>
       </div>`;
   }
@@ -8251,6 +8389,7 @@ class Component extends DCLogic {
     out += this.pubModalHTML();
     out += this.ftSelHTML();
     out += this.mktSetupHTML();
+    out += this.ctmEditHTML();
     out += this.mktDefAskHTML();
     out += this.mktAdvHTML();
     out += this.petTypeHTML();
