@@ -94,8 +94,12 @@ the overlay's own Save. Because a charge lands in state the moment it is saved, 
 badge, the banner above and the strip's Convert button all move while the overlay is still open.
 
 **Shared chrome is kept identical in both builds**: `.btn-pri` / `.btn-out` set their label in
-Roboto **Regular** (RMX's Button does), `infoTip` is the RMX Tooltip below, and Marketing Setup ›
-Pricing saves per charge. A change to any of them belongs in both files.
+Roboto **Regular** (RMX's Button does), every overlay header title is
+`font:400 20px/28px Roboto` — RMX's Overlay Header (`YhvzfcXOniQJ7xlC8ONzS4` `4193:45459`) uses
+**Web/Heading/M/Regular**, so a dialog title is never SemiBold and never 16 or 18px — `infoTip` is
+the RMX Tooltip below, and Marketing Setup › Pricing saves per charge. A change to any of them
+belongs in both files. The rule is the dialog's **header** only: section titles, card titles and
+the Listings banner's own *Fee Transparency Setup* heading stay 16/600.
 
 `infoTip`'s panel is RMX's **Tooltip** (RMX Components `2944:203796`): 312px wide, 16px padding,
 1px `#cedbe7`, 4px radius, drop shadow `0 3px 6px rgba(0,0,0,0.10)`, Roboto Regular 14/20. Its
