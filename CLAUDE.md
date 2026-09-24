@@ -385,8 +385,12 @@ this property has taken the type over, and an edit pencil (`ctmOpen`).
 **`ctmEditHTML()` is the override**, matching Figma `3591:138722`. One checkbox, **Override Charge
 Type**, is the whole decision: off, the fields show the charge type's values greyed and locked, and
 are not inputs at all; on, they are this property's to set, seeded from the charge type so the
-override is an edit of it rather than an empty form. `Reset` shows only once an override exists and
-puts the type back. Saving writes `state.propDef[prop][CODE]`; unticking and saving deletes it.
+override is an edit of it rather than an empty form. **Once the override is saved the checkbox is checked and disabled**, and `Reset` beside it is the
+only way back — unticking it would leave the dialog and `propDef` disagreeing about whether the
+property still owns these values. Reset deletes the entry, so the box comes back unchecked and
+enabled and the fields fill from the charge type again. `ctFieldBits().check` takes a fourth `dis`
+argument for that state; a disabled input is greyed by the browser, so the fill is dimmed to keep
+RMX's attention orange readable. Saving writes `state.propDef[prop][CODE]`; unticking and saving deletes it.
 
 **The dialog is built from `ctFieldBits()`**, the shared RMX field bits, not one-off markup: `txt`
 is the enabled Input Field on `Component/input-default` (`#f5f8fa`, never white — a white input reads
