@@ -344,12 +344,16 @@ unit type takes the charge off the quote**.
 
 ## Where marketing details live
 
-`mktSetupBody()` is the Marketing Setup itself, and matches Figma `3457:41815`: the property
-header strip, the General / Pricing tabs, and the selected tab. The strip and the tabs are a
-fixed band; only the tab's own content scrolls, so the property you are on and the tab you are on
-never leave the screen. The Marketing Center renders it
-inline; the property page's own overlay (`mktSetupHTML`) wraps the same markup in chrome. One
-source, so the two cannot drift.
+`mktSetupBody()` is the Marketing Setup itself. **The two builds have diverged here.** In A it is
+still Figma `3457:41815` — the property strip and the General / Pricing tabs as a fixed band, with
+only the tab's content scrolling — and the Marketing Center renders it inline while the property
+page's overlay (`mktSetupHTML`) wraps the same markup in chrome.
+
+**In C there are no tabs, and everything below the Include/Exclude bar is one scrolling surface on
+`--rmx-bg-subtle`**: the property strip scrolls with the tiles rather than sitting on a white band
+of its own, so the grey runs edge to edge under the blue bar and nothing is pinned. The strip
+leaving the screen is the trade, and it is deliberate — with the tabs gone there is no second thing
+to keep in view.
 
 ## Marketing details inherit: charge type → property → charge
 
