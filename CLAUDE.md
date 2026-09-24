@@ -166,6 +166,12 @@ newly created charge. A change to `mktDef*` belongs in every file.
 Both files share every asset: the workflow uploads the repo root with no build step,
 `.nojekyll` is present, and every path in the head is document-relative.
 
+**The current design set lives on Figma page `3569:42508` ("V3")** in
+`43F6y97LDzYBgL4CZAEO82`: **Listings**, **Fee Transparency Setup overlay** and **Marketing Setup
+overlay** (General tab). They are built from RMX component instances with Foundations variables
+bound — icons are `Flexible Icon` instances with the glyph swapped, registers are columns of
+Header + Cell, and fields are `Input Field`. Page `3465:40468` ("V2") holds the earlier iterations.
+
 ## Branches
 
 - **`experiment`** is where the work happens, and it is what GitHub Pages serves.
