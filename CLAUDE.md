@@ -118,26 +118,23 @@ Symbols glyph. The panel sets `font:400` on itself: it renders inside whatever t
 bold heading was bleeding into the body text. Callers may still pass a narrower width; everything
 else is the component's.
 
-**Charges is a column, beside Errors.** Every listing of a property fee transparency can apply to
-wears that property's **Listing Ready Charges n/n** — the same fraction the group header carries,
-because it is the same `ftCharges(prop)` — amber while short, green once whole. A property
-fee transparency cannot apply to (`ftApplicable` is false: not on an ILS feed, or on MH Village)
-reads `—`, because the question isn't asked of it. In the ungrouped view the group header is gone,
-so the column is the only place the count can be read; grouped, the two agree by construction.
+**Listing Ready Charges is a column, beside Errors**, matching Figma `3573:779`: a status dot and
+the fraction, nothing else — **green once whole, red while any charge is short**. Every listing of
+a property wears its property's count, since that is what it is. A property fee transparency cannot
+apply to (`ftApplicable` is false: not on an ILS feed, or on MH Village) reads `—`, because the
+question isn't asked of it. **The group header no longer carries it** — the same number in two
+places on one screen is one place too many, so the header is the chevron and the property name.
+The cell is still the trigger for `ltReadyOpen`.
 
-**Errors counts the feed and the charges, apart.** `ltIssues` returns `rm` (Rent Manager's own
-fields), `prov` (the `tz` errors, attributed to whichever providers carry `err`) and `charges`
-(`ltChargeIssues(prop)`, only when `ftApplicable`). The icon reads **red when the feed has an
-error, amber when only the charges are short**, green otherwise — a listing whose charges are
-incomplete can't advertise a Total Monthly Price, which is a real reason the row publishes wrong,
-but the feed itself still goes out, so it is not red. `ltErrHTML` shows all three as collapsible
-sections; the charges one itemises each charge and the fields it lacks, with **Add charge details**
-through to Marketing Setup.
-
-**Charge completeness is also on the group header.** The **Listing Ready Charges n/n** count is a
-trigger: `ltReadyOpen` opens `ltReadyHTML`, which itemises the same charges. Same count as the
-lozenge and the Charges column, because it is that count, itemised. `ltChargeIssues` takes a
-**property**, not a listing.
+**Errors counts the feed and the charges, apart but in one tone.** `ltIssues` returns `rm` (Rent
+Manager's own fields), `prov` (the `tz` errors, attributed to whichever providers carry `err`) and
+`charges` (`ltChargeIssues(prop)`, only when `ftApplicable`), and its icon is **red for any of
+them**, green for none. Charges short of marketing details make the listing advertise the wrong
+price, which is an error of the same weight as a rejected feed — and the Listing Ready Charges dot
+beside it is red for the same reason, so a row can't say amber in one column and red in the next.
+`ltErrHTML` shows all three as collapsible sections; the third, **Charge Marketing Errors**,
+itemises each charge and the fields it lacks, with **Add charge details** through to Marketing
+Setup. `ltChargeIssues` takes a **property**, not a listing.
 
 **Hide listings without errors** (`ltErrOnly`) follows the column: feed errors only.
 
@@ -278,17 +275,29 @@ existing charge never re-applies them.
 
 **How far a default reaches is asked, not assumed.** When `ctSave` sees the marketing details
 changed *and* charges of that type already exist, it holds them in `state.mktDefDraft` and raises
-`mktDefAskHTML()` — "How do you want to apply these marketing details?" — with three answers,
-applied by `mktDefApply`:
+`mktDefAskHTML()` — the **Apply Defaults** dialog, Figma `3595:57352`: a 417px overlay at
+`z-index:165` (above Charge Type Details' 160), a line saying how many charges use the changed
+types, and three RMX Radio Selectors over a Save / Cancel footer. `mktDefApply` is what commits
+`state.mktDef`, not `ctSave` — otherwise `mktDefChanged` would be diffing against the values it
+just wrote. Only the types this save actually moved are touched.
 
-- `new` — save the defaults and touch nothing that exists.
-- `blank` — fill the fields still empty on existing charges (`mktDefFill`, no force). The default.
-- `all` — overwrite these fields on every charge of the types **this save changed**
-  (`mktDefChanged`), values someone typed included (`mktDefFill(..., true)`).
+- `new` — **Only new charges**. The default. In **C** this cannot be done by writing today's
+  resolved values onto each charge: a field that resolves to nothing today is indistinguishable
+  from one nobody has filled, so the new default would reach it anyway. Each existing charge is
+  marked `listing.noInherit` instead — it refuses the **charge type's** defaults outright, while
+  the property's own override still reaches it, because refusing that was never asked for. In
+  **A**, which copies defaults down rather than cascading, this is simply "write nothing".
+- `inherit` — **All charges using default marketing** / *Overridden charges stay as they are*. In
+  C this writes nothing at all: a charge with no value of its own already follows the new default
+  through `resolvedListing`, and one overridden at the property, on the charge, or by an earlier
+  *Only new charges* is exactly what this answer leaves alone. In A it is `mktDefFill` with no
+  force — fill the fields still empty.
+- `all` — **All charges** / *Clears every property and charge override*. In C it deletes those
+  types' entries from `state.propDef`, and the marketing fields and `noInherit` from every charge
+  of them, so everything reads the new default and nothing else. In A it is
+  `mktDefFill(..., true)`, values someone typed included.
 
-`mktDefApply` is what commits `state.mktDef`, not `ctSave` — otherwise `mktDefChanged` would be
-diffing against the values it just wrote. The dialog's Cancel returns to the form with everything
-typed still on it, which is why the tile renders from `mktDefDraft` when one exists rather than
+The dialog's Cancel returns to the form with everything typed still on it, which is why the tile renders from `mktDefDraft` when one exists rather than
 from `state.mktDef`. A charge type with no charges yet skips the dialog and just saves.
 
 ## The Marketing Center
@@ -382,9 +391,10 @@ to keep in view.
 ## Marketing details inherit: charge type → property → charge
 
 **`resolvedListing(r)` is the one place the chain is walked**: the charge's own value, then the
-property's override of that charge's **charge type**, then the charge type's default. `ctmFor(prop,
-code)` returns the middle two — the property's override when it has one (`state.propDef[prop][CODE]`
-with `on: true`), otherwise `mktDefFor(code)`. Because a charge is resolved through its property,
+property's override of that charge's **charge type** (`ctmOwn`, `state.propDef[prop][CODE]` with
+`on: true`), then the charge type's default (`mktDefFor`) — unless the charge carries
+`listing.noInherit`, which skips that last rung only. `ctmFor` is the two lower rungs collapsed,
+which is what the override dialog seeds itself from. Because a charge is resolved through its property,
 `profileRows(p)` stamps `_prop` on every row it hands back; `mitsMissing(r)` is called from loops
 over a property other than the one on screen, and without the stamp it would resolve against the
 wrong one.
