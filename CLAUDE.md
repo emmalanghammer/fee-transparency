@@ -382,6 +382,17 @@ are not inputs at all; on, they are this property's to set, seeded from the char
 override is an edit of it rather than an empty form. `Reset` shows only once an override exists and
 puts the type back. Saving writes `state.propDef[prop][CODE]`; unticking and saving deletes it.
 
+**The locked fields are RMX's disabled Input Field**, to Figma `3595:57087`: 1px
+`Border/border-disabled` `#ebf1f5`, the two-layer white-over-`#f2f2f2` ground, `Text/text-disabled`
+`#b3b3b3`, 36px, and the chevron stays on a dropdown. Marketing Description is the disabled Text
+Box, 56px with the text at the top. The unchecked box is 20px with a 2px `#b3b3b3` border.
+
+**`state.mktDef` starts empty in every scenario**, so a charge type has no defaults until someone
+sets them on Charge Type Details — and the dialog's locked fields are blank, saying
+*“<code> has no default charge marketing yet”* rather than looking broken. Seeding defaults would
+fill them, but it would also make Riverview's five charges listing ready through the cascade and
+collapse the Happy Path, which exists to show a property that still has work to do.
+
 **`mktPricingBody` is no longer reachable in C.** The Pricing tab it lived on is gone with this
 design, and the per-charge Save footers (`mpSaveRow`, `mpCommit`, `mpCapture`) go with it. The code
 is still in the file because A still uses it — delete it from `listings.html` when the model settles.
