@@ -8086,16 +8086,16 @@ class Component extends DCLogic {
     const amen = ['Theater','Outdoor Grill','Hot Tub','Game Room','Utility Laundry Room','Dog Park','Community Garden','Pool','Fitness Center'];
     const features = card('Features', `
       <div style="display:flex;gap:20px;align-items:flex-start;min-width:0;flex-wrap:wrap">
-        <div style="flex:1;min-width:240px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
+        <div style="flex:1;min-width:0;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
           <div style="padding:10px 14px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);letter-spacing:0.02em;border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)">Property Amenities</div>
           <div style="max-height:230px;overflow-y:auto">${amen.map((a2,i) => `<div style="padding:9px 14px;font-size:14px;color:var(--rmx-brand-dark, #13314c);${i%2?'background:#f7fafc;':''}border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)">${a2}</div>`).join('')}</div>
         </div>
-        <div style="flex:1;min-width:240px;display:flex;flex-direction:column;gap:12px">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:12px">
           ${field('Laundry', { t:'' })}
           <div style="display:flex;flex-direction:column;gap:4px">${lab('Pets')}
-            <div style="display:flex;align-items:flex-start;gap:10px;background:#fff;border:1px solid var(--rmx-attention, #f58220);border-radius:4px;padding:11px 13px">
+            <div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;background:#fff;border:1px solid var(--rmx-attention, #f58220);border-radius:4px;padding:11px 13px">
               <svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5));flex:none;margin-top:1px"><path d="M453-280h60v-240h-60v240Zm50.5-323.2q9.5-9.2 9.5-22.8 0-14.45-9.48-24.22-9.48-9.78-23.5-9.78t-23.52 9.78Q447-640.45 447-626q0 13.6 9.48 22.8 9.48 9.2 23.5 9.2t23.52-9.2ZM480.27-80q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg>
-              <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Pet details can be added on any charges with a PET charge category.</span>
+              <span style="flex:1 1 120px;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Pet details can be added on any charges with a PET charge category.</span>
               <a data-act="openFeeProfile" data-arg="${mkProp}" style="flex:none;margin-top:1px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">View Charges</a>
             </div>
           </div>
@@ -8124,11 +8124,11 @@ class Component extends DCLogic {
     const ctmCell = (t, extra) => `<span style="display:flex;align-items:center;min-height:38px;box-sizing:border-box;padding:0 14px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;${extra||''}">${t}</span>`;
     const CTMCOLS = 'minmax(90px,1.2fr) minmax(90px,1.2fr) minmax(120px,1.6fr) 44px';
     const ctm = card('Default Charge Marketing', `
-      <div style="margin:-14px -16px;display:flex;flex-direction:column">
-        <div style="display:grid;grid-template-columns:${CTMCOLS};border-bottom:1px solid var(--rmx-line, #cedbe7)">
+      <div style="margin:-14px -16px;overflow-x:auto">
+        <div style="min-width:344px;display:grid;grid-template-columns:${CTMCOLS};border-bottom:1px solid var(--rmx-line, #cedbe7)">
           ${ctmHead('Charge Type')}${ctmHead('Active Charges')}${ctmHead('Override Charge Type')}${ctmHead('')}
         </div>
-        ${ctmRows.length ? ctmRows.map(t => `<div style="display:grid;grid-template-columns:${CTMCOLS};border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa)">
+        ${ctmRows.length ? ctmRows.map(t => `<div style="min-width:344px;display:grid;grid-template-columns:${CTMCOLS};border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa)">
             ${ctmCell(esc2(t.code))}${ctmCell(String(t.n))}
             ${ctmCell(this.ctmOverridden(P.name, t.code) ? ctmTick : '')}
             <span data-act="ctmOpen" data-arg="${esc2(t.code)}" title="Edit default charge marketing" style="display:flex;align-items:center;justify-content:center;min-height:38px;cursor:pointer">${this.ico('edit_square', 18, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
