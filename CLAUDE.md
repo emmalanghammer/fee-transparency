@@ -372,7 +372,13 @@ charge type supplies.
 
 **Marketing Setup has no tabs.** It is one page of six tiles, three across on the page ground,
 matching Figma `3576:12748`: Contact Information, Descriptions, Listing Details, Features, Floor
-Plans and **Default Charge Marketing**. The last is a register of the charge types the property
+Plans and **Default Charge Marketing**. **Descriptions** is Figma `3575:126028`: two equal fields,
+Marketing Description over Promotional Description, each carrying its own **Add from UDF** on its
+label row — the tile header has no action — with the **Orion help button** floating over the first,
+a white bubble with a 1px brand border and one square corner (`border-radius:200px 200px 200px 0`).
+Its mark is the real Orion logo, harvested from the library, not a drawn stand-in. **Features
+stacks**: its amenities list sits above its fields, because a third-width tile has no room for two
+columns. The last is a register of the charge types the property
 actually runs — **Charge Type · Active Charges · Override Charge Type** — with a green tick where
 this property has taken the type over, and an edit pencil (`ctmOpen`).
 
