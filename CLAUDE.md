@@ -39,7 +39,8 @@ every listing already advertises complete pricing (`needsFT`).
   (`ftApplicable`, and only where listings carry charges at all): a home icon, the name, a
   **Ready** / **Not Ready** lozenge and a chevron. A ready property's row also offers
   **Activate Fee Transparency** (`pubOpen`); one that already has it reads *Fee Transparent* in
-  italic and offers nothing. Expanded, the row shows two grey sub-rows — *Listing Ready Charges: n/n* with
+  italic and offers nothing. Expanded, the property row takes a 1px `--rmx-line` bottom border, so the white row reads as the
+  header of what opened under it rather than running into the grey. It shows two grey sub-rows — *Listing Ready Charges: n/n* with
   **Add Charge Details**, and *Set Property Defaults* with **Edit Defaults**. Both go to
   `mcOpenProp`: property-level defaults aren't a separate surface in this model, and Marketing
   Setup is the nearest real thing.
