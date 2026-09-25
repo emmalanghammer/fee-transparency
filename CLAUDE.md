@@ -12,7 +12,7 @@ Two whole prototypes are served off the same deploy, so they can be compared liv
 | File | URL | Design |
 |---|---|---|
 | `marketing-center.html` | `…/fee-transparency/marketing-center.html` | **A — Marketing Center**: marketing details are edited in Marketing Setup › Pricing, and charge-type defaults live on Charge Type Details. |
-| `index.html` | `…/fee-transparency/` | **C — Listings**: A with the Marketing Center removed. There is no portfolio register and no Property Marketing Setup tab — the **Listings** page is the portfolio view, so each property group wears its own Listing Ready Charges count and the page offers Fee Transparency Setup. |
+| `index.html` | `…/fee-transparency/` | **C — Listings** — *the one that is worked on*: A with the Marketing Center removed. There is no portfolio register and no Property Marketing Setup tab — the **Listings** page is the portfolio view, so each property group wears its own Listing Ready Charges count and the page offers Fee Transparency Setup. |
 
 **C's Listings page matches Figma `3561:122545`.** Top to bottom: the **Fee Transparency Setup**
 banner, a toolbar, then the properties. `ltGroups()` gathers the listings under their property and
@@ -162,9 +162,10 @@ overlay lands over whatever page is current and Cancel leaves you on Listings ra
 you on the property. Called from anywhere else it still goes to the property page. `listingsData()` is filtered to `propNames()` in C and only in C: once Listings is the
 portfolio view, a scoreboard reading 4/4 over thirteen properties' listings is a contradiction.
 
-**So a change request needs a variant named.** "Change X" is ambiguous — ask which of the two, or
-do both, but never assume `index.html`. A change to the charge form, the Charges overlay or
-Marketing Setup almost always belongs in **both**, since C only removed the Marketing Center.
+**`marketing-center.html` is frozen — the user said so on 2026-09-25.** Work goes into
+`index.html` only. A changed to shared chrome no longer has to be mirrored across, so "change X"
+is no longer ambiguous: it means C. A is kept as a readable record of the Marketing Center design,
+not as a build that tracks the work. Touch it only if the user asks for it by name.
 
 **A third design, Pricing Setup, was removed on 2026-09-22** — `main`'s design with charge-type
 defaults added, served as `original.html`. `git show 346a980:original.html` brings it back if it
