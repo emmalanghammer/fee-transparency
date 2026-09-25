@@ -4027,10 +4027,13 @@ class Component extends DCLogic {
       return `<div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${head}${body}</div>`;
     };
 
-    return `<div style="padding:16px 24px 24px;display:flex;flex-direction:column;gap:16px;flex:1;min-height:0">
+    // The 24px under the last property belongs to the groups, not to this box: this one is
+    // `flex:1;min-height:0` inside the scroller, so its own bottom padding lands at the fold
+    // rather than after the content and reads as no padding at all.
+    return `<div style="padding:16px 24px 0;display:flex;flex-direction:column;gap:16px;flex:1;min-height:0">
       ${needsFT ? banner : ''}
       ${toolbar}
-      <div style="display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;flex-direction:column;gap:16px;padding-bottom:24px">
         ${grouped ? (groups.length ? groups.map(group).join('') : empty) : flat()}
       </div>
     </div>`;
