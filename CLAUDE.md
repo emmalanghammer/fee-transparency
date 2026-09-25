@@ -41,10 +41,12 @@ every listing already advertises complete pricing (`needsFT`).
   **Ready** / **Not Ready** lozenge and a chevron. A ready property's row also offers
   **Activate Fee Transparency** (`pubOpen`); one that already has it reads *Fee Transparent* in
   italic and offers nothing. Expanded, the property row takes a 1px `--rmx-line` bottom border, so the white row reads as the
-  header of what opened under it rather than running into the grey. It shows two grey sub-rows — *Listing Ready Charges: n/n* with
-  **Add Charge Details**, and *Set Property Defaults* with **Edit Defaults**. Both go to
-  `mcOpenProp`: property-level defaults aren't a separate surface in this model, and Marketing
-  Setup is the nearest real thing.
+  header of what opened under it rather than running into the grey. It shows two grey sub-rows —
+  *Listing Ready Charges: n/n* with **Add Charge Marketing**, or **View Charges** once the count is
+  whole, going to `openFeeProfile` because the property's Charges overlay is where a charge's
+  marketing is written in C; and *Set Property Defaults* with **Edit Defaults**, going to
+  `mcOpenProp`, since property-level defaults aren't a separate surface and Marketing Setup is the
+  nearest real thing. `openFeeProfile` clears `ftSetup` so the overlay closes behind it.
 
 **The green banner is conditional, and that is the point.** *Ready to display all charges?* with
 **Activate Fee Transparency** (`ftActivateReady`) renders only when `ftReadyProps()` is non-empty —

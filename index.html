@@ -1432,7 +1432,7 @@ class Component extends DCLogic {
       case 'openFeeProfile': {
         // Reached from the Errors breakdown as well as the property page, so the dialog it was
         // opened from has to close behind it.
-        this.setState({ recView: null, mktSetup: false, mktAdv: false, ltErr: null });
+        this.setState({ recView: null, mktSetup: false, mktAdv: false, ltErr: null, ftSetup: null });
         this.go('property', { property: arg || this.state.property, propTab: 'Charges' });
         break;
       }
@@ -3618,7 +3618,7 @@ class Component extends DCLogic {
           ${status}${chev(open)}
         </div>
         ${open ? `<div>
-          ${sub(tick, 'Listing Ready Charges:', `${r.ch.ready}/${r.onList}`, r.converted ? '' : link('Add Charge Details', 'mcOpenProp', r.p))}
+          ${sub(tick, 'Listing Ready Charges:', `${r.ch.ready}/${r.onList}`, link(r.whole ? 'View Charges' : 'Add Charge Marketing', 'openFeeProfile', r.p))}
           ${rule}
           ${sub(this.ico('info', 20, 'color:var(--rmx-text, #666666);flex:none'), 'Set Property Defaults', '', link('Edit Defaults', 'mcOpenProp', r.p))}
         </div>` : ''}
