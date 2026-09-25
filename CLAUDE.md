@@ -475,7 +475,11 @@ column at a fixed `top`, which straddled the box's bottom edge and slid off it w
 changed height.
 Its mark is the real Orion logo, harvested from the library, not a drawn stand-in. **Features
 stacks**: its amenities list sits above its fields, because a third-width tile has no room for two
-columns. The last is a register of the charge types the property
+columns. **Features also sets the bottom row's height**: `card()`'s `scroll` flag gives Floor Plans
+and Default Charge Marketing a body of `flex:1 1 0; height:0; overflow-y:auto`, so their content
+contributes no intrinsic height and the grid row is sized by the one tile that does. However many
+floor plans or charge types a property has, the row stays as tall as Features and those two scroll
+inside it. The last is a register of the charge types the property
 actually runs — **Charge Type · Active Charges · Property Override** — with a green tick where
 this property has taken the type over, and an edit pencil (`ctmOpen`). That pencil is RMX
 Iconography's **edit-filled** (Figma `3595:57346`), harvested rather than drawn: it is the filled
