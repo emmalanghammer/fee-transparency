@@ -524,7 +524,10 @@ collapsing hides the body rather than dropping it, so `saveFee` still reads ever
 **The section works like the property override**, and matches Figma `3606:62884`. Collapsed by
 default, with **Include on listings** on the header's right — the toggle itself, so it can be set
 without opening the section; its `onclick` stops propagation or the header's own collapse fires
-under it. There is no count lozenge and no line describing what the charge inherits: the Figma has
+under it. **Off, an amber `error` sits beside it** (`#m-ils-warn`, shown by `__calcNote` and
+`__mitsRecheck`) whose hover tooltip reads *“For full fee transparency, include this charge on
+listings so residents see it up front.”* — that used to be a standing line under the fields, which
+said the same thing whether or not anyone was looking for it. There is no count lozenge and no line describing what the charge inherits: the Figma has
 neither, and the outstanding fields are already named as chips inside. **Neither collapsible section is boxed** — Charge Marketing and Exceptions are a header row on the
 form, not a card — they read as **General** does, a heading over a bordered card, with a chevron
 added. The header row carries no horizontal padding and the card runs the full width, so all three

@@ -7225,9 +7225,12 @@ class Component extends DCLogic {
     // amount. Only worth saying once the charge is actually going out to listings.
     const calcNote = (src === 'Calculation' && ed && ed.ils) ? 'block' : 'none';
     window.__calcNote = () => {
+      const on = ((this.q('#m-ils') || {}).value) === '1';
+      // The warning beside the toggle is the whole of what off looks like.
+      const warn = this.q('#m-ils-warn');
+      if (warn) warn.style.display = on ? 'none' : 'inline-flex';
       const n = this.q('#m-calc-note'); if (!n) return;
       const method = (this.q('#m-source') || {}).value;
-      const on = ((this.q('#m-ils') || {}).value) === '1';
       n.style.display = (method === 'Calculation' && on) ? 'block' : 'none';
     };
     const methodJs = "var t={'Flat':'flat','Reference':'ref','Calculation':'calc'}[_v];document.getElementById('m-source').value=_v;['flat','ref','calc'].forEach(function(k){document.getElementById('m-blk-'+k).style.display=(k===t?'flex':'none')});if(window.__calcNote)window.__calcNote()";
@@ -7577,7 +7580,7 @@ class Component extends DCLogic {
       if (!g('m-due')) need.push('Fee Due');
       if (!isOne && !g('m-sched')) need.push('Charge Schedule');
       const msg = this.q('#m-ils-msg'), sw = this.q('#m-ils-sw'), lbl = this.q('#m-ils-lbl'),
-            needEl = this.q('#m-ils-need'), st = this.q('#m-lr-status'), note = this.q('#m-ils-note');
+            needEl = this.q('#m-ils-need'), st = this.q('#m-lr-status'), note = this.q('#m-ils-warn');
       if (!msg || !sw) return;
       const di = dateInfo();
       // An expired charge can't be marketed at all, so the toggle is forced off and locked.
@@ -7598,7 +7601,7 @@ class Component extends DCLogic {
       }
       const on = ((this.q('#m-ils') || {}).value) === '1';
       if (st) st.innerHTML = lrMarkup(need.length, on);
-      if (note) note.style.display = on ? 'none' : 'flex';
+      if (note) note.style.display = on ? 'none' : 'inline-flex';
       const dn = this.q('#m-date-note');
       if (dn) { const show = di.expired || di.future;
         dn.style.display = show ? 'flex' : 'none';
@@ -7606,8 +7609,11 @@ class Component extends DCLogic {
     };
     // Any charge left off listings gets a quiet nudge rather than an alert — nothing is wrong, it just
     // won't be visible to residents up front.
-    const ilsNote = `<div id="m-ils-note" style="display:${swOn ? 'none' : 'flex'};align-items:center;gap:8px"><svg class="ico" width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-text-muted, #b3b3b3);flex:none"><path d="M453-280h60v-240h-60v240Zm50.5-323.2q9.5-9.2 9.5-22.8 0-14.45-9.48-24.22-9.48-9.78-23.5-9.78t-23.52 9.78Q447-640.45 447-626q0 13.6 9.48 22.8 9.48 9.2 23.5 9.2t23.52-9.2ZM480.27-80q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg><span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3);line-height:1.45">For full fee transparency, include this charge on listings so residents see it up front.</span></div>`
-      + `<div id="m-date-note" style="display:${(di0.expired||di0.future)?'flex':'none'};align-items:center;gap:8px">${(di0.expired||di0.future)?dateNoteHTML(di0):''}</div>`;
+    // Off, the charge is kept off listings on purpose — which is worth a word, but not a standing
+    // line under the fields. It is a warning beside the toggle whose hover says why.
+    const ilsWarnTip = this.infoTip('<span style="display:block;white-space:normal">For full fee transparency, include this charge on listings so residents see it up front.</span>', 300,
+      { trigger: `<span style="display:inline-flex">${this.ico('error', 20, 'color:var(--rmx-notice, #faa61c)')}</span>` });
+    const ilsNote = `<div id="m-date-note" style="display:${(di0.expired||di0.future)?'flex':'none'};align-items:center;gap:8px">${(di0.expired||di0.future)?dateNoteHTML(di0):''}</div>`;
     // Missing fields only warn — they never lock the toggle. Only an expired To date does.
     const swLive = !di0.expired;
     const knob = `<span style="position:absolute;top:2px;left:${swOn?'16px':'2px'};width:14px;height:14px;border-radius:50%;background:#fff;transition:left 120ms ease-out;display:flex;align-items:center;justify-content:center"><svg class="ico" width="12" height="12" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="display:${swOn?'block':'none'};color:var(--ac,var(--rmx-brand, #008dd5))"><path d="M378-246 154-470l43-43 181 181 384-384 43 43-427 427Z"/></svg></span>`;
@@ -7615,7 +7621,8 @@ class Component extends DCLogic {
     // Figma `3606:62884`: Include on listings sits on the section header, so it can be set without
     // opening the section. `stopPropagation` keeps the header's own collapse from firing under it.
     const ilsSwitch = this.ilsOn()
-      ? `<label onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:10px;cursor:${swLive?'pointer':'default'}"><span id="m-ils-sw" data-dis="${swLive?'0':'1'}" onclick="${swJs}" data-on="${swOn?'1':'0'}" style="display:inline-block;width:32px;height:18px;border-radius:999px;background:${!swLive?'#dfe6ec':(swOn?'var(--ac,var(--rmx-brand, #008dd5))':'var(--rmx-line, #cedbe7)')};position:relative;flex:none;cursor:${swLive?'pointer':'default'}">${knob}</span><span id="m-ils-lbl" style="font-size:14px;color:${swLive?'var(--rmx-brand-dark, #13314c)':'var(--rmx-text-muted, #b3b3b3)'}">Include on listings</span></label>`
+      ? `<span id="m-ils-warn" onclick="event.stopPropagation()" style="display:${swOn ? 'none' : 'inline-flex'};align-items:center;margin-right:10px">${ilsWarnTip}</span>`
+        + `<label onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:10px;cursor:${swLive?'pointer':'default'}"><span id="m-ils-sw" data-dis="${swLive?'0':'1'}" onclick="${swJs}" data-on="${swOn?'1':'0'}" style="display:inline-block;width:32px;height:18px;border-radius:999px;background:${!swLive?'#dfe6ec':(swOn?'var(--ac,var(--rmx-brand, #008dd5))':'var(--rmx-line, #cedbe7)')};position:relative;flex:none;cursor:${swLive?'pointer':'default'}">${knob}</span><span id="m-ils-lbl" style="font-size:14px;color:${swLive?'var(--rmx-brand-dark, #13314c)':'var(--rmx-text-muted, #b3b3b3)'}">Include on listings</span></label>`
       : '';
     const ilsBox = this.ilsOn() ? `
         <div id="m-ils-msg" style="display:${complete?'none':'flex'};align-items:center;gap:10px;flex-wrap:wrap">
