@@ -3818,7 +3818,9 @@ class Component extends DCLogic {
     // A section is the same shape whatever the source: an icon saying whether it is clean, the
     // count, and the items themselves once opened. An empty one still shows, so the breakdown
     // answers "is it this?" for all three without the reader having to know the sources exist.
-    const sect = (key, title, tone, n, rowsHTML, action) => `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
+    // `flex:none` matters: the body is a flex column, so without it a tall open section shrinks the
+    // closed ones below their own content and `overflow:hidden` clips their titles in half.
+    const sect = (key, title, tone, n, rowsHTML, action) => `<div style="flex:none;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
         <div ${n?`data-act="ltErrSect" data-arg="${key}"`:''} style="display:flex;align-items:center;gap:12px;padding:13px 16px;${n?'cursor:pointer;':''}${n&&open[key]?'border-bottom:1px solid var(--rmx-line, #cedbe7)':''}">
           ${n ? warnIco(tone) : okIco}
           <span style="flex:1;min-width:0;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title}${n ? ` (${n})` : ''}</span>
