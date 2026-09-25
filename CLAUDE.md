@@ -118,8 +118,9 @@ Symbols glyph. The panel sets `font:400` on itself: it renders inside whatever t
 bold heading was bleeding into the body text. Callers may still pass a narrower width; everything
 else is the component's.
 
-**The register's header row is 32px**, which is what RMX's Header component measures in
-`3573:779`; the Cells under it stay 44. It ran 38 until 2026-09-25.
+**The register runs tight: a 32px header row over 36px content rows.** 32 is what RMX's Header
+component measures in `3573:779`; the 36 is the user's own call, below RMX's 44px Cell, so a
+property's listings read as one block rather than a scroll.
 
 **Listing Ready Charges is a column, beside Errors**, matching Figma `3573:779`: a status dot and
 the fraction, nothing else — **green once whole, red while any charge is short**. Every listing of
