@@ -477,6 +477,13 @@ glyph at 20px on its own `0 0 20 20` box, so it can't live in the Material `ico`
 Override*; the dialog's checkbox is still *Override Charge Type*, because that one is the decision
 being made rather than a label for the tick.
 
+**The three surfaces that edit a charge's marketing carry the same field tooltips.** `mktHelp()`
+builds one map — Name, Charge Category, Marketing Description, Charge Requirement, Charge Schedule,
+Fee Due, Refundable — read by the charge form (both its editable fields and its locked mirror),
+Charge Type Details' Default Charge Marketing and a property's Edit Default Charge Marketing, so
+the three cannot say different things about the same field. Which ones show still follows the
+charge: a recurring charge has no Fee Due to ask about and a one-time charge has no Charge Schedule.
+
 **Charge Schedule is recurring-only, and a one-time charge is One-Time.** A charge type is used by
 both kinds of charge, so neither Charge Type Details nor the property's override can know which the
 schedule is being set for — both carry `schedTip()` on the field: *“Only applies to recurring

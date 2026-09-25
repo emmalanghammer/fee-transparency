@@ -3474,21 +3474,22 @@ class Component extends DCLogic {
       <span style="flex:1;min-width:0;font-size:14px;color:${DIS_INK};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t) || '&nbsp;'}</span>${drop ? chev : ''}</div>`;
     // The multi-line one is RMX's Text Box, disabled: same ground, 56px tall, text at the top.
     const roArea = (t) => `<div style="display:flex;align-items:flex-start;height:56px;box-sizing:border-box;padding:8px 12px;background:${DIS_BG};border:1px solid ${DIS_LINE};border-radius:4px;font-size:14px;line-height:20px;color:${DIS_INK};overflow:hidden">${esc(t)}</div>`;
-    const fld = (label, ctl, tip) => `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0"><span style="display:inline-flex;align-items:center;gap:5px">${lab(label)}${tip ? this.schedTip() : ''}</span>${ctl}</div>`;
+    const H = this.mktHelp();
+    const fld = (label, ctl, tip) => `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0"><span style="display:inline-flex;align-items:center;gap:5px">${lab(label)}${tip || ''}</span>${ctl}</div>`;
     const txt = (id, val) => F.txt(id, val);
     const area = (id, val) => `<textarea id="${id}" style="box-sizing:border-box;width:100%;height:60px;padding:8px 10px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);resize:none">${esc(val)}</textarea>`;
     const dd = (id, opts, val) => this.singleSelect(id, opts, val, { noSearch:true, blank:true, placeholder:'\u00a0' });
 
     const pair = (a, b) => `<div style="display:flex;gap:16px">${a}${b}</div>`;
     const body = on
-      ? pair(fld('Name', txt('ctm-name', v('name'))), fld('Charge Category', dd('ctm-category', this.chargeCategoryOptions(), v('category'))))
-        + fld('Marketing Description', area('ctm-marketing', v('marketing')))
-        + pair(fld('Charge Requirement', dd('ctm-requirement', REQ, v('requirement'))), fld('Charge Schedule', dd('ctm-schedule', SCHED, v('schedule')), true))
-        + pair(fld('Fee Due', dd('ctm-feeDue', DUE, v('feeDue'))), fld('Refundable', dd('ctm-refundable', REF, v('refundable'))))
-      : pair(fld('Name', ro(v('name'))), fld('Charge Category', ro(v('category'), true)))
-        + fld('Marketing Description', roArea(v('marketing')))
-        + pair(fld('Charge Requirement', ro(v('requirement'), true)), fld('Charge Schedule', ro(v('schedule'), true), true))
-        + pair(fld('Fee Due', ro(v('feeDue'), true)), fld('Refundable', ro(v('refundable'), true)));
+      ? pair(fld('Name', txt('ctm-name', v('name')), H.name), fld('Charge Category', dd('ctm-category', this.chargeCategoryOptions(), v('category')), H.category))
+        + fld('Marketing Description', area('ctm-marketing', v('marketing')), H.marketing)
+        + pair(fld('Charge Requirement', dd('ctm-requirement', REQ, v('requirement')), H.requirement), fld('Charge Schedule', dd('ctm-schedule', SCHED, v('schedule')), H.schedule))
+        + pair(fld('Fee Due', dd('ctm-feeDue', DUE, v('feeDue')), H.feeDue), fld('Refundable', dd('ctm-refundable', REF, v('refundable')), H.refundable))
+      : pair(fld('Name', ro(v('name')), H.name), fld('Charge Category', ro(v('category'), true), H.category))
+        + fld('Marketing Description', roArea(v('marketing')), H.marketing)
+        + pair(fld('Charge Requirement', ro(v('requirement'), true), H.requirement), fld('Charge Schedule', ro(v('schedule'), true), H.schedule))
+        + pair(fld('Fee Due', ro(v('feeDue'), true), H.feeDue), fld('Refundable', ro(v('refundable'), true), H.refundable));
 
     // RMX's own Checkbox, not a hand-drawn box. The label swallows its clicks so the delegated
     // handler fires once rather than twice. Once the override is saved the box is checked and
@@ -4258,6 +4259,21 @@ class Component extends DCLogic {
   // is used by both recurring and one-time charges, so neither form can know which this is for. The
   // field says so, and a one-time charge reads One-Time whatever is set here.
   schedTip(){ return this.infoTip('<span style="display:block;white-space:normal">Only applies to recurring charges.</span>', 300); }
+  // One set of field tooltips for every surface that edits a charge's marketing details: the charge
+  // itself, the charge type's defaults, and a property's override of them. Built once so the three
+  // cannot say different things about the same field.
+  mktHelp(){
+    if (!this._mktHelp) this._mktHelp = {
+      name: this.fieldHelp('Name', 'The name listings show for this charge. It is what a resident reads, so it can differ from the name the charge is booked under.'),
+      category: this.fieldHelp('Charge Category', 'The category listings report this charge under. It starts from the charge type and can be overridden here. A charge without one cannot go on a listing.'),
+      marketing: this.fieldHelp('Marketing Description', 'One line describing the charge on a listing, in the resident\'s terms rather than the ledger\'s.'),
+      requirement: this.reqHelp(),
+      schedule: this.schedTip(),
+      feeDue: this.fieldHelp('Fee Due', 'When the charge is collected: at application, at move-in, during the term, or at move-out.'),
+      refundable: this.fieldHelp('Refundable', 'Whether the resident gets this back at the end of the lease. Deposits usually are; fees usually are not.')
+    };
+    return this._mktHelp;
+  }
   ctFieldBits(){
     const esc = v => ('' + (v == null ? '' : v)).replace(/"/g, '&quot;');
     const lab = (t, req) => `<span style="font-size:14px;color:var(--rmx-text, #666666)">${t}${req?' *':''}</span>`;
@@ -4349,6 +4365,7 @@ class Component extends DCLogic {
     const SCHED = ['Weekly','Monthly','Annually'];
     const REF = [{value:'yes',label:'Refundable'},{value:'no',label:'Not Refundable'}];
     const mdd = (id, opts, val) => this.singleSelect(id, opts, val, { noSearch:true, blank:true, placeholder:'\u00a0' });
+    const H = this.mktHelp();
     const marea = (id, val) => `<textarea id="${id}" style="box-sizing:border-box;width:100%;height:60px;padding:8px 10px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);line-height:1.5;resize:vertical">${mesc(val)}</textarea>`;
     const mfld = (label, ctl, help) => `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0"><span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--rmx-text, #666666)">${label}${help || ''}</span>${ctl}</div>`;
     // Figma 3582:1667. The tile is named for what it sets, and the case for setting it moved out of
@@ -4358,17 +4375,17 @@ class Component extends DCLogic {
     const mktTile = tile('Default Charge Marketing', whyTip,
       `<span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.45">Set default marketing information for every charge that uses this charge type.</span>
        <div style="display:flex;gap:16px">
-         ${mfld('Name', F.txt('ctd-mkt-name', d.name || seed.name))}
-         ${mfld('Charge Category', mdd('ctd-mkt-category', this.chargeCategoryOptions(), d.category || ''))}
+         ${mfld('Name', F.txt('ctd-mkt-name', d.name || seed.name), H.name)}
+         ${mfld('Charge Category', mdd('ctd-mkt-category', this.chargeCategoryOptions(), d.category || ''), H.category)}
        </div>
-       ${mfld('Marketing Description', marea('ctd-mkt-marketing', d.marketing || ''))}
+       ${mfld('Marketing Description', marea('ctd-mkt-marketing', d.marketing || ''), H.marketing)}
        <div style="display:flex;gap:16px">
-         ${mfld('Charge Requirement', mdd('ctd-mkt-requirement', REQ, d.requirement || ''))}
-         ${mfld('Charge Schedule', mdd('ctd-mkt-schedule', SCHED, d.schedule || ''), this.schedTip())}
+         ${mfld('Charge Requirement', mdd('ctd-mkt-requirement', REQ, d.requirement || ''), H.requirement)}
+         ${mfld('Charge Schedule', mdd('ctd-mkt-schedule', SCHED, d.schedule || ''), H.schedule)}
        </div>
        <div style="display:flex;gap:16px">
-         ${mfld('Fee Due', mdd('ctd-mkt-feeDue', DUE, d.feeDue || seed.feeDue))}
-         ${mfld('Refundable', mdd('ctd-mkt-refundable', REF, d.refundable || seed.refundable))}
+         ${mfld('Fee Due', mdd('ctd-mkt-feeDue', DUE, d.feeDue || seed.feeDue), H.feeDue)}
+         ${mfld('Refundable', mdd('ctd-mkt-refundable', REF, d.refundable || seed.refundable), H.refundable)}
        </div>`, true);
     const invTile = tile('Inventory Items',
       `<span data-act="todo" data-arg="Link Existing Inventory Item" style="display:inline-flex;align-items:center;gap:4px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Link Existing Inventory Item<svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M480-360 280-559h400L480-360Z"/></svg></span>`,
@@ -6960,10 +6977,7 @@ class Component extends DCLogic {
     // something to say behind it.
     const lab = (t,tip) => `<span style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--rmx-text, #666666)">${t}${tip||''}</span>`;
     // Charge Category and Charge Schedule carry the form's other two help icons.
-    const help = {
-      category: this.fieldHelp('Charge Category', 'The category listings report this charge under. It comes from the charge type\'s setup, so it can\'t be edited here, and a charge without one can\'t go on a listing.'),
-      sched: this.fieldHelp('Charge Schedule', 'How often a recurring charge is billed, as listings state it: monthly, weekly or daily.')
-    };
+    const help = this.mktHelp();
     const sect = (t,inner) => `<div style="display:flex;flex-direction:column;gap:10px"><span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span><div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:12px">${inner}</div></div>`;
     const dd = (id,opts,sel,o) => this.singleSelect(id,opts,sel,o);
     const cat = this.chargeCategoryMap();
@@ -7545,25 +7559,25 @@ class Component extends DCLogic {
       <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${l}</span></label>`;
     const leaseSection = '';
     const listing = `<div style="display:flex;gap:12px;align-items:flex-start">
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Name')}
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Name', help.name)}
           <div id="m-name-text" data-typed="${esc(nm0)}" style="display:${role0 ? 'none' : 'block'}"><input id="m-name" class="fld" value="${esc(nameNow)}" oninput="if(window.__mitsRecheck)window.__mitsRecheck()" style="height:36px;box-sizing:border-box"></div>
           <div id="m-name-rent" style="display:${role0 === 'rent' ? 'block' : 'none'}">${this.singleSelect('m-name-rent-sel', nameOpts.rent, rentSel, { noSearch:true, js:nameJs })}</div>
           <div id="m-name-dep" style="display:${role0 === 'deposit' ? 'block' : 'none'}">${this.singleSelect('m-name-dep-sel', nameOpts.deposit, depSel, { noSearch:true, js:nameJs })}</div>
         </div>
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Marketing Description')}<textarea id="m-marketing" class="fld" style="height:36px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${ed&&ed.listing?(ed.listing.marketing||''):''}</textarea></div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Marketing Description', help.marketing)}<textarea id="m-marketing" class="fld" style="height:36px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${ed&&ed.listing?(ed.listing.marketing||''):''}</textarea></div>
         ${catBlock}
       </div>
       ${leaseSection}
       <!-- All four to a row. A one-time charge has no schedule, so it runs three across. -->
       <div style="display:flex;gap:12px;align-items:flex-start">
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px"><span style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--rmx-text, #666666)">Charge Requirement${this.reqHelp()}</span>${dd('m-req',['Required','Optional','Situational'],req,{noSearch:true,blank:true,placeholder:' ',js:"document.getElementById('m-sitdesc-wrap').style.display=(_v==='Situational'?'flex':'none');if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Requirement', help.requirement)}${dd('m-req',['Required','Optional','Situational'],req,{noSearch:true,blank:true,placeholder:' ',js:"document.getElementById('m-sitdesc-wrap').style.display=(_v==='Situational'?'flex':'none');if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>
         <!-- A recurring charge is collected across the term by definition, so it carries During Term
              without asking. Only a one-time charge has a question to answer here. -->
         ${isOne
-          ? `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Fee Due')}${dd('m-due',['At Application','Move-In','During Term','Move-Out'],(ed&&ed.listing&&ed.listing.feeDue)||'',{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`
+          ? `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Fee Due', help.feeDue)}${dd('m-due',['At Application','Move-In','During Term','Move-Out'],(ed&&ed.listing&&ed.listing.feeDue)||'',{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`
           : `<input type="hidden" id="m-due" value="During Term">`}
-        ${isOne?'':`<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Schedule', help.sched)}${dd('m-sched',['Weekly','Monthly','Annually'],(ed&&ed.listing&&ed.listing.schedule)||'',{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`}
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Refundable')}${dd('m-refund',['Refundable','Not Refundable'],refundable,{noSearch:true,blank:true,placeholder:' '})}</div>
+        ${isOne?'':`<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Schedule', help.schedule)}${dd('m-sched',['Weekly','Monthly','Annually'],(ed&&ed.listing&&ed.listing.schedule)||'',{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`}
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Refundable', help.refundable)}${dd('m-refund',['Refundable','Not Refundable'],refundable,{noSearch:true,blank:true,placeholder:' '})}</div>
       </div>
       <div id="m-sitdesc-wrap" style="display:${req==='Situational'?'flex':'none'};flex-direction:column;gap:4px">${lab('Situational Charge Description')}<textarea id="m-sitdesc" class="fld" style="height:48px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${esc(ed?ed.cond:'')}</textarea></div>
       ${attrSections}`;
@@ -7686,10 +7700,11 @@ class Component extends DCLogic {
     const DIS_BG = 'linear-gradient(90deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.5) 100%), linear-gradient(90deg, #f2f2f2 0%, #f2f2f2 100%)';
     const roCell = (id, drop, tall) => `<div style="display:flex;align-items:${tall ? 'flex-start' : 'center'};gap:8px;${tall ? 'height:56px;padding:8px 12px' : 'height:36px;padding:0 8px'};box-sizing:border-box;background:${DIS_BG};border:1px solid #ebf1f5;border-radius:4px">
       <span id="${id}" style="flex:1;min-width:0;font-size:14px;line-height:20px;color:var(--rmx-text-disabled, #b3b3b3);${tall ? '' : 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis'}">&nbsp;</span>${drop ? `<svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-text-disabled, #b3b3b3);flex:none"><path d="M480-344 240-584l43-43 197 197 197-197 43 43-240 240Z"/></svg>` : ''}</div>`;
-    const roFld = (label, ctl) => `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px"><span style="font-size:14px;color:var(--rmx-text, #666666)">${label}</span>${ctl}</div>`;
+    const MH = this.mktHelp();
+    const roFld = (label, ctl, tip) => `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px"><span style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--rmx-text, #666666)">${label}${tip || ''}</span>${ctl}</div>`;
     const lockedView = `<div id="m-mkt-locked" style="display:${ovrOn ? 'none' : 'flex'};flex-direction:column;gap:12px">
-        <div style="display:flex;gap:12px;align-items:flex-start">${roFld('Name', roCell('m-lk-name'))}${roFld('Marketing Description', roCell('m-lk-marketing', false, true))}${roFld('Charge Category', roCell('m-lk-category', true))}</div>
-        <div style="display:flex;gap:12px;align-items:flex-start">${roFld('Charge Requirement', roCell('m-lk-req', true))}${isOne ? roFld('Fee Due', roCell('m-lk-due', true)) : roFld('Charge Schedule', roCell('m-lk-sched', true))}${roFld('Refundable', roCell('m-lk-refund', true))}</div>
+        <div style="display:flex;gap:12px;align-items:flex-start">${roFld('Name', roCell('m-lk-name'), MH.name)}${roFld('Marketing Description', roCell('m-lk-marketing', false, true), MH.marketing)}${roFld('Charge Category', roCell('m-lk-category', true), MH.category)}</div>
+        <div style="display:flex;gap:12px;align-items:flex-start">${roFld('Charge Requirement', roCell('m-lk-req', true), MH.requirement)}${isOne ? roFld('Fee Due', roCell('m-lk-due', true), MH.feeDue) : roFld('Charge Schedule', roCell('m-lk-sched', true), MH.schedule)}${roFld('Refundable', roCell('m-lk-refund', true), MH.refundable)}</div>
       </div>`;
     const ovrRow = `<span onclick="if(window.__mktOverride)window.__mktOverride()" style="display:inline-flex;align-items:center;align-self:flex-start;cursor:pointer"><span style="display:inline-flex;pointer-events:none">${this.ctFieldBits().check('m-ovr', ovrOn, 'Override ' + ovrFrom + ' Default')}</span></span>`;
     const mktSection = `<div style="flex:none">
