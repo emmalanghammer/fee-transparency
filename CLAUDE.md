@@ -542,10 +542,9 @@ what it was inheriting, so an override is an edit of the default rather than an 
 Type Default* otherwise — and both it and the note are rewritten by `window.__mktOvrNote` when the
 charge type changes. **What is still missing sits inside the card**, under a rule below the fields — it is about those
 fields, and read as a separate warning when it sat outside them. The sentence depends on whether the
-property has been activated: before, *“This property can't be converted to fee transparency with
+property has been activated: before, *“Fee transparency can't be activated on this property with
 missing charge marketing fields.”*; after, *“Any listing using this charge will not post on online
-listings if all required fields are not filled out”*. Both are the user's own words, which is why
-the first still says *converted* — everything else says activate.
+listings if all required fields are not filled out”*.
 
 **The Exceptions header is the heading alone.** What a charge covers is read off Charge Level in the
 General card above it, so restating it on the right said the same thing twice.
