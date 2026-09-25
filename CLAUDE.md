@@ -447,8 +447,12 @@ charge type supplies.
 matching Figma `3576:12748`: Contact Information, Descriptions, Listing Details, Features, Floor
 Plans and **Default Charge Marketing**. **Descriptions** is Figma `3575:126028`: two equal fields,
 Marketing Description over Promotional Description, each carrying its own **Add from UDF** on its
-label row — the tile header has no action — with the **Orion help button** floating over the first,
-a white bubble with a 1px brand border and one square corner (`border-radius:200px 200px 200px 0`).
+label row — the tile header has no action — with the **Orion help button** in the
+bottom-left corner **inside** the Marketing Description box, a white bubble with a 1px brand border
+and one square corner (`border-radius:200px 200px 200px 0`). It is absolute against the box itself
+(`descBox` is `position:relative` and takes it as an argument) — it used to be absolute against the
+column at a fixed `top`, which straddled the box's bottom edge and slid off it whenever the tile
+changed height.
 Its mark is the real Orion logo, harvested from the library, not a drawn stand-in. **Features
 stacks**: its amenities list sits above its fields, because a third-width tile has no room for two
 columns. The last is a register of the charge types the property

@@ -8211,12 +8211,15 @@ class Component extends DCLogic {
         <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}</span>
         <a data-act="todo" data-arg="${t}" style="display:inline-flex;align-items:center;gap:4px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${this.ico('add', 20)}${t}</a>
       </span>`;
-    const descBox = () => `<div style="flex:1;min-height:110px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px"></div>`;
+    // The Orion button sits **inside** the Marketing Description box, bottom left — it used to be
+    // absolutely placed against the column at a fixed `top`, which straddled the box's bottom edge
+    // and moved off it whenever the tile changed height.
+    const orionBtn = `<span data-act="todo" data-arg="Ask Orion" title="Ask Orion" style="position:absolute;left:12px;bottom:12px;display:inline-flex;align-items:center;justify-content:center;padding:8px;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:200px 200px 200px 0;cursor:pointer">${ORION}</span>`;
+    const descBox = (over) => `<div style="position:relative;flex:1;min-height:110px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px">${over || ''}</div>`;
     const contact2 = card('Descriptions', `
-      <div style="position:relative;flex:1;min-height:0;display:flex;flex-direction:column;gap:16px">
-        <div style="flex:1;min-height:0;display:flex;flex-direction:column;gap:4px">${udf('Marketing Description', 'Add from UDF')}${descBox()}</div>
+      <div style="flex:1;min-height:0;display:flex;flex-direction:column;gap:16px">
+        <div style="flex:1;min-height:0;display:flex;flex-direction:column;gap:4px">${udf('Marketing Description', 'Add from UDF')}${descBox(orionBtn)}</div>
         <div style="flex:1;min-height:0;display:flex;flex-direction:column;gap:4px">${udf('Promotional Description', 'Add From UDF')}${descBox()}</div>
-        <span data-act="todo" data-arg="Ask Orion" title="Ask Orion" style="position:absolute;left:12px;top:130px;display:inline-flex;align-items:center;justify-content:center;padding:8px;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:200px 200px 200px 0;cursor:pointer">${ORION}</span>
       </div>`);
 
     const preview = `<button data-act="todo" data-arg="Preview" class="btn-pri" style="height:34px;min-height:34px;padding:0 18px;border-radius:4px;font-size:14px;flex:none">Preview</button>`;
