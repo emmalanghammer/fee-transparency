@@ -200,7 +200,9 @@ the user to hard-reload rather than reporting a deploy as not landed.
 
 **The current design set lives on Figma page `3569:42508` ("V3")** in
 `43F6y97LDzYBgL4CZAEO82`: **Listings**, **Fee Transparency Setup overlay**, **Marketing Setup
-overlay** (General tab) and **Charge Type Details overlay**. They are built from RMX component instances with Foundations variables
+overlay** (General tab), **Charge Type Details overlay**, **Apply Defaults** (`3595:57352`),
+**Listings — not grouped** (`3602:3188`, the register with Property as its first column) and the
+**Listing Errors overlay** (`3603:4096`). They are built from RMX component instances with Foundations variables
 bound — icons are `Flexible Icon` instances with the glyph swapped, registers are columns of
 Header + Cell, and fields are `Input Field`. Page `3465:40468` ("V2") holds the earlier iterations.
 
