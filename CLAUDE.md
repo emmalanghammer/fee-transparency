@@ -94,9 +94,14 @@ Charges · Errors**, one row per advertised unit (`listingsData()` in C is unit-
 property that hasn't still advertises rent alone, so it has no total to show — finishing its
 charges is not the same as publishing them.
 
-**The Marketing Setup overlay's property strip carries a filled Convert to Fee Transparency
+**The Marketing Setup overlay's property strip carries a filled Activate Fee Transparency
 button**, under the usual rules: shown from the start, disabled until every charge listings carry
-is ready, absent once the property has converted. It sits beside Occupied Units rather than
+is ready, absent once the property has activated. Disabled is RMX's own
+`Background/Color/brand-primary-disabled` — the brand blue at half alpha with white text — so it
+stays recognisably the same button rather than turning grey, and hovering it says why: *“All charges
+need to have charge marketing filled out to activate fee transparency.”* The tooltip lives on a
+wrapper and the button takes `pointer-events:none`, because a disabled control swallows hover and
+the tip would never fire. It sits beside Occupied Units rather than
 replacing it — that count is a fact about the property, not a slot for whatever action is going.
 It reads saved state, like everything else in that overlay — which is live, because **each charge
 saves itself**.

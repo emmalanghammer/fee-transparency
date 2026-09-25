@@ -8394,8 +8394,13 @@ class Component extends DCLogic {
               const converted = !!this.state.publishedProps[P.name];
               if (!this.ftApplicable(P.name) || !onList || converted) return '';
               const arg = String(P.name).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+              // Disabled is RMX's own brand-primary-disabled — the brand blue at half alpha with white
+              // text — so it stays recognisably the same button rather than turning grey. The button
+              // takes no pointer events, so the tooltip wrapper around it gets the hover: a disabled
+              // control swallows them otherwise and the hover never fires.
+              const offBtn = `<button disabled style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font:400 14px Roboto,sans-serif;white-space:nowrap;flex:none;background:rgba(0,141,213,0.5);color:#fff;border:none;cursor:default;pointer-events:none">Activate Fee Transparency</button>`;
               return ch.incomplete
-                ? `<button disabled title="${ch.incomplete} charge${ch.incomplete === 1 ? '' : 's'} still need marketing details" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font:400 14px Roboto,sans-serif;white-space:nowrap;flex:none;background:rgba(0,141,213,0.5);color:#fff;border:none;cursor:default">Activate Fee Transparency</button>`
+                ? `<span style="flex:none">${this.infoTip('<span style="display:block;white-space:normal">All charges need to have charge marketing filled out to activate fee transparency.</span>', 300, { trigger: offBtn })}</span>`
                 : `<button data-act="pubOpen" data-arg="${arg}" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap;flex:none">Activate Fee Transparency</button>`;
             })()}
           </div>
@@ -8412,7 +8417,7 @@ class Component extends DCLogic {
         <div style="display:flex;align-items:center;justify-content:space-between;background:#fff;padding:13px 20px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
           <span style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">Marketing Setup</span>
           <span style="display:inline-flex;align-items:center;gap:16px;flex:none">
-            <a data-act="navMktCenter" style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap;cursor:pointer">Listings${this.ico('arrow_right_alt', 18, 'flex:none')}</a>
+            <a data-act="navMktCenter" style="display:inline-flex;align-items:center;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap;cursor:pointer">Listings</a>
             <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="mktClose" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
           </span>
         </div>
