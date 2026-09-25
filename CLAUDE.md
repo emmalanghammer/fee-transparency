@@ -577,10 +577,21 @@ unticked,
 they are RMX's disabled Input Field showing what it inherits (`#m-mkt-locked`, mirrored from the
 live inputs by `window.__mktLockSync`); ticked, the charge's own (`#m-mkt-fields`), already holding
 what it was inheriting, so an override is an edit of the default rather than an empty form.
-`window.__mktOverride` swaps the two in the DOM. **The label names the rung being overridden** —
-*Override Property Default* when the property has an override of that charge type, *Override Charge
-Type Default* otherwise — and both it and the note are rewritten by `window.__mktOvrNote` when the
-charge type changes. **What is still missing sits inside the card**, under a rule below the fields — it is about those
+`window.__mktOverride` swaps the two in the DOM.
+
+**A source row states which tier the values come from**, above the checkbox: *Coming from* a brand
+chip naming the tier, and for a property override the clause *its override of `<CODE>`*. The
+checkbox names that same tier — **Override Riverview Apartments**, **Override GARBAG charge type**.
+`mktSourceOf(code, own)` answers both, so they cannot disagree: the charge's own values win, then
+the property's override (`ctmOwn`), then the charge type when it has anything set, and a type with
+nothing set says so instead of naming a source. `window.__mktOvrNote` writes the row and the label
+together — on every render, when the charge type changes, and when the box is ticked.
+
+**An existing charge seeds its locked fields on open.** They mirror the form's inputs, and an
+inheriting charge's inputs are empty, so a charge doing the ordinary thing read as a charge with
+nothing set. `componentDidUpdate` now runs `__mktDefaults` once per form (`this._mktSeeded`, keyed
+to `state.modal`, cleared on `addopen` / `addclose`) when the override is off, the same fill that
+picking a charge type does. **What is still missing sits inside the card**, under a rule below the fields — it is about those
 fields, and read as a separate warning when it sat outside them. The sentence depends on whether the
 property has been activated: before, *“Fee transparency can't be activated on this property with
 missing charge marketing fields.”*; after, *“Any listing using this charge will not post on online

@@ -1000,6 +1000,12 @@ class Component extends DCLogic {
     // they are filled in once the form is on the page rather than during render.
     if (window.__mktOvrNote && this.q('#m-ovr')) {
       const ct = this.q('#m-ctype');
+      // An existing charge that is inheriting has empty inputs, so the locked fields it mirrors read
+      // as nothing set. Seed them from the cascade once per form, the way picking a charge type does.
+      if (this._mktSeeded !== this.state.modal) {
+        this._mktSeeded = this.state.modal;
+        if (window.__mktDefaults && ct && ct.value && !this.q('#m-ovr').checked) window.__mktDefaults(ct.value);
+      }
       window.__mktOvrNote(ct ? ct.value : '');
       window.__mktLockSync();
     }
@@ -1723,9 +1729,9 @@ class Component extends DCLogic {
 
       // ---- add / edit charge ----
       // 'cre' is a recurring charge with the commercial distribution sections added.
-      case 'addopen': this._mktDefApplied = null;
+      case 'addopen': this._mktDefApplied = null; this._mktSeeded = null;
         this.setState({ modal: arg === 'cre' ? { group: 'req-rec', cre: true } : { group: arg }, toggles: Object.assign({}, this.state.toggles, { modalIls: false }) }); break;
-      case 'addclose': this._mktDefApplied = null; this.setState({ modal: null }); break;
+      case 'addclose': this._mktDefApplied = null; this._mktSeeded = null; this.setState({ modal: null }); break;
       case 'addsave': this.saveFee(); break;
 
       case 'tog': {
@@ -4265,6 +4271,24 @@ class Component extends DCLogic {
   // One set of field tooltips for every surface that edits a charge's marketing details: the charge
   // itself, the charge type's defaults, and a property's override of them. Built once so the three
   // cannot say different things about the same field.
+  // Which tier a charge's marketing details come from, and which one an override here would be
+  // overriding. `own` is the charge's own values, which only the charge form knows about.
+  mktSourceOf(code, own){
+    const c = String(code || '').toUpperCase();
+    const prop = this.state.property;
+    const p = c ? this.ctmOwn(prop, c) : null;
+    // What it would be overriding: the property when that property has taken the type over,
+    // otherwise the charge type itself.
+    const label = p ? prop : (c ? c + ' charge type' : 'the charge type');
+    if (!c) return { key:'none', label, chip:'', note:'Choose a charge type to see where these details come from.' };
+    if (own) return { key:'charge', label, chip:'This charge', note:'' };
+    if (p) return { key:'property', label, chip:prop, note:'its override of ' + c };
+    const t = this.mktDefFor(c) || {};
+    const any = ['name','marketing','category','requirement','feeDue','schedule','refundable']
+      .some(k => String(t[k] == null ? '' : t[k]).trim());
+    if (any) return { key:'type', label, chip:c + ' charge type', note:'' };
+    return { key:'empty', label, chip:'', note:c + ' has no default charge marketing yet.' };
+  }
   mktHelp(){
     if (!this._mktHelp) this._mktHelp = {
       category: this.fieldHelp('Charge Category', 'The category listings report this charge under. A charge without one can\'t go on a listing.'),
@@ -7082,16 +7106,25 @@ class Component extends DCLogic {
       if (lk) lk.style.display = box.checked ? 'none' : 'flex';
       if (fl) fl.style.display = box.checked ? 'flex' : 'none';
       if (!box.checked) window.__mktLockSync();
+      const ct = this.q('#m-ctype');
+      if (window.__mktOvrNote) window.__mktOvrNote(ct ? ct.value : '');
       if (window.__mitsRecheck) window.__mitsRecheck();
     };
     // The note and the checkbox label both name the rung this charge would be overriding, and the
     // charge type can change while the form is open, so both are rewritten with the defaults.
     window.__mktOvrNote = (code) => {
-      const c = String(code || '').toUpperCase();
-      const own = this.ctmOwn(this.state.property, c);
-      const lbl = this.q('#m-ovr') && this.q('#m-ovr').parentElement
-        ? this.q('#m-ovr').parentElement.querySelector('span') : null;
-      if (lbl) lbl.textContent = 'Override ' + (own ? 'Property' : 'Charge Type') + ' Default';
+      const box = this.q('#m-ovr');
+      const src = this.mktSourceOf(code, !!(box && box.checked));
+      const lbl = box && box.parentElement ? box.parentElement.querySelector('span') : null;
+      if (lbl) lbl.textContent = 'Override ' + src.label;
+      const row = this.q('#m-ovr-src');
+      if (!row) return;
+      const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+      row.innerHTML = src.chip
+        ? `<span style="font-size:14px;color:var(--rmx-text, #666666)">Coming from</span>`
+          + `<span style="display:inline-flex;align-items:center;gap:7px;height:24px;box-sizing:border-box;padding:0 10px;border-radius:4px;background:var(--rmx-brand-tint-bg, #ebf1f5);font-size:13px;font-weight:600;color:var(--rmx-brand-hover, #0071aa);white-space:nowrap"><span style="width:7px;height:7px;border-radius:50%;flex:none;background:var(--ac,var(--rmx-brand, #008dd5))"></span>${esc(src.chip)}</span>`
+          + (src.note ? `<span style="font-size:14px;color:var(--rmx-text, #666666)">\u00b7 ${esc(src.note)}</span>` : '')
+        : `<span style="font-size:14px;color:var(--rmx-text, #666666)">${esc(src.note)}</span>`;
     };
     window.__mktDefaults = (code) => {
       const D = this.ctmFor(this.state.property, code) || {};
@@ -7692,7 +7725,7 @@ class Component extends DCLogic {
     // own, seeded from whatever it was inheriting so the override is an edit of it. The label names
     // the rung being overridden — the property's, when the property has one, otherwise the charge
     // type's.
-    const ovrFrom = this.ctmOwn(this.state.property, ed && ed.mits) ? 'Property' : 'Charge Type';
+    const ovrFrom = this.mktSourceOf(ed && ed.mits).label;
     // An existing charge that carries any marketing value of its own is already an override.
     const MKTF = ['name','marketing','category','requirement','feeDue','schedule'];
     const ovrOn = !!(ed && ed.listing && MKTF.some(k => String(ed.listing[k] == null ? '' : ed.listing[k]).trim()));
@@ -7705,7 +7738,11 @@ class Component extends DCLogic {
         <div style="display:flex;gap:12px;align-items:flex-start">${roFld('Name', roCell('m-lk-name'))}${roFld('Marketing Description', roCell('m-lk-marketing', false, true))}${roFld('Charge Category', roCell('m-lk-category', true), MH.category)}</div>
         <div style="display:flex;gap:12px;align-items:flex-start">${roFld('Charge Requirement', roCell('m-lk-req', true), MH.requirement)}${isOne ? roFld('Fee Due', roCell('m-lk-due', true), MH.feeDue) : roFld('Charge Schedule', roCell('m-lk-sched', true), MH.schedule)}${roFld('Refundable', roCell('m-lk-refund', true))}</div>
       </div>`;
-    const ovrRow = `<span onclick="if(window.__mktOverride)window.__mktOverride()" style="display:inline-flex;align-items:center;align-self:flex-start;cursor:pointer"><span style="display:inline-flex;pointer-events:none">${this.ctFieldBits().check('m-ovr', ovrOn, 'Override ' + ovrFrom + ' Default')}</span></span>`;
+    // One row states which tier these values come from; the checkbox names that same tier. Both are
+    // written by `__mktOvrNote` from the form itself, so they cannot disagree with each other or with
+    // the fields below them.
+    const ovrRow = `<div id="m-ovr-src" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-bottom:14px;border-bottom:1px solid var(--rmx-line, #cedbe7)"></div>
+      <span onclick="if(window.__mktOverride)window.__mktOverride()" style="display:inline-flex;align-items:center;align-self:flex-start;cursor:pointer"><span style="display:inline-flex;pointer-events:none">${this.ctFieldBits().check('m-ovr', ovrOn, 'Override ' + ovrFrom)}</span></span>`;
     const mktSection = `<div style="flex:none">
         <div onclick="${mktToggleJs}" style="display:flex;align-items:center;gap:8px;padding:11px 0 10px;cursor:pointer">
           <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" id="m-mkt-caret" style="color:var(--rmx-text, #666666)"><path d="M530-481 332-679l43-43 241 241-241 241-43-43 198-198Z"/></svg>
