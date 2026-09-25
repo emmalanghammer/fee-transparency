@@ -38,8 +38,8 @@ every listing already advertises complete pricing (`needsFT`).
   second visit that is what you came for. One row per property fee transparency can apply to
   (`ftApplicable`, and only where listings carry charges at all): a home icon, the name, a
   **Ready** / **Not Ready** lozenge and a chevron. A ready property's row also offers
-  **Activate Fee Transparency** (`pubOpen`); a converted one reads *Fee Transparent* in italic and
-  offers nothing. Expanded, the row shows two grey sub-rows — *Listing Ready Charges: n/n* with
+  **Activate Fee Transparency** (`pubOpen`); one that already has it reads *Fee Transparent* in
+  italic and offers nothing. Expanded, the row shows two grey sub-rows — *Listing Ready Charges: n/n* with
   **Add Charge Details**, and *Set Property Defaults* with **Edit Defaults**. Both go to
   `mcOpenProp`: property-level defaults aren't a separate surface in this model, and Marketing
   Setup is the nearest real thing.
@@ -268,9 +268,19 @@ Charges tiles are full add / edit / remove, not a read-only mirror. The property
 carries no Recurring Charges tile, because Charges opens over that same page.
 
 There is no centralization step, no `profStatus`, and the word "centralize" appears nowhere. The
-only journey left is: fill in each charge's marketing details → convert to Fee Transparency
+only journey left is: fill in each charge's marketing details → **activate Fee Transparency**
 (which only applies to a property that lists online on a provider carrying complete pricing).
-`ftStatus` has four rungs: Incomplete Charges → Ready to Convert → Needs Attention → Complete.
+`ftStatus` has four rungs: Incomplete Charges → Ready to Activate → Needs Attention → Complete.
+
+**The action is "activate", never "convert".** On 2026-09-25 every user-facing string in both builds
+moved off *convert*: the button and the Next Step are **Activate Fee Transparency**, the status is
+**Ready to Activate**, the confirmation asks *"would like to activate fee transparency on …"* over
+*"Activating switches …"* with an **Activate** button, and the toast reads *"Fee transparency
+activated"*. A property that has it reads *"Fee transparency is active on this property"*, and one
+that can't yet reads *"… so fee transparency can't be activated yet"*. The internals kept their
+names — `pubOpen`, `pubConfirm`, `publishedProps`, the scenario helper `convert()` — because they
+are not read by anyone, and the Test Feature States are still **Mid Conversion** / **Post
+Conversion**, which name the rollout phase rather than the action. **New copy uses activate.**
 
 ## Marketing defaults by charge type
 

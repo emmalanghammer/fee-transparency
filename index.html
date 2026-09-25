@@ -190,7 +190,7 @@ class Component extends DCLogic {
     rowMenu: null,
     // Properties whose complete pricing has been published from the Fee Transparency page.
     publishedProps: { 'Oakwood Manor': true },
-    pubModal: null, // { prop, ack } — Convert to Fee Transparency confirmation
+    pubModal: null, // { prop, ack } — Activate Fee Transparency confirmation
     mktSetup: false, // Marketing Setup overlay (opened from the action rail's copy flyout)
     mktTab: 'General', // Marketing Setup's own tabs: General or Pricing
     mpExp: null, // Pricing tab: the charge whose marketing details are expanded
@@ -1361,15 +1361,15 @@ class Component extends DCLogic {
       case 'pubOpen': { const st = this.ftStatus(arg);
         // Publishing an incomplete charge set would advertise a price missing required fees, so the
         // charges have to be finished first.
-        if (st.issues) { this.flash(st.issues + ' charge' + (st.issues===1?'':'s') + ' still need details before this property can convert'); break; }
+        if (st.issues) { this.flash(st.issues + ' charge' + (st.issues===1?'':'s') + ' still need details before fee transparency can be activated'); break; }
         this.setState({ pubModal: { prop: arg, ack: false } }); break; }
       case 'pubAck': this.setState(s => ({ pubModal: Object.assign({}, s.pubModal, { ack: !s.pubModal.ack }) })); break;
       case 'pubCancel': this.setState({ pubModal: null }); break;
       case 'pubConfirm': { const m = this.state.pubModal; const props = m.props || [m.prop];
         this.setState(s => { const pp = Object.assign({}, s.publishedProps);
           props.forEach(p => { pp[p] = true; }); return { pubModal: null, publishedProps: pp }; });
-        props.forEach(p => this.logChange(p, 'Fee Transparency', 'Converted to fee transparency', p));
-        this.flash('Converted to fee transparency: ' + (props.length === 1 ? props[0] : props.length + ' properties')); break; }
+        props.forEach(p => this.logChange(p, 'Fee Transparency', 'Fee transparency activated', p));
+        this.flash('Fee transparency activated: ' + (props.length === 1 ? props[0] : props.length + ' properties')); break; }
       case 'ftFilterSet': this.setState({ ftFilter: arg }); break;
       case 'ftGroupToggle': this.setState(s => ({ ftGroup: !s.ftGroup })); break;
       case 'navProperty': this.go('property', arg ? { property: arg, propTab: 'General' } : { propTab: 'General' }); break;
@@ -2664,13 +2664,13 @@ class Component extends DCLogic {
     return short
       ? { key:'short', order:1, status:'Incomplete Charges', loz:'amber', next:'Add Charge Details',
           act:'mcOpenProp', issues:short, ft:false }
-      : { key:'ready', order:2, status:'Ready to Convert', loz:'blue',
-          next:'Convert to Fee Transparency', act:'pubOpen', ft:false };
+      : { key:'ready', order:2, status:'Ready to Activate', loz:'blue',
+          next:'Activate Fee Transparency', act:'pubOpen', ft:false };
   }
   // ---------- How does pricing setup work? (mock 2699-105683) ----------
   // The page's own explainer: the three steps, what each status means, and what every column counts.
   ftHelpLoz(status){
-    const map = { 'Incomplete Charges':'amber', 'Ready to Convert':'blue',
+    const map = { 'Incomplete Charges':'amber', 'Ready to Activate':'blue',
       'Needs Attention':'red', 'Complete':'green' };
     const styles = { green:'background:var(--rmx-success-bg, #e2f1da);color:#2f5d43', amber:'background:#fdf3e3;color:#7a5a2a',
       blue:'background:var(--rmx-brand-tint-bg, #ebf1f5);color:var(--rmx-brand-hover, #0071aa)',
@@ -2692,7 +2692,7 @@ class Component extends DCLogic {
       </span></div>`;
     const steps = card(
       step(1, 'Add Charge Details', 'Fill in more details that describe each charge.')
-      + step(2, 'Convert to Fee Transparency', 'Listings show a total monthly price.', 'If you list online &amp; fee transparency is available')
+      + step(2, 'Activate Fee Transparency', 'Listings show a total monthly price.', 'If you list online &amp; fee transparency is available')
       + `<div style="display:flex;align-items:center;gap:8px;border-top:1px solid var(--rmx-bg-subtle, #f5f8fa);padding-top:10px">
           <svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-success, #6eb744)"><path d="M378-246 154-470l43-43 181 181 384-384 43 43-427 427Z"/></svg>
           ${body("Not listing online? There's nothing to do here.")}
@@ -2700,8 +2700,8 @@ class Component extends DCLogic {
 
     const keyRows = [
       ['Incomplete Charges', 'Some charges are missing details listings need.'],
-      ['Ready to Convert', 'Every charge has what it needs. Convert when you’re ready.'],
-      ['Needs Attention', 'Converted, but charges are missing details, so some fees are not showing on listings right now.'],
+      ['Ready to Activate', 'Every charge has what it needs. Activate when you’re ready.'],
+      ['Needs Attention', 'Active, but charges are missing details, so some fees are not showing on listings right now.'],
       ['Complete', 'No setup left to do for this property.']
     ];
     const keyCols = '190px minmax(0,1fr)';
@@ -2963,7 +2963,7 @@ class Component extends DCLogic {
 
     // ---- toolbar ----
     const filtLabels = { all:'All selected', short:'Incomplete Charges',
-      ready:'Ready to Convert', attention:'Needs Attention', complete:'Complete' };
+      ready:'Ready to Activate', attention:'Needs Attention', complete:'Complete' };
     const fopt = (v, t) => `<div data-act="ftFilterSet" data-arg="${v}" style="padding:7px 14px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">${t}</div>`;
     const clampJs = id => `var p=document.getElementById('${id}');if(p.style.display==='block'){p.style.display='none';}else{p.style.display='block';p.style.right='0';p.style.left='auto';var r=p.getBoundingClientRect();if(r.right>window.innerWidth-8){p.style.right='0';}}`;
     const toolbar = `<div style="display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap">
@@ -2980,13 +2980,13 @@ class Component extends DCLogic {
         <span style="position:relative;display:flex">
           <div onclick="${clampJs('ft-status-pnl')}" style="flex:1;display:flex;align-items:center;height:36px;box-sizing:border-box;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;padding:0 8px;cursor:pointer"><span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${filtLabels[filt]}</span><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-text, #666666)"><path d="M480-360 280-559h400L480-360Z"/></svg></div>
           <div id="ft-status-pnl" style="display:none;position:absolute;left:0;top:38px;z-index:1000;min-width:200px;background:#fff;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);padding:4px 0">
-            ${fopt('all','All selected')}${fopt('short','Incomplete Charges')}${fopt('ready','Ready to Convert')}${fopt('attention','Needs Attention')}${fopt('complete','Complete')}
+            ${fopt('all','All selected')}${fopt('short','Incomplete Charges')}${fopt('ready','Ready to Activate')}${fopt('attention','Needs Attention')}${fopt('complete','Complete')}
           </div>
         </span>
       </div>
       <div style="flex:1"></div>
       ${convertable.length
-        ? `<button data-act="ftSelOpen" data-arg="pub" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Convert to Fee Transparency</button>`
+        ? `<button data-act="ftSelOpen" data-arg="pub" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Activate Fee Transparency</button>`
         : ''}
     </div>`;
 
@@ -3058,7 +3058,7 @@ class Component extends DCLogic {
       const ch = this.ftCharges(r.name);
       const menuId = `ft${key}${i}-pnl`;
       const items = mitem('Marketing Setup','mcOpenProp',r.name) + mitem('View Charges','openFeeProfile',r.name)
-        + (st.key === 'ready' ? mitem('Convert to Fee Transparency','pubOpen',r.name) : '')
+        + (st.key === 'ready' ? mitem('Activate Fee Transparency','pubOpen',r.name) : '')
         + (st.ft === 'na' && !this.ilsOn(r.name) ? mitem('Enable for Online Listings','ilsEnable',r.name) : '');
       const menuPos = `event.stopPropagation();var t=document.getElementById('${menuId}');if(t.style.display==='block'){t.style.display='none';}else{t.style.display='block';var r=this.getBoundingClientRect();var w=t.offsetWidth,h=t.offsetHeight;var l=r.right-w;if(l<8)l=8;var y=r.bottom+4;if(y+h>window.innerHeight-8)y=r.top-h-4;t.style.left=l+'px';t.style.top=y+'px';}`;
       // Where the property advertises. A property that isn't listed online says so rather than
@@ -3616,7 +3616,7 @@ class Component extends DCLogic {
       </div>
     </div>`;
   }
-  // ---------- Convert to Fee Transparency confirmation (mock 2699-105683) ----------
+  // ---------- Activate Fee Transparency confirmation (mock 2699-105683) ----------
   pubModalHTML(){
     const m = this.state.pubModal;
     if (!m) return '';
@@ -3628,16 +3628,16 @@ class Component extends DCLogic {
     return `<div data-act="pubCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:152">
       <div data-act="noop" style="width:640px;max-width:94vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
-          <span style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">Convert to Fee Transparency</span>
+          <span style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">Activate Fee Transparency</span>
           <div style="flex:1"></div>
           <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="M511-258q11-11 11-27t-11-27q-11-11-27-11t-27 11q-11 11-11 27t11 27q11 11 27 11t27-11Zm-62-135h59q0-26 6.5-47.5T555-490q31-26 44-51t13-55q0-53-34.5-85T486-713q-49 0-86.5 24.5T345-621l53 20q11-28 33-43.5t52-15.5q34 0 55 18.5t21 47.5q0 22-13 41.5T508-512q-30 26-44.5 51.5T449-393Zm31 313q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 31.5-156t86-127Q252-817 325-848.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 82-31.5 155T763-197.5q-54 54.5-127 86T480-80Zm0-60q142 0 241-99.5T820-480q0-142-99-241t-241-99q-141 0-240.5 99T140-480q0 141 99.5 240.5T480-140Zm0-340Z"/></svg>
           <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="pubCancel" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
         </div>
         <div style="padding:18px 20px;display:flex;flex-direction:column;gap:14px;overflow-y:auto">
-          <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Are you sure you would like to convert ${bold} to fee transparency?</span>
+          <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Are you sure you would like to activate fee transparency on ${bold}?</span>
           <div style="display:flex;align-items:flex-start;gap:12px;background:#fdf3e3;border:1px solid #f0ad4e;border-radius:4px;padding:12px 14px">
             <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-notice, #faa61c);flex:none;margin-top:1px"><path d="m40-120 440-760 440 760H40Zm104-60h672L480-760 144-180Zm361.5-65.68q8.5-8.67 8.5-21.5 0-12.82-8.68-21.32-8.67-8.5-21.5-8.5-12.82 0-21.32 8.68-8.5 8.67-8.5 21.5 0 12.82 8.68 21.32 8.67 8.5 21.5 8.5 12.82 0 21.32-8.68ZM454-348h60v-224h-60v224Zm26-122Z"/></svg>
-            <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Converting switches ${single ? 'this property&#39;s listing feed' : 'these properties&#39; listing feeds'} permanently and can&#39;t be undone. Later changes to these charges appear on the next feed update.</span>
+            <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Activating switches ${single ? 'this property&#39;s listing feed' : 'these properties&#39; listing feeds'} permanently and can&#39;t be undone. Later changes to these charges appear on the next feed update.</span>
           </div>
           <div style="height:1px;background:var(--rmx-line, #cedbe7)"></div>
           <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer">
@@ -3646,7 +3646,7 @@ class Component extends DCLogic {
           </label>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:10px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:12px 20px;flex:none">
-          <button ${m.ack?'data-act="pubConfirm"':''} class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px;${m.ack?'':'opacity:0.55;cursor:default'}">Convert</button>
+          <button ${m.ack?'data-act="pubConfirm"':''} class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px;${m.ack?'':'opacity:0.55;cursor:default'}">Activate</button>
           <button data-act="pubCancel" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Cancel</button>
         </div>
       </div>
@@ -4095,7 +4095,7 @@ class Component extends DCLogic {
     const blueBanner = (title) => !this.state.spBanner ? '' : `<div style="position:relative;background:#e8f4fb;border-radius:4px;padding:16px 20px;display:flex;flex-direction:column;gap:12px">
       <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="spBannerDismiss" style="position:absolute;top:12px;right:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
       <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title}</span>
-      <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5;padding-right:30px">Every property's charges, deposits, and pricing are already readable in one place. Fill in each charge's marketing details and a property can convert to fee transparency, so its listings advertise a complete monthly price. Current tenant charges are unaffected.</span>
+      <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5;padding-right:30px">Every property's charges, deposits, and pricing are already readable in one place. Fill in each charge's marketing details and fee transparency can be activated on a property, so its listings advertise a complete monthly price. Current tenant charges are unaffected.</span>
       <span style="display:flex;align-items:center;gap:20px">
         <button data-act="navListings" class="btn-pri" style="height:36px;min-height:36px;padding:0 18px;border-radius:4px;font-size:14px">Go to Listings</button>
         <a data-act="announceOpen" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Learn More</a>
@@ -4107,12 +4107,12 @@ class Component extends DCLogic {
     </div>`;
     const allStrip = `<div style="display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;padding:11px 16px">
       <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5));flex:none"><path d="M453-280h60v-240h-60v240Zm50.5-323.2q9.5-9.2 9.5-22.8 0-14.45-9.48-24.22-9.48-9.78-23.5-9.78t-23.52 9.78Q447-640.45 447-626q0 13.6 9.48 22.8 9.48 9.2 23.5 9.2t23.52-9.2ZM480.27-80q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg>
-      <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Every property is converted to fee transparency. Go to the property details or Listings to view its charges.</span>
+      <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Fee transparency is active on every property. Go to the property details or Listings to view its charges.</span>
       <a data-act="navListings" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Listings</a>
     </div>`;
     const callouts = ftState === 'all' ? allStrip
-      : ftState === 'none' ? blueBanner('Convert your properties to Fee Transparency.')
-      : blueBanner('Finish converting your properties to Fee Transparency.') + warnStrip;
+      : ftState === 'none' ? blueBanner('Activate Fee Transparency on your properties.')
+      : blueBanner('Finish activating Fee Transparency on your properties.') + warnStrip;
     const body = sel !== 'Tenant Charge Setup'
       ? `<div style="padding:40px 4px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">${sel} preferences</div>`
       : ftState === 'all'
@@ -5049,21 +5049,21 @@ class Component extends DCLogic {
     if (!need) return !published ? '' : `<div style="display:flex;align-items:flex-start;gap:10px;background:#eef7e9;border:1px solid var(--rmx-success, #6eb744);border-radius:4px;padding:12px 16px">
       <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-success, #6eb744);flex:none"><path d="m346-60-76-130-151-31 17-147-96-112 96-111-17-147 151-31 76-131 134 62 134-62 77 131 150 31-17 147 96 111-96 112 17 147-150 31-77 130-134-62-134 62Zm91-287 227-225-45-41-182 180-95-99-46 45 141 140Z"/></svg>
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
-        <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);line-height:1.5">This property is converted to fee transparency.</span>
+        <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Fee transparency is active on this property.</span>
         <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">These charges are the live feed for this property's listing pricing — changes you make here appear on listings with the next feed update.</span>
       </div></div>`;
     // Published with incomplete charges is live non-compliance — the loudest callout on the tab.
     if (published) return `<div style="display:flex;align-items:flex-start;gap:10px;background:#fbe9e9;border:1px solid var(--rmx-error, #eb343c);border-radius:4px;padding:12px 16px">
       <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-error, #eb343c);flex:none"><path d="m40-120 440-760 440 760H40Zm465.5-125.68q8.5-8.67 8.5-21.5 0-12.82-8.68-21.32-8.67-8.5-21.5-8.5-12.82 0-21.32 8.68-8.5 8.67-8.5 21.5 0 12.82 8.68 21.32 8.67 8.5 21.5 8.5 12.82 0 21.32-8.68ZM454-348h60v-224h-60v224Z"/></svg>
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
-        <span style="font-size:14px;font-weight:600;color:var(--rmx-error, #eb343c);line-height:1.5">This property is converted, but ${need} of ${total} charges are missing required fields.</span>
+        <span style="font-size:14px;font-weight:600;color:var(--rmx-error, #eb343c);line-height:1.5">Fee transparency is active, but ${need} of ${total} charges are missing required fields.</span>
         <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">These charges are left out of the published price until their details are filled in, which is non-compliant where fee transparency laws apply.</span>
       </div>
       <a data-act="bulkOpen" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap;cursor:pointer">Bulk Update Charges</a></div>`;
     return `<div style="display:flex;align-items:flex-start;gap:10px;background:#fef4e8;border:1px solid #f6d9ac;border-radius:4px;padding:12px 16px">
       <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-attention, #f58220);flex:none"><path d="M503.5-289.48q9.5-9.48 9.5-23.5t-9.48-23.52q-9.48-9.5-23.5-9.5t-23.52 9.48q-9.5 9.48-9.5 23.5t9.48 23.52q9.48 9.5 23.5 9.5t23.52-9.48ZM453-433h60v-253h-60v253Zm27.27 353q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg>
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
-        <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">${need} of ${total} charges still need marketing details, so this property can't convert yet. Open a charge to fill in what's missing, or hover its Listing Ready count to see which fields.</span>
+        <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">${need} of ${total} charges still need marketing details, so fee transparency can't be activated yet. Open a charge to fill in what's missing, or hover its Listing Ready count to see which fields.</span>
       </div>
       <a data-act="bulkOpen" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap;cursor:pointer">Bulk Update Charges</a></div>`;
   }
@@ -7482,8 +7482,8 @@ class Component extends DCLogic {
         <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:12px 14px;display:flex;flex-direction:column;gap:10px">
           <div id="m-ils-msg" style="display:${complete?'none':'flex'};align-items:center;gap:10px;flex-wrap:wrap">
             <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${this.state.publishedProps[this.state.property]
-              ? "This property is converted to fee transparency, so this charge stays out of the total until these fields are filled in:"
-              : "This property can't convert to fee transparency while this charge is missing fields listings require:"}</span>
+              ? "Fee transparency is active on this property, so this charge stays out of the total until these fields are filled in:"
+              : "Fee transparency can't be activated while this charge is missing fields listings require:"}</span>
             <span id="m-ils-need" style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap">${missing.map(chip).join('')}</span>
           </div>
           <label style="display:inline-flex;align-items:center;gap:10px;align-self:flex-start;cursor:${swLive?'pointer':'default'}"><span id="m-ils-sw" data-dis="${swLive?'0':'1'}" onclick="${swJs}" data-on="${swOn?'1':'0'}" style="display:inline-block;width:32px;height:18px;border-radius:999px;background:${!swLive?'#dfe6ec':(swOn?'var(--ac,var(--rmx-brand, #008dd5))':'var(--rmx-line, #cedbe7)')};position:relative;flex:none;cursor:${swLive?'pointer':'default'}">${knob}</span><span id="m-ils-lbl" style="font-size:14px;color:${swLive?'var(--rmx-brand-dark, #13314c)':'var(--rmx-text-muted, #b3b3b3)'}">Include on listings</span></label>
@@ -7869,7 +7869,7 @@ class Component extends DCLogic {
       ${preview}
       <div style="display:flex;flex-direction:column">
         ${stepRow(1,'Add Charge Details','Fill in more details that describe each charge.')}
-        ${stepRow(2,'Convert to Fee Transparency','Listings show a total monthly price.','If you list online &amp; fee transparency is available',true)}
+        ${stepRow(2,'Activate Fee Transparency','Listings show a total monthly price.','If you list online &amp; fee transparency is available',true)}
       </div>
       <div style="height:1px;background:var(--rmx-line, #cedbe7)"></div>
       <div style="display:flex;align-items:center;gap:10px">
@@ -7891,7 +7891,7 @@ class Component extends DCLogic {
       <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:16px 18px;display:flex;flex-direction:column;gap:14px">
         <span style="text-align:center;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">What to Expect</span>
         ${expect('Tenant-level charges stay where they are.')}
-        ${expect('Listings keep displaying as they do now until you convert to fee transparency.')}
+        ${expect('Listings keep displaying as they do now until you activate fee transparency.')}
         ${expect('Late and NSF fees are displayed with the property\'s charges. How they work doesn\'t change.')}
       </div>
     </div>`;
@@ -8091,7 +8091,7 @@ class Component extends DCLogic {
     const banner = short
       ? `<div style="display:flex;align-items:flex-start;gap:10px;background:#fdf3e7;border:1px solid var(--rmx-attention, #f58220);border-radius:4px;padding:11px 14px">
           ${this.ico('error', 18, 'color:var(--rmx-attention, #f58220);flex:none;margin-top:1px')}
-          <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.45">${short} of ${rows.length} charges still need marketing details, so this property can’t convert yet. Open a charge to fill in what’s missing, or hover its Listing Ready count to see which fields.</span>
+          <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.45">${short} of ${rows.length} charges still need marketing details, so fee transparency can’t be activated yet. Open a charge to fill in what’s missing, or hover its Listing Ready count to see which fields.</span>
         </div>`
       : '';
 
@@ -8221,8 +8221,8 @@ class Component extends DCLogic {
               if (!this.ftApplicable(P.name) || !onList || converted) return '';
               const arg = String(P.name).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
               return ch.incomplete
-                ? `<button disabled title="${ch.incomplete} charge${ch.incomplete === 1 ? '' : 's'} still need marketing details" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font:400 14px Roboto,sans-serif;white-space:nowrap;flex:none;background:rgba(0,141,213,0.5);color:#fff;border:none;cursor:default">Convert to Fee Transparency</button>`
-                : `<button data-act="pubOpen" data-arg="${arg}" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap;flex:none">Convert to Fee Transparency</button>`;
+                ? `<button disabled title="${ch.incomplete} charge${ch.incomplete === 1 ? '' : 's'} still need marketing details" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font:400 14px Roboto,sans-serif;white-space:nowrap;flex:none;background:rgba(0,141,213,0.5);color:#fff;border:none;cursor:default">Activate Fee Transparency</button>`
+                : `<button data-act="pubOpen" data-arg="${arg}" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap;flex:none">Activate Fee Transparency</button>`;
             })()}
           </div>
           <div style="display:grid;grid-template-columns:repeat(3, minmax(0,1fr));gap:16px;align-items:stretch;align-content:start">
@@ -8278,11 +8278,11 @@ class Component extends DCLogic {
           return need
             ? `<div style="display:flex;align-items:flex-start;gap:10px;background:#fef4e8;border:1px solid #f6d9ac;border-radius:4px;padding:11px 14px">
                 <svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-attention, #f58220);flex:none;margin-top:1px"><path d="M503.5-289.48q9.5-9.48 9.5-23.5t-9.48-23.52q-9.48-9.5-23.5-9.5t-23.52 9.48q-9.5 9.48-9.5 23.5t9.48 23.52q9.48 9.5 23.5 9.5t23.52-9.48ZM453-433h60v-253h-60v253Zm27.27 353q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg>
-                <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">This property can convert to fee transparency once every charge has its required fields — ${need} still need${need===1?'s':''} details.</span>
+                <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Fee transparency can be activated once every charge has its required fields — ${need} still need${need===1?'s':''} details.</span>
                 <a data-act="openFeeProfile" data-arg="${prop2}" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Add Charge Details</a>
               </div>`
             : `<div style="display:flex;align-items:center;gap:18px">
-                <button data-act="pubOpen" data-arg="${prop2}" class="btn-pri" style="height:36px;min-height:36px;padding:0 18px;border-radius:4px;font-size:14px;white-space:nowrap">Convert to Fee Transparency</button>
+                <button data-act="pubOpen" data-arg="${prop2}" class="btn-pri" style="height:36px;min-height:36px;padding:0 18px;border-radius:4px;font-size:14px;white-space:nowrap">Activate Fee Transparency</button>
                 <a data-act="announceOpen" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Learn More</a>
               </div>`; })() : '');
     const prefs = `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;background:#fff">
