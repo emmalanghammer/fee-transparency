@@ -70,7 +70,8 @@ State is `ftSetup: { sec:{what,def}, props:{<name>:true} }` — null when closed
 at `z-index:150`, under `pubModalHTML`'s 152, so the confirmation lands on top of it.
 
 **A group's header sits on the page background; only the register is a card.** The header is
-`padding:16px 20px`, gap 16: chevron and property name at 14/600 on the left, then the
+`padding:16px 20px`: a 24px `--rmx-brand-dark` chevron 8px from the property name at 14/600 on the
+left, then the
 **Listing Ready Charges** count on the right — a 20px icon (`error` in `--rmx-notice` while charges
 are short, `check_circle` in `--rmx-success` once whole), the label at 14/20 `#666`, and the
 fraction at 14/20 SemiBold. No lozenge. The count is still the trigger for `ltReadyOpen`, and since
@@ -572,8 +573,14 @@ something typed by hand. The dropdowns are set through `window.__ddSet`, which d
 `singleSelect`'s own row click does — hidden input, display text and colour, row selection — because
 these are DOM-only updates: a `setState` here would wipe the rest of the form. Beyond that: no
 Marketing Name / Listing Ready / requirement / category columns, no Group by Requirement, no
-completeness banner (`mitsBanner` returns ''), no Marketing Name / requirement / category columns,
-and Bulk Update is General-only. General's Listing Details carries no pricing callout and the
+no Marketing Name / requirement / category columns, and Bulk Update is General-only.
+
+**`mitsBanner` is the one warning it does carry**, and only after activation: when a property has
+fee transparency active and a charge it carries on listings is short of its marketing details, an
+amber banner at the top of the overlay says *“N charges on listings are missing charge marketing”*
+over *“Fee transparency is active on <property>, so any listing using these charges will not post
+until every required field is filled out.”* Before activation there is nothing to warn about — the
+feed still publishes rent alone, and the Listing Ready column already says which charges are short. General's Listing Details carries no pricing callout and the
 kebab's Pricing Setup link is gone.
 
 **Two things the overlay does carry, and only where they mean something.** A **Listing Ready**

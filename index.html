@@ -3998,8 +3998,8 @@ class Component extends DCLogic {
       // Figma 3561:122545: the header sits on the page background, not on the card — the white card
       // is the register alone. Chevron and name left, the charge count right, nothing between.
       const header = `<div style="display:flex;align-items:center;gap:16px;padding:16px 20px">
-        <span onclick="${toggle}" style="display:flex;align-items:center;gap:16px;cursor:pointer">
-          ${this.ico(open ? 'keyboard_arrow_up' : 'keyboard_arrow_down', 20, 'color:var(--rmx-text, #666666)')}
+        <span onclick="${toggle}" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          ${this.ico(open ? 'keyboard_arrow_up' : 'keyboard_arrow_down', 24, 'color:var(--rmx-brand-dark, #13314c)')}
           <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${esc(g.prop)}</span>
         </span>
       </div>`;
@@ -5074,7 +5074,24 @@ class Component extends DCLogic {
   }
   // Marketing details live on Marketing Setup's Pricing tab, so the Charges overlay no longer
   // reports on them. Listings and that tab both carry the outstanding count.
-  mitsBanner(){ return ''; }
+  // Once a property has fee transparency activated, a charge it carries on listings that is short of
+  // its marketing details stops the whole listing posting — so the Charges overlay says so at the
+  // top. Before activation there is nothing to warn about: the feed is still publishing rent alone
+  // and the Listing Ready column is already saying which charges are short.
+  mitsBanner(){
+    const p = this.state.property;
+    if (!this.state.publishedProps[p] || !this.ilsOn(p)) return '';
+    const short = this.appliedRows(p).filter(r => r.ils && !this.mitsComplete(r));
+    if (!short.length) return '';
+    const n = short.length;
+    return `<div style="flex:none;display:flex;align-items:flex-start;gap:12px;padding:14px 16px;background:#fdf3e7;border:1px solid var(--rmx-attention, #f58220);border-radius:4px">
+      ${this.ico('error', 20, 'color:var(--rmx-attention, #f58220);flex:none;margin-top:1px')}
+      <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
+        <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${n} charge${n === 1 ? '' : 's'} on listings ${n === 1 ? 'is' : 'are'} missing charge marketing</span>
+        <span style="font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">Fee transparency is active on ${String(p).replace(/&/g,'&amp;').replace(/</g,'&lt;')}, so any listing using ${n === 1 ? 'this charge' : 'these charges'} will not post until every required field is filled out.</span>
+      </span>
+    </div>`;
+  }
   mitsBannerOld(){
     const need = this.mitsIncompleteCount();
     const total = this.appliedRows().length;
