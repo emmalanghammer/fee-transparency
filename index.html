@@ -3485,11 +3485,11 @@ class Component extends DCLogic {
       ? pair(fld('Name', txt('ctm-name', v('name'))), fld('Charge Category', dd('ctm-category', this.chargeCategoryOptions(), v('category')), H.category))
         + fld('Marketing Description', area('ctm-marketing', v('marketing')))
         + pair(fld('Charge Requirement', dd('ctm-requirement', REQ, v('requirement')), H.requirement), fld('Charge Schedule', dd('ctm-schedule', SCHED, v('schedule')), H.schedule))
-        + pair(fld('Fee Due', dd('ctm-feeDue', DUE, v('feeDue'))), fld('Refundable', dd('ctm-refundable', REF, v('refundable'))))
+        + pair(fld('Fee Due', dd('ctm-feeDue', DUE, v('feeDue')), H.feeDue), fld('Refundable', dd('ctm-refundable', REF, v('refundable'))))
       : pair(fld('Name', ro(v('name'))), fld('Charge Category', ro(v('category'), true), H.category))
         + fld('Marketing Description', roArea(v('marketing')))
         + pair(fld('Charge Requirement', ro(v('requirement'), true), H.requirement), fld('Charge Schedule', ro(v('schedule'), true), H.schedule))
-        + pair(fld('Fee Due', ro(v('feeDue'), true)), fld('Refundable', ro(v('refundable'), true)));
+        + pair(fld('Fee Due', ro(v('feeDue'), true), H.feeDue), fld('Refundable', ro(v('refundable'), true)));
 
     // RMX's own Checkbox, not a hand-drawn box. The label swallows its clicks so the delegated
     // handler fires once rather than twice. Once the override is saved the box is checked and
@@ -4259,6 +4259,9 @@ class Component extends DCLogic {
   // is used by both recurring and one-time charges, so neither form can know which this is for. The
   // field says so, and a one-time charge reads One-Time whatever is set here.
   schedTip(){ return this.infoTip('<span style="display:block;white-space:normal">Only applies to recurring charges.</span>'); }
+  // Fee Due is Charge Schedule's opposite number: a recurring charge is collected across the term
+  // by definition, so only a one-time charge has a moment to name.
+  dueTip(){ return this.infoTip('<span style="display:block;white-space:normal">Only applies to one-time charges.</span>'); }
   // One set of field tooltips for every surface that edits a charge's marketing details: the charge
   // itself, the charge type's defaults, and a property's override of them. Built once so the three
   // cannot say different things about the same field.
@@ -4266,7 +4269,8 @@ class Component extends DCLogic {
     if (!this._mktHelp) this._mktHelp = {
       category: this.fieldHelp('Charge Category', 'The category listings report this charge under. A charge without one can\'t go on a listing.'),
       requirement: this.reqHelp(),
-      schedule: this.schedTip()
+      schedule: this.schedTip(),
+      feeDue: this.dueTip()
     };
     return this._mktHelp;
   }
@@ -4380,7 +4384,7 @@ class Component extends DCLogic {
          ${mfld('Charge Schedule', mdd('ctd-mkt-schedule', SCHED, d.schedule || ''), H.schedule)}
        </div>
        <div style="display:flex;gap:16px">
-         ${mfld('Fee Due', mdd('ctd-mkt-feeDue', DUE, d.feeDue || seed.feeDue))}
+         ${mfld('Fee Due', mdd('ctd-mkt-feeDue', DUE, d.feeDue || seed.feeDue), H.feeDue)}
          ${mfld('Refundable', mdd('ctd-mkt-refundable', REF, d.refundable || seed.refundable))}
        </div>`, true);
     const invTile = tile('Inventory Items',
@@ -7569,7 +7573,7 @@ class Component extends DCLogic {
         <!-- A recurring charge is collected across the term by definition, so it carries During Term
              without asking. Only a one-time charge has a question to answer here. -->
         ${isOne
-          ? `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Fee Due')}${dd('m-due',['At Application','Move-In','During Term','Move-Out'],(ed&&ed.listing&&ed.listing.feeDue)||'',{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`
+          ? `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Fee Due', help.feeDue)}${dd('m-due',['At Application','Move-In','During Term','Move-Out'],(ed&&ed.listing&&ed.listing.feeDue)||'',{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`
           : `<input type="hidden" id="m-due" value="During Term">`}
         ${isOne?'':`<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Schedule', help.schedule)}${dd('m-sched',['Weekly','Monthly','Annually'],(ed&&ed.listing&&ed.listing.schedule)||'',{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`}
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Refundable')}${dd('m-refund',['Refundable','Not Refundable'],refundable,{noSearch:true,blank:true,placeholder:' '})}</div>
@@ -7699,7 +7703,7 @@ class Component extends DCLogic {
     const roFld = (label, ctl, tip) => `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px"><span style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--rmx-text, #666666)">${label}${tip || ''}</span>${ctl}</div>`;
     const lockedView = `<div id="m-mkt-locked" style="display:${ovrOn ? 'none' : 'flex'};flex-direction:column;gap:12px">
         <div style="display:flex;gap:12px;align-items:flex-start">${roFld('Name', roCell('m-lk-name'))}${roFld('Marketing Description', roCell('m-lk-marketing', false, true))}${roFld('Charge Category', roCell('m-lk-category', true), MH.category)}</div>
-        <div style="display:flex;gap:12px;align-items:flex-start">${roFld('Charge Requirement', roCell('m-lk-req', true), MH.requirement)}${isOne ? roFld('Fee Due', roCell('m-lk-due', true)) : roFld('Charge Schedule', roCell('m-lk-sched', true), MH.schedule)}${roFld('Refundable', roCell('m-lk-refund', true))}</div>
+        <div style="display:flex;gap:12px;align-items:flex-start">${roFld('Charge Requirement', roCell('m-lk-req', true), MH.requirement)}${isOne ? roFld('Fee Due', roCell('m-lk-due', true), MH.feeDue) : roFld('Charge Schedule', roCell('m-lk-sched', true), MH.schedule)}${roFld('Refundable', roCell('m-lk-refund', true))}</div>
       </div>`;
     const ovrRow = `<span onclick="if(window.__mktOverride)window.__mktOverride()" style="display:inline-flex;align-items:center;align-self:flex-start;cursor:pointer"><span style="display:inline-flex;pointer-events:none">${this.ctFieldBits().check('m-ovr', ovrOn, 'Override ' + ovrFrom + ' Default')}</span></span>`;
     const mktSection = `<div style="flex:none">
