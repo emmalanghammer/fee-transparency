@@ -477,6 +477,14 @@ glyph at 20px on its own `0 0 20 20` box, so it can't live in the Material `ico`
 Override*; the dialog's checkbox is still *Override Charge Type*, because that one is the decision
 being made rather than a label for the tick.
 
+**Charge Schedule is recurring-only, and a one-time charge is One-Time.** A charge type is used by
+both kinds of charge, so neither Charge Type Details nor the property's override can know which the
+schedule is being set for — both carry `schedTip()` on the field saying so. `resolvedListing`
+returns `'One-Time'` for a one-time charge rather than nothing, so wherever a schedule is read it
+says what that charge's schedule is instead of sitting blank beside the recurring ones. The Charges
+register's optional **Charge Schedule** column (off by default, on through Column Setup) is where
+that shows.
+
 **`ctmEditHTML()` is the override**, matching Figma `3591:138722`. One checkbox, **Override Charge
 Type**, is the whole decision: off, the fields show the charge type's values greyed and locked, and
 are not inputs at all; on, they are this property's to set, seeded from the charge type so the

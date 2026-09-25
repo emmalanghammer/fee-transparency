@@ -491,7 +491,9 @@ class Component extends DCLogic {
       category: L.category || P.category || T.category || this.chargeCategoryFor(r.mits),
       requirement: pick('requirement'),
       feeDue: pick('feeDue'),
-      schedule: /-one$/.test(r.group || '') ? '' : pick('schedule'),
+      // A one-time charge has no schedule to choose, so it reads One-Time wherever a schedule is
+      // shown rather than sitting blank next to charges that have one.
+      schedule: /-one$/.test(r.group || '') ? 'One-Time' : pick('schedule'),
       marketing: pick('marketing'),
       refundable: pick('refundable')
     };
@@ -3472,7 +3474,7 @@ class Component extends DCLogic {
       <span style="flex:1;min-width:0;font-size:14px;color:${DIS_INK};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t) || '&nbsp;'}</span>${drop ? chev : ''}</div>`;
     // The multi-line one is RMX's Text Box, disabled: same ground, 56px tall, text at the top.
     const roArea = (t) => `<div style="display:flex;align-items:flex-start;height:56px;box-sizing:border-box;padding:8px 12px;background:${DIS_BG};border:1px solid ${DIS_LINE};border-radius:4px;font-size:14px;line-height:20px;color:${DIS_INK};overflow:hidden">${esc(t)}</div>`;
-    const fld = (label, ctl) => `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">${lab(label)}${ctl}</div>`;
+    const fld = (label, ctl, tip) => `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0"><span style="display:inline-flex;align-items:center;gap:5px">${lab(label)}${tip ? this.schedTip() : ''}</span>${ctl}</div>`;
     const txt = (id, val) => F.txt(id, val);
     const area = (id, val) => `<textarea id="${id}" style="box-sizing:border-box;width:100%;height:60px;padding:8px 10px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);resize:none">${esc(val)}</textarea>`;
     const dd = (id, opts, val) => this.singleSelect(id, opts, val, { noSearch:true, blank:true, placeholder:'\u00a0' });
@@ -3481,11 +3483,11 @@ class Component extends DCLogic {
     const body = on
       ? pair(fld('Name', txt('ctm-name', v('name'))), fld('Charge Category', dd('ctm-category', this.chargeCategoryOptions(), v('category'))))
         + fld('Marketing Description', area('ctm-marketing', v('marketing')))
-        + pair(fld('Charge Requirement', dd('ctm-requirement', REQ, v('requirement'))), fld('Charge Schedule', dd('ctm-schedule', SCHED, v('schedule'))))
+        + pair(fld('Charge Requirement', dd('ctm-requirement', REQ, v('requirement'))), fld('Charge Schedule', dd('ctm-schedule', SCHED, v('schedule')), true))
         + pair(fld('Fee Due', dd('ctm-feeDue', DUE, v('feeDue'))), fld('Refundable', dd('ctm-refundable', REF, v('refundable'))))
       : pair(fld('Name', ro(v('name'))), fld('Charge Category', ro(v('category'), true)))
         + fld('Marketing Description', roArea(v('marketing')))
-        + pair(fld('Charge Requirement', ro(v('requirement'), true)), fld('Charge Schedule', ro(v('schedule'), true)))
+        + pair(fld('Charge Requirement', ro(v('requirement'), true)), fld('Charge Schedule', ro(v('schedule'), true), true))
         + pair(fld('Fee Due', ro(v('feeDue'), true)), fld('Refundable', ro(v('refundable'), true)));
 
     // RMX's own Checkbox, not a hand-drawn box. The label swallows its clicks so the delegated
@@ -4252,6 +4254,10 @@ class Component extends DCLogic {
   }
   // Add Charge Type (mock 2219-6759) and Charge Type Details (mock 2219-2622). Both write to the same
   // register rows, so a type added here is immediately offered on a property's Charges tab.
+  // Charge Schedule is set on a charge type and on a property's override of one, but a charge type
+  // is used by both recurring and one-time charges, so neither form can know which this is for. The
+  // field says so, and a one-time charge reads One-Time whatever is set here.
+  schedTip(){ return this.infoTip('<span style="display:block;white-space:normal">Charge Schedule is how often a recurring charge is billed. A one-time charge has no schedule to set, so it is always One-Time.</span>', 300); }
   ctFieldBits(){
     const esc = v => ('' + (v == null ? '' : v)).replace(/"/g, '&quot;');
     const lab = (t, req) => `<span style="font-size:14px;color:var(--rmx-text, #666666)">${t}${req?' *':''}</span>`;
@@ -4358,7 +4364,7 @@ class Component extends DCLogic {
        ${mfld('Marketing Description', marea('ctd-mkt-marketing', d.marketing || ''))}
        <div style="display:flex;gap:16px">
          ${mfld('Charge Requirement', mdd('ctd-mkt-requirement', REQ, d.requirement || ''))}
-         ${mfld('Charge Schedule', mdd('ctd-mkt-schedule', SCHED, d.schedule || ''))}
+         ${mfld('Charge Schedule', mdd('ctd-mkt-schedule', SCHED, d.schedule || ''), this.schedTip())}
        </div>
        <div style="display:flex;gap:16px">
          ${mfld('Fee Due', mdd('ctd-mkt-feeDue', DUE, d.feeDue || seed.feeDue))}
@@ -4839,7 +4845,10 @@ class Component extends DCLogic {
       { key:'amount',   label:'Amount',                w:'110px', base:true },
       { key:'level',    label:'Charge Level',          w:'170px', base:true },
       { key:'ready',    label:'Listing Ready',         w:'150px', base:'ft' },
-      { key:'method',   label:'Amount Method',         w:'130px' }
+      { key:'method',   label:'Amount Method',         w:'130px' },
+      // Off by default, on through Column Setup. It reads the resolved schedule, so a one-time
+      // charge shows One-Time here rather than sitting blank beside the recurring ones.
+      { key:'sched',    label:'Charge Schedule',       w:'140px' }
     ];
   }
   chargeColDef(k){ return this.chargeColDefs().filter(c => c.key === k)[0]; }
