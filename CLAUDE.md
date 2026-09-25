@@ -128,7 +128,13 @@ a property wears its property's count, since that is what it is. A property fee 
 apply to (`ftApplicable` is false: not on an ILS feed, or on MH Village) reads `—`, because the
 question isn't asked of it. **The group header no longer carries it** — the same number in two
 places on one screen is one place too many, so the header is the chevron and the property name.
-The cell is still the trigger for `ltReadyOpen`.
+
+**The cell reports and nothing more.** It used to open `ltReadyHTML`, which itemised the charges
+still short — but the Errors icon in the very next column already does that, in its **Charge
+Marketing Errors** section, so the dialog was a second door onto the same list. `ltReadyHTML`,
+`ltReadyOpen`/`ltReadyClose` and `state.ltReady` are gone from C; the cell keeps a `title` saying
+how many charges still need details. **A still has them**, because its Overview register has no
+Errors column to carry the itemisation.
 
 **Errors counts the feed and the charges, apart but in one tone.** `ltIssues` returns `rm` (Rent
 Manager's own fields), `prov` (the `tz` errors, attributed to whichever providers carry `err`) and
