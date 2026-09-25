@@ -521,6 +521,20 @@ The **Charges overlay carries almost none of it**. The charge form's two section
 and **Charge Marketing** — the second collapsed by default with the outstanding count in its header;
 collapsing hides the body rather than dropping it, so `saveFee` still reads every field.
 
+**The section works like the property override.** Collapsed by default, with the outstanding count
+— or *Listing ready* — in its header (`mktNoteHTML`, written at render and rewritten live by
+`__mitsRecheck`, since collapsed that lozenge is the only signal). Open, it carries a line saying
+what the charge inherits, one **Override … Default** checkbox, and the fields behind it: unticked,
+they are RMX's disabled Input Field showing what it inherits (`#m-mkt-locked`, mirrored from the
+live inputs by `window.__mktLockSync`); ticked, the charge's own (`#m-mkt-fields`), already holding
+what it was inheriting, so an override is an edit of the default rather than an empty form.
+`window.__mktOverride` swaps the two in the DOM. **The label names the rung being overridden** —
+*Override Property Default* when the property has an override of that charge type, *Override Charge
+Type Default* otherwise — and both it and the note are rewritten by `window.__mktOvrNote` when the
+charge type changes. **Unticked, `saveFee` writes no marketing values at all**, so the charge
+inherits through `resolvedListing`; `mktDefFill` no longer runs on create, because copying the
+defaults down would make every new charge an override of them.
+
 **Picking a charge type fills that section** (`window.__mktDefaults`, wired into the typeahead's
 `setCat`). It reads `ctmFor(state.property, code)` — the property's override of that charge type if
 it has one, otherwise the charge type's default — which is the same chain `resolvedListing` walks,
