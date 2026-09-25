@@ -1709,8 +1709,9 @@ class Component extends DCLogic {
 
       // ---- add / edit charge ----
       // 'cre' is a recurring charge with the commercial distribution sections added.
-      case 'addopen': this.setState({ modal: arg === 'cre' ? { group: 'req-rec', cre: true } : { group: arg }, toggles: Object.assign({}, this.state.toggles, { modalIls: false }) }); break;
-      case 'addclose': this.setState({ modal: null }); break;
+      case 'addopen': this._mktDefApplied = null;
+        this.setState({ modal: arg === 'cre' ? { group: 'req-rec', cre: true } : { group: arg }, toggles: Object.assign({}, this.state.toggles, { modalIls: false }) }); break;
+      case 'addclose': this._mktDefApplied = null; this.setState({ modal: null }); break;
       case 'addsave': this.saveFee(); break;
 
       case 'tog': {
@@ -6976,7 +6977,72 @@ class Component extends DCLogic {
       </div>`}`;
 
     // ---- Charge Type typeahead; selecting one derives the Charge Category below ----
-    const setCat = "var cc=this.getAttribute('data-cat');var d=document.getElementById('m-cat-disp');var e=document.getElementById('m-cat-err');var ph=document.getElementById('m-cat-ph');document.getElementById('m-cat').value=cc||'';ph.style.display='none';if(cc){d.textContent=cc;d.style.display='block';e.style.display='none';}else{d.style.display='none';e.style.display='flex';}if(window.__attrCheck)window.__attrCheck();if(window.__mitsRecheck)window.__mitsRecheck();";
+    const setCat = "var cc=this.getAttribute('data-cat');var d=document.getElementById('m-cat-disp');var e=document.getElementById('m-cat-err');var ph=document.getElementById('m-cat-ph');document.getElementById('m-cat').value=cc||'';ph.style.display='none';if(cc){d.textContent=cc;d.style.display='block';e.style.display='none';}else{d.style.display='none';e.style.display='flex';}if(window.__mktDefaults)window.__mktDefaults(this.getAttribute('data-code'));if(window.__attrCheck)window.__attrCheck();if(window.__mitsRecheck)window.__mitsRecheck();";
+    // Picking a charge type pulls its marketing details onto the form: the property's override of
+    // that type if it has one, otherwise the charge type's default — `ctmFor`, the same chain
+    // `resolvedListing` walks, so the form and the listing agree. It writes a field only when that
+    // field is empty **or** still holds what this helper last wrote, so changing the charge type
+    // swaps one set of defaults for the next without ever overwriting something typed by hand.
+    // DOM-only, like every other live update in this form: a setState here would wipe the rest of it.
+    window.__ddSet = (id, val, label) => {
+      const h = this.q('#' + id); if (!h) return;
+      h.value = val == null ? '' : val;
+      const disp = this.q('#' + id + '-disp');
+      if (disp) {
+        disp.textContent = val ? (label || val) : '\u00a0';
+        disp.style.color = val ? 'var(--rmx-brand-dark, #13314c)' : 'var(--rmx-text-muted, #b3b3b3)';
+        disp.style.fontStyle = val ? 'normal' : 'italic';
+      }
+      const lst = this.q('#' + id + '-lst');
+      if (lst) Array.prototype.forEach.call(lst.querySelectorAll('[data-v]'), (r) => {
+        const on = r.getAttribute('data-v') === (val == null ? '' : String(val));
+        r.setAttribute('data-sel', on ? '1' : '0');
+        r.style.background = on ? 'var(--rmx-brand, #008dd5)' : '#fff';
+        r.style.color = on ? '#fff' : 'var(--rmx-brand-dark, #13314c)';
+      });
+    };
+    window.__mktDefaults = (code) => {
+      const D = this.ctmFor(this.state.property, code) || {};
+      const was = this._mktDefApplied || {};
+      const now = {};
+      // A field is ours to write when it is empty, or when it still holds the last default we put
+      // there — anything else is the user's and is left alone.
+      const mine = (cur, key) => !String(cur == null ? '' : cur).trim() || String(cur) === String(was[key] == null ? '' : was[key]);
+      const nameEl = this.q('#m-name'), textWrap = this.q('#m-name-text');
+      if (nameEl && mine(nameEl.value, 'name')) {
+        nameEl.value = D.name || '';
+        if (textWrap) textWrap.setAttribute('data-typed', nameEl.value);
+      }
+      now.name = D.name || '';
+      const mk = this.q('#m-marketing');
+      if (mk && mine(mk.value, 'marketing')) mk.value = D.marketing || '';
+      now.marketing = D.marketing || '';
+      const DUEL = { 'Move-In':'At Move-In', 'Move-Out':'At Move-Out' };
+      [['m-req', 'requirement', D.requirement], ['m-sched', 'schedule', D.schedule],
+       ['m-due', 'feeDue', D.feeDue]].forEach(([id, key, val]) => {
+        const el = this.q('#' + id);
+        // A recurring charge's Fee Due is a fixed hidden input, so there is nothing to fill.
+        if (!el || !this.q('#' + id + '-disp')) { now[key] = was[key]; return; }
+        if (mine(el.value, key)) window.__ddSet(id, val || '', DUEL[val] || val);
+        now[key] = val || '';
+      });
+      const refLabel = D.refundable === 'yes' || D.refundable === true ? 'Refundable'
+        : D.refundable === 'no' || D.refundable === false ? 'Not Refundable' : '';
+      const ref = this.q('#m-refund');
+      if (ref && mine(ref.value, 'refundable')) window.__ddSet('m-refund', refLabel);
+      now.refundable = refLabel;
+      // Charge Category is read-only here and derived from the type; a default overrides that.
+      if (D.category) {
+        const cat = this.q('#m-cat'), cd = this.q('#m-cat-disp'), ce = this.q('#m-cat-err'), cp = this.q('#m-cat-ph');
+        if (cat) cat.value = D.category;
+        if (cd) { cd.textContent = D.category; cd.style.display = 'block'; }
+        if (ce) ce.style.display = 'none';
+        if (cp) cp.style.display = 'none';
+      }
+      this._mktDefApplied = now;
+      if (window.__attrCheck) window.__attrCheck();
+      if (window.__mitsRecheck) window.__mitsRecheck();
+    };
     // Storage / Parking categories reveal their optional attribute sections.
     window.__attrCheck = () => {
       const cc = ((this.q('#m-cat') || {}).value) || '';
@@ -7519,7 +7585,7 @@ class Component extends DCLogic {
     const mktSection = `<div style="flex:none;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
         <div onclick="${mktToggleJs}" style="display:flex;align-items:center;gap:8px;padding:11px 14px;cursor:pointer">
           <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" id="m-mkt-caret" style="color:var(--rmx-text, #666666)"><path d="M530-481 332-679l43-43 241 241-241 241-43-43 198-198Z"/></svg>
-          <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Marketing Details</span>
+          <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Charge Marketing</span>
           <div style="flex:1"></div>
           ${mktNote}
         </div>
@@ -7558,10 +7624,10 @@ class Component extends DCLogic {
       </div>`;
     // Opened from a tenant's transactions, the charge is a one-off posting rather than a charge on
     // the property's profile, so only General Details applies — no marketing details, no exceptions.
-    if (m.generalOnly) return { title, body: `${specNote}${sect('General Details', spec ? specGeneral : general)}` };
+    if (m.generalOnly) return { title, body: `${specNote}${sect('General', spec ? specGeneral : general)}` };
     return { title, body: `
       ${specNote}
-      ${sect('General Details', spec ? specGeneral : general)}
+      ${sect('General', spec ? specGeneral : general)}
       ${creSections}
       ${mktSection}
       ${exclSection}` };

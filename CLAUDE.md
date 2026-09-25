@@ -512,9 +512,19 @@ draft back, and `mktPricingSave` merges it. Without that, collapsing a row would
 thrown away the moment the property changes. Without that stamp one property's typing shows up on
 another's rows, which reads as a charge whose badge says complete over fields that look empty.
 
-The **Charges overlay carries almost none of it**. The charge form does have a **Marketing Details**
-section again, but collapsed by default with the outstanding count in its header — collapsing hides
-the body rather than dropping it, so `saveFee` still reads every field. Beyond that: no
+The **Charges overlay carries almost none of it**. The charge form's two sections are **General**
+and **Charge Marketing** — the second collapsed by default with the outstanding count in its header;
+collapsing hides the body rather than dropping it, so `saveFee` still reads every field.
+
+**Picking a charge type fills that section** (`window.__mktDefaults`, wired into the typeahead's
+`setCat`). It reads `ctmFor(state.property, code)` — the property's override of that charge type if
+it has one, otherwise the charge type's default — which is the same chain `resolvedListing` walks,
+so the form and the listing can't disagree. It writes a field only when that field is **empty** or
+still holds **what it last wrote** (tracked in `this._mktDefApplied`, cleared on `addopen` /
+`addclose`), so changing the charge type swaps one set of defaults for the next and never overwrites
+something typed by hand. The dropdowns are set through `window.__ddSet`, which does what
+`singleSelect`'s own row click does — hidden input, display text and colour, row selection — because
+these are DOM-only updates: a `setState` here would wipe the rest of the form. Beyond that: no
 Marketing Name / Listing Ready / requirement / category columns, no Group by Requirement, no
 completeness banner (`mitsBanner` returns ''), no Marketing Name / requirement / category columns,
 and Bulk Update is General-only. General's Listing Details carries no pricing callout and the
