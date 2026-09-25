@@ -478,11 +478,13 @@ Override*; the dialog's checkbox is still *Override Charge Type*, because that o
 being made rather than a label for the tick.
 
 **The three surfaces that edit a charge's marketing carry the same field tooltips.** `mktHelp()`
-builds one map — Name, Charge Category, Marketing Description, Charge Requirement, Charge Schedule,
-Fee Due, Refundable — read by the charge form (both its editable fields and its locked mirror),
-Charge Type Details' Default Charge Marketing and a property's Edit Default Charge Marketing, so
-the three cannot say different things about the same field. Which ones show still follows the
-charge: a recurring charge has no Fee Due to ask about and a one-time charge has no Charge Schedule.
+builds one map — **Charge Category, Charge Requirement, Charge Schedule**, the three the charge form
+already had — read by the charge form (its editable fields and its locked mirror), Charge Type
+Details' Default Charge Marketing and a property's Edit Default Charge Marketing, so the three
+cannot say different things about the same field. **No field gained an icon it didn't have**: Name,
+Marketing Description, Fee Due and Refundable carry none anywhere. Charge Schedule's is
+`schedTip()`; Charge Requirement's is `reqHelp()` with its three terms; Charge Category's dropped
+the clause saying it can't be edited here, which the cascade made untrue.
 
 **Charge Schedule is recurring-only, and a one-time charge is One-Time.** A charge type is used by
 both kinds of charge, so neither Charge Type Details nor the property's override can know which the
