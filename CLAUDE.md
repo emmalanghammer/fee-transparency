@@ -83,8 +83,8 @@ between Property and Hide listings without errors. On, the page reads at the pro
 the charge work happens at. Off, the same listings are one register whose first column is
 **Property**, for when you are looking for a unit rather than reviewing a property.
 
-A register is **Unit · Unit Type · Base Rent · Total Monthly Price · Available · Errors**, one row
-per advertised unit (`listingsData()` in C is unit-level, with bed/bath and per-provider state).
+A register is **Unit · Unit Type · Base Rent · Total Monthly Price · Available · Listing Ready
+Charges · Errors**, one row per advertised unit (`listingsData()` in C is unit-level, with bed/bath and per-provider state).
 **Total Monthly Price reads `-` until the property has actually converted** (`publishedProps`): a
 property that hasn't still advertises rent alone, so it has no total to show — finishing its
 charges is not the same as publishing them.
@@ -144,7 +144,13 @@ price, which is an error of the same weight as a rejected feed — and the Listi
 beside it is red for the same reason, so a row can't say amber in one column and red in the next.
 `ltErrHTML` shows all three as collapsible sections; the third, **Charge Marketing Errors**,
 itemises each charge and the fields it lacks, with **Add charge details** through to Marketing
-Setup. `ltChargeIssues` takes a **property**, not a listing.
+Setup — which goes to the property's **Charges** tab (`openFeeProfile`, which clears `ltErr` so the
+dialog closes behind it), because the charges are what needs filling in. `ltChargeIssues` takes a
+**property**, not a listing.
+
+**There is no column-picker / row-kebab column.** The trailing 38px track carrying `view_column` in
+the head and a `more_vert` in each row came off on 2026-09-25 — the kebab was unbuilt `todo` chrome,
+and without the track the whole register fits without scrolling sideways.
 
 **Hide listings without errors** (`ltErrOnly`) follows the column: feed errors only.
 
