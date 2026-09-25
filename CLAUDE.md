@@ -615,6 +615,15 @@ General card above it, so restating it on the right said the same thing twice.
 inherits through `resolvedListing`; `mktDefFill` no longer runs on create, because copying the
 defaults down would make every new charge an override of them.
 
+**A charge of nothing warns, where the property lists online.** `window.__amtNote` shows an amber
+note under the Amount when the method is **Flat** and the typed figure is zero or negative:
+*“This charge is $0.00. Listing sites have no price to advertise for it, so it may not display as
+intended. If this is a concession or a discount, describe it in the Promotional Description on the
+property's Marketing Setup.”* Gated on `ilsOn()` — a property that doesn't list online has nothing
+to display wrongly. Flat only: a reference or a calculation has no figure typed here to judge. It
+**names** Marketing Setup rather than linking to it, because opening that overlay would throw away
+a half-filled charge form.
+
 **Picking a charge type fills that section** (`window.__mktDefaults`, wired into the typeahead's
 `setCat`). It reads `ctmFor(state.property, code)` — the property's override of that charge type if
 it has one, otherwise the charge type's default — which is the same chain `resolvedListing` walks,

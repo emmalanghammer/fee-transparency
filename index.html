@@ -1018,6 +1018,7 @@ class Component extends DCLogic {
     // A recurring charge's Fee Due is a hidden default, so the missing-fields list has to be
     // recomputed from the form rather than from the unsaved row.
     if (window.__mitsRecheck && this.q('#m-due')) window.__mitsRecheck();
+    if (window.__amtNote && this.q('#m-amt-note')) window.__amtNote();
     // The Charge Marketing override note and its locked mirror are written from the form itself, so
     // they are filled in once the form is on the page rather than during render.
     if (window.__mktOvrNote && this.q('#m-ovr')) {
@@ -7318,12 +7319,23 @@ class Component extends DCLogic {
     const amtFlat = ed && /^\$/.test(ed.amount||'') ? (ed.amount||'').replace(/^\$/,'') : '';
     const radio = (label,value,blk) => `<label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--rmx-text, #666666);cursor:pointer"><input type="radio" name="m-amt-r" value="${value}" data-blk="${blk}" ${src===value?'checked':''} onchange="var b=this.getAttribute('data-blk');document.getElementById('m-source').value=this.value;['flat','ref','calc'].forEach(function(k){document.getElementById('m-blk-'+k).style.display=(k===b?'flex':'none')});if(window.__calcNote)window.__calcNote()" style="accent-color:var(--ac,var(--rmx-brand, #008dd5));width:16px;height:16px;margin:0">${label}</label>`;
     // A calendar icon opens the date picker; every other trailing icon is decoration.
-    const iconInput = (id,val,ph,icon) => `<div style="display:flex;align-items:center;gap:4px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><input id="${id}" value="${esc(val)}" placeholder="${ph}" oninput="if(window.__mitsRecheck)window.__mitsRecheck()" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">${!icon ? '' : icon === 'calendar_month'
+    const iconInput = (id,val,ph,icon) => `<div style="display:flex;align-items:center;gap:4px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><input id="${id}" value="${esc(val)}" placeholder="${ph}" oninput="if(window.__mitsRecheck)window.__mitsRecheck();if(window.__amtNote)window.__amtNote()" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">${!icon ? '' : icon === 'calendar_month'
       ? this.ico(icon, 18, 'color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer').replace('<svg ', `<svg onclick="if(window.__dpOpen)window.__dpOpen('${id}',this)" `)
       : this.ico(icon, 18, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</div>`;
     // A calculated amount has no single figure to publish, so listing providers show it as a varying
     // amount. Only worth saying once the charge is actually going out to listings.
     const calcNote = (src === 'Calculation' && ed && ed.ils) ? 'block' : 'none';
+    // Flat amounts only: a reference or a calculation has no figure typed here to judge.
+    window.__amtNote = () => {
+      const box = this.q('#m-amt-note'); if (!box) return;
+      const method = (this.q('#m-source') || {}).value;
+      const raw = ((this.q('#m-amount') || {}).value || '').trim();
+      const n = parseFloat(raw.replace(/[$,\s]/g, ''));
+      const bad = this.ilsOn() && method === 'Flat' && raw !== '' && !isNaN(n) && n <= 0;
+      box.style.display = bad ? 'flex' : 'none';
+      const t = this.q('#m-amt-note-t');
+      if (t && bad) t.textContent = n < 0 ? 'This charge is a negative amount.' : 'This charge is $0.00.';
+    };
     window.__calcNote = () => {
       const on = ((this.q('#m-ils') || {}).value) === '1';
       // The warning beside the toggle is the whole of what off looks like.
@@ -7333,7 +7345,7 @@ class Component extends DCLogic {
       const method = (this.q('#m-source') || {}).value;
       n.style.display = (method === 'Calculation' && on) ? 'block' : 'none';
     };
-    const methodJs = "var t={'Flat':'flat','Reference':'ref','Calculation':'calc'}[_v];document.getElementById('m-source').value=_v;['flat','ref','calc'].forEach(function(k){document.getElementById('m-blk-'+k).style.display=(k===t?'flex':'none')});if(window.__calcNote)window.__calcNote()";
+    const methodJs = "var t={'Flat':'flat','Reference':'ref','Calculation':'calc'}[_v];document.getElementById('m-source').value=_v;['flat','ref','calc'].forEach(function(k){document.getElementById('m-blk-'+k).style.display=(k===t?'flex':'none')});if(window.__calcNote)window.__calcNote();if(window.__amtNote)window.__amtNote()";
     const lockShow = "var a=document.getElementById('m-amount');if(!a||!a.disabled)return;"
       + "var t=document.getElementById('m-lock-tip');t.style.display='block';var r=this.getBoundingClientRect();"
       + "var w=t.offsetWidth,h=t.offsetHeight;var l=r.left;if(l+w>window.innerWidth-8)l=window.innerWidth-8-w;if(l<8)l=8;"
@@ -7348,7 +7360,13 @@ class Component extends DCLogic {
         <div id="m-blk-ref" style="display:${src==='Reference'?'flex':'none'};flex-direction:column;gap:4px">${lab('Amount')}${dd('m-ref',['Market Rent','Field: Market Rent','Unit UDF: Parking Spot #'],'Market Rent',{noSearch:true})}</div>
         <div id="m-blk-calc" style="display:${src==='Calculation'?'flex':'none'};flex-direction:column;gap:4px">${lab('Amount')}${iconInput('m-calc','','','edit')}</div>
       </div>`;
-    const amount = `<span id="m-calc-note" style="display:${calcNote};font-size:12px;color:var(--rmx-text, #666666);line-height:1.45">Calculated charges may be labeled as a <i>Varying Amount</i> on the listing provider site.</span>`;
+    // A charge of nothing, or less than nothing, has no price for a listing site to advertise, so it
+    // is worth a word before it goes out. Only where the property actually lists online.
+    const amount = `<span id="m-calc-note" style="display:${calcNote};font-size:12px;color:var(--rmx-text, #666666);line-height:1.45">Calculated charges may be labeled as a <i>Varying Amount</i> on the listing provider site.</span>
+      <div id="m-amt-note" style="display:none;align-items:flex-start;gap:10px;padding:12px 14px;background:#fdf3e7;border:1px solid var(--rmx-attention, #f58220);border-radius:4px">
+        ${this.ico('error', 20, 'color:var(--rmx-attention, #f58220);flex:none;margin-top:1px')}
+        <span style="flex:1;min-width:0;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)"><span id="m-amt-note-t"></span> Listing sites have no price to advertise for it, so it may not display as intended. If this is a concession or a discount, describe it in the <strong style="font-weight:600">Promotional Description</strong> on the property's Marketing Setup.</span>
+      </div>`;
 
     // ---- General Details ----
     // One-time charges have a date window too — they just don't repeat, so only Frequency is
