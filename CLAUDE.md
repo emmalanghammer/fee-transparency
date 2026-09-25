@@ -521,10 +521,12 @@ The **Charges overlay carries almost none of it**. The charge form's two section
 and **Charge Marketing** — the second collapsed by default with the outstanding count in its header;
 collapsing hides the body rather than dropping it, so `saveFee` still reads every field.
 
-**The section works like the property override.** Collapsed by default, with the outstanding count
-— or *Listing ready* — in its header (`mktNoteHTML`, written at render and rewritten live by
-`__mitsRecheck`, since collapsed that lozenge is the only signal). Open, it carries a line saying
-what the charge inherits, one **Override … Default** checkbox, and the fields behind it: unticked,
+**The section works like the property override**, and matches Figma `3606:62884`. Collapsed by
+default, with **Include on listings** on the header's right — the toggle itself, so it can be set
+without opening the section; its `onclick` stops propagation or the header's own collapse fires
+under it. There is no count lozenge and no line describing what the charge inherits: the Figma has
+neither, and the outstanding fields are already named as chips inside. Open, the section is one
+bordered card holding an **Override … Default** checkbox over the fields: unticked,
 they are RMX's disabled Input Field showing what it inherits (`#m-mkt-locked`, mirrored from the
 live inputs by `window.__mktLockSync`); ticked, the charge's own (`#m-mkt-fields`), already holding
 what it was inheriting, so an override is an edit of the default rather than an empty form.
