@@ -7193,8 +7193,6 @@ class Component extends DCLogic {
       }
       const uw = this.q('#m-excl-units-wrap');
       if (uw) uw.style.display = (v === 'Unit Type' && pe && pe.value === '1') ? 'none' : 'flex';
-      const nt = this.q('#m-excl-note');
-      if (nt && (v === 'Property' || v === 'Unit Type') && !/^Exception/.test(nt.textContent)) nt.textContent = 'Applies everywhere at the ' + v.toLowerCase() + ' level';
       const oriRow = this.q('#m-ori-row');
       if (oriRow) oriRow.style.display = (v === 'ORI') ? 'flex' : 'none';
       if (v === 'ORI') {
@@ -7624,13 +7622,18 @@ class Component extends DCLogic {
       ? `<span id="m-ils-warn" onclick="event.stopPropagation()" style="display:${swOn ? 'none' : 'inline-flex'};align-items:center;margin-right:10px">${ilsWarnTip}</span>`
         + `<label onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:10px;cursor:${swLive?'pointer':'default'}"><span id="m-ils-sw" data-dis="${swLive?'0':'1'}" onclick="${swJs}" data-on="${swOn?'1':'0'}" style="display:inline-block;width:32px;height:18px;border-radius:999px;background:${!swLive?'#dfe6ec':(swOn?'var(--ac,var(--rmx-brand, #008dd5))':'var(--rmx-line, #cedbe7)')};position:relative;flex:none;cursor:${swLive?'pointer':'default'}">${knob}</span><span id="m-ils-lbl" style="font-size:14px;color:${swLive?'var(--rmx-brand-dark, #13314c)':'var(--rmx-text-muted, #b3b3b3)'}">Include on listings</span></label>`
       : '';
-    const ilsBox = this.ilsOn() ? `
-        <div id="m-ils-msg" style="display:${complete?'none':'flex'};align-items:center;gap:10px;flex-wrap:wrap">
+    // What is still missing sits inside the card, under a rule below the fields — it is about those
+    // fields, and it read as a separate warning when it sat outside them. What it says depends on
+    // whether this property has already been activated: before, the missing fields are what is
+    // holding activation up; after, they are what keeps this one charge off the feed.
+    const missingMsg = this.ilsOn() ? `
+        <div id="m-ils-msg" style="display:${complete?'none':'flex'};flex-direction:column;gap:10px;padding-top:14px;border-top:1px solid var(--rmx-line, #cedbe7)">
           <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${this.state.publishedProps[this.state.property]
-            ? "Fee transparency is active on this property, so this charge stays out of the total until these fields are filled in:"
-            : "Fee transparency can't be activated while this charge is missing fields listings require:"}</span>
+            ? "Any listing using this charge will not post on online listings if all required fields are not filled out"
+            : "This property can't be converted to fee transparency with missing charge marketing fields."}</span>
           <span id="m-ils-need" style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap">${missing.map(chip).join('')}</span>
-        </div>
+        </div>` : '';
+    const ilsBox = this.ilsOn() ? `
         ${ilsNote}
         <input type="hidden" id="m-ils" value="${swOn?'1':'0'}">` : `<input type="hidden" id="m-ils" value="0">`;
 
@@ -7670,6 +7673,7 @@ class Component extends DCLogic {
             ${ovrRow}
             ${lockedView}
             <div id="m-mkt-fields" style="display:${ovrOn ? 'flex' : 'none'};flex-direction:column;gap:12px">${listing}</div>
+            ${missingMsg}
           </div>
           ${ilsBox}
         </div>
@@ -7690,8 +7694,6 @@ class Component extends DCLogic {
         <div onclick="${exToggleJs}" style="display:flex;align-items:center;gap:8px;padding:11px 0 10px;cursor:pointer">
           <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" id="m-excl-caret" style="color:var(--rmx-text, #666666)"><path d="M530-481 332-679l43-43 241 241-241 241-43-43 198-198Z"/></svg>
           <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Exceptions</span>
-          <div style="flex:1"></div>
-          <span id="m-excl-note">${this.exclNoteInner(exSaved, ed)}</span>
         </div>
         <div id="m-excl-body" style="display:none;flex-direction:column;gap:14px;padding:14px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px">
           <div id="m-excl-prop-row" style="display:${exLvl==='Unit Type'?'flex':'none'};flex-direction:column">${this.exclPropRow('m-excl', this.state.property, exSaved.prop)}</div>

@@ -540,7 +540,17 @@ what it was inheriting, so an override is an edit of the default rather than an 
 `window.__mktOverride` swaps the two in the DOM. **The label names the rung being overridden** —
 *Override Property Default* when the property has an override of that charge type, *Override Charge
 Type Default* otherwise — and both it and the note are rewritten by `window.__mktOvrNote` when the
-charge type changes. **Unticked, `saveFee` writes no marketing values at all**, so the charge
+charge type changes. **What is still missing sits inside the card**, under a rule below the fields — it is about those
+fields, and read as a separate warning when it sat outside them. The sentence depends on whether the
+property has been activated: before, *“This property can't be converted to fee transparency with
+missing charge marketing fields.”*; after, *“Any listing using this charge will not post on online
+listings if all required fields are not filled out”*. Both are the user's own words, which is why
+the first still says *converted* — everything else says activate.
+
+**The Exceptions header is the heading alone.** What a charge covers is read off Charge Level in the
+General card above it, so restating it on the right said the same thing twice.
+
+**Unticked, `saveFee` writes no marketing values at all**, so the charge
 inherits through `resolvedListing`; `mktDefFill` no longer runs on create, because copying the
 defaults down would make every new charge an override of them.
 
