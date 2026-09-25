@@ -479,7 +479,8 @@ being made rather than a label for the tick.
 
 **Charge Schedule is recurring-only, and a one-time charge is One-Time.** A charge type is used by
 both kinds of charge, so neither Charge Type Details nor the property's override can know which the
-schedule is being set for — both carry `schedTip()` on the field saying so. `resolvedListing`
+schedule is being set for — both carry `schedTip()` on the field: *“Only applies to recurring
+charges.”* `resolvedListing`
 returns `'One-Time'` for a one-time charge rather than nothing, so wherever a schedule is read it
 says what that charge's schedule is instead of sitting blank beside the recurring ones. The Charges
 register's optional **Charge Schedule** column (off by default, on through Column Setup) is where
