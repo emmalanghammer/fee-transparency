@@ -517,6 +517,22 @@ class Component extends DCLogic {
   // fill the blank marketing fields on charges that already exist, and seed every charge made after.
   mktDefs(){ return this.state.mktDef || {}; }
   mktDefFor(code){ return this.mktDefs()[String(code || '').toUpperCase()] || null; }
+  // What a charge type's Default Charge Marketing opens on before anyone has set it. Three guesses
+  // that are almost always right and are always editable: the Name is the charge type's own
+  // description, a deposit is Refundable, and rent is due During Term. It is read **only** when the
+  // type has never been saved — once it has, the form shows exactly what was saved, blanks included,
+  // or clearing a field would be undone the next time the overlay opened. Nothing else reads this:
+  // `state.mktDef` stays empty until someone saves, so a seed can't quietly make a charge listing
+  // ready.
+  mktDefSeed(code){
+    const c = String(code || '').toUpperCase();
+    const desc = this.chargeTypeDesc(c) || '';
+    const text = desc.toLowerCase();
+    const deposit = /^(DP|DEP|SD|SECDEP|PETDEP)/.test(c) || /\bdeposits?\b/.test(text);
+    // Deposit first: a security deposit is not a rent charge, however the words read.
+    const rent = !deposit && (/^(RC|RENT|LMR|PRORATE)/.test(c) || /\brent\b/.test(text));
+    return { name: desc, refundable: deposit ? 'yes' : '', feeDue: rent ? 'During Term' : '' };
+  }
   // What a charge of this type starts with **at this property**: the property's own override of the
   // charge type when it has one, otherwise the charge type's default. One function, so the chain is
   // resolved the same way everywhere it is read.
@@ -4300,6 +4316,8 @@ class Component extends DCLogic {
     // comes back to the form with what was typed still on it.
     const draft = this.state.mktDefDraft;
     const d = (draft && draft[code]) || (draft ? {} : this.mktDefFor(code)) || {};
+    // Only before this type has ever been saved — see `mktDefSeed`.
+    const seed = (draft || this.mktDefFor(code)) ? { name:'', refundable:'', feeDue:'' } : this.mktDefSeed(code);
     const REQ = ['Required','Optional','Situational'];
     const DUE = [{value:'At Application',label:'At Application'},{value:'Move-In',label:'At Move-In'},
       {value:'During Term',label:'During Term'},{value:'Move-Out',label:'At Move-Out'}];
@@ -4315,7 +4333,7 @@ class Component extends DCLogic {
     const mktTile = tile('Default Charge Marketing', whyTip,
       `<span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.45">Set default marketing information for every charge that uses this charge type.</span>
        <div style="display:flex;gap:16px">
-         ${mfld('Name', F.txt('ctd-mkt-name', d.name || ''))}
+         ${mfld('Name', F.txt('ctd-mkt-name', d.name || seed.name))}
          ${mfld('Charge Category', mdd('ctd-mkt-category', this.chargeCategoryOptions(), d.category || ''))}
        </div>
        ${mfld('Marketing Description', marea('ctd-mkt-marketing', d.marketing || ''))}
@@ -4324,8 +4342,8 @@ class Component extends DCLogic {
          ${mfld('Charge Schedule', mdd('ctd-mkt-schedule', SCHED, d.schedule || ''))}
        </div>
        <div style="display:flex;gap:16px">
-         ${mfld('Fee Due', mdd('ctd-mkt-feeDue', DUE, d.feeDue || ''))}
-         ${mfld('Refundable', mdd('ctd-mkt-refundable', REF, d.refundable || ''))}
+         ${mfld('Fee Due', mdd('ctd-mkt-feeDue', DUE, d.feeDue || seed.feeDue))}
+         ${mfld('Refundable', mdd('ctd-mkt-refundable', REF, d.refundable || seed.refundable))}
        </div>`, true);
     const invTile = tile('Inventory Items',
       `<span data-act="todo" data-arg="Link Existing Inventory Item" style="display:inline-flex;align-items:center;gap:4px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Link Existing Inventory Item<svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M480-360 280-559h400L480-360Z"/></svg></span>`,

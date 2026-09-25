@@ -294,6 +294,14 @@ Name, Charge Category, Marketing Description, Charge Requirement, Charge Schedul
 Refundable. The case for filling it in is one **Why is this important?** link in the tile header
 (an `infoTip` with a custom `trigger`), not a help icon on each field.
 
+**The tile opens on three guesses** (`mktDefSeed`): the **Name** is the charge type's own
+description, a **deposit** is Refundable, and **rent** is due During Term. Deposit is tested first,
+because a security deposit is not a rent charge however the words read. The seed is read **only
+while the type has never been saved** — once it has, the form shows exactly what was saved, blanks
+included, or clearing a field would be undone the next time the overlay opened. **Nothing else
+reads it**: `state.mktDef` stays empty until someone saves, so a seed cannot quietly cascade and
+make a charge listing ready.
+
 **Charge Category is asked for once.** The Charge Type Information tile no longer carries it — it is
 set in Default Charge Marketing, and `ctSave` leaves the stored `category` alone, so it still serves
 as `chargeCategoryFor`'s fallback. The entry
