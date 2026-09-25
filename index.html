@@ -363,7 +363,7 @@ class Component extends DCLogic {
     const cmp = (label, x, y) => {
       const sx = x == null ? '' : String(x), sy = y == null ? '' : String(y);
       if (sx === sy) return;
-      out.push(label + ' ' + (sx || '-') + ' → ' + (sy || '-'));
+      out.push(label + ' ' + (sx || '—') + ' → ' + (sy || '—'));
     };
     cmp('Amount', a.amount, b.amount);
     cmp('Charge Type', a.mits, b.mits);
@@ -3107,7 +3107,7 @@ class Component extends DCLogic {
       const readyCell = !this.ilsOn(r.name) ? cell(String(ch.total) + ' charges')
         : `<span style="display:flex;align-items:center;gap:9px;min-height:39px;box-sizing:border-box;padding:0 10px;font-size:14px;font-style:italic;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${dot}${ch.ready}/${onList}</span>`;
       const plans = this.mcPlans(r.name);
-      const planCell = !this.ilsOn(r.name) ? cell('-')
+      const planCell = !this.ilsOn(r.name) ? cell('—')
         : cell(plans + ' plan' + (plans === 1 ? '' : 's'));
       const priceCell = st.ft === 'na' ? cell('<span style="font-style:italic;color:var(--rmx-text, #666666)">Not carried</span>')
         : cell(this.state.publishedProps[r.name] ? 'Total monthly' : 'Rent only');
@@ -3980,7 +3980,7 @@ class Component extends DCLogic {
     const chargeCell = (prop) => {
       const ch = this.ftCharges(prop);
       const onList = ch.ready + ch.incomplete;
-      if (!this.ftApplicable(prop) || !onList) return cell('-');
+      if (!this.ftApplicable(prop) || !onList) return cell('\u2014');
       const whole = ch.incomplete === 0;
       const dot = whole ? 'var(--rmx-success, #6eb744)' : 'var(--rmx-error, #eb343c)';
       return `<span title="${whole ? 'Every charge listings carry is ready' : ch.incomplete + ' charge' + (ch.incomplete === 1 ? '' : 's') + ' still need details'}" style="display:flex;align-items:center;gap:8px;min-height:36px;box-sizing:border-box;padding:0 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap"><span style="flex:none;width:8px;height:8px;border-radius:50%;background:${dot}"></span>${ch.ready}/${onList}</span>`;
@@ -4018,11 +4018,11 @@ class Component extends DCLogic {
         // marketing details its price is built from.
         const mark = is.tone ? ERR : OK;
         return `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background='#fff'">
-          ${cell(l.unit || '-', 'padding-left:17px')}
+          ${cell(l.unit || '—', 'padding-left:17px')}
           ${cell(this.ltUnitType(l))}
           ${cell(money(l.base))}
           ${cell(total)}
-          ${cell(l.avail || '-')}
+          ${cell(l.avail || '—')}
           ${chargeCell(l.prop)}
           <span data-act="ltErrOpen" data-arg="${i}" title="What needs attention" style="display:flex;align-items:center;min-height:36px;box-sizing:border-box;padding:0 12px;cursor:pointer">${mark}</span>
         </div>`;
@@ -4052,11 +4052,11 @@ class Component extends DCLogic {
         const total = this.state.publishedProps[l.prop] ? money(l.base + this.ltMonthlyFees(l.prop)) : '-';
         return `<div style="display:grid;grid-template-columns:${fcols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background='#fff'">
           ${cell(esc(l.prop), 'padding-left:17px')}
-          ${cell(l.unit || '-')}
+          ${cell(l.unit || '\u2014')}
           ${cell(this.ltUnitType(l))}
           ${cell(money(l.base))}
           ${cell(total)}
-          ${cell(l.avail || '-')}
+          ${cell(l.avail || '\u2014')}
           ${chargeCell(l.prop)}
           <span data-act="ltErrOpen" data-arg="${i}" title="What needs attention" style="display:flex;align-items:center;min-height:36px;box-sizing:border-box;padding:0 12px;cursor:pointer">${is.tone ? ERR : OK}</span>
         </div>`;
@@ -4404,7 +4404,7 @@ class Component extends DCLogic {
     const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:0 8px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
     const rows = this.state.petTypes.map((t, i) => `<div data-act="petTypeOpen" data-arg="${i}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);cursor:pointer;background:#fff" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background=''">
       ${cell(t.name, 'padding-left:16px')}${cell(t.desc || '')}
-      ${cell(t.maxPets || '-')}${cell(t.maxWeight || '-')}
+      ${cell(t.maxPets || '—')}${cell(t.maxWeight || '—')}
       ${cell(money(t.rec), 'justify-content:flex-end')}${cell(money(t.recMax), 'justify-content:flex-end')}
       ${cell(money(t.one), 'justify-content:flex-end')}${cell(money(t.oneMax), 'justify-content:flex-end')}
       ${cell(money(t.dep), 'justify-content:flex-end')}${cell(money(t.depMax), 'justify-content:flex-end')}
@@ -4639,7 +4639,7 @@ class Component extends DCLogic {
     // the same list. Unit and unit-type pages, which have no Charges of their own, still do.
     const recurring = '';
 
-    const emptyReg=(t,heads)=>tileT(t,'',gtable(heads.map(()=>'1fr').join(' '),heads,[heads.map(()=>'<span style="color:var(--rmx-text-muted, #b3b3b3)">-</span>')]),
+    const emptyReg=(t,heads)=>tileT(t,'',gtable(heads.map(()=>'1fr').join(' '),heads,[heads.map(()=>'<span style="color:var(--rmx-text-muted, #b3b3b3)">—</span>')]),
       `<span style="font-style:italic">No transactions in the current period</span>`);
     const files = tileT('Property Files', `<a data-act="todo" data-arg="Upload file" style="font-size:14px">Upload file</a>`,
       gtable('1fr 100px 140px',['Name','Type','Uploaded'],[
@@ -5037,23 +5037,23 @@ class Component extends DCLogic {
           ? `<span style="display:flex;align-items:center;gap:6px;min-height:44px;box-sizing:border-box;padding:8px 12px${i===0?' 8px 16px':''};font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${r.mits}<span class="tipw" style="flex:none" onclick="event.stopPropagation()"><svg class="ico" width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-text-muted, #b3b3b3);cursor:default"><path d="M220-80q-24.75 0-42.37-17.63Q160-115.25 160-140v-434q0-24.75 17.63-42.38Q195.25-634 220-634h70v-96q0-78.85 55.61-134.42Q401.21-920 480.11-920q78.89 0 134.39 55.58Q670-808.85 670-730v96h70q24.75 0 42.38 17.62Q800-598.75 800-574v434q0 24.75-17.62 42.37Q764.75-80 740-80H220Zm0-60h520v-434H220v434Zm314.5-162.03Q557-324.06 557-355q0-30-22.67-54.5t-54.5-24.5q-31.83 0-54.33 24.5t-22.5 55q0 30.5 22.67 52.5t54.5 22q31.83 0 54.33-22.03ZM350-634h260v-96q0-54.17-37.88-92.08-37.88-37.92-92-37.92T388-822.08q-38 37.91-38 92.08v96ZM220-140v-434 434Z"/></svg><span class="tip" style="width:250px">${r.propSpecific==='NSF'?'NSF fee details are pulled from the property details':'Late fees are property specific and have special circumstances'}. Only the marketing details can be edited from Charges.</span></span></span>`
           : cell(r.mits, pad(i)),
         comment: (i) => `<span style="display:flex;align-items:center;gap:8px;min-height:44px;box-sizing:border-box;padding:8px 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);min-width:0;${pad(i)}"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.desc||r.name}</span>${this.exclTag(r)}</span>`,
-        mktname: (i) => cell(L.name || '-', pad(i)),
-        freq: (i) => cell(this.freqNum(r)||'-', pad(i)),
-        from: (i) => cell(r.from||'-', pad(i)),
+        mktname: (i) => cell(L.name || '—', pad(i)),
+        freq: (i) => cell(this.freqNum(r)||'—', pad(i)),
+        from: (i) => cell(r.from||'—', pad(i)),
         to: (i) => cell(r.to||'-', pad(i)),
         amount: (i) => cell(String(r.amount||'').replace(/^\$/,''), 'justify-content:flex-end;text-align:right'),
         level: (i) => `<span style="display:flex;align-items:center;min-height:44px;padding:8px 12px;min-width:0;overflow:hidden">${this.chargeLevelPill(r)}</span>`,
         ready: (i) => `<span style="display:flex;align-items:center;min-height:44px;padding:8px 12px">${this.mitsStatusCell(r)}</span>`,
-        category: (i) => cell(L.category || '-', pad(i)),
-        req: (i) => cell(L.requirement || '-', pad(i)),
-        due: (i) => cell(L.feeDue || '-', pad(i)),
-        sched: (i) => cell(L.schedule || '-', pad(i)),
-        mktdesc: (i) => cell(L.marketing || '-', pad(i)),
-        method: (i) => cell(r.amtMethod || '-', pad(i)),
-        refund: (i) => cell(L.refundable === undefined ? '-' : (L.refundable ? 'Refundable' : 'Not Refundable'), pad(i))
+        category: (i) => cell(L.category || '—', pad(i)),
+        req: (i) => cell(L.requirement || '—', pad(i)),
+        due: (i) => cell(L.feeDue || '—', pad(i)),
+        sched: (i) => cell(L.schedule || '—', pad(i)),
+        mktdesc: (i) => cell(L.marketing || '—', pad(i)),
+        method: (i) => cell(r.amtMethod || '—', pad(i)),
+        refund: (i) => cell(L.refundable === undefined ? '—' : (L.refundable ? 'Refundable' : 'Not Refundable'), pad(i))
       };
       return `<div data-act="${bs?'bulkSelToggle':'rowDetails'}" data-arg="${r.id}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);cursor:pointer" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background=''">
-        ${selCell(r)}${keys.map((k, i) => render[k] ? render[k](i) : cell('-')).join('')}${kebab}</div>`;
+        ${selCell(r)}${keys.map((k, i) => render[k] ? render[k](i) : cell('—')).join('')}${kebab}</div>`;
     }).join('') : `<div style="padding:14px 16px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3);border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)">No ${rec?'recurring':'one-time'} charges in this section.</div>`;
     const add = `<div data-act="addopen" data-arg="${group}" style="background:#f5f9fc;padding:9px 16px;cursor:pointer"><span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M450-450H200v-60h250v-250h60v250h250v60H510v250h-60v-250Z"/></svg>Add ${rec?'Recurring':'One-Time'} Charge</span></div>`;
     return `${noLabel?'':`<div style="font-size:14px;color:var(--rmx-text, #666666);padding:12px 20px 8px">${rec?'Recurring':'One-Time'}</div>`}
@@ -5345,7 +5345,7 @@ class Component extends DCLogic {
         </div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:4px">
           <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">The ${isOri ? 'amount' : 'rent'} will be created as a tenant-level recurring charge at move in.</span>
-          <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);padding-bottom:8px">Charge Type: ${isOri ? (oriRow.ctype || '-') : 'RC'}</span>
+          <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);padding-bottom:8px">Charge Type: ${isOri ? (oriRow.ctype || '—') : 'RC'}</span>
           <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
             <div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">${hc('Source')}${hc('Amount', true)}</div>
             ${rows.length ? rows.map(rowHTML).join('')
@@ -6045,7 +6045,7 @@ class Component extends DCLogic {
         if (first === cur) return `<span style="font-size:14px;color:var(--rmx-text-muted, #b3b3b3)">No change</span>`;
         return `<span style="font-size:14px;color:${cur>first?'#b3261e':'#3a7d2c'};font-weight:500">${cur>first?'+':'−'}${money(Math.abs(cur-first))}</span><span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">&nbsp;${f.hist[0][0]==='pre'?'this session':'since '+this.histLabel(f.hist[0][0])}</span>`;
       })();
-      const lastBy = entries.length ? entries[0].by : (f ? f.by : '-');
+      const lastBy = entries.length ? entries[0].by : (f ? f.by : '—');
       const sub = !open ? '' : `<div style="background:var(--rmx-bg-subtle, #f5f8fa);border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);padding:6px 16px 12px 32px">${entries.length ? entries.map(e => `
         <div style="display:flex;align-items:flex-start;gap:14px;padding:7px 0;border-bottom:1px dashed #dce6ee">
           <span style="width:190px;flex:none;font-size:14px;color:var(--rmx-brand-dark, #13314c);font-weight:500;line-height:1.45">${e.change}</span>
@@ -6059,7 +6059,7 @@ class Component extends DCLogic {
             <span style="display:block;font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">${r.mits}</span>
           </span>
           <span style="display:flex;align-items:center;min-height:38px;padding:6px 12px">${this.chargeLevelPill(r)}</span>
-          ${td(String(r.amount||'-'),'font-weight:500')}
+          ${td(String(r.amount||'—'),'font-weight:500')}
           <span style="display:flex;align-items:baseline;min-height:38px;padding:6px 12px;white-space:nowrap">${delta}</span>
           ${td(lastBy,'color:var(--rmx-ink-2, #424e5b)')}
           <span style="display:flex;align-items:center;justify-content:center;min-height:38px">${this.ico(open?'expand_less':'expand_more', 20, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
@@ -6144,7 +6144,7 @@ class Component extends DCLogic {
     const row=(idx,bar,level,code,comment,amount,commentColor,comment2)=>{
       const rowBg = (idx%2===1) ? 'var(--rmx-bg-subtle, #f5f8fa)' : '#fff';
       const mid = two ? `${cell(comment,'',commentColor||'var(--rmx-text, #666666)')}${cell(comment2||'','',commentColor||'var(--rmx-text, #666666)')}` : cell(comment,'',commentColor||'var(--rmx-text, #666666)');
-      return `<div style="display:grid;grid-template-columns:${recCols};background:${rowBg}">${barFor(bar)}${cell(level + lock)}${cell(code)}${mid}${cell('Monthly','right')}${cell('01/01/2026')}${cell('-','','var(--rmx-text-muted, #b3b3b3)')}${cell(amount,'right')}</div>`;
+      return `<div style="display:grid;grid-template-columns:${recCols};background:${rowBg}">${barFor(bar)}${cell(level + lock)}${cell(code)}${mid}${cell('Monthly','right')}${cell('01/01/2026')}${cell('—','','var(--rmx-text-muted, #b3b3b3)')}${cell(amount,'right')}</div>`;
     };
     const ovrPill=`<span style="margin-left:8px;background:#fdeedd;color:var(--rmx-attention, #f58220);border-radius:4px;padding:1px 8px;font-size:14px">Override</span>`;
     const ovrAmt=(was,now)=>`<s style="color:var(--rmx-text-muted, #b3b3b3);font-size:14px">${was}</s> <span style="color:var(--rmx-text-muted, #b3b3b3)">→</span> <span style="font-weight:600;color:var(--rmx-attention, #f58220)">${now}</span>`;
@@ -6282,7 +6282,7 @@ class Component extends DCLogic {
     imgCats.forEach(([cat,n]) => { for (let i=0;i<n;i++) imgs += `<div style="display:flex;flex-direction:column;gap:6px;flex:none">${i===0?`<span style="font-size:12px;color:var(--rmx-text, #666666)">${cat}</span>`:'<span style="font-size:12px;color:var(--rmx-text, #666666)">&nbsp;</span>'}<div class="checker" style="width:150px;height:96px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;position:relative"><span style="position:absolute;top:4px;right:4px;width:18px;height:18px;border-radius:50%;background:var(--ac,var(--rmx-brand, #008dd5));color:#fff;display:flex;align-items:center;justify-content:center"><svg class="ico" width="14" height="14" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg></span></div></div>`; });
 
     const cardHead = (title, action, link) => `<div class="cardhd"><span class="cardtt">${title}</span>${action?`<a data-act="todo" data-arg="${action}" style="font-size:14px">${action}</a>`:''}${link?`<svg class="ico" width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="M180-120q-24 0-42-18t-18-42v-600q0-24 18-42t42-18h279v60H180v600h600v-279h60v279q0 24-18 42t-42 18H180Zm202-219-42-43 398-398H519v-60h321v321h-60v-218L382-339Z"/></svg>`:''}</div>`;
-    const emptyGrid = (headers) => `<div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px"><div style="display:flex;gap:24px">${headers.map(h=>`<span style="font-size:14px;font-weight:500;color:var(--rmx-text-muted, #b3b3b3);flex:1">${h}</span>`).join('')}</div><div style="display:flex;gap:24px">${headers.map(()=>`<span style="font-size:14px;color:var(--rmx-text-muted, #b3b3b3);flex:1">-</span>`).join('')}</div></div>`;
+    const emptyGrid = (headers) => `<div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px"><div style="display:flex;gap:24px">${headers.map(h=>`<span style="font-size:14px;font-weight:500;color:var(--rmx-text-muted, #b3b3b3);flex:1">${h}</span>`).join('')}</div><div style="display:flex;gap:24px">${headers.map(()=>`<span style="font-size:14px;color:var(--rmx-text-muted, #b3b3b3);flex:1">—</span>`).join('')}</div></div>`;
 
     let h = '';
     // scoreboard
@@ -6311,7 +6311,7 @@ class Component extends DCLogic {
     const addresses = `<div class="card">${cardHead('Addresses','',true)}<div style="display:flex;border-bottom:1px solid var(--rmx-line, #cedbe7)">${['Primary','Alternate','Forwarding'].map((t,i)=>`<span style="flex:1;text-align:center;padding:12px;font-size:14px;cursor:pointer;${i===0?'color:var(--rmx-brand-dark, #13314c);font-weight:500;box-shadow:inset 0 -3px 0 var(--rmx-attention, #f58220)':'color:var(--rmx-text, #666666)'}">${t}</span>`).join('')}</div><div style="padding:16px;display:flex;flex-direction:column;gap:12px"><div class="fld" style="min-height:70px;background:var(--rmx-brand-tint-bg, #ebf1f5)">1492 Loveland-Madeira Road Unit # 02<br>Loveland, OH 45140</div><label style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--rmx-ink-2, #424e5b)"><span style="width:16px;height:16px;border-radius:2px;background:var(--rmx-attention, #f58220);display:inline-flex;align-items:center;justify-content:center"><svg class="ico" width="14" height="14" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:#fff"><path d="M378-246 154-470l43-43 181 181 384-384 43 43-427 427Z"/></svg></span>Default</label></div></div>`;
     const misc = `<div class="card">${cardHead('Miscellaneous','',true)}<div style="padding:16px;display:flex;flex-direction:column;gap:14px"><div style="display:flex;gap:14px"><div style="flex:1;display:flex;flex-direction:column;gap:4px"><span class="flabel">Bedrooms</span><input class="fld" value="${info.type[0]==='S'?'0':info.type[0]}"></div><div style="flex:1;display:flex;flex-direction:column;gap:4px"><span class="flabel">Bathrooms</span><input class="fld" value="1"></div></div><div style="display:flex;gap:14px"><div style="flex:1;display:flex;flex-direction:column;gap:4px"><span class="flabel">Max Occupancy</span><input class="fld" value="2"></div><div style="flex:1;display:flex;flex-direction:column;gap:4px"><span class="flabel">Square Footage</span><input class="fld" value="${info.sqft}"></div></div><div style="display:flex;flex-direction:column;gap:4px"><span class="flabel">Inspection Template</span><div class="fld" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer">&nbsp;<svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-text, #666666)"><path d="M480-360 280-559h400L480-360Z"/></svg></div></div></div></div>`;
     const occupied = info.tenant && !/vacant/i.test(info.tenant);
-    const field=(l,v)=>`<div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:14px;color:var(--rmx-text, #666666)">${l}</span><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);font-weight:500">${v||'-'}</span></div>`;
+    const field=(l,v)=>`<div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:14px;color:var(--rmx-text, #666666)">${l}</span><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);font-weight:500">${v||'—'}</span></div>`;
     const initials=(info.tenant||'').split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase();
     // Tenant-oriented tiles (blended into the unit page).
     const leases = `<div class="card">${cardHead('Leases',occupied?'Renew':'',true)}<div style="padding:16px;display:flex;flex-direction:column;gap:14px">${occupied?`
@@ -6837,7 +6837,7 @@ class Component extends DCLogic {
         <div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7);background:#fff">${heads.map(hc).join('')}</div>
         ${rows.map(r=>`<div data-act="addPropToggle" data-arg="${r.id}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);cursor:pointer;background:#fff">
           <span style="display:flex;align-items:center;justify-content:center;min-height:34px">${chk(!!a.sel[r.id],'')}</span>
-          ${cell(r.mits)}${cell(r.desc||r.name)}${rec?(cell(this.freqNum(r)||'1')+cell(r.from||'-')+cell(r.to||'-')):''}
+          ${cell(r.mits)}${cell(r.desc||r.name)}${rec?(cell(this.freqNum(r)||'1')+cell(r.from||'—')+cell(r.to||'-')):''}
           ${cell(String(r.amount||'').replace(/^\$/,''),'justify-content:flex-end;text-align:right')}
           <span style="display:flex;align-items:center;min-height:34px;padding:5px 8px;min-width:0;overflow:hidden">${this.chargeLevelPill(r, a.copyFrom)}</span></div>`).join('')}
         </div>`;
@@ -7288,8 +7288,8 @@ class Component extends DCLogic {
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Level *')}${disSel('Property')}</div>
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Type *')}${disSearch(ed.mits)}</div>
       <div style="display:flex;gap:12px;align-items:flex-start">
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('From')}${dis(ed.from||'-')}</div>
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('To')}${dis(ed.to||'-')}</div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('From')}${dis(ed.from||'—')}</div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('To')}${dis(ed.to||'—')}</div>
       </div>
       <div style="display:flex;gap:12px;align-items:flex-start">
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Amount Method')}${disSel(ed.amtMethod||'Flat')}</div>
@@ -7775,7 +7775,7 @@ class Component extends DCLogic {
         ${list.length ? list.map(r=>`<div data-act="copyToggle" data-arg="${r.id}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);cursor:pointer">
           <span style="display:flex;align-items:center;justify-content:center;min-height:38px">${box(!!c.sel[r.id])}</span>
           ${cell(r.mits,'padding-left:14px')}${cell(r.desc||r.name)}
-          ${isRec?cell(this.freqNum(r)||'-'):''}${cell(r.from||'-')}${cell(r.to||'-')}
+          ${isRec?cell(this.freqNum(r)||'—'):''}${cell(r.from||'—')}${cell(r.to||'-')}
           ${cell(String(r.amount||'').replace(/^\$/,''),'justify-content:flex-end;text-align:right')}
           <span style="display:flex;align-items:center;min-height:38px;padding:6px 10px;min-width:0;overflow:hidden">${this.chargeLevelPill(r, c.from)}</span></div>`).join('')
           : `<div style="padding:14px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">None on that property.</div>`}
@@ -7923,7 +7923,7 @@ class Component extends DCLogic {
     // Reads the charge type live, so it reflects whatever the typeahead currently holds.
     window.__catAddOpen = () => {
       const code = ((this.q('#m-ctype') || {}).value || '').toUpperCase();
-      const ct = this.q('#m-catadd-ct'); if (ct) ct.textContent = code || '-';
+      const ct = this.q('#m-catadd-ct'); if (ct) ct.textContent = code || '—';
       const sel = this.q('#m-catadd-sel'); if (sel) sel.value = '';
       // singleSelect keeps the value on a hidden input, so the trigger's own text resets with it.
       const disp = this.q('#m-catadd-sel-disp');
@@ -7959,7 +7959,7 @@ class Component extends DCLogic {
         <div style="padding:16px;display:flex;flex-direction:column;gap:14px">
           <div style="display:flex;flex-direction:column;gap:6px">
             <span style="font-size:14px;color:var(--rmx-text, #666666)">Charge Type</span>
-            <span id="m-catadd-ct" style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">-</span>
+            <span id="m-catadd-ct" style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">—</span>
           </div>
           <div style="display:flex;flex-direction:column;gap:4px">
             <span style="font-size:14px;color:var(--rmx-text, #666666)">Charge Category</span>
@@ -8255,7 +8255,7 @@ class Component extends DCLogic {
               ${one ? cell('') : cell(String(this.freqNum(r) || 1))}
               ${one ? cell('') : cell(esc(r.from || '–'))}
               ${one ? cell('') : cell(esc(r.to || '–'))}
-              ${cell(esc(String(r.amount || '').replace(/^\$/, '') || '-'), 'justify-content:flex-end')}
+              ${cell(esc(String(r.amount || '').replace(/^\$/, '') || '—'), 'justify-content:flex-end')}
               ${chip(r.level === 'Property' ? this.propInfo().name : (r.target || r.level))}
               ${readyCell(r)}
               ${open ? panel(r) : ''}
