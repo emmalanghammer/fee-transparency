@@ -90,7 +90,7 @@ window.__resources = {
     .checker { background-image:linear-gradient(45deg,#e4e9ee 25%,transparent 25%),linear-gradient(-45deg,#e4e9ee 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e4e9ee 75%),linear-gradient(-45deg,transparent 75%,#e4e9ee 75%); background-size:14px 14px; background-position:0 0,0 7px,7px -7px,-7px 0; background-color:#f0f3f6; }
     .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--rmx-brand-dark, #13314c); color:#fff; padding:12px 20px; border-radius:4px; font-size:14px; box-shadow:0 3px 12px rgba(0,0,0,0.25); z-index:200; display:flex; align-items:center; gap:10px; }
     .tipw { position:relative; display:inline-flex; }
-    .tipw .tip { display:none; position:absolute; left:26px; top:-6px; width:280px; background:#fff; border:1px solid var(--rmx-line, #cedbe7); border-radius:4px; box-shadow:0 6px 20px rgba(0,0,0,0.18); padding:12px 14px; font-size:14px; color:var(--rmx-brand-dark, #13314c); line-height:1.5; z-index:20; }
+    .tipw .tip { display:none; position:absolute; left:26px; top:-6px; width:312px; background:#fff; border:1px solid var(--rmx-line, #cedbe7); border-radius:4px; box-shadow:0 3px 6px rgba(0,0,0,0.10); padding:16px; font:400 14px/20px Roboto,sans-serif; color:var(--rmx-brand-dark, #13314c); text-align:left; z-index:20; }
     .tipw:hover .tip { display:block; }
     @keyframes spin { to { transform:rotate(360deg); } }
     .lvl { display:inline-block; max-width:100%; overflow:hidden; text-overflow:ellipsis; border-radius:4px; padding:2px 10px; font-size:14px; white-space:nowrap; }
@@ -4258,7 +4258,7 @@ class Component extends DCLogic {
   // Charge Schedule is set on a charge type and on a property's override of one, but a charge type
   // is used by both recurring and one-time charges, so neither form can know which this is for. The
   // field says so, and a one-time charge reads One-Time whatever is set here.
-  schedTip(){ return this.infoTip('<span style="display:block;white-space:normal">Only applies to recurring charges.</span>', 300); }
+  schedTip(){ return this.infoTip('<span style="display:block;white-space:normal">Only applies to recurring charges.</span>'); }
   // One set of field tooltips for every surface that edits a charge's marketing details: the charge
   // itself, the charge type's defaults, and a property's override of them. Built once so the three
   // cannot say different things about the same field.
@@ -4309,7 +4309,7 @@ class Component extends DCLogic {
           ${F.field('Properties', this.multiSelect('ct-props', this.propNames(), a.props || this.propNames()))}
           ${F.field('Allocation Order', this.singleSelect('ct-alloc', ['1','2','3','4','5'], a.alloc || '', { noSearch:true, blank:true, placeholder:'\u00a0' }))}
           <div style="display:flex;flex-direction:column;gap:4px">
-            <span style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--rmx-text, #666666)">Charge Category *${this.infoTip('<span style="display:block;white-space:normal">Listing sites group fees by category. A charge inherits the category of its charge type.</span>', 290)}</span>
+            <span style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--rmx-text, #666666)">Charge Category *${this.infoTip('<span style="display:block;white-space:normal">Listing sites group fees by category. A charge inherits the category of its charge type.</span>')}</span>
             ${this.singleSelect('ct-cat', this.chargeCategoryOptions(), a.category || '', { placeholder:'Select a category' })}
           </div>
           ${F.check('ct-active', a.active !== false, 'Active')}
@@ -4366,7 +4366,7 @@ class Component extends DCLogic {
     const mfld = (label, ctl, help) => `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0"><span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--rmx-text, #666666)">${label}${help || ''}</span>${ctl}</div>`;
     // Figma 3582:1667. The tile is named for what it sets, and the case for setting it moved out of
     // the field labels into one link in the header \u2014 the fields carry no help icons of their own.
-    const whyTip = this.infoTip('<span style="display:block;white-space:normal">Listing sites need these fields before they will advertise a fee. Setting them on the charge type means every charge of that type starts complete, on every property, and a property or a single charge can still override any of them.</span>', 320,
+    const whyTip = this.infoTip('<span style="display:block;white-space:normal">Listing sites need these fields before they will advertise a fee. Setting them on the charge type means every charge of that type starts complete, on every property, and a property or a single charge can still override any of them.</span>', undefined,
       { trigger: `<span style="display:inline-flex;align-items:center;gap:6px;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap">${this.ico('info', 20)}<span style="font-size:14px">Why is this important?</span></span>` });
     const mktTile = tile('Default Charge Marketing', whyTip,
       `<span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.45">Set default marketing information for every charge that uses this charge type.</span>
@@ -4743,8 +4743,7 @@ class Component extends DCLogic {
       // — the same panel the form's help icons use, which is why it can't be cut off.
       return this.infoTip(
         `<span style="display:block;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);padding-bottom:9px;border-bottom:1px solid var(--rmx-line, #cedbe7)">${missing.length} fields still required:</span>`
-        + `<span style="display:flex;flex-direction:column;gap:10px;padding-top:11px">${missing.map(n=>`<span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${n}</span>`).join('')}</span>`,
-        230, { trigger: pill(missing.length + ' needed') });
+        + `<span style="display:flex;flex-direction:column;gap:10px;padding-top:11px">${missing.map(n=>`<span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${n}</span>`).join('')}</span>`, undefined, { trigger: pill(missing.length + ' needed') });
     }
     // Every field is in place; Include on listings decides whether the charge actually goes out.
     if (!r.ils) {
@@ -5250,7 +5249,7 @@ class Component extends DCLogic {
 
     // Same signal the register's "N needed" pill carries, reduced to the mark itself — the words move
     // into the hover panel every other help mark on the charge form uses.
-    const reqTag = this.infoTip('<span style="display:block;white-space:normal">This field is missing from charges and is required to display on listings.</span>', 290,
+    const reqTag = this.infoTip('<span style="display:block;white-space:normal">This field is missing from charges and is required to display on listings.</span>', undefined,
       { trigger: this.ico('error', 20, 'color:var(--rmx-attention, #f58220);cursor:pointer') });
 
     const row = (f, first) => `<div style="padding:10px 16px;${first?'':'border-top:1px solid var(--rmx-line, #cedbe7)'}">
@@ -5872,14 +5871,14 @@ class Component extends DCLogic {
     const term = (t,d) => `<span style="display:block;font-size:14px;font-weight:400;color:var(--rmx-brand-dark, #13314c);white-space:normal"><strong style="font-weight:600">${t}</strong>: ${d}</span>`;
     return this.infoTip(``
       + `<span style="display:block;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);padding-bottom:9px;border-bottom:1px solid var(--rmx-line, #cedbe7)">${title}</span>`
-      + `<span style="display:block;font-size:12px;font-weight:400;color:var(--rmx-text, #666666);white-space:normal;padding:11px 0 ${(terms||[]).length?'12px':'2px'};line-height:1.5">${body}</span>`
+      + `<span style="display:block;font:400 14px/20px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);white-space:normal;padding:11px 0 ${(terms||[]).length?'12px':'2px'}">${body}</span>`
       + ((terms||[]).length ? `<span style="display:flex;flex-direction:column;gap:10px">${terms.map(t => term(t[0], t[1])).join('')}</span>` : ''));
   }
   reqHelp(){
     const term = (t,d) => `<span style="display:block;font-size:14px;font-weight:400;color:var(--rmx-brand-dark, #13314c);white-space:normal"><strong style="font-weight:600">${t}</strong>: ${d}</span>`;
     return this.infoTip(``
       + `<span style="display:block;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);padding-bottom:9px;border-bottom:1px solid var(--rmx-line, #cedbe7)">Charge Requirement</span>`
-      + `<span style="display:block;font-size:12px;font-weight:400;color:var(--rmx-text, #666666);white-space:normal;padding:11px 0 12px;line-height:1.5">Whether a charge applies to everyone, is the resident's to choose, or only applies under certain conditions.</span>`
+      + `<span style="display:block;font:400 14px/20px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);white-space:normal;padding:11px 0 12px">Whether a charge applies to everyone, is the resident's to choose, or only applies under certain conditions.</span>`
       + `<span style="display:flex;flex-direction:column;gap:10px">`
       + term('Required', 'Applies to every resident. There is no way to opt out.')
       + term('Optional', 'The resident decides whether to add it, like a pet, a parking space, or a storage unit.')
@@ -7278,7 +7277,7 @@ class Component extends DCLogic {
       + "var w=t.offsetWidth,h=t.offsetHeight;var l=r.left;if(l+w>window.innerWidth-8)l=window.innerWidth-8-w;if(l<8)l=8;"
       + "var y=r.bottom+6;if(y+h>window.innerHeight-8)y=r.top-h-6;if(y<8)y=8;t.style.left=l+'px';t.style.top=y+'px';";
     const lockHide = "var t=document.getElementById('m-lock-tip');if(t)t.style.display='none';";
-    const lockTip = `<span id="m-lock-tip" style="display:none;position:fixed;left:0;top:0;width:290px;padding:14px 16px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5;z-index:400"><span style="display:block;white-space:normal">The amount is pulled from the pet type selected and cannot be edited.</span></span>`;
+    const lockTip = `<span id="m-lock-tip" style="display:none;position:fixed;left:0;top:0;width:312px;padding:16px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 3px 6px rgba(0,0,0,0.10);font:400 14px/20px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);text-align:left;z-index:400"><span style="display:block;white-space:normal">The amount is pulled from the pet type selected and cannot be edited.</span></span>`;
     // The amount pair rides the date row, so General Details is three rows rather than four.
     const amountFields = `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Amount Method')}${dd('m-method',['Flat','Reference','Calculation'],src,{noSearch:true,js:methodJs})}</div>
       <div style="flex:1;min-width:0">
@@ -7522,7 +7521,7 @@ class Component extends DCLogic {
       ${attrHead('m-pet', 'Pet Details (Optional)')}
       <div id="m-pet-body" style="display:flex;flex-direction:column;gap:12px">
         <div style="display:flex;flex-direction:column;gap:4px">
-          <span style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--rmx-text, #666666)">Pet Type${this.infoTip('<span style="display:block;white-space:normal">Pet Details must be edited on the Pet Type. It also affects the charge amount above.</span>', 290)}</span>
+          <span style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--rmx-text, #666666)">Pet Type${this.infoTip('<span style="display:block;white-space:normal">Pet Details must be edited on the Pet Type. It also affects the charge amount above.</span>')}</span>
           ${dd('m-at-pettype', petList.map(t => t.name), petSel, { blank:true, placeholder:' ', js:"if(window.__petTypePick)window.__petTypePick(_v)" })}
           <input type="hidden" id="m-at-petkind" value="${esc(petKind0)}">
         </div>
@@ -7650,7 +7649,7 @@ class Component extends DCLogic {
     // won't be visible to residents up front.
     // Off, the charge is kept off listings on purpose — which is worth a word, but not a standing
     // line under the fields. It is a warning beside the toggle whose hover says why.
-    const ilsWarnTip = this.infoTip('<span style="display:block;white-space:normal">For full fee transparency, include this charge on listings so residents see it up front.</span>', 300,
+    const ilsWarnTip = this.infoTip('<span style="display:block;white-space:normal">For full fee transparency, include this charge on listings so residents see it up front.</span>', undefined,
       { trigger: `<span style="display:inline-flex">${this.ico('error', 20, 'color:var(--rmx-notice, #faa61c)')}</span>` });
     const ilsNote = `<div id="m-date-note" style="display:${(di0.expired||di0.future)?'flex':'none'};align-items:center;gap:8px">${(di0.expired||di0.future)?dateNoteHTML(di0):''}</div>`;
     // Missing fields only warn — they never lock the toggle. Only an expired To date does.
@@ -7778,7 +7777,7 @@ class Component extends DCLogic {
     const picked = rows.filter(r => c.sel[r.id]).length;
     const box = on => `<span style="width:18px;height:18px;border-radius:2px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${on?'background:var(--rmx-attention, #f58220);border:1px solid var(--rmx-attention, #f58220)':'background:#fff;border:1px solid var(--rmx-text-muted, #b3b3b3)'}">${on?'<svg class="ico" width="14" height="14" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:#fff"><path d="M378-246 154-470l43-43 181 181 384-384 43 43-427 427Z"/></svg>':''}</span>`;
     const radio = (val, label, em) => `<label data-act="copyDup" data-arg="${val}" style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;color:var(--rmx-brand-dark, #13314c)"><span style="width:18px;height:18px;border-radius:50%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;border:1px solid ${c.dup===val?'var(--ac,var(--rmx-brand, #008dd5))':'var(--rmx-text-muted, #b3b3b3)'}">${c.dup===val?'<span style="width:10px;height:10px;border-radius:50%;background:var(--ac,var(--rmx-brand, #008dd5))"></span>':''}</span><span>${label}<i style="color:var(--rmx-ink-2, #424e5b)"> ${em}</i></span></label>`;
-    const dupTip = this.infoTip(`<span style="display:block;white-space:normal">A duplicate is a charge matching one this profile already has; same charge type, frequency, and name, at the same level (property, unit type, or unit). For example, if both profiles have a recurring property Rent charge, that's a duplicate.</span>`, 330);
+    const dupTip = this.infoTip(`<span style="display:block;white-space:normal">A duplicate is a charge matching one this profile already has; same charge type, frequency, and name, at the same level (property, unit type, or unit). For example, if both profiles have a recurring property Rent charge, that's a duplicate.</span>`);
     const table = (label, list, isRec) => {
       const colK = 'copy-' + (isRec ? 'rec' : 'one');
       const cols = this.colTracks(colK, isRec ? '44px 120px minmax(150px,1fr) 90px 100px 90px 110px 110px'
@@ -8205,7 +8204,7 @@ class Component extends DCLogic {
     const readyCell = (r) => {
       const miss = this.mitsMissing(r);
       if (!miss.length) return `<span style="display:flex;align-items:center;min-height:44px;padding:0 10px">${this.ico('check_circle', 20, 'color:var(--rmx-success, #6eb744)')}</span>`;
-      const tip = this.infoTip(`<span style="display:block;white-space:normal"><strong style="color:var(--rmx-brand-dark, #13314c)">Still needed</strong><br>${miss.map(esc).join('<br>')}</span>`, 240,
+      const tip = this.infoTip(`<span style="display:block;white-space:normal"><strong style="color:var(--rmx-brand-dark, #13314c)">Still needed</strong><br>${miss.map(esc).join('<br>')}</span>`, undefined,
         { trigger: `<span style="display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 9px;border-radius:4px;background:#fdf3e7;font-size:13px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;cursor:default">${this.ico('error', 15, 'color:var(--rmx-attention, #f58220)')}${miss.length} field${miss.length === 1 ? '' : 's'} needed</span>` });
       return `<span style="display:flex;align-items:center;min-height:44px;padding:0 10px;white-space:nowrap">${tip}</span>`;
     };
@@ -8216,8 +8215,8 @@ class Component extends DCLogic {
     const dd = (id, opts, val) => this.singleSelect(id, opts, val, { noSearch:true, blank:true, placeholder:' ' });
     const lab = (t, help) => `<span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--rmx-text, #666666)">${t}${help || ''}</span>`;
     const fld = (label, ctl, help) => `<div style="display:flex;flex-direction:column;gap:4px;min-width:0">${lab(label, help)}${ctl}</div>`;
-    const catHelp = this.infoTip('<span style="display:block;white-space:normal">A charge inherits the category of its charge type. Change it on Charge Types &gt; Charge Type Details.</span>', 280);
-    const schedHelp = this.infoTip('<span style="display:block;white-space:normal">How often listing sites should say this charge is collected.</span>', 250);
+    const catHelp = this.infoTip('<span style="display:block;white-space:normal">A charge inherits the category of its charge type. Change it on Charge Types &gt; Charge Type Details.</span>');
+    const schedHelp = this.infoTip('<span style="display:block;white-space:normal">How often listing sites should say this charge is collected.</span>');
 
     const panel = (r) => {
       const e = eff(r);
@@ -8234,7 +8233,7 @@ class Component extends DCLogic {
           ${fld('Name', txt('mp-name-' + r.id, e.name))}
           ${fld('Marketing Description', txt('mp-marketing-' + r.id, e.marketing))}
           ${fld('Charge Category', dd('mp-category-' + r.id, this.chargeCategoryOptions(), e.category),
-            this.infoTip(`<span style="display:block;white-space:normal">Listing sites group fees by category.${e.inherited ? ' This charge’s type is set to <strong style="color:var(--rmx-brand-dark, #13314c)">' + esc(e.inherited) + '</strong>, but listings need the category chosen for the charge itself.' : ''}</span>`, 300))}
+            this.infoTip(`<span style="display:block;white-space:normal">Listing sites group fees by category.${e.inherited ? ' This charge’s type is set to <strong style="color:var(--rmx-brand-dark, #13314c)">' + esc(e.inherited) + '</strong>, but listings need the category chosen for the charge itself.' : ''}</span>`))}
           ${fld('Charge Requirement', dd('mp-requirement-' + r.id, REQ, e.requirement))}
           ${one ? fld('Fee Due', dd('mp-feeDue-' + r.id, DUE, e.feeDue)) : fld('Fee Due', `<span style="display:flex;align-items:center;height:36px;font-size:14px;color:var(--rmx-text, #666666)">Collected across the term</span>`)}
           ${one ? '<div></div>' : fld('Charge Schedule', dd('mp-schedule-' + r.id, SCHED, e.schedule), schedHelp)}
@@ -8335,7 +8334,7 @@ class Component extends DCLogic {
     const udf = (label, t, tip) => `<span style="display:flex;align-items:center;gap:8px">
         <span style="display:inline-flex;align-items:center;gap:5px;min-width:0">
           <span style="min-width:0;font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}</span>
-          ${tip ? `<span style="display:inline-flex;flex:none">${this.infoTip(`<span style="display:block;white-space:normal">${tip}</span>`, 300)}</span>` : ''}
+          ${tip ? `<span style="display:inline-flex;flex:none">${this.infoTip(`<span style="display:block;white-space:normal">${tip}</span>`)}</span>` : ''}
         </span>
         <span style="flex:1"></span>
         <a data-act="todo" data-arg="${t}" style="display:inline-flex;align-items:center;gap:4px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${this.ico('add', 20)}${t}</a>
@@ -8442,7 +8441,7 @@ class Component extends DCLogic {
               // control swallows them otherwise and the hover never fires.
               const offBtn = `<button disabled style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font:400 14px Roboto,sans-serif;white-space:nowrap;flex:none;background:rgba(0,141,213,0.5);color:#fff;border:none;cursor:default;pointer-events:none">Activate Fee Transparency</button>`;
               return ch.incomplete
-                ? `<span style="flex:none">${this.infoTip('<span style="display:block;white-space:normal">All charges need to have charge marketing filled out to activate fee transparency.</span>', 300, { trigger: offBtn })}</span>`
+                ? `<span style="flex:none">${this.infoTip('<span style="display:block;white-space:normal">All charges need to have charge marketing filled out to activate fee transparency.</span>', undefined, { trigger: offBtn })}</span>`
                 : `<button data-act="pubOpen" data-arg="${arg}" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap;flex:none">Activate Fee Transparency</button>`;
             })()}
           </div>

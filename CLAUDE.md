@@ -123,11 +123,18 @@ belongs in both files. The rule is the dialog's **header** only: section titles,
 the Listings banner's own *Fee Transparency Setup* heading stay 16/600.
 
 `infoTip`'s panel is RMX's **Tooltip** (RMX Components `2944:203796`): 312px wide, 16px padding,
-1px `#cedbe7`, 4px radius, drop shadow `0 3px 6px rgba(0,0,0,0.10)`, Roboto Regular 14/20. Its
-trigger is Material Icon / Medium / Brand — the squared `info_outline` at 20px, not the rounded
-Symbols glyph. The panel sets `font:400` on itself: it renders inside whatever triggered it, so a
-bold heading was bleeding into the body text. Callers may still pass a narrower width; everything
-else is the component's.
+1px `#cedbe7`, 4px radius, drop shadow `0 3px 6px rgba(0,0,0,0.10)`, Roboto Regular 14/20, left
+aligned. Its trigger is Material Icon / Medium / Brand — the squared `info_outline` at 20px, not the
+rounded Symbols glyph. The panel sets `font:400` on itself: it renders inside whatever triggered it,
+so a bold heading was bleeding into the body text.
+
+**Every tooltip in the file is that one component.** No caller passes a width any more — they ran
+240 to 330 and looked like different things — and the two hand-rolled ones were brought onto it: the
+register's CSS `.tipw .tip` and the pet-amount `lockTip`, both of which had their own width, padding
+and a heavier `0 6px 20px` shadow. `fieldHelp` and `reqHelp` keep their structure (a 14/600 title
+over a rule, then terms) but their body text is the panel's own 14/20 `--rmx-brand-dark`, not the
+12px grey it was. The `0 6px 20px` shadow still belongs to **dropdown panels**, which are a
+different component. `infoTip(inner, width, opts)` still takes a width; nothing passes one.
 
 **The register runs tight: a 32px header row over 36px content rows.** 32 is what RMX's Header
 component measures in `3573:779`; the 36 is the user's own call, below RMX's 44px Cell, so a
