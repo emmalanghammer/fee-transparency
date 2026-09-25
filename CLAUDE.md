@@ -46,7 +46,8 @@ every listing already advertises complete pricing (`needsFT`).
   whole, going to `openFeeProfile` because the property's Charges overlay is where a charge's
   marketing is written in C; and *Set Property Defaults* with **Edit Defaults**, going to
   `mcOpenProp`, since property-level defaults aren't a separate surface and Marketing Setup is the
-  nearest real thing. `openFeeProfile` clears `ftSetup` so the overlay closes behind it.
+  nearest real thing. Both `openFeeProfile` and `mcOpenProp` clear `ftSetup`, so the Setup overlay closes behind
+  whichever one you pressed rather than sitting over the overlay it just opened.
 
 **The green banner is conditional, and that is the point.** *Ready to display all charges?* with
 **Activate Fee Transparency** (`ftActivateReady`) renders only when `ftReadyProps()` is non-empty —
