@@ -161,7 +161,7 @@ them**, green for none. Charges short of marketing details make the listing adve
 price, which is an error of the same weight as a rejected feed — and the Listing Ready Charges dot
 beside it is red for the same reason, so a row can't say amber in one column and red in the next.
 `ltErrHTML` shows all three as collapsible sections; the third, **Charge Marketing Errors**,
-itemises each charge and the fields it lacks, with **Add charge details** through to Marketing
+itemises each charge and the fields it lacks, with **Add Charge Details** through to Marketing
 Setup — which goes to the property's **Charges** tab (`openFeeProfile`, which clears `ltErr` so the
 dialog closes behind it), because the charges are what needs filling in. `ltChargeIssues` takes a
 **property**, not a listing.
