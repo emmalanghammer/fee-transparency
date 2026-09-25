@@ -457,7 +457,10 @@ charge type supplies.
 matching Figma `3576:12748`: Contact Information, Descriptions, Listing Details, Features, Floor
 Plans and **Default Charge Marketing**. **Descriptions** is Figma `3575:126028`: two equal fields,
 Marketing Description over Promotional Description, each carrying its own **Add from UDF** on its
-label row — the tile header has no action — with the **Orion help button** in the
+label row — the tile header has no action — and each label an `infoTip` saying which is which, since
+the two boxes look identical and are not for the same thing: the marketing one describes the
+property, the promotional one carries whatever is on offer right now. Only the label text truncates
+when the tile is narrow; the icon and the link are `flex:none` beside it — with the **Orion help button** in the
 bottom-left corner **inside** the Marketing Description box, a white bubble with a 1px brand border
 and one square corner (`border-radius:200px 200px 200px 0`). It is absolute against the box itself
 (`descBox` is `position:relative` and takes it as an argument) — it used to be absolute against the
