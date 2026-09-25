@@ -526,7 +526,8 @@ default, with **Include on listings** on the header's right — the toggle itsel
 without opening the section; its `onclick` stops propagation or the header's own collapse fires
 under it. There is no count lozenge and no line describing what the charge inherits: the Figma has
 neither, and the outstanding fields are already named as chips inside. **Neither collapsible section is boxed** — Charge Marketing and Exceptions are a header row on the
-form, not a card; Charge Marketing's fields carry the only border, which is the card inside it.
+form, not a card. The border belongs to the **fields**: each section's open body is one card inset
+from the header, so the two read the same and the same edge is never drawn twice.
 Open, the section is one bordered card holding an **Override … Default** checkbox over the fields:
 unticked,
 they are RMX's disabled Input Field showing what it inherits (`#m-mkt-locked`, mirrored from the
