@@ -33,7 +33,8 @@ every listing already advertises complete pricing (`needsFT`).
   on a listing, then three notes with tinted 33px icon tiles: *Required in Some States* (amber
   `error`), *Streamlined Process* (grey `settings`), *Applicable Properties* (brand `apartment`).
 - **Set Defaults** + a blue `Recommended` lozenge — also collapsed. Open, it explains inheritance
-  and offers **Set Defaults on Charge Types** (`navChargeTypes`).
+  and offers **Set Defaults on Charge Types** (`navChargeTypes`, which closes the overlay behind it:
+  you asked to go to the charge types, not to read them through a scrim).
 - **Add Marketing Details to Charges** + a red `Required` lozenge — always open, because on the
   second visit that is what you came for. One row per property fee transparency can apply to
   (`ftApplicable`, and only where listings carry charges at all): a home icon, the name, a

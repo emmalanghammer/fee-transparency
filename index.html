@@ -1083,7 +1083,10 @@ class Component extends DCLogic {
         else this.go('property', Object.assign({ propTab: 'General' }, opens));
         break; }
       case 'navPetTypes': this.go('pettypes'); break;
-      case 'navChargeTypes': this.go('chargetypes'); break;
+      // Reached from the Fee Transparency Setup overlay's Set Defaults card as well as the menu, so
+      // it closes that overlay behind it — you asked to go to the charge types, not to read them
+      // through a scrim.
+      case 'navChargeTypes': this.go('chargetypes', { ftSetup: null }); break;
       case 'ctInactiveToggle': this.setState(s => ({ ctShowInactive: !s.ctShowInactive })); break;
       case 'regInactiveToggle': this.setState(s => ({ regShowInactive: !s.regShowInactive })); break;
       case 'ctAddOpen': this.setState({ ctAdd: { code:'', desc:'', gl:'', amount:'0.00', props:null, category:'', active:true } }); break;
