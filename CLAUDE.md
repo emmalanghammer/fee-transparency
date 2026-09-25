@@ -163,7 +163,7 @@ you on the property. Called from anywhere else it still goes to the property pag
 portfolio view, a scoreboard reading 4/4 over thirteen properties' listings is a contradiction.
 
 **`marketing-center.html` is frozen — the user said so on 2026-09-25.** Work goes into
-`index.html` only. A changed to shared chrome no longer has to be mirrored across, so "change X"
+`index.html` only. A change to shared chrome no longer has to be mirrored across, so "change X"
 is no longer ambiguous: it means C. A is kept as a readable record of the Marketing Center design,
 not as a build that tracks the work. Touch it only if the user asks for it by name.
 
