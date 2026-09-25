@@ -526,6 +526,28 @@ class Component extends DCLogic {
   // or clearing a field would be undone the next time the overlay opened. Nothing else reads this:
   // `state.mktDef` stays empty until someone saves, so a seed can't quietly make a charge listing
   // ready.
+  // What `state.mktDef` starts as: every charge type already carrying its default charge marketing,
+  // so the tiering is there to look at rather than something to set up first. **Five types are left
+  // short on purpose** — the ones Riverview's charges run on — because Happy Path exists to show a
+  // property with work still to do, and a complete default on those types would cascade down and
+  // make it ready. They carry the descriptive fields and stop before Charge Requirement, which is
+  // the field the walkthrough goes to fill in.
+  mktDefAll(){
+    const SHORT = { RC:1, GARBAG:1, GARBAGEFEE:1, ADMIN:1, DP:1 };
+    const out = {};
+    this.chargeTypeList().forEach(([code, desc]) => {
+      const seed = this.mktDefSeed(code);
+      const d = { name: desc, category: this.chargeCategoryFor(code), marketing: '',
+        requirement: '', schedule: '', feeDue: '', refundable: seed.refundable };
+      if (!SHORT[code]) {
+        d.requirement = this.inferRequirement({ mits: code, desc: desc });
+        d.schedule = 'Monthly';
+        d.feeDue = seed.feeDue || 'During Term';
+      }
+      out[code] = d;
+    });
+    return out;
+  }
   mktDefSeed(code){
     const c = String(code || '').toUpperCase();
     const desc = this.chargeTypeDesc(c) || '';
@@ -2654,6 +2676,9 @@ class Component extends DCLogic {
   componentDidMount(){
     if (this._scenRead) return;
     this._scenRead = true;
+    // The charge types come with their default charge marketing already set — `state.mktDef` can't
+    // be built in the state literal, which is written before the methods exist.
+    this.setState({ mktDef: this.mktDefAll() });
     const k = (String(location.search || '').match(/[?&]scen=([a-z0-9]+)/) || [])[1];
     if (k && k !== this.state.scenario && this.scenarioList().some(o => o.key === k)) this.scenarioApply(k);
   }
@@ -2670,7 +2695,7 @@ class Component extends DCLogic {
       newProps: [], addProp: null, histLog: [], toggles: {}, tenantCharges: {},
       modal: null, bulk: null, bulkSel: null, bulkUpd: null,
       copyFees: null, pricePreview: null, profMenu: null, profHist: null,
-      recView: null, rowMenu: null, pubModal: null, ftSel: null, mktDef: {},
+      recView: null, rowMenu: null, pubModal: null, ftSel: null, mktDef: this.mktDefAll(),
       mktSetup: false, mktAdv: false, mktTab: 'General', petType: null, spBanner: true, ftHelp: false,
       lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false, ltGroupBy: true, ftSetup: null, propDef: {}, ctmEdit: null, mcTab: 'Overview',
       mcProp: null, mktDefDraft: null, mktDefAsk: false, mktDefMode: 'new', mpExp: null

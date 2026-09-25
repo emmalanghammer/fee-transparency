@@ -525,11 +525,18 @@ and `lab` is `Text/text-primary`. The checkbox's label swallows its own clicks
 `#b3b3b3`, 36px, and the chevron stays on a dropdown. Marketing Description is the disabled Text
 Box, 56px with the text at the top. The unchecked box is 20px with a 2px `#b3b3b3` border.
 
-**`state.mktDef` starts empty in every scenario**, so a charge type has no defaults until someone
-sets them on Charge Type Details — and the dialog's locked fields are blank, saying
-*“<code> has no default charge marketing yet”* rather than looking broken. Seeding defaults would
-fill them, but it would also make Riverview's five charges listing ready through the cascade and
-collapse the Happy Path, which exists to show a property that still has work to do.
+**Every charge type starts with its default charge marketing set** (`mktDefAll()`, applied in
+`componentDidMount` and on every `scenarioApply`; it can't live in the state literal, which is
+written before the methods exist). The tiering is there to look at rather than something to set up
+by hand first.
+
+**Five types are deliberately left short**: `RC`, `GARBAG`, `GARBAGEFEE`, `ADMIN` and `DP`, the ones
+Riverview's charges run on. They carry Name, Charge Category and Refundable and stop before Charge
+Requirement, Charge Schedule and Fee Due. A complete default on those types would cascade down and
+make Riverview listing ready, collapsing the Happy Path — which exists to show a property with work
+still to do. Charge Requirement is what that walkthrough goes to fill in. **Adding a charge type to
+that list, or completing one of the five, changes what Happy Path demonstrates**: check Listings
+still reads 0/5 for Riverview afterwards.
 
 **`mktPricingBody` is no longer reachable in C.** The Pricing tab it lived on is gone with this
 design, and the per-charge Save footers (`mpSaveRow`, `mpCommit`, `mpCapture`) go with it. The code
