@@ -722,13 +722,17 @@ class Component extends DCLogic {
   // one of them and their charges have to be listing ready.
   happyPathCharges(){
     return {
+      // Every property runs an NSF and a late fee, so every keep list carries them — they are what
+      // the Property Specific Charges section is, and a walkthrough that never shows it would be
+      // the one scenario where that section doesn't exist. They cost the walkthrough nothing:
+      // both are `ils:false`, so they are never counted towards listing readiness.
       // GARBAGEFEE sits on a single unit, so Riverview keeps it and the walkthrough still has a charge
       // that reaches one unit and not the rest.
-      'Riverview Apartments': ['RC','GARBAG','GARBAGEFEE','ADMIN','DP'],
-      'The Berkshires':       ['RC','DP'],
-      'The Windermere':       ['RC','APPFEE'],
+      'Riverview Apartments': ['RC','GARBAG','GARBAGEFEE','ADMIN','DP','NSFFEE','LC'],
+      'The Berkshires':       ['RC','DP','NSFFEE','LC'],
+      'The Windermere':       ['RC','APPFEE','NSFFEE','LC'],
       // Oakwood is the finished example, so it carries the charges nearly every property has.
-      'Oakwood Manor':        ['RC','DP','ADMIN','GARBAG']
+      'Oakwood Manor':        ['RC','DP','ADMIN','GARBAG','NSFFEE','LC']
     };
   }
   propChargePlan(){

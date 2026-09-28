@@ -289,6 +289,12 @@ from the first look. Nothing is migrated or turned on: `profileRows(prop)` falls
 `defaultCharges(prop)`, which reads the charges the property already runs with their marketing
 details blank. `profileFees[prop]` only exists once someone edits something.
 
+**Happy Path carries them too.** `propChargePlan` turns `happyPathCharges()` into a keep list, and
+NSF and late fees used to fall outside it — so the one scenario a walkthrough runs in was the one
+where the Property Specific Charges section didn't exist. Every keep list names `NSFFEE` and `LC`
+now. It costs the walkthrough nothing: both are `ils:false`, so they never count towards listing
+readiness, and Riverview still reads **0/5**.
+
 **NSF and late fees are their own section.** `feeProfileBody` splits `propSpecific` rows out of
 `visibleRows()` before anything else and renders them as **Property Specific Charges** under
 *Set on the property, and never part of the price a listing advertises* — below Recurring and
