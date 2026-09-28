@@ -569,51 +569,76 @@ thrown away the moment the property changes. Without that stamp one property's t
 another's rows, which reads as a charge whose badge says complete over fields that look empty.
 
 The **Charges overlay carries almost none of it**. The charge form's two sections are **General**
-and **Charge Marketing** — the second collapsed by default with the outstanding count in its header;
-collapsing hides the body rather than dropping it, so `saveFee` still reads every field.
+and **Charge Marketing** — the second collapsed by default; collapsing hides the body rather than
+dropping it, so `saveFee` still reads every field.
 
-**The section works like the property override**, and matches Figma `3606:62884`. Collapsed by
+**The section matches Figma `3606:62884`.** Collapsed by
 default, with **Include on listings** on the header's right — the toggle itself, so it can be set
 without opening the section; its `onclick` stops propagation or the header's own collapse fires
 under it. **Off, an amber `error` sits beside it** (`#m-ils-warn`, shown by `__calcNote` and
 `__mitsRecheck`) whose hover tooltip reads *“For full fee transparency, include this charge on
 listings so residents see it up front.”* — that used to be a standing line under the fields, which
-said the same thing whether or not anyone was looking for it. There is no count lozenge and no line describing what the charge inherits: the Figma has
-neither, and the outstanding fields are already named as chips inside. **Neither collapsible section is boxed** — Charge Marketing and Exceptions are a header row on the
+said the same thing whether or not anyone was looking for it. The header carries no count except in
+state 4 below, and no line describing what the charge inherits: the Figma has neither, and what is
+short is marked on the fields themselves. **Neither collapsible section is boxed** — Charge Marketing and Exceptions are a header row on the
 form, not a card — they read as **General** does, a heading over a bordered card, with a chevron
 added. The header row carries no horizontal padding and the card runs the full width, so all three
 sections' cards line up on the same left and right edges.
-Open, the section is one bordered card holding an **Override … Default** checkbox over the fields:
-unticked,
-they are RMX's disabled Input Field showing what it inherits (`#m-mkt-locked`, mirrored from the
-live inputs by `window.__mktLockSync`); ticked, the charge's own (`#m-mkt-fields`), already holding
-what it was inheriting, so an override is an edit of the default rather than an empty form.
-`window.__mktOverride` swaps the two in the DOM.
+**There is no override mode.** The checkbox is gone, and with it `#m-ovr`, `#m-mkt-locked`,
+`window.__mktOverride` and `window.__mktLockSync`. The fields are always live and already hold what
+the charge inherits, so nothing has to be understood before anyone can type. The cost — you can no
+longer tell inherited from typed at a glance — is paid back by marking only what is actually
+different: a field moved off its inherited value wears a **Changed** lozenge with **Revert** beside
+its label, and **Reset all to default** appears in the source row while any field does.
+`window.__mktDiff` is the one place that answers *is this field the charge's own?*, and it lights
+the marks, the Reset link and the source row's chip together so the three cannot disagree.
+`MKTKEYS` is the one list of which field is which; `__mktRevert(key)` hands one field back and
+`__mktResetAll` all of them, recording the value it gave as `__mktDefaults`' own so a later charge
+type change still refills it.
 
-**A source row states which tier the values come from**, above the checkbox: *Coming from* a brand
-chip naming the tier, and for a property override the clause *its override of `<CODE>`*. The
-checkbox names that same tier — **Override Riverview Apartments**, **Override GARBAG charge type**.
-`mktSourceOf(code, own)` answers both, so they cannot disagree: the charge's own values win, then
-the property's override (`ctmOwn`), then the charge type when it has anything set, and a type with
-nothing set says so instead of naming a source. `window.__mktOvrNote` writes the row and the label
-together — on every render, when the charge type changes, and when the box is ticked.
+**A source row states which tier the values come from**: *Coming from* a brand chip naming the tier,
+and for a property override the clause *its override of `<CODE>`*. `mktSourceOf(code, own)` answers
+it — the charge's own values win, then the property's override (`ctmOwn`), then the charge type when
+it has anything set, and a type with nothing set says so instead of naming a source. `own` is now
+`__mktDiff`'s answer rather than a checkbox, so the row flips to **This charge** the moment a field
+is edited and back the moment it is reverted.
 
-**An existing charge seeds its locked fields on open.** They mirror the form's inputs, and an
-inheriting charge's inputs are empty, so a charge doing the ordinary thing read as a charge with
-nothing set. `componentDidUpdate` now runs `__mktDefaults` once per form (`this._mktSeeded`, keyed
-to `state.modal`, cleared on `addopen` / `addclose`) when the override is off, the same fill that
-picking a charge type does. **What is still missing sits inside the card**, under a rule below the fields — it is about those
-fields, and read as a separate warning when it sat outside them. The sentence depends on whether the
-property has been activated: before, *“Fee transparency can't be activated on this property with
-missing charge marketing fields.”*; after, *“Any listing using this charge will not post on online
-listings if all required fields are not filled out”*.
+**An existing charge opens already holding what it inherits.** `componentDidUpdate` runs
+`__mktDefaults` once per form (`this._mktSeeded`, keyed to `state.modal`, cleared on `addopen` /
+`addclose`), the same fill that picking a charge type does; a field the charge owns is never
+overwritten.
+
+**The section reads in four states, and which one is the property's answer, not the charge's.**
+`__mitsRecheck` paints all of it from `ilsOn()` and `publishedProps`.
+
+1. **Not advertised online.** No Include-on-listings toggle, nothing marked missing, no message —
+   and one `infoTip` beside the **Charge Marketing** heading saying the property doesn't advertise
+   on a listing site, so none of this is published yet. There is no label on the right announcing
+   it: that a charge is published nowhere is the least useful thing about it.
+2. **Advertising, not activated.** Amber. A **Needed** lozenge sits on each short field's own label
+   (`#m-need-<key>`, written by `__mitsRecheck`) rather than a list of names underneath — a list
+   makes you match them back up, a mark on the field is the instruction. The note counts both:
+   *N fields on this charge*, and the property total, which is `otherShort` (every other `ils`
+   charge's `mitsMissing`) plus this charge's live count, so the two halves can't double-count.
+3. **Activated and complete.** A simple green status — *“Complete. This charge is advertised on the
+   property's listings.”* Nothing else: green is the absence of work, so it takes the least room.
+4. **Activated and short.** Red, and red is earned here and nowhere else — this is the one state
+   costing something today. The card takes a red border, the lozenges read **Required**, the note
+   names the listings actually held back (*“Units 214 and 302 are not posting”*, from `affectedUnits`
+   — the charge's own unit when it is written at unit level, everything the property advertises
+   otherwise) and offers the second way out, taking the charge off listings. The count
+   (`#m-mkt-count`) sits in the **collapsed** header, because this is the one state that has to be
+   legible without opening the section.
 
 **The Exceptions header is the heading alone.** What a charge covers is read off Charge Level in the
 General card above it, so restating it on the right said the same thing twice.
 
-**Unticked, `saveFee` writes no marketing values at all**, so the charge
-inherits through `resolvedListing`; `mktDefFill` no longer runs on create, because copying the
-defaults down would make every new charge an override of them.
+**`saveFee` asks ownership of each field on its own.** A value that still matches what the charge
+inherits (`ctmFor(property, code)`) is stored **empty**, so the charge keeps following its tier
+through `resolvedListing`; only what someone actually changed becomes the charge's. That is what
+makes Option C safe — without it, opening a charge and pressing Save would freeze today's defaults
+onto it. The property specific branch (NSF, Late) does the same. `mktDefFill` still never runs on
+create, because copying the defaults down would make every new charge an override of them.
 
 **A charge of nothing warns, where the property lists online.** `window.__amtNote` shows an amber
 note under the Amount when the method is **Flat** and the typed figure is zero or negative:
