@@ -1857,7 +1857,8 @@ class Component extends DCLogic {
     const grp = (req === 'Optional' ? 'opt-' : req === 'Situational' ? 'sit-' : req === 'Required' ? 'req-' : 'ind-') + (isOne ? 'one' : 'rec');
     const row = {
       group: grp, mits: code.toUpperCase(), name: intName || code, desc: v('m-comment'),
-      freq: isOne ? '' : ('Every ' + (v('m-freq') || '1') + ' Month'), from: v('m-from'), to: v('m-to'),
+      freq: isOne ? '' : ('Every ' + (v('m-freq') || '1') + ' Month'),
+      from: isOne ? '' : v('m-from'), to: isOne ? '' : v('m-to'),
       amount, amtMethod: src, level: app, target, oriType, ils,
       // Commercial charges keep their distribution basis so reopening shows the CRE sections.
       cre: !!(m.cre || (m.edit && m.edit.cre)) || undefined,
@@ -3515,20 +3516,20 @@ class Component extends DCLogic {
     const CTMK = [['name','ctm-name'], ['category','ctm-category'], ['marketing','ctm-marketing'],
       ['requirement','ctm-requirement'], ['schedule','ctm-schedule'], ['feeDue','ctm-feeDue'],
       ['refundable','ctm-refundable']];
-    // The same shape as the charge form: no mode to pick first, and no per-field mark. The fields
-    // are live and already hold what this property would show anyway; the source row says whose
-    // values they are, and Reset all to default is the way back.
+    // The same shape as the charge form: no mode to pick first, and no Changed lozenge. The fields
+    // are live and already hold what this property would show anyway; one that has been moved off
+    // the charge type offers **Revert** on its label, and Reset all to default does the lot.
     const DIFFJS = 'if(window.__ctmDiff)window.__ctmDiff()';
-    const fld = (label, ctl, tip) => `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0"><span style="display:inline-flex;align-items:center;gap:6px">${lab(label)}${tip || ''}</span>${ctl}</div>`;
+    const fld = (label, ctl, tip, key) => `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0"><span style="display:inline-flex;align-items:center;gap:6px">${lab(label)}${tip || ''}${!key ? '' : `<a id="ctm-rev-${key}" onclick="if(window.__ctmRevert)window.__ctmRevert('${key}')" style="display:none;font-size:13px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Revert</a>`}</span>${ctl}</div>`;
     const txt = (id, val) => F.txt(id, val, '', DIFFJS);
     const area = (id, val) => `<textarea id="${id}" oninput="${DIFFJS}" style="box-sizing:border-box;width:100%;height:60px;padding:8px 10px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);resize:none">${esc(val)}</textarea>`;
     const dd = (id, opts, val) => this.singleSelect(id, opts, val, { noSearch:true, blank:true, placeholder:' ', js:DIFFJS });
 
     const pair = (a, b) => `<div style="display:flex;gap:16px">${a}${b}</div>`;
-    const body = pair(fld('Name', txt('ctm-name', v('name'))), fld('Charge Category', dd('ctm-category', this.chargeCategoryOptions(), v('category')), H.category))
-      + fld('Marketing Description', area('ctm-marketing', v('marketing')))
-      + pair(fld('Charge Requirement', dd('ctm-requirement', REQ, v('requirement')), H.requirement), fld('Charge Schedule', dd('ctm-schedule', SCHED, v('schedule')), H.schedule))
-      + pair(fld('Fee Due', dd('ctm-feeDue', DUE, v('feeDue')), H.feeDue), fld('Refundable', dd('ctm-refundable', REF, v('refundable'))));
+    const body = pair(fld('Name', txt('ctm-name', v('name')), '', 'name'), fld('Charge Category', dd('ctm-category', this.chargeCategoryOptions(), v('category')), H.category, 'category'))
+      + fld('Marketing Description', area('ctm-marketing', v('marketing')), '', 'marketing')
+      + pair(fld('Charge Requirement', dd('ctm-requirement', REQ, v('requirement')), H.requirement, 'requirement'), fld('Charge Schedule', dd('ctm-schedule', SCHED, v('schedule')), H.schedule, 'schedule'))
+      + pair(fld('Fee Due', dd('ctm-feeDue', DUE, v('feeDue')), H.feeDue, 'feeDue'), fld('Refundable', dd('ctm-refundable', REF, v('refundable')), '', 'refundable'));
 
     // One row says which tier these values come from, and it is the same answer that lights the
     // Changed marks: the property owns them only where they differ from the charge type.
@@ -3545,8 +3546,10 @@ class Component extends DCLogic {
     window.__ctmDiff = () => {
       let any = false;
       CTMK.forEach(([k, id]) => {
-        const el = this.q('#' + id); if (!el) return;
-        if (String(el.value || '') !== String(base[k] || '')) any = true;
+        const el = this.q('#' + id), rev = this.q('#ctm-rev-' + k); if (!el) return;
+        const diff = String(el.value || '') !== String(base[k] || '');
+        if (rev) rev.style.display = diff ? 'inline' : 'none';
+        if (diff) any = true;
       });
       const rs = this.q('#ctm-reset'); if (rs) rs.style.display = any ? 'inline' : 'none';
       const row = this.q('#ctm-src'); if (row) row.innerHTML = srcRow(any);
@@ -4955,8 +4958,10 @@ class Component extends DCLogic {
       { key:'ctype',    label:'Charge Type',           w:'120px', base:true },
       { key:'comment',  label:'Comment',                          base:true },
       { key:'freq',     label:'Frequency',             w:'110px', base:true, recOnly:true },
-      { key:'from',     label:'From',                  w:'100px', base:true },
-      { key:'to',       label:'To',                    w:'90px',  base:true },
+      // Frequency, From and To are recurring-only together: a one-time charge has no window, so
+      // showing the columns would only ever print a dash under them.
+      { key:'from',     label:'From',                  w:'100px', base:true, recOnly:true },
+      { key:'to',       label:'To',                    w:'90px',  base:true, recOnly:true },
       { key:'amount',   label:'Amount',                w:'110px', base:true },
       { key:'level',    label:'Charge Level',          w:'170px', base:true },
       { key:'ready',    label:'Listing Ready',         w:'150px', base:'ft' },
@@ -5133,8 +5138,8 @@ class Component extends DCLogic {
     // rather than squeezing the comment down to an ellipsis.
     const tagged = rows.some(r => this.exclCount(r));
     const cmt = tagged ? 'minmax(260px,1.5fr)' : 'minmax(160px,1fr)';
-    // Frequency and Charge Schedule only mean something on a recurring charge; Listing Ready only on a
-    // property that advertises.
+    // Frequency, From, To and Charge Schedule only mean something on a recurring charge; Listing
+    // Ready only on a property that advertises.
     const keys = this.chargeCols().filter(k => { const d = this.chargeColDef(k);
       return d && !(d.recOnly && !rec) && !(d.ilsOnly && !ils); });
     const widthOf = k => k === 'comment' ? cmt : (this.chargeColDef(k).w || '120px');
@@ -7073,10 +7078,11 @@ class Component extends DCLogic {
     const esc = s => (''+(s||'')).replace(/"/g,'&quot;');
     // Second argument is a tooltip built with fieldHelp() — the icon only appears when there's
     // something to say behind it.
-    // A third argument gives the label one live slot: the Required mark `__mitsRecheck` writes
-    // while the field has nothing in it. A label only ever says what is still wanted — a field that
-    // has been filled in is doing its job, and marking that too made every label something to read.
-    const lab = (t,tip,key) => `<span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--rmx-text, #666666)">${t}${tip||''}${!key?'':`<span id="m-need-${key}" style="display:none;align-items:center"></span>`}</span>`;
+    // A third argument gives the label two live slots: the **Required** mark `__mitsRecheck` writes
+    // while the field has nothing in it, and the **Revert** link `__mktDiff` shows once the field
+    // has been moved off what it inherits. There is no Changed lozenge — the link is the whole
+    // mark, so a field that has been edited offers the way back without also being labelled.
+    const lab = (t,tip,key) => `<span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--rmx-text, #666666)">${t}${tip||''}${!key?'':`<span id="m-need-${key}" style="display:none;align-items:center"></span><a id="m-rev-${key}" onclick="if(window.__mktRevert)window.__mktRevert('${key}')" style="display:none;font-size:13px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Revert</a>`}</span>`;
     // Charge Category and Charge Schedule carry the form's other two help icons.
     const help = this.mktHelp();
     const sect = (t,inner) => `<div style="display:flex;flex-direction:column;gap:10px"><span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span><div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:12px">${inner}</div></div>`;
@@ -7156,9 +7162,11 @@ class Component extends DCLogic {
     // What this charge would show with nothing of its own: the property's override of its charge
     // type if it has one, otherwise the charge type's default. The same chain `resolvedListing`
     // walks, so the form and the listing can't disagree about what "the default" is.
+    // A property specific charge (NSF, Late) has no Charge Type input to read — its type is fixed
+    // and its General card is locked — so the code falls back to the charge's own.
+    const codeNow = () => ((this.q('#m-ctype') || {}).value) || (ed && ed.mits) || '';
     const inhNow = () => {
-      const ct = this.q('#m-ctype');
-      const D = this.ctmFor(this.state.property, ct ? ct.value : '') || {};
+      const D = this.ctmFor(this.state.property, codeNow()) || {};
       return { name: D.name || '', marketing: D.marketing || '', requirement: D.requirement || '',
         schedule: D.schedule || '', feeDue: D.feeDue || '',
         refundable: D.refundable === 'yes' || D.refundable === true ? 'Refundable'
@@ -7171,14 +7179,15 @@ class Component extends DCLogic {
       const D = inhNow();
       let any = false;
       MKTKEYS.forEach(([key, id, dk]) => {
-        const el = this.q('#' + id);
+        const el = this.q('#' + id), rev = this.q('#m-rev-' + key);
         // A recurring charge's Fee Due is a fixed hidden input — there is no control to differ.
         const live = !!el && (id === 'm-name' || id === 'm-marketing' || !!this.q('#' + id + '-disp'));
-        if (live && String(el.value || '') !== String(D[dk] || '')) any = true;
+        const diff = live && String(el.value || '') !== String(D[dk] || '');
+        if (rev) rev.style.display = diff ? 'inline' : 'none';
+        if (diff) any = true;
       });
       const rs = this.q('#m-mkt-reset'); if (rs) rs.style.display = any ? 'inline' : 'none';
-      const ct = this.q('#m-ctype');
-      if (window.__mktOvrNote) window.__mktOvrNote(ct ? ct.value : '', any);
+      if (window.__mktOvrNote) window.__mktOvrNote(codeNow(), any);
       return any;
     };
     // Handing one field back to whatever it inherits — what Reset all to default is made of. It
@@ -7427,12 +7436,12 @@ class Component extends DCLogic {
       </div>`;
 
     // ---- General Details ----
-    // One-time charges have a date window too — they just don't repeat, so only Frequency is
-    // recurring-only.
+    // Frequency, From and To are all recurring-only: a charge that happens once has nothing to
+    // repeat and no window to repeat inside. What it does have is an Amount, and that is the row.
     const freqRow = `<div onmouseenter="${lockShow}" onmouseleave="${lockHide}" style="display:flex;gap:12px;align-items:flex-start">${lockTip}
-      ${isOne ? '' : `<div style="flex:0 0 92px;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Frequency *')}<input id="m-freq" class="fld" value="1" style="height:36px;box-sizing:border-box"></div>`}
+      ${isOne ? '' : `<div style="flex:0 0 92px;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Frequency *')}<input id="m-freq" class="fld" value="1" style="height:36px;box-sizing:border-box"></div>
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('From')}${iconInput('m-from',ed?ed.from:'','mm/dd/yy','calendar_month')}</div>
-      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('To')}${iconInput('m-to',ed?ed.to:'','mm/dd/yy','calendar_month')}</div>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('To')}${iconInput('m-to',ed?ed.to:'','mm/dd/yy','calendar_month')}</div>`}
       ${amountFields}
     </div>`;
     const ilsOn = ed ? !!ed.ils : true;
@@ -7443,10 +7452,10 @@ class Component extends DCLogic {
     const specGeneral = !spec ? '' : `
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Level *')}${disSel('Property')}</div>
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Type *')}${disSearch(ed.mits)}</div>
-      <div style="display:flex;gap:12px;align-items:flex-start">
+      ${isOne ? '' : `<div style="display:flex;gap:12px;align-items:flex-start">
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('From')}${dis(ed.from||'—')}</div>
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('To')}${dis(ed.to||'—')}</div>
-      </div>
+      </div>`}
       <div style="display:flex;gap:12px;align-items:flex-start">
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Amount Method')}${disSel(ed.amtMethod||'Flat')}</div>
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Amount')}${dis(String(ed.amount||'').replace(/^\$/,''))}</div>
@@ -7734,6 +7743,8 @@ class Component extends DCLogic {
     const today = new Date(); today.setHours(0, 0, 0, 0);
     // Reads the live inputs when they exist, and the stored values on the locked property specific form.
     const dateInfo = () => {
+      // A one-time charge carries no date window at all, so it can never be future or expired.
+      if (isOne) return { future:false, expired:false, from:'', to:'' };
       const fEl = this.q('#m-from'), tEl = this.q('#m-to');
       const f = fEl ? fEl.value : (ed ? ed.from : ''), t = tEl ? tEl.value : (ed ? ed.to : '');
       const df = parseD(f), dt = parseD(t);
@@ -7980,20 +7991,20 @@ class Component extends DCLogic {
     const table = (label, list, isRec) => {
       const colK = 'copy-' + (isRec ? 'rec' : 'one');
       const cols = this.colTracks(colK, isRec ? '44px 120px minmax(150px,1fr) 90px 100px 90px 110px 110px'
-                         : '44px 120px minmax(150px,1fr) 100px 90px 110px 110px');
+                         : '44px 120px minmax(150px,1fr) 110px 110px');
       const heads = isRec ? ['','Charge Type','Comment','Frequency','From','To','Amount','Charge Level']
-                          : ['','Charge Type','Comment','From','To','Amount','Charge Level'];
+                          : ['','Charge Type','Comment','Amount','Charge Level'];
       const allOn = list.length && list.every(r => c.sel[r.id]);
       const headBox = `<span data-act="copyAll" data-arg="${isRec?'rec':'one'}" title="${allOn?'Clear all':'Select all'}" style="display:flex;align-items:center;justify-content:center;cursor:pointer">${box(!!allOn)}</span>`;
       const hc = (t,i) => i === 0 ? headBox : `<span style="display:flex;align-items:center;padding:8px 10px${i===1?' 8px 14px':''};font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;${/Amount/.test(t)?'justify-content:flex-end;':''}">${t}</span>`;
       const cell = (t,extra) => `<span style="display:flex;align-items:center;min-height:38px;padding:6px 10px;font-size:14px;color:var(--rmx-brand-dark, #13314c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
       return `<div style="font-size:14px;color:var(--rmx-text, #666666);padding:12px 0 6px">${label} (${list.length})</div>
-        <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden"><div style="overflow-x:auto"><div style="min-width:${isRec?760:680}px">
+        <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden"><div style="overflow-x:auto"><div style="min-width:${isRec?760:480}px">
         <div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7)">${heads.map(hc).join('')}</div>
         ${list.length ? list.map(r=>`<div data-act="copyToggle" data-arg="${r.id}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);cursor:pointer">
           <span style="display:flex;align-items:center;justify-content:center;min-height:38px">${box(!!c.sel[r.id])}</span>
           ${cell(r.mits,'padding-left:14px')}${cell(r.desc||r.name)}
-          ${isRec?cell(this.freqNum(r)||'—'):''}${cell(r.from||'—')}${cell(r.to||'-')}
+          ${isRec?cell(this.freqNum(r)||'—')+cell(r.from||'—')+cell(r.to||'-'):''}
           ${cell(String(r.amount||'').replace(/^\$/,''),'justify-content:flex-end;text-align:right')}
           <span style="display:flex;align-items:center;min-height:38px;padding:6px 10px;min-width:0;overflow:hidden">${this.chargeLevelPill(r, c.from)}</span></div>`).join('')
           : `<div style="padding:14px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">None on that property.</div>`}

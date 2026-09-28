@@ -286,6 +286,14 @@ from the first look. Nothing is migrated or turned on: `profileRows(prop)` falls
 `defaultCharges(prop)`, which reads the charges the property already runs with their marketing
 details blank. `profileFees[prop]` only exists once someone edits something.
 
+**Frequency, From and To are recurring-only, together.** A charge that happens once has nothing to
+repeat and no window to repeat inside, so the One-Time Charge Details form runs Charge Level /
+Charge Type / Comment over Amount Method / Amount and stops. `chargeColDefs` marks `from` and `to`
+`recOnly` beside `freq`, so the One-Time register drops both columns rather than printing a dash
+under them, and the Copy Charges dialog's One-Time table does the same. `saveFee` writes no dates on
+a one-time charge and `dateInfo()` returns an empty window for one, so nothing can read it as future
+or expired.
+
 A charge keeps the level it was written at (Property, Unit Type, Unit, Other Rentable Item — the
 level's stored value is still the string `ORI`, only what a user reads changed; `levelLabel()` is
 the one place that turns the value into words, so nothing renders it raw) and is editable from
@@ -518,8 +526,9 @@ checkbox; the dialog now works the way the charge form does, so the two rungs ar
 **Override Charge Type** checkbox, the greyed locked fields, `ctmToggle`, `ctmReset` and
 `state.ctmEdit.on` are all gone. The fields are live and open holding what a charge of this type
 reads at this property today — the property's own values where it has them, the charge type's
-otherwise. Nothing is required here, so no field carries a lozenge at all: the source row says whose
-values these are, and **Reset all to default** sits opposite it as the way back.
+otherwise. Nothing is *required* here, so no field carries a lozenge; a field moved off the charge
+type carries **Revert** (`#ctm-rev-<key>`), exactly as the charge form does, and **Reset all to
+default** sits opposite the source row.
 
 **Ownership is derived on save, not declared.** `ctmSave` reads all seven fields, diffs them against
 `mktDefFor(code)`, and writes `state.propDef[prop][CODE]` only when something differs; matching the
@@ -532,7 +541,8 @@ every resolved value anyway.
 **The source row is the same component as the charge form's**: *Coming from* a brand chip reading
 `<CODE> charge type` while nothing differs and the property's name once something does, or, when the
 type has nothing set at all, a plain line saying so. `window.__ctmDiff` is the single answer that
-lights both the Reset link and the chip; `__ctmRevert(key)` is what `__ctmResetAll` is made of.
+lights the Revert links, the Reset link and the chip; `__ctmRevert(key)` is also what
+`__ctmResetAll` is made of.
 `componentDidUpdate` calls `__ctmDiff` so the row is right when the dialog opens.
 
 **The dialog is built from `ctFieldBits()`**, the shared RMX field bits, not one-off markup: `txt`
@@ -603,15 +613,20 @@ sections' cards line up on the same left and right edges.
 `window.__mktOverride` and `window.__mktLockSync`. The fields are always live and already hold what
 the charge inherits, so nothing has to be understood before anyone can type.
 
-**A label only ever says what is still wanted.** There is no *Changed* mark and no per-field
-*Revert*: marking a field that has been filled in made every label something to read, when the one
-thing worth reading is which fields are still empty. So the only lozenge is **Required**, and it is
-on a field with nothing in it. Which tier the values come from is answered once, in the source row,
-and **Reset all to default** beside it is the way back. `window.__mktDiff` still answers *has
-anything been moved off what this charge inherits?* — it lights the Reset link and the source row's
-chip together, so the two cannot disagree. `MKTKEYS` is the one list of which field is which;
-`__mktRevert(key)` hands one field back and `__mktResetAll` all of them, recording the value it gave
-as `__mktDefaults`' own so a later charge type change still refills it.
+**A label carries two marks, and only ever one at a time.** The lozenge is **Required**, and it is
+only on a field with nothing in it — there is no *Changed* lozenge, because marking a field that has
+been filled in made every label something to read when the one thing worth reading is which are
+still empty. Beside it, a field that has been moved off what it inherits offers **Revert**
+(`#m-rev-<key>`): the link is the whole mark, so an edited field hands back the way out without also
+being labelled. **Reset all to default** in the source row does the lot.
+
+`window.__mktDiff` is the one place that answers *is this field the charge's own?*, and it lights the
+Revert links, the Reset link and the source row's chip together, so the three cannot disagree.
+`MKTKEYS` is the one list of which field is which; `__mktRevert(key)` hands one field back and
+`__mktResetAll` all of them, recording the value it gave as `__mktDefaults`' own so a later charge
+type change still refills it. `codeNow()` is where the charge type comes from — the form's own input,
+or the charge's `mits` on a **property specific** charge (NSF, Late), whose General card is locked
+and has no Charge Type input to read.
 
 **A source row states which tier the values come from**: *Coming from* a brand chip naming the tier,
 and for a property override the clause *its override of `<CODE>`*. `mktSourceOf(code, own)` answers
