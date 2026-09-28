@@ -114,6 +114,12 @@ charge's draft and collapses. `mktPricingSave` is `mpCapture()` + `mpCommit()` w
 the overlay's own Save. Because a charge lands in state the moment it is saved, its Listing Ready
 badge, the banner above and the strip's Convert button all move while the overlay is still open.
 
+**A lozenge's text is always Roboto Regular.** RMX's own `.loz` is `font-weight:400`, so every
+hand-rolled one matches it — the Charge Marketing section's *Changed*, *Needed* / *Required*,
+*N listings off the feed* and the *Coming from* tier chip, the Fee Transparency Setup overlay's
+`loz()`, and the announcement banner's *NEW FEATURE*. A bold lozenge reads as a second kind of
+emphasis competing with the sentence it sits in; the tint is the emphasis.
+
 **Shared chrome is kept identical in both builds**: `.btn-pri` / `.btn-out` set their label in
 Roboto **Regular** (RMX's Button does), every overlay header title is
 `font:400 20px/28px Roboto` — RMX's Overlay Header (`YhvzfcXOniQJ7xlC8ONzS4` `4193:45459`) uses
