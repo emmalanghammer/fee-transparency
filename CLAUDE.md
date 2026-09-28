@@ -490,12 +490,11 @@ actually runs — **Charge Type · Active Charges · Property Override** — wit
 this property has taken the type over, and an edit pencil (`ctmOpen`). That pencil is RMX
 Iconography's **edit-filled** (Figma `3595:57346`), harvested rather than drawn: it is the filled
 glyph at 20px on its own `0 0 20 20` box, so it can't live in the Material `ico` map with the
-`-960 960` ones and is inlined as `EDIT_FILLED` beside the register. The column is *Property
-Override*; the dialog's checkbox is still *Override Charge Type*, because that one is the decision
-being made rather than a label for the tick.
+`-960 960` ones and is inlined as `EDIT_FILLED` beside the register. The tick reads
+`ctmOverridden`, which is still true of exactly the properties that own values of their own.
 
 **The three surfaces that edit a charge's marketing carry the same field tooltips.** `mktHelp()`
-builds one map — **Charge Category, Charge Requirement, Charge Schedule, Fee Due** — read by the charge form (its editable fields and its locked mirror), Charge Type
+builds one map — **Charge Category, Charge Requirement, Charge Schedule, Fee Due** — read by the charge form, Charge Type
 Details' Default Charge Marketing and a property's Edit Default Charge Marketing, so the three
 cannot say different things about the same field. **No field gained an icon it didn't have**: Name,
 Marketing Description, Fee Due and Refundable carry none anywhere. Charge Schedule and Fee Due are a
@@ -514,26 +513,36 @@ says what that charge's schedule is instead of sitting blank beside the recurrin
 register's optional **Charge Schedule** column (off by default, on through Column Setup) is where
 that shows.
 
-**`ctmEditHTML()` is the override**, matching Figma `3591:138722`. One checkbox, **Override Charge
-Type**, is the whole decision: off, the fields show the charge type's values greyed and locked, and
-are not inputs at all; on, they are this property's to set, seeded from the charge type so the
-override is an edit of it rather than an empty form. **Once the override is saved the checkbox is checked and disabled**, and `Reset` beside it is the
-only way back — unticking it would leave the dialog and `propDef` disagreeing about whether the
-property still owns these values. Reset deletes the entry, so the box comes back unchecked and
-enabled and the fields fill from the charge type again. `ctFieldBits().check` takes a fourth `dis`
-argument for that state; a disabled input is greyed by the browser, so the fill is dimmed to keep
-RMX's attention orange readable. Saving writes `state.propDef[prop][CODE]`; unticking and saving deletes it.
+**`ctmEditHTML()` is the override, and it has no mode either.** Figma `3591:138722` drew it as a
+checkbox; the dialog now works the way the charge form does, so the two rungs are learned once. The
+**Override Charge Type** checkbox, the greyed locked fields, `ctmToggle`, `ctmReset` and
+`state.ctmEdit.on` are all gone. The fields are live and open holding what a charge of this type
+reads at this property today — the property's own values where it has them, the charge type's
+otherwise — and a field moved off the charge type wears a **Changed** lozenge with **Revert**.
+**Reset all to default** sits opposite the source row while any field has.
+
+**Ownership is derived on save, not declared.** `ctmSave` reads all seven fields, diffs them against
+`mktDefFor(code)`, and writes `state.propDef[prop][CODE]` only when something differs; matching the
+charge type on every field *is* following it, so that deletes the entry instead of storing a copy
+that would stop tracking. Reset all to default therefore needs no handler of its own — it puts the
+charge type's values back in the form, and Save does the rest. The override is stored **whole**,
+because `ctmFor` falls back record-then-record rather than field by field, and the form is showing
+every resolved value anyway.
+
+**The source row is the same component as the charge form's**: *Coming from* a brand chip reading
+`<CODE> charge type` while nothing differs and the property's name once something does, or, when the
+type has nothing set at all, a plain line saying so. `window.__ctmDiff` is the single answer that
+lights the marks, the Reset link and the chip; `__ctmRevert(key)` and `__ctmResetAll` put values
+back. `componentDidUpdate` calls `__ctmDiff` so the marks paint when the dialog opens.
 
 **The dialog is built from `ctFieldBits()`**, the shared RMX field bits, not one-off markup: `txt`
 is the enabled Input Field on `Component/input-default` (`#f5f8fa`, never white — a white input reads
-as a different control from the dropdown beside it), `check` is RMX's Checkbox in attention orange,
-and `lab` is `Text/text-primary`. The checkbox's label swallows its own clicks
-(`pointer-events:none`) so the delegated `ctmToggle` fires once rather than twice.
+as a different control from the dropdown beside it), and `lab` is `Text/text-primary`. `txt` takes an
+optional fourth argument, the `oninput` that keeps the Changed marks live.
 
-**The locked fields are RMX's disabled Input Field**, to Figma `3595:57087`: 1px
-`Border/border-disabled` `#ebf1f5`, the two-layer white-over-`#f2f2f2` ground, `Text/text-disabled`
-`#b3b3b3`, 36px, and the chevron stays on a dropdown. Marketing Description is the disabled Text
-Box, 56px with the text at the top. The unchecked box is 20px with a 2px `#b3b3b3` border.
+**`__ddSet` is a method, `ddSetInstall()`.** Setting a `singleSelect` from code — hidden input,
+display text and colour, row selection — is what Revert needs on both surfaces, so it is installed
+by whichever one is rendering rather than written twice.
 
 **Every charge type starts with its default charge marketing set** (`mktDefAll()`, applied in
 `componentDidMount` and on every `scenarioApply`; it can't live in the state literal, which is
@@ -609,10 +618,12 @@ it has anything set, and a type with nothing set says so instead of naming a sou
 `__mktDiff`'s answer rather than a checkbox, so the row flips to **This charge** the moment a field
 is edited and back the moment it is reverted.
 
-**An existing charge opens already holding what it inherits.** `componentDidUpdate` runs
-`__mktDefaults` once per form (`this._mktSeeded`, keyed to `state.modal`, cleared on `addopen` /
-`addclose`), the same fill that picking a charge type does; a field the charge owns is never
-overwritten.
+**What a charge inherits is rendered into the fields, not patched in afterwards.** `chargeForm`
+resolves `INH = ctmFor(property, code)` once and falls every field back to it, so an inheriting
+charge opens holding its tier's values. It used to be a DOM seed in `componentDidUpdate`, which was
+wrong the moment anything re-rendered while the form was open — a toast clearing is enough, and
+those values are now the only copy on screen rather than a mirror beside the real ones.
+`__mktDefaults` is still what picking a **charge type** does, live, through `setCat`.
 
 **The section reads in four states, and which one is the property's answer, not the charge's.**
 `__mitsRecheck` paints all of it from `ilsOn()` and `publishedProps`.
