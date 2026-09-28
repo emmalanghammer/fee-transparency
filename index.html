@@ -133,7 +133,7 @@ class Component extends DCLogic {
     ctDetail: null,      // Charge Type Details overlay
     unitSel: null,       // Unit Selector overlay: { pick, vacantOnly }
     amtSel: null,        // Select Amount overlay for the quote's rent: { pick }
-    accOpen: { 'pf-rec':true, 'pf-one':true, 'pf-req':true, 'pf-opt':true, 'pf-sit':true, 'pf-ind':true },
+    accOpen: { 'pf-rec':true, 'pf-one':true, 'pf-spec':true, 'pf-req':true, 'pf-opt':true, 'pf-sit':true, 'pf-ind':true },
     groupByReq: false,
     pfFilter: null,
     pfFilters: null,
@@ -5183,8 +5183,10 @@ class Component extends DCLogic {
       };
       return `<div data-act="${bs?'bulkSelToggle':'rowDetails'}" data-arg="${r.id}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);cursor:pointer" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background=''">
         ${selCell(r)}${keys.map((k, i) => render[k] ? render[k](i) : cell('—')).join('')}${kebab}</div>`;
-    }).join('') : `<div style="padding:14px 16px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3);border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)">No ${rec?'recurring':'one-time'} charges in this section.</div>`;
-    const add = `<div data-act="addopen" data-arg="${group}" style="background:#f5f9fc;padding:9px 16px;cursor:pointer"><span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M450-450H200v-60h250v-250h60v250h250v60H510v250h-60v-250Z"/></svg>Add ${rec?'Recurring':'One-Time'} Charge</span></div>`;
+    }).join('') : `<div style="padding:14px 16px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3);border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)">No ${(opts && opts.empty) || (rec?'recurring':'one-time')} charges in this section.</div>`;
+    // Property specific charges are the property's, not a list you add to — so that section has no
+    // Add link at all rather than one that opens a form you can't fill in.
+    const add = !group ? '' : `<div data-act="addopen" data-arg="${group}" style="background:#f5f9fc;padding:9px 16px;cursor:pointer"><span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M450-450H200v-60h250v-250h60v250h250v60H510v250h-60v-250Z"/></svg>Add ${rec?'Recurring':'One-Time'} Charge</span></div>`;
     return `${noLabel?'':`<div style="font-size:14px;color:var(--rmx-text, #666666);padding:12px 20px 8px">${rec?'Recurring':'One-Time'}</div>`}
       <div style="padding:${noLabel?'4px':'0'} 20px 0;overflow-x:auto"><div style="min-width:${minW}px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
         <div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7)">${selHead}${heads.map(hc).join('')}${colBtn}</div>
@@ -5253,7 +5255,16 @@ class Component extends DCLogic {
   bulkSelRows(){ const bs = this.state.bulkSel; if (!bs) return [];
     return this.profileRows().filter(r => bs.sel[r.id]); }
   feeProfileBody(){
-    const rows = this.visibleRows();
+    const all = this.visibleRows();
+    // NSF and late fees are the property's own terms — charged when something goes wrong rather than
+    // for renting the place — so they read as their own section instead of sitting in One-Time
+    // beside the deposits. They are the same in either grouping, since neither question is asked of
+    // them: they can't be added, and their requirement is always Situational.
+    const spec = all.filter(r => r.propSpecific);
+    const rows = all.filter(r => !r.propSpecific);
+    const specSection = !spec.length ? '' : this.acc(`Property Specific Charges (${spec.length})`,
+      'Set on the property, and never part of the price a listing advertises',
+      this.profileTable('spec', spec, '', { noLabel:true, noAdd:true, empty:'property specific' }), null, 'pf-spec');
     let sections;
     if (this.state.groupByReq) {
       const sitHelp = `<span class="tipw" onclick="event.stopPropagation()"><span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M453-280h60v-240h-60v240Zm50.5-323.2q9.5-9.2 9.5-22.8 0-14.45-9.48-24.22-9.48-9.78-23.5-9.78t-23.52 9.78Q447-640.45 447-626q0 13.6 9.48 22.8 9.48 9.2 23.5 9.2t23.52-9.2ZM480.27-80q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg>What is a situational charge?</span><span class="tip" style="left:auto;right:0;top:24px">Additional fees may apply in cases of late payments, lease violations, or other charges.</span></span>`;
@@ -5272,6 +5283,7 @@ class Component extends DCLogic {
       sections = this.acc(`Recurring Charges (${rec.length})`, '', this.profileTable('rec', rec, 'req-rec', { noLabel:true }), null, 'pf-rec')
                + this.acc(`One-Time Charges (${one.length})`, '', this.profileTable('one', one, 'req-one', { noLabel:true }), null, 'pf-one');
     }
+    sections += specSection;
     const bs = this.state.bulkSel;
     const nSel = bs ? this.bulkSelRows().length : 0;
     const selBar = !bs ? '' : `<div style="position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:130;display:flex;align-items:center;gap:18px;background:var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;box-shadow:0 8px 24px rgba(0,0,0,0.28);padding:12px 14px 12px 20px;white-space:nowrap">
@@ -7721,7 +7733,7 @@ class Component extends DCLogic {
       ${leaseSection}
       <!-- All four to a row. A one-time charge has no schedule, so it runs three across. -->
       <div style="display:flex;gap:12px;align-items:flex-start">
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Requirement', help.requirement, 'req')}${dd('m-req',['Required','Optional','Situational'],req,{noSearch:true,blank:true,placeholder:' ',js:"document.getElementById('m-sitdesc-wrap').style.display=(_v==='Situational'?'flex':'none');if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Requirement', help.requirement, 'req')}${dd('m-req',spec?['Situational']:['Required','Optional','Situational'],spec?'Situational':req,{noSearch:true,blank:!spec,placeholder:' ',js:"document.getElementById('m-sitdesc-wrap').style.display=(_v==='Situational'?'flex':'none');if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>
         <!-- A recurring charge is collected across the term by definition, so it carries During Term
              without asking. Only a one-time charge has a question to answer here. -->
         ${isOne
@@ -7730,7 +7742,7 @@ class Component extends DCLogic {
         ${isOne?'':`<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Schedule', help.schedule, 'sched')}${dd('m-sched',['Weekly','Monthly','Annually'],(ed&&ed.listing&&ed.listing.schedule)||(ed?(INH.schedule||''):''),{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`}
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Refundable', '', 'refund')}${dd('m-refund',['Refundable','Not Refundable'],refundable,{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mktDiff)window.__mktDiff()"})}</div>
       </div>
-      <div id="m-sitdesc-wrap" style="display:${req==='Situational'?'flex':'none'};flex-direction:column;gap:4px">${lab('Situational Charge Description')}<textarea id="m-sitdesc" class="fld" style="height:48px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${esc(ed?ed.cond:'')}</textarea></div>
+      <div id="m-sitdesc-wrap" style="display:${(spec||req==='Situational')?'flex':'none'};flex-direction:column;gap:4px">${lab('Situational Charge Description')}<textarea id="m-sitdesc" class="fld" style="height:48px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${esc(ed?ed.cond:'')}</textarea></div>
       ${attrSections}`;
 
     // ---- Listing readiness (mock 2625-29821) ----
@@ -7772,9 +7784,33 @@ class Component extends DCLogic {
       if (!isOne && !g('m-sched')) need.push('Charge Schedule');
       const msg = this.q('#m-ils-msg'), sw = this.q('#m-ils-sw'), lbl = this.q('#m-ils-lbl'),
             st = this.q('#m-lr-status'), note = this.q('#m-ils-warn');
+      const di = dateInfo();
+      if (sw) {
+        // An expired charge can't be marketed at all, so the toggle is forced off and locked.
+        // Missing fields just warn — the toggle stays live.
+        if (di.expired) {
+          sw.setAttribute('data-dis', '1'); sw.style.background = '#dfe6ec'; sw.style.cursor = 'default';
+          sw.setAttribute('data-on', '0'); sw.firstElementChild.style.left = '2px';
+          sw.firstElementChild.firstElementChild.style.display = 'none';
+          const h = this.q('#m-ils'); if (h) h.value = '0';
+          lbl.style.color = 'var(--rmx-text-muted, #b3b3b3)';
+        } else {
+          sw.setAttribute('data-dis', '0'); sw.style.cursor = 'pointer';
+          sw.style.background = sw.getAttribute('data-on') === '1' ? 'var(--ac,var(--rmx-brand, #008dd5))' : 'var(--rmx-line, #cedbe7)';
+          lbl.style.color = 'var(--rmx-brand-dark, #13314c)';
+        }
+      }
+      const onIls = ((this.q('#m-ils') || {}).value) === '1';
+      if (st) st.innerHTML = lrMarkup(need.length, onIls);
+      if (note) note.style.display = onIls ? 'none' : 'inline-flex';
       // Which of the four states this section is in is decided by the property, not the charge:
       // whether it advertises online at all, and whether fee transparency is already active on it.
-      const live = this.ilsOn(), act = !!this.state.publishedProps[this.state.property];
+      // A charge kept **off** listings is asked none of it — nothing will advertise it, so it has no
+      // required marketing fields and can't be holding a listing back. That is the same answer the
+      // register gives, where its Listing Ready cell reads Charge excluded rather than a count, and
+      // the same one `ltChargeIssues` gives, which only counts charges carried on listings. The
+      // warning beside the toggle is the whole story there.
+      const live = this.ilsOn() && onIls, act = !!this.state.publishedProps[this.state.property];
       const e2 = (t) => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
       // The mark goes on the field rather than into a list underneath: a list makes you match the
       // names back up, a mark on the field is the instruction. It reads **Required** in both states
@@ -7817,28 +7853,9 @@ class Component extends DCLogic {
         } else if (act) {
           msg.style.display = 'flex'; msg.style.background = 'var(--rmx-success-bg, #e2f1da)';
           mico.innerHTML = this.ico('check_circle', 20, 'color:var(--rmx-success, #6eb744)');
-          mtxt.innerHTML = 'Complete. This charge is advertised on the property\u2019s listings.';
+          mtxt.innerHTML = 'Complete. This charge is advertised on the property’s listings.';
         } else msg.style.display = 'none';
       }
-      if (!sw) return;
-      const di = dateInfo();
-      // An expired charge can't be marketed at all, so the toggle is forced off and locked.
-      // Missing fields just warn — the toggle stays live.
-      const lock = di.expired;
-      if (lock) {
-        sw.setAttribute('data-dis', '1'); sw.style.background = '#dfe6ec'; sw.style.cursor = 'default';
-        sw.setAttribute('data-on', '0'); sw.firstElementChild.style.left = '2px';
-        sw.firstElementChild.firstElementChild.style.display = 'none';
-        const h = this.q('#m-ils'); if (h) h.value = '0';
-        lbl.style.color = 'var(--rmx-text-muted, #b3b3b3)';
-      } else {
-        sw.setAttribute('data-dis', '0'); sw.style.cursor = 'pointer';
-        sw.style.background = sw.getAttribute('data-on') === '1' ? 'var(--ac,var(--rmx-brand, #008dd5))' : 'var(--rmx-line, #cedbe7)';
-        lbl.style.color = 'var(--rmx-brand-dark, #13314c)';
-      }
-      const on = ((this.q('#m-ils') || {}).value) === '1';
-      if (st) st.innerHTML = lrMarkup(need.length, on);
-      if (note) note.style.display = on ? 'none' : 'inline-flex';
       const dn = this.q('#m-date-note');
       if (dn) { const show = di.expired || di.future;
         dn.style.display = show ? 'flex' : 'none';

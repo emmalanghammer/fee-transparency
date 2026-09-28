@@ -286,6 +286,22 @@ from the first look. Nothing is migrated or turned on: `profileRows(prop)` falls
 `defaultCharges(prop)`, which reads the charges the property already runs with their marketing
 details blank. `profileFees[prop]` only exists once someone edits something.
 
+**NSF and late fees are their own section.** `feeProfileBody` splits `propSpecific` rows out of
+`visibleRows()` before anything else and renders them as **Property Specific Charges** under
+*Set on the property, and never part of the price a listing advertises* — below Recurring and
+One-Time, and the same in either grouping, because neither question is asked of them. The section
+has **no Add link** (`profileTable` skips it when `group` is empty: they are the property's, not a
+list you add to), and their **Charge Requirement is Situational and nothing else** — the dropdown
+offers the one option and takes no blank, and the Situational Charge Description is always showing.
+
+**A charge kept off listings is asked none of the four states.** `__mitsRecheck` gates on the
+Include-on-listings toggle as well as `ilsOn()`: nothing will advertise an excluded charge, so it
+has no required marketing fields, it cannot be holding a listing back, and it does not get the green
+"advertised on the property's listings" line either — which is what NSF and late fees, both
+`ils:false`, were wrongly claiming. That matches the register, whose Listing Ready cell reads
+*Charge excluded* rather than a count, and `ltChargeIssues`, which only counts charges carried on
+listings. The amber warning beside the toggle is the whole story there.
+
 **Frequency, From and To are recurring-only, together.** A charge that happens once has nothing to
 repeat and no window to repeat inside, so the One-Time Charge Details form runs Charge Level /
 Charge Type / Comment over Amount Method / Amount and stops. `chargeColDefs` marks `from` and `to`
