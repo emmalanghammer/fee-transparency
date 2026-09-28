@@ -115,7 +115,7 @@ the overlay's own Save. Because a charge lands in state the moment it is saved, 
 badge, the banner above and the strip's Convert button all move while the overlay is still open.
 
 **A lozenge's text is always Roboto Regular.** RMX's own `.loz` is `font-weight:400`, so every
-hand-rolled one matches it — the Charge Marketing section's *Changed*, *Needed* / *Required*,
+hand-rolled one matches it — the Charge Marketing section's *Required*,
 *N listings off the feed* and the *Coming from* tier chip, the Fee Transparency Setup overlay's
 `loz()`, and the announcement banner's *NEW FEATURE*. A bold lozenge reads as a second kind of
 emphasis competing with the sentence it sits in; the tint is the emphasis.
@@ -518,8 +518,8 @@ checkbox; the dialog now works the way the charge form does, so the two rungs ar
 **Override Charge Type** checkbox, the greyed locked fields, `ctmToggle`, `ctmReset` and
 `state.ctmEdit.on` are all gone. The fields are live and open holding what a charge of this type
 reads at this property today — the property's own values where it has them, the charge type's
-otherwise — and a field moved off the charge type wears a **Changed** lozenge with **Revert**.
-**Reset all to default** sits opposite the source row while any field has.
+otherwise. Nothing is required here, so no field carries a lozenge at all: the source row says whose
+values these are, and **Reset all to default** sits opposite it as the way back.
 
 **Ownership is derived on save, not declared.** `ctmSave` reads all seven fields, diffs them against
 `mktDefFor(code)`, and writes `state.propDef[prop][CODE]` only when something differs; matching the
@@ -532,8 +532,8 @@ every resolved value anyway.
 **The source row is the same component as the charge form's**: *Coming from* a brand chip reading
 `<CODE> charge type` while nothing differs and the property's name once something does, or, when the
 type has nothing set at all, a plain line saying so. `window.__ctmDiff` is the single answer that
-lights the marks, the Reset link and the chip; `__ctmRevert(key)` and `__ctmResetAll` put values
-back. `componentDidUpdate` calls `__ctmDiff` so the marks paint when the dialog opens.
+lights both the Reset link and the chip; `__ctmRevert(key)` is what `__ctmResetAll` is made of.
+`componentDidUpdate` calls `__ctmDiff` so the row is right when the dialog opens.
 
 **The dialog is built from `ctFieldBits()`**, the shared RMX field bits, not one-off markup: `txt`
 is the enabled Input Field on `Component/input-default` (`#f5f8fa`, never white — a white input reads
@@ -601,15 +601,17 @@ added. The header row carries no horizontal padding and the card runs the full w
 sections' cards line up on the same left and right edges.
 **There is no override mode.** The checkbox is gone, and with it `#m-ovr`, `#m-mkt-locked`,
 `window.__mktOverride` and `window.__mktLockSync`. The fields are always live and already hold what
-the charge inherits, so nothing has to be understood before anyone can type. The cost — you can no
-longer tell inherited from typed at a glance — is paid back by marking only what is actually
-different: a field moved off its inherited value wears a **Changed** lozenge with **Revert** beside
-its label, and **Reset all to default** appears in the source row while any field does.
-`window.__mktDiff` is the one place that answers *is this field the charge's own?*, and it lights
-the marks, the Reset link and the source row's chip together so the three cannot disagree.
-`MKTKEYS` is the one list of which field is which; `__mktRevert(key)` hands one field back and
-`__mktResetAll` all of them, recording the value it gave as `__mktDefaults`' own so a later charge
-type change still refills it.
+the charge inherits, so nothing has to be understood before anyone can type.
+
+**A label only ever says what is still wanted.** There is no *Changed* mark and no per-field
+*Revert*: marking a field that has been filled in made every label something to read, when the one
+thing worth reading is which fields are still empty. So the only lozenge is **Required**, and it is
+on a field with nothing in it. Which tier the values come from is answered once, in the source row,
+and **Reset all to default** beside it is the way back. `window.__mktDiff` still answers *has
+anything been moved off what this charge inherits?* — it lights the Reset link and the source row's
+chip together, so the two cannot disagree. `MKTKEYS` is the one list of which field is which;
+`__mktRevert(key)` hands one field back and `__mktResetAll` all of them, recording the value it gave
+as `__mktDefaults`' own so a later charge type change still refills it.
 
 **A source row states which tier the values come from**: *Coming from* a brand chip naming the tier,
 and for a property override the clause *its override of `<CODE>`*. `mktSourceOf(code, own)` answers
@@ -632,15 +634,16 @@ those values are now the only copy on screen rather than a mirror beside the rea
    and one `infoTip` beside the **Charge Marketing** heading saying the property doesn't advertise
    on a listing site, so none of this is published yet. There is no label on the right announcing
    it: that a charge is published nowhere is the least useful thing about it.
-2. **Advertising, not activated.** Amber. A **Needed** lozenge sits on each short field's own label
-   (`#m-need-<key>`, written by `__mitsRecheck`) rather than a list of names underneath — a list
-   makes you match them back up, a mark on the field is the instruction. The note counts both:
+2. **Advertising, not activated.** Amber. A **Required** lozenge sits on each short field's own
+   label (`#m-need-<key>`, written by `__mitsRecheck`) rather than a list of names underneath — a
+   list makes you match them back up, a mark on the field is the instruction. The note counts both:
    *N fields on this charge*, and the property total, which is `otherShort` (every other `ils`
    charge's `mitsMissing`) plus this charge's live count, so the two halves can't double-count.
 3. **Activated and complete.** A simple green status — *“Complete. This charge is advertised on the
    property's listings.”* Nothing else: green is the absence of work, so it takes the least room.
 4. **Activated and short.** Red, and red is earned here and nowhere else — this is the one state
-   costing something today. The card takes a red border, the lozenges read **Required**, the note
+   costing something today. The lozenge still reads **Required** — the field is the same field
+   either way, and only the tone differs. The card takes a red border, the note
    names the listings actually held back (*“Units 214 and 302 are not posting”*, from `affectedUnits`
    — the charge's own unit when it is written at unit level, everything the property advertises
    otherwise) and offers the second way out, taking the charge off listings. The count

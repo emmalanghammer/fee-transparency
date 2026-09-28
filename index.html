@@ -3515,21 +3515,20 @@ class Component extends DCLogic {
     const CTMK = [['name','ctm-name'], ['category','ctm-category'], ['marketing','ctm-marketing'],
       ['requirement','ctm-requirement'], ['schedule','ctm-schedule'], ['feeDue','ctm-feeDue'],
       ['refundable','ctm-refundable']];
-    // The same shape as the charge form: no mode to pick first. The fields are live and already
-    // hold what this property would show anyway, and only a field actually moved off the charge
-    // type wears a Changed mark with Revert beside it.
+    // The same shape as the charge form: no mode to pick first, and no per-field mark. The fields
+    // are live and already hold what this property would show anyway; the source row says whose
+    // values they are, and Reset all to default is the way back.
     const DIFFJS = 'if(window.__ctmDiff)window.__ctmDiff()';
-    const mark = (key) => `<span id="ctm-chg-${key}" style="display:none;align-items:center;gap:7px"><span style="display:inline-flex;align-items:center;height:19px;box-sizing:border-box;padding:0 7px;border-radius:4px;background:#fdf3e7;font-size:12px;color:#7a5a2a">Changed</span><a onclick="if(window.__ctmRevert)window.__ctmRevert('${key}')" style="font-size:13px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Revert</a></span>`;
-    const fld = (label, ctl, tip, key) => `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0"><span style="display:inline-flex;align-items:center;gap:6px">${lab(label)}${tip || ''}${key ? mark(key) : ''}</span>${ctl}</div>`;
+    const fld = (label, ctl, tip) => `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0"><span style="display:inline-flex;align-items:center;gap:6px">${lab(label)}${tip || ''}</span>${ctl}</div>`;
     const txt = (id, val) => F.txt(id, val, '', DIFFJS);
     const area = (id, val) => `<textarea id="${id}" oninput="${DIFFJS}" style="box-sizing:border-box;width:100%;height:60px;padding:8px 10px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);resize:none">${esc(val)}</textarea>`;
     const dd = (id, opts, val) => this.singleSelect(id, opts, val, { noSearch:true, blank:true, placeholder:' ', js:DIFFJS });
 
     const pair = (a, b) => `<div style="display:flex;gap:16px">${a}${b}</div>`;
-    const body = pair(fld('Name', txt('ctm-name', v('name')), '', 'name'), fld('Charge Category', dd('ctm-category', this.chargeCategoryOptions(), v('category')), H.category, 'category'))
-      + fld('Marketing Description', area('ctm-marketing', v('marketing')), '', 'marketing')
-      + pair(fld('Charge Requirement', dd('ctm-requirement', REQ, v('requirement')), H.requirement, 'requirement'), fld('Charge Schedule', dd('ctm-schedule', SCHED, v('schedule')), H.schedule, 'schedule'))
-      + pair(fld('Fee Due', dd('ctm-feeDue', DUE, v('feeDue')), H.feeDue, 'feeDue'), fld('Refundable', dd('ctm-refundable', REF, v('refundable')), '', 'refundable'));
+    const body = pair(fld('Name', txt('ctm-name', v('name'))), fld('Charge Category', dd('ctm-category', this.chargeCategoryOptions(), v('category')), H.category))
+      + fld('Marketing Description', area('ctm-marketing', v('marketing')))
+      + pair(fld('Charge Requirement', dd('ctm-requirement', REQ, v('requirement')), H.requirement), fld('Charge Schedule', dd('ctm-schedule', SCHED, v('schedule')), H.schedule))
+      + pair(fld('Fee Due', dd('ctm-feeDue', DUE, v('feeDue')), H.feeDue), fld('Refundable', dd('ctm-refundable', REF, v('refundable'))));
 
     // One row says which tier these values come from, and it is the same answer that lights the
     // Changed marks: the property owns them only where they differ from the charge type.
@@ -3546,10 +3545,8 @@ class Component extends DCLogic {
     window.__ctmDiff = () => {
       let any = false;
       CTMK.forEach(([k, id]) => {
-        const el = this.q('#' + id), m = this.q('#ctm-chg-' + k); if (!el || !m) return;
-        const diff = String(el.value || '') !== String(base[k] || '');
-        m.style.display = diff ? 'inline-flex' : 'none';
-        if (diff) any = true;
+        const el = this.q('#' + id); if (!el) return;
+        if (String(el.value || '') !== String(base[k] || '')) any = true;
       });
       const rs = this.q('#ctm-reset'); if (rs) rs.style.display = any ? 'inline' : 'none';
       const row = this.q('#ctm-src'); if (row) row.innerHTML = srcRow(any);
@@ -7076,10 +7073,10 @@ class Component extends DCLogic {
     const esc = s => (''+(s||'')).replace(/"/g,'&quot;');
     // Second argument is a tooltip built with fieldHelp() — the icon only appears when there's
     // something to say behind it.
-    // A third argument gives the label two live slots: the Needed / Required mark `__mitsRecheck`
-    // writes while the field is short, and the Changed mark `__mktDiff` writes once the charge has
-    // stepped off what it inherits. A label with no key is exactly what it was.
-    const lab = (t,tip,key) => `<span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--rmx-text, #666666)">${t}${tip||''}${!key?'':`<span id="m-need-${key}" style="display:none;align-items:center"></span><span id="m-chg-${key}" style="display:none;align-items:center;gap:7px"><span style="display:inline-flex;align-items:center;height:19px;box-sizing:border-box;padding:0 7px;border-radius:4px;background:#fdf3e7;font-size:12px;color:#7a5a2a">Changed</span><a onclick="if(window.__mktRevert)window.__mktRevert('${key}')" style="font-size:13px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Revert</a></span>`}</span>`;
+    // A third argument gives the label one live slot: the Required mark `__mitsRecheck` writes
+    // while the field has nothing in it. A label only ever says what is still wanted — a field that
+    // has been filled in is doing its job, and marking that too made every label something to read.
+    const lab = (t,tip,key) => `<span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--rmx-text, #666666)">${t}${tip||''}${!key?'':`<span id="m-need-${key}" style="display:none;align-items:center"></span>`}</span>`;
     // Charge Category and Charge Schedule carry the form's other two help icons.
     const help = this.mktHelp();
     const sect = (t,inner) => `<div style="display:flex;flex-direction:column;gap:10px"><span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span><div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:12px">${inner}</div></div>`;
@@ -7174,21 +7171,19 @@ class Component extends DCLogic {
       const D = inhNow();
       let any = false;
       MKTKEYS.forEach(([key, id, dk]) => {
-        const el = this.q('#' + id), mark = this.q('#m-chg-' + key);
-        if (!mark) return;
+        const el = this.q('#' + id);
         // A recurring charge's Fee Due is a fixed hidden input — there is no control to differ.
         const live = !!el && (id === 'm-name' || id === 'm-marketing' || !!this.q('#' + id + '-disp'));
-        const diff = live && String(el.value || '') !== String(D[dk] || '');
-        mark.style.display = diff ? 'inline-flex' : 'none';
-        if (diff) any = true;
+        if (live && String(el.value || '') !== String(D[dk] || '')) any = true;
       });
       const rs = this.q('#m-mkt-reset'); if (rs) rs.style.display = any ? 'inline' : 'none';
       const ct = this.q('#m-ctype');
       if (window.__mktOvrNote) window.__mktOvrNote(ct ? ct.value : '', any);
       return any;
     };
-    // Handing one field back to whatever it inherits. It stays a field `__mktDefaults` may refill
-    // when the charge type changes, so the value it was just given is recorded as ours.
+    // Handing one field back to whatever it inherits — what Reset all to default is made of. It
+    // stays a field `__mktDefaults` may refill when the charge type changes, so the value it was
+    // just given is recorded as ours.
     window.__mktRevert = (key) => {
       const D = inhNow();
       const ent = MKTKEYS.filter(k => k[0] === key)[0]; if (!ent) return;
@@ -7771,14 +7766,16 @@ class Component extends DCLogic {
       const live = this.ilsOn(), act = !!this.state.publishedProps[this.state.property];
       const e2 = (t) => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
       // The mark goes on the field rather than into a list underneath: a list makes you match the
-      // names back up, a mark on the field is the instruction.
+      // names back up, a mark on the field is the instruction. It reads **Required** in both states
+      // — the field is the same field either way; what differs is the tone, amber while the feed is
+      // still publishing rent and red once a listing is actually being held back.
       const NEEDK = { 'Name':'name', 'Charge Category':'category', 'Charge Requirement':'req',
         'Fee Due':'due', 'Charge Schedule':'sched' };
       Object.keys(NEEDK).forEach((l) => {
         const el = this.q('#m-need-' + NEEDK[l]); if (!el) return;
         const on = live && need.indexOf(l) >= 0;
         el.style.display = on ? 'inline-flex' : 'none';
-        el.innerHTML = !on ? '' : `<span style="display:inline-flex;align-items:center;height:19px;box-sizing:border-box;padding:0 7px;border-radius:4px;background:${act ? '#fdecee' : '#fdf3e7'};font-size:12px;color:${act ? '#a3252c' : '#7a5a2a'}">${act ? 'Required' : 'Needed'}</span>`;
+        el.innerHTML = !on ? '' : `<span style="display:inline-flex;align-items:center;height:19px;box-sizing:border-box;padding:0 7px;border-radius:4px;background:${act ? '#fdecee' : '#fdf3e7'};font-size:12px;color:${act ? '#a3252c' : '#7a5a2a'}">Required</span>`;
       });
       // Red is earned in one state only: fee transparency is live and this charge is holding
       // listings off the feed right now. Before activation the feed still publishes rent, so the
