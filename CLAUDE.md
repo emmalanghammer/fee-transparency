@@ -71,7 +71,10 @@ at `z-index:150`, under `pubModalHTML`'s 152, so the confirmation lands on top o
 
 **A group's header sits on the page background; only the register is a card.** The header is
 `padding:16px 20px`: a 24px `--rmx-brand-dark` chevron 8px from the property name at 14/600 on the
-left, then the
+left — and they are **two controls, not one**. The chevron collapses the group; the **name goes to
+the property** (`navProperty`) and turns brand blue on hover, like every other link to a record.
+They used to be one span, which meant the only thing on the header that reads like a property was
+the one thing that didn't behave like one. Then the
 **Listing Ready Charges** count on the right — a 20px icon (`error` in `--rmx-notice` while charges
 are short, `check_circle` in `--rmx-success` once whole), the label at 14/20 `#666`, and the
 fraction at 14/20 SemiBold. No lozenge. The count is still the trigger for `ltReadyOpen`, and since

@@ -4062,10 +4062,14 @@ class Component extends DCLogic {
 
       // Figma 3561:122545: the header sits on the page background, not on the card — the white card
       // is the register alone. Chevron and name left, the charge count right, nothing between.
+      // The chevron collapses the group; the name goes to the property. They were one control, which
+      // meant the only thing on the header that reads like a property was the one thing that didn't
+      // behave like one — so the name is its own target now, blue on hover like every other link to
+      // a record, and the chevron keeps the collapse to itself.
       const header = `<div style="display:flex;align-items:center;gap:16px;padding:16px 20px">
-        <span onclick="${toggle}" style="display:flex;align-items:center;gap:8px;cursor:pointer">
-          ${this.ico(open ? 'keyboard_arrow_up' : 'keyboard_arrow_down', 24, 'color:var(--rmx-brand-dark, #13314c)')}
-          <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${esc(g.prop)}</span>
+        <span style="display:flex;align-items:center;gap:8px">
+          <span onclick="${toggle}" style="display:flex;align-items:center;cursor:pointer">${this.ico(open ? 'keyboard_arrow_up' : 'keyboard_arrow_down', 24, 'color:var(--rmx-brand-dark, #13314c)')}</span>
+          <span data-act="navProperty" data-arg="${esc(g.prop)}" onmouseover="this.style.color='var(--ac,var(--rmx-brand, #008dd5))'" onmouseout="this.style.color='var(--rmx-brand-dark, #13314c)'" style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;cursor:pointer">${esc(g.prop)}</span>
         </span>
       </div>`;
 
