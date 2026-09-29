@@ -230,8 +230,8 @@ the user to hard-reload rather than reporting a deploy as not landed.
 `43F6y97LDzYBgL4CZAEO82`: **Listings**, **Fee Transparency Setup overlay**, **Marketing Setup
 overlay** (General tab), **Charge Type Details overlay**, **Apply Defaults** (`3595:57352`),
 **Listings — not grouped** (`3602:3188`, the register with Property as its first column), the
-**Listing Errors overlay** (`3603:4096`) and the **Recurring Charge Details overlay**
-(`3607:3831`, General over Charge Marketing). They are built from RMX component instances with Foundations variables
+**Listing Errors overlay** (`3603:4096`), the **Recurring Charge Details overlay**
+(`3607:3831`, General over Charge Marketing) and **Edit Default Charge Marketing** (`3638:4452`). They are built from RMX component instances with Foundations variables
 bound — icons are `Flexible Icon` instances with the glyph swapped, registers are columns of
 Header + Cell, and fields are `Input Field`. Page `3465:40468` ("V2") holds the earlier iterations.
 
@@ -552,8 +552,24 @@ checkbox; the dialog now works the way the charge form does, so the two rungs ar
 `state.ctmEdit.on` are all gone. The fields are live and open holding what a charge of this type
 reads at this property today — the property's own values where it has them, the charge type's
 otherwise. Nothing is *required* here, so no field carries a lozenge; a field moved off the charge
-type carries **Revert** (`#ctm-rev-<key>`), exactly as the charge form does, and **Reset all to
-default** sits opposite the source row.
+type carries **Revert** (`#ctm-rev-<key>`), exactly as the charge form does.
+
+**Its shape is Figma `3638:4452`**, a 681px dialog over three stacked blocks 16px apart inside a
+16px body:
+
+- a grey `--rmx-bg-muted` strip, 36px with 8px side padding, carrying a 20px brand `info`, the
+  source line, and **Edit Charge Type** on the right. The source line is the same answer the Revert
+  links give: *Inherited from `<CODE>`* while nothing differs, *Set for `<property>`* once something
+  does, and a plain line when the charge type has nothing set at all. **Edit Charge Type**
+  (`ctmEditType`) opens Charge Type Details and **closes this dialog behind it** — the rule every
+  other "go there" link follows, and the reason anything typed here and not saved goes with it.
+- a line reading **Charge Type: `<CODE>`** over *n charges on this property using this charge type*,
+  with **Revert All Fields** on the right. The count is `appliedRows(prop)` filtered to the code —
+  the same source as the Default Charge Marketing register's Charges column, so the tile and the
+  dialog it opens can't disagree. Revert All Fields is always shown, as the Figma draws it;
+  reverting what already matches is a no-op.
+- the fields, one bordered card at 13px padding with 12px rows and 16px columns. **Revert sits at
+  the far right of the label row**, not against the label, so the links line up down the column.
 
 **Ownership is derived on save, not declared.** `ctmSave` reads all seven fields, diffs them against
 `mktDefFor(code)`, and writes `state.propDef[prop][CODE]` only when something differs; matching the

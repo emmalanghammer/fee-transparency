@@ -1359,6 +1359,10 @@ class Component extends DCLogic {
         this.setState({ ctmEdit: { prop: prop, code: code,
           vals: Object.assign({}, this.mktDefFor(code) || {}, own || {}) } }); break; }
       case 'ctmCancel': this.setState({ ctmEdit: null }); break;
+      // The values on screen come from the charge type, so the banner offers the way to it — and
+      // closes this dialog behind it rather than stacking one over the other. Anything typed here
+      // and not saved goes with it, which is the same trade every other "go there" link makes.
+      case 'ctmEditType': this.setState({ ctmEdit: null, ctDetail: String(arg || '').toUpperCase() }); break;
       case 'ctmSave': { const e = this.state.ctmEdit; if (!e) break;
         const read = id => { const el = document.getElementById(id); return el ? el.value : ''; };
         const base = this.mktDefFor(e.code) || {};
@@ -3524,7 +3528,15 @@ class Component extends DCLogic {
     // are live and already hold what this property would show anyway; one that has been moved off
     // the charge type offers **Revert** on its label, and Reset all to default does the lot.
     const DIFFJS = 'if(window.__ctmDiff)window.__ctmDiff()';
-    const fld = (label, ctl, tip, key) => `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0"><span style="display:inline-flex;align-items:center;gap:6px">${lab(label)}${tip || ''}${!key ? '' : `<a id="ctm-rev-${key}" onclick="if(window.__ctmRevert)window.__ctmRevert('${key}')" style="display:none;font-size:13px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Revert</a>`}</span>${ctl}</div>`;
+    // Figma `3638:4452`: the label row is the label and its help icon on the left, **Revert** at the
+    // far right — so the links line up down the column rather than each one sitting wherever its
+    // label happens to end.
+    const fld = (label, ctl, tip, key) => `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
+      <span style="display:flex;align-items:center;gap:6px;min-height:20px">
+        <span style="display:inline-flex;align-items:center;gap:6px;min-width:0">${lab(label)}${tip || ''}</span>
+        <span style="flex:1"></span>
+        ${!key ? '' : `<a id="ctm-rev-${key}" onclick="if(window.__ctmRevert)window.__ctmRevert('${key}')" style="display:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Revert</a>`}
+      </span>${ctl}</div>`;
     const txt = (id, val) => F.txt(id, val, '', DIFFJS);
     const area = (id, val) => `<textarea id="${id}" oninput="${DIFFJS}" style="box-sizing:border-box;width:100%;height:60px;padding:8px 10px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);resize:none">${esc(val)}</textarea>`;
     const dd = (id, opts, val) => this.singleSelect(id, opts, val, { noSearch:true, blank:true, placeholder:' ', js:DIFFJS });
@@ -3535,15 +3547,18 @@ class Component extends DCLogic {
       + pair(fld('Charge Requirement', dd('ctm-requirement', REQ, v('requirement')), H.requirement, 'requirement'), fld('Charge Schedule', dd('ctm-schedule', SCHED, v('schedule')), H.schedule, 'schedule'))
       + pair(fld('Fee Due', dd('ctm-feeDue', DUE, v('feeDue')), H.feeDue, 'feeDue'), fld('Refundable', dd('ctm-refundable', REF, v('refundable')), '', 'refundable'));
 
-    // One row says which tier these values come from, and it is the same answer that lights the
-    // Changed marks: the property owns them only where they differ from the charge type.
+    // Figma `3638:4452`: a grey strip saying where the values on screen come from, with the way to
+    // go and change the thing they come from. It is the same answer that shows the Revert links —
+    // this property owns these values only where they differ from the charge type.
     const typeHas = Object.keys(base).some(k => String(base[k] == null ? '' : base[k]).trim());
-    const chip = (t) => `<span style="display:inline-flex;align-items:center;gap:7px;height:24px;box-sizing:border-box;padding:0 10px;border-radius:4px;background:var(--rmx-brand-tint-bg, #ebf1f5);font-size:13px;color:var(--rmx-brand-hover, #0071aa);white-space:nowrap"><span style="width:7px;height:7px;border-radius:50%;flex:none;background:var(--ac,var(--rmx-brand, #008dd5))"></span>${esc(t)}</span>`;
-    const grey = (t) => `<span style="font-size:14px;color:var(--rmx-text, #666666)">${t}</span>`;
-    const srcRow = (any) => any ? grey('Coming from') + chip(prop)
-      : typeHas ? grey('Coming from') + chip(code + ' charge type')
-      : grey(esc(code) + ' has no default charge marketing yet.');
+    const bold = (t) => `<strong style="font-weight:600">${esc(t)}</strong>`;
+    const srcRow = (any) => any ? 'Set for ' + bold(prop)
+      : typeHas ? 'Inherited from ' + bold(code)
+      : bold(code) + ' has no default charge marketing yet';
     const any0 = CTMK.some(([k]) => String(v(k) || '') !== String(base[k] || ''));
+    // The same count the Default Charge Marketing register shows, read from the same place, so the
+    // tile and the dialog it opens can't disagree about how far this reaches.
+    const nCharges = this.appliedRows(prop).filter(r => String(r.mits || '').toUpperCase() === code).length;
 
     this.ddSetInstall();
     const LBL = {}; DUE.concat(REF).forEach(d => { LBL[d.value] = d.label; });
@@ -3555,7 +3570,6 @@ class Component extends DCLogic {
         if (rev) rev.style.display = diff ? 'inline' : 'none';
         if (diff) any = true;
       });
-      const rs = this.q('#ctm-reset'); if (rs) rs.style.display = any ? 'inline' : 'none';
       const row = this.q('#ctm-src'); if (row) row.innerHTML = srcRow(any);
       return any;
     };
@@ -3568,20 +3582,24 @@ class Component extends DCLogic {
     window.__ctmResetAll = () => { CTMK.forEach(x => window.__ctmRevert(x[0])); };
 
     return `<div data-act="ctmCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:150">
-      <div data-act="noop" style="width:560px;max-width:94vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+      <div data-act="noop" style="width:681px;max-width:94vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;gap:14px;padding:10px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
           <span style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">Edit Default Charge Marketing</span>
           <div style="flex:1"></div>
           <span data-act="ctmCancel" style="display:flex;cursor:pointer">${this.ico('close', 20, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
         </div>
-        <div style="flex:1;min-height:0;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:14px">
-          <span style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">Set property specific default marketing for every charge using this charge type.</span>
-          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-            <div id="ctm-src" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0">${srcRow(any0)}</div>
-            <div style="flex:1"></div>
-            <a id="ctm-reset" onclick="if(window.__ctmResetAll)window.__ctmResetAll()" style="display:${any0 ? 'inline' : 'none'};font-size:13px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Reset all to default</a>
+        <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:16px">
+          <div style="display:flex;align-items:center;gap:8px;min-height:36px;box-sizing:border-box;padding:0 8px;background:var(--rmx-bg-muted, #f2f2f2);border-radius:4px;flex:none">
+            ${this.ico('info', 20, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}
+            <span id="ctm-src" style="flex:1;min-width:0;font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${srcRow(any0)}</span>
+            <a data-act="ctmEditType" data-arg="${esc(code)}" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Edit Charge Type</a>
           </div>
-          <div style="display:flex;flex-direction:column;gap:12px;padding:14px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px">${body}</div>
+          <div style="display:flex;align-items:center;gap:16px;flex:none">
+            <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">Charge Type: <strong style="font-weight:600">${esc(code)}</strong></span>
+            <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nCharges} charge${nCharges === 1 ? '' : 's'} on this property using this charge type</span>
+            <a id="ctm-reset" onclick="if(window.__ctmResetAll)window.__ctmResetAll()" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Revert All Fields</a>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px;padding:13px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px">${body}</div>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:10px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:11px 16px;flex:none">
           <button data-act="ctmSave" class="btn-pri" style="height:34px;min-height:34px;padding:0 20px;border-radius:4px;font-size:14px">Save</button>
