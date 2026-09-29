@@ -236,10 +236,10 @@ class Component extends DCLogic {
   // ---------- properties (the top-level entity; fee profiles hang off these) ----------
   propertiesData(){
     const all = this.portfolioData();
-    if (this.scenarioKey() !== 'happy') return all;
-    // Happy Path is a walkthrough portfolio: only the simplified properties, plus anything added
-    // during the walkthrough, so the flow can be demoed without scrolling past fifteen properties.
-    const keep = this.happyPathCharges();
+    const keep = this.walkCharges();
+    if (!keep) return all;
+    // A walkthrough portfolio: only the simplified properties, plus anything added during the
+    // walkthrough, so the flow can be demoed without scrolling past fifteen properties.
     const added = (this.state.newProps || []).map(x => x.name);
     return all.filter(x => keep[x.name] || added.indexOf(x.name) >= 0);
   }
@@ -285,7 +285,7 @@ class Component extends DCLogic {
   propNames(){ return this.propertiesData().map(p => p.name); }
   // The register footer counts against the whole company, not the page of properties on screen. The
   // walkthrough portfolio is the whole company, so there it counts what's actually there.
-  portfolioTotal(){ return this.scenarioKey() === 'happy' ? this.propertiesData().length : 42; }
+  portfolioTotal(){ return this.walkCharges() ? this.propertiesData().length : 42; }
   propInfo(name){ const n = name || this.state.property; return this.propertiesData().find(p => p.name === n) || this.propertiesData()[0]; }
   properties(){ return this.propertiesData(); }
 
@@ -770,13 +770,30 @@ class Component extends DCLogic {
       'Oakwood Manor':        ['RC','DP','ADMIN','GARBAG','NSF','LATE']
     };
   }
+  // The two scenarios that are a walkthrough rather than a portfolio: each names, per property, the
+  // charges it keeps. Everything else about them falls out of that one list — which properties
+  // exist, what they charge, and which charge types are on the books.
+  walkCharges(){
+    const k = this.scenarioKey();
+    return k === 'happy' ? this.happyPathCharges() : k === 'demo' ? this.demoCharges() : null;
+  }
+  // Simple Demo is the smallest thing that still tells the whole story: two properties, two charges
+  // each, on two charge types. Both types arrive short (they are in `mktDefAll`'s SHORT list), so
+  // the walkthrough is: look at Listings, fill the two charge type defaults, come back and find the
+  // charges complete, activate. Nothing else is on screen to read past.
+  demoCharges(){
+    return {
+      'Riverview Apartments': ['RC','GARBAG'],
+      'The Berkshires':       ['RC','GARBAG']
+    };
+  }
   propChargePlan(){
     const base = this.propChargePlanBase();
-    if (this.scenarioKey() !== 'happy') return base;
+    const simple = this.walkCharges();
+    if (!simple) return base;
     // The plan names what a property doesn't run, so a keep list becomes everything else — the
     // property-specific NSF and late fees included, which keeps the one-time section to the keeps.
     const all = this.baseCharges().map(r => r.mits);
-    const simple = this.happyPathCharges();
     const out = Object.assign({}, base);
     Object.keys(simple).forEach(n => { out[n] = all.filter(c => simple[n].indexOf(c) < 0); });
     return out;
@@ -949,6 +966,17 @@ class Component extends DCLogic {
     return hit ? hit[1] : '';
   }
   chargeTypeList(){
+    // Simple Demo puts only the types it actually uses on the books, so the Charge Types register
+    // is two rows rather than thirty-eight and the walkthrough's "open a charge type" is one click.
+    // Everything downstream reads this — the register, the typeahead and `mktDefAll` — so they
+    // cannot disagree about what exists.
+    if (this.scenarioKey() === 'demo') {
+      const use = {}; Object.keys(this.demoCharges()).forEach(p2 => this.demoCharges()[p2].forEach(c => { use[c] = 1; }));
+      return this.chargeTypeListAll().filter(([code]) => use[code]);
+    }
+    return this.chargeTypeListAll();
+  }
+  chargeTypeListAll(){
     return [['ADMIN','Administrative Fee'],['AMENFEE','Amenity Fee'],['APPFEE','Application Fee'],['CABLE','Cable Utility'],
       ['CAM','Common Area Maintenance'],['CAMTAX','CAM - Taxes'],['CLEAN','Cleaning Fee'],['COVPARK','Covered Parking'],
       ['DAMAGE','Damage Repair'],['DP','Security Deposit'],['ELEC','Electric Utility'],['EPAYAJ','ePay Refund Adjustment'],
@@ -2684,7 +2712,8 @@ class Component extends DCLogic {
       { key:'happy', label:'Happy Path' },
       { key:'mid',   label:'Mid Conversion' },
       { key:'post',  label:'Post Conversion' },
-      { key:'noils', label:'On Rollout, No ILS' }
+      { key:'noils', label:'On Rollout, No ILS' },
+      { key:'demo',  label:'Simple Demo' }
     ];
   }
   scenarioLabel(){
@@ -2722,7 +2751,7 @@ class Component extends DCLogic {
     const names = this.propertiesData().map(p => p.name);
     const ils = {};
     // Every Happy Path property advertises online, so fee transparency is on the table for all of them.
-    if (key === 'happy') this.propertiesData().forEach(x => { ils[x.name] = true; });
+    if (key === 'happy' || key === 'demo') this.propertiesData().forEach(x => { ils[x.name] = true; });
     else if (key !== 'noils') this.scenarioMarketed().forEach(n => { ils[n] = true; });
     const plan = { ils, status:{}, fees:{}, published:{} };
     const convert = (n, complete, published, drift) => {
@@ -2756,8 +2785,11 @@ class Component extends DCLogic {
       // Steady state: every property is converted, and every marketed one publishes complete pricing.
       names.forEach(n => convert(n, true, !!ils[n] && !this.mhOn(n)));
     }
-    // 'on' and 'noils' are launch day — nothing is converted yet.
-    plan.view = key === 'mid' ? 'feetrans' : key === 'post' ? 'listings' : 'register';
+    // 'on', 'noils' and 'demo' are launch day — nothing is converted yet. Simple Demo opens on
+    // Listings, which is where its walkthrough starts.
+    // In C the Listings page **is** the `feetrans` view: `'listings'` is not a view key and falls
+    // through to the Unit page, which is where Post Conversion had been landing.
+    plan.view = (key === 'mid' || key === 'post' || key === 'demo') ? 'feetrans' : 'register';
     // The announcement is opened deliberately from the nav, not thrown at the user on load.
     plan.announce = false;
     return plan;

@@ -889,6 +889,28 @@ asked. `chargeColsDefault()` is what honours the gate, beside the existing `base
 
 ## Test feature states
 
+**Simple Demo is the walkthrough, start to finish.** Two properties — Riverview Apartments and The
+Berkshires — running two charges each (**RC** and **GARBAG**) on two charge types, and those are the
+only two types on the books. Both arrive short (they are in `mktDefAll`'s `SHORT` list), so the run
+is: open on **Listings** and see five units at 0/2, Action Required → Full Menu › Charge Types, open
+**RC**, fill Charge Requirement and Charge Schedule, Save & Close, answer **Apply Defaults** → back
+on Listings everything is 1/2 → do the same for **GARBAG** → 2/2, Sent to Provider → the property's
+Charges shows two complete charges → **View Setup**, both properties Ready, **Activate Fee
+Transparency**, and every listing picks up a Total Monthly Price. Nothing else is on screen to read
+past.
+
+`demoCharges()` is the whole definition: a keep list per property. `walkCharges()` is what answers
+*which walkthrough is on* — `happyPathCharges()`, `demoCharges()`, or null for the real portfolios —
+and `propertiesData()`, `portfolioTotal()` and `propChargePlan()` all read it, so the portfolio, the
+charges and the footer count cannot disagree. `chargeTypeList()` narrows to the demo's own types
+(`chargeTypeListAll()` is the full list), which is what makes the Charge Types register two rows and
+the walkthrough's "open a charge type" one click; the register, the typeahead and `mktDefAll` all
+read it, so they cannot disagree about what exists either.
+
+**`'listings'` was never a view key.** In C the Listings page **is** the `feetrans` view, so
+`scenarioPlan`'s `plan.view` uses that — Post Conversion had been setting `'listings'`, which matches
+nothing and falls through to the Unit page, so that scenario opened on a random unit.
+
 The Test Feature State selector starts **hidden**, so a demo never opens with a control that
 isn't part of the product. **Full Menu › Prototype › Show Test Feature State** turns it on (the
 menu item's label flips to Hide), clicking the Rent Manager logo toggles it, and `?test=1` on the
