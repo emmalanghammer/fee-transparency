@@ -42,7 +42,9 @@ every listing already advertises complete pricing (`needsFT`).
   three states it is in — a **Ready** / **Not Ready** lozenge, or, for one that has already
   activated, *Fee Transparent*. That last one stays italic rather than becoming a lozenge: Ready and
   Not Ready are about work outstanding, and this is about work finished. A ready property's row
-  offers **Activate Fee Transparency** (`pubOpen`) beside its name; a converted one offers nothing. Expanded, the property row takes a 1px `--rmx-line` bottom border, so the white row reads as the
+  offers **Activate Fee Transparency** (`pubOpen`) immediately left of its status, since the action
+  is what the status leads to; a converted one offers nothing. So a row reads the name on the left,
+  then what to do about it and where it stands, together on the right. Expanded, the property row takes a 1px `--rmx-line` bottom border, so the white row reads as the
   header of what opened under it rather than running into the grey. It shows two grey sub-rows —
   *Listing Ready Charges: n/n* with **Add Charge Marketing**, or **View Charges** once the count is
   whole, going to `openFeeProfile` because the property's Charges overlay is where a charge's
