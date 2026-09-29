@@ -205,18 +205,24 @@ the same three sections in the same order, so the lozenge and what opens under i
 `ltChargeIssues` takes a **property**, not a listing.
 
 **`ltErrHTML` matches Figma `3642:6750`.** A 714px dialog, a 48px header reading
-*Listing Errors: `<property>` · `<unit>`*, then the three sections 8px apart, then an **OK** footer.
+*Errors: `<property>` · `<unit>`*, then the three sections 8px apart, then an **OK** footer.
 A section is a bordered card: an icon, a title carrying its **count in brackets** (`(0)` included, so
 a clean section says so rather than leaving you to infer it), a lozenge where the state has a name,
 and a chevron only when there is something to open — a clean section still shows, so the breakdown answers "is it
 this?" for all three sources, but offers no chevron, because opening nothing is not an offer.
 
-**Only Charge Marketing Errors is ever red**, and it is what makes the card look different rather
-than a second colour inside it: **Action Required: Listing Not Sent** takes a red border and a
-`#fdecee` header, so the eye lands on it before reading a word. It is titled that **only when it has
-items** — clean, it reads *Charge Marketing Errors*, because a green tick over "Listing Not Sent"
-says two opposite things. Rent Manager Errors and the provider's are both about a listing that went
-out, so both are amber and both carry the **Missing Information** lozenge. Its body leads with *"These charges are missing marketing
+**A section is always titled for its source**, with its count in brackets; **what state it is in
+sits on the right**, where the eye is already going. Rent Manager's and the provider's carry the
+**Missing Information** lozenge there; Charge Marketing Errors carries the words
+**Action Required: Listing Not Sent** in red SemiBold instead, needing no tint of its own because
+the header it sits in is already red. Only that one is ever red — a red border and a `#fdecee`
+header — and it is what makes the card look different rather than a second colour inside it. Rent
+Manager Errors and the provider's are both about a listing that went out, so both are amber.
+
+**The status glyphs are filled, not outlined.** The `ico` map carries Material's outlined set, which
+reads as a drawing at 20px in a header; `ltErrHTML` inlines the filled `error`, `warning` and
+`check_circle` (`D_ERR`, `D_WARN`, `D_OK` through `fill()`) so the state registers before the words
+do. Its body leads with *"These charges are missing marketing
 information required to send to providers."* and **Add Charge Marketing** on the same row
 (`openFeeProfile`, which clears `ltErr` so the dialog closes behind it), then each charge in a
 numbered list: the name in SemiBold over *Missing: `<fields>`* in grey. Rent Manager Errors is amber
