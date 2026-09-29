@@ -659,6 +659,17 @@ the one place that writes the override, whichever route reached it.
   fields and both refusals from every charge of that type at that property, so each reads the new
   default and nothing else.
 
+**Storage, Parking and Pet carry more than the seven fields, and those are the property's too.**
+A Storage, Parking or Pet charge type's dialog shows that category's own section under the fields
+(`ctm-at-*`, the same field sets the charge form's `attrSections` use) — a property's lockers are
+its own size whatever the charge type says. They are stored as `propDef[prop][CODE].attrs` and stay
+**out of `ctmFields()` and out of the Field Overrides count**, which is about the seven every charge
+has; but a property that has set them owns something, so they count towards whether an entry is
+written at all and towards whether the Apply Defaults question gets asked. `__mktDefaults` fills
+them on the charge form under the same rule as the marketing fields — only where the field is empty
+or still holds what it last wrote — and `saveFee` falls back to them on **create**, so a charge
+added at that property starts on its lockers even with the section collapsed.
+
 **`chargeInherits(prop, code, listing)` is what the charge form fills from**, not `ctmFor`: the same
 two rungs with that charge's own refusals honoured, so what the form shows and what
 `resolvedListing` would publish cannot disagree. `mktSourceOf` takes the charge's `listing` for the

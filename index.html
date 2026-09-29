@@ -1400,15 +1400,28 @@ class Component extends DCLogic {
         const base = this.mktDefFor(e.code) || {};
         const K = this.ctmFields();
         const vals = {}; K.forEach(k => { vals[k] = read('ctm-' + k); });
+        // Storage / Parking / Pet extras ride along as `attrs`. They stay out of `ctmFields()` and
+        // out of the Field Overrides count, which is about the seven every charge has — but a
+        // property that has set them owns something, so they count towards whether an entry is
+        // written at all.
+        const ATTR = { stype:'storageType', uom:'uom', h:'height', w:'width', l:'length',
+          struct:'structure', size:'size', reg:'regular', hc:'handicapped', elec:'electric',
+          desc:'desc', pettype:'petType' };
+        const attrs = {}; let anyAttr = false;
+        Object.keys(ATTR).forEach(id => { const el = document.getElementById('ctm-at-' + id);
+          if (!el) return; const val = String(el.value || '').trim();
+          if (val) { attrs[ATTR[id]] = val; anyAttr = true; } });
+        if (anyAttr) vals.attrs = attrs;
         // Ownership is derived here, not declared: this property keeps values of its own only where
         // they actually differ from the charge type. Matching it on every field is what following it
         // means, so that deletes the entry rather than storing a copy that would stop tracking.
-        const any = K.some(k => String(vals[k] || '') !== String(base[k] || ''));
+        const any = K.some(k => String(vals[k] || '') !== String(base[k] || '')) || anyAttr;
         // How far a property's default reaches is asked, not assumed — the same question the charge
         // type's own defaults ask, one rung down. Only worth asking when this property already runs
         // charges of the type and the save actually moves something.
         const was = this.ctmOwn(e.prop, e.code) || {};
-        const moved = K.some(k => String(vals[k] || '') !== String(was[k] == null ? (base[k] || '') : (was[k] || '')));
+        const moved = K.some(k => String(vals[k] || '') !== String(was[k] == null ? (base[k] || '') : (was[k] || '')))
+          || JSON.stringify(attrs) !== JSON.stringify(was.attrs || {});
         const users = this.appliedRows(e.prop).filter(r => String(r.mits || '').toUpperCase() === e.code).length;
         if (moved && users) { this.setState(s2 => ({
           ctmEdit: Object.assign({}, s2.ctmEdit, { vals: vals }),
@@ -1911,6 +1924,10 @@ class Component extends DCLogic {
       freq: isOne ? '' : ('Every ' + (v('m-freq') || '1') + ' Month'),
       from: isOne ? '' : v('m-from'), to: isOne ? '' : v('m-to'),
       amount, amtMethod: src, level: app, target, oriType, ils,
+      // A charge being created takes the property's own extras for its category, the way it takes
+      // the marketing fields: `attrs` is what Storage, Parking and Pet advertise beyond the seven,
+      // and a property that has set them has said what its lockers and its parking are like.
+      // Editing an existing charge never re-applies them.
       // Commercial charges keep their distribution basis so reopening shows the CRE sections.
       cre: !!(m.cre || (m.edit && m.edit.cre)) || undefined,
       creDist: v('m-cre-dist') || undefined, creDivide: v('m-cre-divide') || undefined, creUdf: v('m-cre-udf') || undefined,
@@ -1920,10 +1937,12 @@ class Component extends DCLogic {
       exclFrom: (app === 'Property' || app === 'Unit Type') ? this.readExclFields() : undefined,
       // Marketing/MITS details are saved either way — they're useful to unmarketed properties too.
       attrs: (() => { const cc = this.chargeCategoryFor(code);
-        if (cc === 'Storage') return { storageType: v('m-at-stype'), uom: v('m-at-uom'), height: v('m-at-h'), width: v('m-at-w'), length: v('m-at-l') };
-        if (cc === 'Parking') return { structure: v('m-at-struct'), size: v('m-at-size'), regular: v('m-at-reg'), handicapped: v('m-at-hc'), electric: v('m-at-elec'), desc: v('m-at-desc') };
+        const pd = !m.edit ? ((this.ctmOwn(this.state.property, code) || {}).attrs || {}) : {};
+        const a0 = (k, val) => String(val || '').trim() || pd[k] || '';
+        if (cc === 'Storage') return { storageType: a0('storageType', v('m-at-stype')), uom: a0('uom', v('m-at-uom')), height: a0('height', v('m-at-h')), width: a0('width', v('m-at-w')), length: a0('length', v('m-at-l')) };
+        if (cc === 'Parking') return { structure: a0('structure', v('m-at-struct')), size: a0('size', v('m-at-size')), regular: a0('regular', v('m-at-reg')), handicapped: a0('handicapped', v('m-at-hc')), electric: a0('electric', v('m-at-elec')), desc: a0('desc', v('m-at-desc')) };
         // Pet specifics live on the Pet Type now — the charge just records which type it follows.
-        if (cc === 'Pet') return { petType: v('m-at-pettype'), petKind: v('m-at-petkind') };
+        if (cc === 'Pet') return { petType: a0('petType', v('m-at-pettype')), petKind: v('m-at-petkind') };
         return undefined; })(),
       // There is no override checkbox any more, so ownership is asked of each field on its own: a
       // value that still matches what the charge inherits is stored empty and keeps following its
@@ -3664,10 +3683,34 @@ class Component extends DCLogic {
     const dd = (id, opts, val) => this.singleSelect(id, opts, val, { noSearch:true, blank:true, placeholder:' ', js:DIFFJS });
 
     const pair = (a, b) => `<div style="display:flex;gap:16px">${a}${b}</div>`;
+    // Storage, Parking and Pet charges advertise more than the seven fields every charge has, and
+    // those extras are as much a property's business as the rest — a property's lockers are its own
+    // size whatever the charge type says. So the category's own section shows here too, under the
+    // fields, and only for the category this charge type actually is.
+    const att = (this.ctmOwn(prop, code) || {}).attrs || {};
+    const cat = String(v('category') || this.chargeCategoryFor(code) || '');
+    const sub = (label, ctl) => `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab(label)}${ctl}</div>`;
+    const dim = (id, val) => `<div style="display:flex;align-items:center;gap:6px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:36px;box-sizing:border-box;padding:0 10px">
+      <input id="${id}" value="${esc(val || '')}" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">
+      <span id="${id}-sfx" style="font-size:14px;color:var(--rmx-text-muted, #b3b3b3);flex:none">${esc((({ Inch:'in', Foot:'ft', Yard:'yd', Meter:'m' })[String(att.uom || '').trim()]) || '')}</span></div>`;
+    const SPACE = ['None','Available','Reservable'];
+    const extras = cat !== 'Storage' && cat !== 'Parking' && cat !== 'Pet' ? '' : `
+      <div style="display:flex;flex-direction:column;gap:12px;padding-top:13px;border-top:1px solid var(--rmx-line, #cedbe7)">
+        <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${esc(cat)} Details</span>
+        ${cat === 'Storage' ? `
+          ${pair(sub('Storage Type', dd('ctm-at-stype', ['Bike','Closet','Locker','Other'], att.storageType || '')), sub('Storage Measurement Unit', this.singleSelect('ctm-at-uom', ['Inch','Foot','Yard','Meter'], att.uom || '', { noSearch:true, blank:true, placeholder:'\u00a0', js:"['ctm-at-h','ctm-at-w','ctm-at-l'].forEach(function(i){var e=document.getElementById(i+'-sfx');if(e)e.textContent=({Inch:'in',Foot:'ft',Yard:'yd',Meter:'m'})[_v]||''})" })))}
+          <div style="display:flex;gap:16px">${sub('Height', dim('ctm-at-h', att.height))}${sub('Width', dim('ctm-at-w', att.width))}${sub('Length', dim('ctm-at-l', att.length))}</div>` : ''}
+        ${cat === 'Parking' ? `
+          ${pair(sub('Parking Type', dd('ctm-at-struct', ['Surface Lot','Garage Lot','Covered Lot','Street','Other','Garage (Attached)','Garage (Detached)','None'], att.structure || '')), sub('Vehicle Size', dd('ctm-at-size', ['Motorcycle','Compact','Car','Extended (RV/Boat)'], att.size || '')))}
+          <div style="display:flex;gap:16px">${sub('Standard Parking', dd('ctm-at-reg', SPACE, att.regular || ''))}${sub('Handicapped Parking', dd('ctm-at-hc', SPACE, att.handicapped || ''))}${sub('Electric Parking', dd('ctm-at-elec', SPACE, att.electric || ''))}</div>
+          ${sub('Parking Description', `<input id="ctm-at-desc" value="${esc(att.desc || '')}" placeholder="E.g. 50 surface spaces, 5 handicapped, 10 EV" style="width:100%;box-sizing:border-box;height:36px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:0 10px;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);outline:none">`)}` : ''}
+        ${cat === 'Pet' ? pair(sub('Pet Type', dd('ctm-at-pettype', this.petTypesFor().map(t => t.name), att.petType || '')), '<div style="flex:1;min-width:0"></div>') : ''}
+      </div>`;
     const body = pair(fld('Name', txt('ctm-name', v('name')), '', 'name'), fld('Charge Category', dd('ctm-category', this.chargeCategoryOptions(), v('category')), H.category, 'category'))
       + fld('Marketing Description', area('ctm-marketing', v('marketing')), '', 'marketing')
       + pair(fld('Charge Requirement', dd('ctm-requirement', REQ, v('requirement')), H.requirement, 'requirement'), fld('Charge Schedule', dd('ctm-schedule', SCHED, v('schedule')), H.schedule, 'schedule'))
-      + pair(fld('Fee Due', dd('ctm-feeDue', DUE, v('feeDue')), H.feeDue, 'feeDue'), fld('Refundable', dd('ctm-refundable', REF, v('refundable')), '', 'refundable'));
+      + pair(fld('Fee Due', dd('ctm-feeDue', DUE, v('feeDue')), H.feeDue, 'feeDue'), fld('Refundable', dd('ctm-refundable', REF, v('refundable')), '', 'refundable'))
+      + extras;
 
     // Figma `3638:4452`: a grey strip naming the tier these values come from, with the way to go and
     // change it. It says the charge type and nothing else — that is what this dialog is an override
@@ -7491,6 +7534,22 @@ class Component extends DCLogic {
         if (ce) ce.style.display = 'none';
         if (cp) cp.style.display = 'none';
       }
+      // Storage, Parking and Pet advertise more than the seven fields, and the property's own
+      // defaults for them are set on the same dialog — so picking a charge type fills those too,
+      // under the same rule: only where the field is empty or still holds what we last put there.
+      const PA = (this.ctmOwn(this.state.property, code) || {}).attrs || {};
+      const ATTRIN = [['m-at-stype','storageType'], ['m-at-uom','uom'], ['m-at-h','height'],
+        ['m-at-w','width'], ['m-at-l','length'], ['m-at-struct','structure'], ['m-at-size','size'],
+        ['m-at-reg','regular'], ['m-at-hc','handicapped'], ['m-at-elec','electric'],
+        ['m-at-desc','desc'], ['m-at-pettype','petType']];
+      ATTRIN.forEach(([id, key]) => {
+        const el = this.q('#' + id); if (!el) return;
+        const val = PA[key] || '';
+        if (!mine(el.value, 'at:' + key)) { now['at:' + key] = was['at:' + key]; return; }
+        if (this.q('#' + id + '-disp')) window.__ddSet(id, val, val); else el.value = val;
+        now['at:' + key] = val;
+      });
+      if (window.__uomSfx) window.__uomSfx(PA.uom || ((this.q('#m-at-uom') || {}).value) || '');
       this._mktDefApplied = now;
       if (window.__attrCheck) window.__attrCheck();
       if (window.__mitsRecheck) window.__mitsRecheck();
