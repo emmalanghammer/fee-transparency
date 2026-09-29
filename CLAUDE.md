@@ -708,12 +708,19 @@ sections' cards line up on the same left and right edges.
 `window.__mktOverride` and `window.__mktLockSync`. The fields are always live and already hold what
 the charge inherits, so nothing has to be understood before anyone can type.
 
-**A label carries two marks, and only ever one at a time.** The lozenge is **Required**, and it is
-only on a field with nothing in it — there is no *Changed* lozenge, because marking a field that has
-been filled in made every label something to read when the one thing worth reading is which are
-still empty. Beside it, a field that has been moved off what it inherits offers **Revert**
-(`#m-rev-<key>`): the link is the whole mark, so an edited field hands back the way out without also
-being labelled. **Reset all to default** in the source row does the lot.
+**The section is drawn the way a property's own Default Charge Marketing is**, so the two rungs of
+the cascade read the same: a grey `--rmx-bg-muted` strip, 36px with 8px sides, carrying a 20px brand
+`info`, ***Inherited from `<tier>`***, and **Revert All Fields** on the right. The strip names the
+tier and nothing else — the property's override of this charge type where it has one, otherwise the
+charge type — because that is what the charge is an override **of**, whether or not anything has
+been overridden yet.
+
+**A label carries two marks, and only ever one at a time.** The lozenge is **Required**, on the left
+with the field's name, and only on a field with nothing in it — there is no *Changed* lozenge,
+because marking a field that has been filled in made every label something to read when the one
+thing worth reading is which are still empty. At the **far right** of the label row, a field moved
+off what it inherits offers **Revert** (`#m-rev-<key>`), so the links line up down the column. The
+link is the whole mark: an edited field hands back the way out without also being labelled.
 
 `window.__mktDiff` is the one place that answers *is this field the charge's own?*, and it lights the
 Revert links, the Reset link and the source row's chip together, so the three cannot disagree.

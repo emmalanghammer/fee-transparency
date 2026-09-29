@@ -7195,7 +7195,17 @@ class Component extends DCLogic {
     // while the field has nothing in it, and the **Revert** link `__mktDiff` shows once the field
     // has been moved off what it inherits. There is no Changed lozenge — the link is the whole
     // mark, so a field that has been edited offers the way back without also being labelled.
-    const lab = (t,tip,key) => `<span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--rmx-text, #666666)">${t}${tip||''}${!key?'':`<span id="m-need-${key}" style="display:none;align-items:center"></span><a id="m-rev-${key}" onclick="if(window.__mktRevert)window.__mktRevert('${key}')" style="display:none;font-size:13px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Revert</a>`}</span>`;
+    const lab = (t,tip,key) => !key
+      ? `<span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--rmx-text, #666666)">${t}${tip||''}</span>`
+      // A marketing field's label is the row the property's own Default Charge Marketing draws:
+      // the name, its help icon and the **Required** mark on the left, **Revert** at the far right,
+      // so the links line up down the column instead of landing wherever each label ends.
+      : `<span style="display:flex;align-items:center;gap:6px;min-height:20px;font-size:14px;color:var(--rmx-text, #666666)">
+          <span style="display:inline-flex;align-items:center;gap:6px;min-width:0">${t}${tip||''}</span>
+          <span id="m-need-${key}" style="display:none;align-items:center"></span>
+          <span style="flex:1"></span>
+          <a id="m-rev-${key}" onclick="if(window.__mktRevert)window.__mktRevert('${key}')" style="display:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Revert</a>
+        </span>`;
     // Charge Category and Charge Schedule carry the form's other two help icons.
     const help = this.mktHelp();
     const sect = (t,inner) => `<div style="display:flex;flex-direction:column;gap:10px"><span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span><div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:12px">${inner}</div></div>`;
@@ -7300,7 +7310,7 @@ class Component extends DCLogic {
         if (diff) any = true;
       });
       const rs = this.q('#m-mkt-reset'); if (rs) rs.style.display = any ? 'inline' : 'none';
-      if (window.__mktOvrNote) window.__mktOvrNote(codeNow(), any);
+      if (window.__mktOvrNote) window.__mktOvrNote(codeNow());
       return any;
     };
     // Handing one field back to whatever it inherits — what Reset all to default is made of. It
@@ -7323,16 +7333,16 @@ class Component extends DCLogic {
     // One row says which tier the values on screen come from. The charge type can change while the
     // form is open, and so can whether anything has been edited, so it is rewritten by `__mktDiff`
     // rather than rendered once.
-    window.__mktOvrNote = (code, own) => {
-      const src = this.mktSourceOf(code, !!own);
+    window.__mktOvrNote = (code) => {
+      // `own` is deliberately false: the strip names the tier below this charge, not whether the
+      // charge has stepped off it.
+      const src = this.mktSourceOf(code, false);
       const row = this.q('#m-ovr-src');
       if (!row) return;
       const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;');
       row.innerHTML = src.chip
-        ? `<span style="font-size:14px;color:var(--rmx-text, #666666)">Coming from</span>`
-          + `<span style="display:inline-flex;align-items:center;gap:7px;height:24px;box-sizing:border-box;padding:0 10px;border-radius:4px;background:var(--rmx-brand-tint-bg, #ebf1f5);font-size:13px;color:var(--rmx-brand-hover, #0071aa);white-space:nowrap"><span style="width:7px;height:7px;border-radius:50%;flex:none;background:var(--ac,var(--rmx-brand, #008dd5))"></span>${esc(src.chip)}</span>`
-          + (src.note ? `<span style="font-size:14px;color:var(--rmx-text, #666666)">\u00b7 ${esc(src.note)}</span>` : '')
-        : `<span style="font-size:14px;color:var(--rmx-text, #666666)">${esc(src.note)}</span>`;
+        ? `Inherited from <strong style="font-weight:600">${esc(src.chip)}</strong>`
+        : esc(src.note);
     };
     window.__mktDefaults = (code) => {
       const D = this.ctmFor(this.state.property, code) || {};
@@ -8019,10 +8029,15 @@ class Component extends DCLogic {
     // Option C: no mode at all. The source row says which tier the values come from, the fields
     // below it are live and already hold exactly that, and Reset all to default hands the whole
     // charge back to its tier in one move rather than field by field.
-    const ovrRow = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-bottom:14px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
-        <div id="m-ovr-src" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0"></div>
-        <div style="flex:1"></div>
-        <a id="m-mkt-reset" onclick="if(window.__mktResetAll)window.__mktResetAll()" style="display:none;font-size:13px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Reset all to default</a>
+    // The same grey strip the property's Default Charge Marketing carries (Figma `3638:4452`), so
+    // the two rungs of the cascade are read the same way: a 20px brand `info`, the tier these values
+    // come from, and the way back on the right. It names the tier and nothing else — that is what
+    // this charge is an override **of**, whether or not anything has been overridden yet, and what
+    // has been changed is already said by the Revert links.
+    const ovrRow = `<div style="display:flex;align-items:center;gap:8px;min-height:36px;box-sizing:border-box;padding:0 8px;background:var(--rmx-bg-muted, #f2f2f2);border-radius:4px;flex:none">
+        ${this.ico('info', 20, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}
+        <span id="m-ovr-src" style="flex:1;min-width:0;font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></span>
+        <a id="m-mkt-reset" onclick="if(window.__mktResetAll)window.__mktResetAll()" style="display:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Revert All Fields</a>
       </div>`;
     // A property that doesn't advertise online is not being asked any of this: no Include on
     // listings toggle, nothing marked missing, and one info icon beside the heading saying why —
