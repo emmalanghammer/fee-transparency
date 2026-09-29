@@ -520,12 +520,17 @@ and Default Charge Marketing a body of `flex:1 1 0; height:0; overflow-y:auto`, 
 contributes no intrinsic height and the grid row is sized by the one tile that does. However many
 floor plans or charge types a property has, the row stays as tall as Features and those two scroll
 inside it. The last is a register of the charge types the property
-actually runs — **Charge Type · Charges · Property Override** — with a green tick where
-this property has taken the type over, and an edit pencil (`ctmOpen`). That pencil is RMX
+actually runs — **Charge Type · Charges · Field Overrides** — and an edit pencil (`ctmOpen`). That pencil is RMX
 Iconography's **edit-filled** (Figma `3595:57346`), harvested rather than drawn: it is the filled
 glyph at 20px on its own `0 0 20 20` box, so it can't live in the Material `ico` map with the
-`-960 960` ones and is inlined as `EDIT_FILLED` beside the register. The tick reads
-`ctmOverridden`, which is still true of exactly the properties that own values of their own.
+`-960 960` ones and is inlined as `EDIT_FILLED` beside the register.
+
+**Field Overrides is a fraction, not a tick.** A tick only said whether an entry exists; the
+override is stored **whole**, so an entry says nothing about how much of it actually differs.
+`ctmOverrideCount(prop, code)` derives it — the property's stored values diffed against
+`mktDefFor(code)`, field by field — and reads `0/7` in grey until something does, then `n/7` in
+SemiBold. `ctmFields()` is the one list of the seven, read by the dialog, by `ctmSave` and by this
+count, so none of the three can be counting a different set.
 
 **The three surfaces that edit a charge's marketing carry the same field tooltips.** `mktHelp()`
 builds one map — **Charge Category, Charge Requirement, Charge Schedule, Fee Due** — read by the charge form, Charge Type

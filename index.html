@@ -574,6 +574,20 @@ class Component extends DCLogic {
     const own = ((this.state.propDef || {})[prop || this.state.property] || {})[String(code || '').toUpperCase()];
     return !!(own && own.on);
   }
+  // The marketing fields a property's override covers — one list, read by the dialog, by `ctmSave`
+  // and by the count in the Default Charge Marketing register, so none of the three can be counting
+  // a different set.
+  ctmFields(){ return ['name','category','marketing','requirement','schedule','feeDue','refundable']; }
+  // How many of them this property has actually moved off the charge type. Derived, never stored:
+  // the override is saved whole, so the entry existing says nothing about how much of it differs.
+  ctmOverrideCount(prop, code){
+    const c = String(code || '').toUpperCase();
+    const own = this.ctmOwn(prop, c), base = this.mktDefFor(c) || {};
+    const K = this.ctmFields();
+    if (!own) return { n: 0, total: K.length };
+    return { n: K.filter(k => String(own[k] == null ? '' : own[k]) !== String(base[k] == null ? '' : base[k])).length,
+      total: K.length };
+  }
   // Every charge type the portfolio actually uses, and what uses it — the rows of the grid. A type is
   // listed by how much it would fill, so the biggest wins are at the top.
   mktDefTypes(){
@@ -1366,7 +1380,7 @@ class Component extends DCLogic {
       case 'ctmSave': { const e = this.state.ctmEdit; if (!e) break;
         const read = id => { const el = document.getElementById(id); return el ? el.value : ''; };
         const base = this.mktDefFor(e.code) || {};
-        const K = ['name','category','marketing','requirement','schedule','feeDue','refundable'];
+        const K = this.ctmFields();
         const vals = {}; K.forEach(k => { vals[k] = read('ctm-' + k); });
         // Ownership is derived here, not declared: this property keeps values of its own only where
         // they actually differ from the charge type. Matching it on every field is what following it
@@ -8645,7 +8659,6 @@ class Component extends DCLogic {
       });
       return Object.keys(use).sort().map(c => use[c]);
     })();
-    const ctmTick = `<svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-success, #6eb744)"><path d="m421-298 283-283-46-45-237 237-120-120-45 45 165 166Zm59 218q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 31.5-156t86-127Q252-817 325-848.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 82-31.5 155T763-197.5q-54 54.5-127 86T480-80Z"/></svg>`;
     // RMX Iconography's edit-filled (Figma `3595:57346`), harvested rather than drawn. It carries
     // its own 0 0 20 20 box, so it can't live in the Material `ico` map with the -960 960 glyphs.
     const EDIT_FILLED = `<svg class="ico" width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5))"><path d="M2.49896 14.376V17.501H5.62396L14.8406 8.28437L11.7156 5.15938L2.49896 14.376Z"/><path d="M17.2573 4.69271L15.3073 2.74271C14.9823 2.41771 14.4573 2.41771 14.1323 2.74271L12.6073 4.26771L15.7323 7.39271L17.2573 5.86771C17.5823 5.54271 17.5823 5.01771 17.2573 4.69271Z"/></svg>`;
@@ -8655,11 +8668,12 @@ class Component extends DCLogic {
     const ctm = card('Default Charge Marketing', `
       <div style="margin:-14px -16px;overflow-x:auto">
         <div style="min-width:344px;display:grid;grid-template-columns:${CTMCOLS};border-bottom:1px solid var(--rmx-line, #cedbe7)">
-          ${ctmHead('Charge Type')}${ctmHead('Charges')}${ctmHead('Property Override')}${ctmHead('')}
+          ${ctmHead('Charge Type')}${ctmHead('Charges')}${ctmHead('Field Overrides')}${ctmHead('')}
         </div>
         ${ctmRows.length ? ctmRows.map(t => `<div style="min-width:344px;display:grid;grid-template-columns:${CTMCOLS};border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa)">
             ${ctmCell(esc2(t.code))}${ctmCell(String(t.n))}
-            ${ctmCell(this.ctmOverridden(P.name, t.code) ? ctmTick : '')}
+            ${ctmCell((() => { const o = this.ctmOverrideCount(P.name, t.code);
+              return `<span style="${o.n ? 'font-weight:600;' : 'color:var(--rmx-text, #666666)'}">${o.n}/${o.total}</span>`; })())}
             <span data-act="ctmOpen" data-arg="${esc2(t.code)}" title="Edit this property's default charge marketing" style="display:flex;align-items:center;justify-content:center;min-height:38px;cursor:pointer">${EDIT_FILLED}</span>
           </div>`).join('')
           : `<div style="padding:14px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No charges on this property yet.</div>`}
