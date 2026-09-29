@@ -37,10 +37,12 @@ every listing already advertises complete pricing (`needsFT`).
   you asked to go to the charge types, not to read them through a scrim).
 - **Add Marketing Details to Charges** + a red `Required` lozenge — always open, because on the
   second visit that is what you came for. One row per property fee transparency can apply to
-  (`ftApplicable`, and only where listings carry charges at all): a home icon, the name, a
-  **Ready** / **Not Ready** lozenge and a chevron. A ready property's row also offers
-  **Activate Fee Transparency** (`pubOpen`); one that already has it reads *Fee Transparent* in
-  italic and offers nothing. Expanded, the property row takes a 1px `--rmx-line` bottom border, so the white row reads as the
+  (`ftApplicable`, and only where listings carry charges at all): a home icon, the name, a status
+  and a chevron. **Where a property stands reads in one column down the right**, whichever of the
+  three states it is in — a **Ready** / **Not Ready** lozenge, or, for one that has already
+  activated, *Fee Transparent*. That last one stays italic rather than becoming a lozenge: Ready and
+  Not Ready are about work outstanding, and this is about work finished. A ready property's row
+  offers **Activate Fee Transparency** (`pubOpen`) beside its name; a converted one offers nothing. Expanded, the property row takes a 1px `--rmx-line` bottom border, so the white row reads as the
   header of what opened under it rather than running into the grey. It shows two grey sub-rows —
   *Listing Ready Charges: n/n* with **Add Charge Marketing**, or **View Charges** once the count is
   whole, going to `openFeeProfile` because the property's Charges overlay is where a charge's

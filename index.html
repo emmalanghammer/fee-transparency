@@ -3696,13 +3696,17 @@ class Component extends DCLogic {
     // ---- section 3: the work, one row per property ----
     const prop = (r) => {
       const open = !!po[r.p];
-      const status = r.converted ? '' : r.whole
+      // Where a property stands reads in one column down the right, whichever of the three states it
+      // is in — a converted property's *Fee Transparent* used to sit against its name, so the eye had
+      // to look in two places to compare rows. It stays italic rather than becoming a lozenge:
+      // Ready and Not Ready are about work outstanding, and this one is about work finished.
+      const status = r.converted
+        ? `<span style="font-size:14px;font-style:italic;color:var(--rmx-text, #666666);white-space:nowrap">Fee Transparent</span>`
+        : r.whole
         ? loz('Ready', 'var(--rmx-success-bg, #e2f1da)', 'var(--rmx-brand-dark, #13314c)', 'var(--rmx-success, #6eb744)')
         : loz('Not Ready', '#fdf3e7', 'var(--rmx-brand-dark, #13314c)', 'var(--rmx-notice, #faa61c)');
-      // A property that is ready offers the move here; one that has already made it just says so.
-      const lead = r.converted
-        ? `<span style="font-size:14px;font-style:italic;color:var(--rmx-text, #666666);white-space:nowrap">Fee Transparent</span>`
-        : r.whole ? link('Activate Fee Transparency', 'pubOpen', r.p) : '';
+      // A property that is ready offers the move here; one that has already made it offers nothing.
+      const lead = r.converted ? '' : r.whole ? link('Activate Fee Transparency', 'pubOpen', r.p) : '';
       const sub = (icon, label, value, action) => `<div style="display:flex;align-items:center;gap:12px;min-height:36px;box-sizing:border-box;padding:8px;background:var(--rmx-bg-subtle, #f5f8fa)">
         ${icon}
         <span style="flex:1;min-width:0;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}${value ? ` <strong style="font-weight:600">${value}</strong>` : ''}</span>
