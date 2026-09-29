@@ -752,6 +752,13 @@ The **Charges overlay carries almost none of it**. The charge form's two section
 and **Charge Marketing** — the second collapsed by default; collapsing hides the body rather than
 dropping it, so `saveFee` still reads every field.
 
+**The header carries where the charge stands.** A status dot and **Listing Ready** sit beside the
+title (`#m-lr-status`, written by `__mitsRecheck` through `lrMarkup`), so it reads with the section
+collapsed — which is how it is most of the time. Green *Listing Ready*, red *Not Ready for
+Listings*, grey *Listing Ready - Excluded* when the charge is off listings, since an excluded charge
+is not measured for readiness. A property that doesn't advertise online carries **no status at
+all**, because none of this is asked of it.
+
 **The section matches Figma `3606:62884`.** Collapsed by
 default, with **Include on listings** on the header's right — the toggle itself, so it can be set
 without opening the section; its `onclick` stops propagation or the header's own collapse fires
@@ -816,8 +823,8 @@ those values are now the only copy on screen rather than a mirror beside the rea
    list makes you match them back up, a mark on the field is the instruction. The note counts both:
    *N fields on this charge*, and the property total, which is `otherShort` (every other `ils`
    charge's `mitsMissing`) plus this charge's live count, so the two halves can't double-count.
-3. **Activated and complete.** A simple green status — *“Complete. This charge is advertised on the
-   property's listings.”* Nothing else: green is the absence of work, so it takes the least room.
+3. **Activated and complete.** Nothing inside the card at all. The header's **Listing Ready** says
+   it, and said twice on one screen it is noise rather than reassurance.
 4. **Activated and short.** Red, and red is earned here and nowhere else — this is the one state
    costing something today. The lozenge still reads **Required** — the field is the same field
    either way, and only the tone differs. The card takes a red border, the note
