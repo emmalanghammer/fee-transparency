@@ -216,6 +216,8 @@ class Component extends DCLogic {
     ftSetup: null,        // { sec:{what,def}, props:{<name>:true} } — the Fee Transparency Setup overlay
     propDef: {},          // { '<Property>': { '<CODE>': { on:true, name, category, … } } } — a property's override of a charge type
     ctmEdit: null,        // { prop, code } — the Default Charge Marketing dialog
+    ctmAsk: null,         // { prop, code, vals } — how far a property's override should reach
+    ctmMode: 'new',
  // Listings page: hide listings without errors
     ltErr: null, // { i, open } — Listing Errors popup for one listing
     // Charges register columns: chgCols is the chosen keys in order (null = defaults), colNames holds
@@ -475,7 +477,11 @@ class Component extends DCLogic {
   // Charge first, then the property's override of its charge type, then the charge type itself.
   resolvedListing(r){
     const L = (r && r.listing) || {};
-    const P = this.ctmOwn(r && r._prop, r && r.mits) || {};
+    // `noProp` is what "Only new charges" leaves behind at the **property** rung, exactly as
+    // `noInherit` does at the charge type's: this charge existed before the property's override was
+    // last saved, so it doesn't take it. The two are independent, because refusing one was never
+    // an answer about the other.
+    const P = (r && r.listing && r.listing.noProp) ? {} : (this.ctmOwn(r && r._prop, r && r.mits) || {});
     // `noInherit` is what "Only new charges" leaves behind: this charge existed before the charge
     // type's defaults were last saved, so it doesn't take them. The property's own override still
     // reaches it — that is a separate, deliberate act, and refusing it was never asked for.
@@ -569,6 +575,18 @@ class Component extends DCLogic {
   ctmFor(prop, code){
     const c = String(code || '').toUpperCase();
     return this.ctmOwn(prop, c) || this.mktDefFor(c) || {};
+  }
+  // What one charge inherits: `ctmFor` with that charge's own refusals honoured. `noProp` and
+  // `noInherit` are what an *Only new charges* answer leaves behind at the property rung and the
+  // charge type's, and they are independent — refusing one was never an answer about the other.
+  // The charge form fills from this rather than `ctmFor`, so what it shows and what
+  // `resolvedListing` would publish cannot disagree.
+  chargeInherits(prop, code, listing){
+    const L = listing || {};
+    const c = String(code || '').toUpperCase();
+    const P = L.noProp ? null : this.ctmOwn(prop, c);
+    if (P) return P;
+    return (L.noInherit ? null : this.mktDefFor(c)) || {};
   }
   ctmOverridden(prop, code){
     const own = ((this.state.propDef || {})[prop || this.state.property] || {})[String(code || '').toUpperCase()];
@@ -1239,7 +1257,7 @@ class Component extends DCLogic {
             propDef = nextDef;
             eachCharge(r => {
               const L = Object.assign({}, r.listing);
-              ['name','marketing','category','requirement','feeDue','schedule','refundable','noInherit']
+              ['name','marketing','category','requirement','feeDue','schedule','refundable','noInherit','noProp']
                 .forEach(k => { delete L[k]; });
               return L;
             });
@@ -1386,14 +1404,21 @@ class Component extends DCLogic {
         // they actually differ from the charge type. Matching it on every field is what following it
         // means, so that deletes the entry rather than storing a copy that would stop tracking.
         const any = K.some(k => String(vals[k] || '') !== String(base[k] || ''));
-        const pd = Object.assign({}, this.state.propDef);
-        const byProp = Object.assign({}, pd[e.prop] || {});
-        // The override is stored whole, because `ctmFor` falls back type-then-record rather than
-        // field by field — and the form is showing every resolved value anyway.
-        if (any) byProp[e.code] = Object.assign({ on: true }, vals); else delete byProp[e.code];
-        pd[e.prop] = byProp;
-        this.setState({ propDef: pd, ctmEdit: null });
-        this.flash(any ? e.code + ' overridden for ' + e.prop : e.code + ' follows the charge type again');
+        // How far a property's default reaches is asked, not assumed — the same question the charge
+        // type's own defaults ask, one rung down. Only worth asking when this property already runs
+        // charges of the type and the save actually moves something.
+        const was = this.ctmOwn(e.prop, e.code) || {};
+        const moved = K.some(k => String(vals[k] || '') !== String(was[k] == null ? (base[k] || '') : (was[k] || '')));
+        const users = this.appliedRows(e.prop).filter(r => String(r.mits || '').toUpperCase() === e.code).length;
+        if (moved && users) { this.setState(s2 => ({
+          ctmEdit: Object.assign({}, s2.ctmEdit, { vals: vals }),
+          ctmAsk: { prop: e.prop, code: e.code, vals: vals, any: any, users: users }, ctmMode: 'new' })); break; }
+        this.ctmCommit(e.prop, e.code, vals, any, null);
+        break; }
+      case 'ctmMode': this.setState({ ctmMode: arg || 'new' }); break;
+      case 'ctmAskCancel': this.setState({ ctmAsk: null }); break;
+      case 'ctmApply': { const a2 = this.state.ctmAsk; if (!a2) break;
+        this.ctmCommit(a2.prop, a2.code, a2.vals, a2.any, arg || 'new');
         break; }
       case 'ftSetupClose': this.setState({ ftSetup: null }); break;
       case 'ftSetupSec': this.setState(s2 => { const f2 = s2.ftSetup, o = Object.assign({}, f2.sec || {});
@@ -1804,7 +1829,7 @@ class Component extends DCLogic {
       const req = v('m-req') || 'Situational';
       // Ownership is per field here too, so a property specific charge that has been left on the
       // defaults keeps following them rather than freezing today's values onto itself.
-      const SD = this.ctmFor(this.state.property, specEd.mits) || {};
+      const SD = this.chargeInherits(this.state.property, specEd.mits, specEd.listing);
       const sown = (cur, inh) => String(cur == null ? '' : cur) === String(inh == null ? '' : inh) ? '' : cur;
       const sRefLbl = SD.refundable === 'yes' || SD.refundable === true ? 'Refundable'
         : SD.refundable === 'no' || SD.refundable === false ? 'Not Refundable' : '';
@@ -1904,7 +1929,7 @@ class Component extends DCLogic {
       // value that still matches what the charge inherits is stored empty and keeps following its
       // tier through `resolvedListing`. Only what someone actually changed becomes the charge's.
       listing: (() => {
-        const D = this.ctmFor(this.state.property, code) || {};
+        const D = this.chargeInherits(this.state.property, code, m.edit && m.edit.listing);
         const own = (cur, inh) => String(cur == null ? '' : cur) === String(inh == null ? '' : inh) ? '' : cur;
         const refLbl = D.refundable === 'yes' || D.refundable === true ? 'Refundable'
           : D.refundable === 'no' || D.refundable === false ? 'Not Refundable' : '';
@@ -1918,7 +1943,11 @@ class Component extends DCLogic {
           feeDue: own(v('m-due'), D.feeDue),
           schedule: isOne ? '' : own(v('m-sched'), D.schedule),
           refundable: refNow === refLbl ? undefined : this.refundVal(),
-          leaseRole: cat === 'Lease' ? this.leaseRoleVal() : ''
+          leaseRole: cat === 'Lease' ? this.leaseRoleVal() : '',
+          // Editing a charge by hand is not an answer about inheritance, so an *Only new charges*
+          // refusal at either rung survives the save that would otherwise rebuild `listing` without it.
+          noInherit: (m.edit && m.edit.listing && m.edit.listing.noInherit) || undefined,
+          noProp: (m.edit && m.edit.listing && m.edit.listing.noProp) || undefined
         };
       })()
     };
@@ -2738,7 +2767,7 @@ class Component extends DCLogic {
       copyFees: null, pricePreview: null, profMenu: null, profHist: null,
       recView: null, rowMenu: null, pubModal: null, ftSel: null, mktDef: this.mktDefAll(),
       mktSetup: false, mktAdv: false, mktTab: 'General', petType: null, spBanner: true, ftHelp: false,
-      lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false, ltGroupBy: true, ftSetup: null, propDef: {}, ctmEdit: null, mcTab: 'Overview',
+      lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false, ltGroupBy: true, ftSetup: null, propDef: {}, ctmEdit: null, ctmAsk: null, ctmMode: 'new', mcTab: 'Overview',
       mcProp: null, mktDefDraft: null, mktDefAsk: false, mktDefMode: 'new', mpExp: null
     });
     try {
@@ -3523,6 +3552,81 @@ class Component extends DCLogic {
   // A property's override of one charge type. The checkbox is the whole decision: off, the fields
   // show the charge type's defaults, greyed and locked; on, they are this property's to set, and
   // every charge of that type here inherits them unless the charge itself says otherwise.
+  // Writing a property's override, and whatever the answer about reach implies for the charges
+  // already there. `mode` is null when nothing had to be asked.
+  ctmCommit(prop, code, vals, any, mode){
+    const K = this.ctmFields();
+    this.setState(s2 => {
+      const pd = Object.assign({}, s2.propDef);
+      const byProp = Object.assign({}, pd[prop] || {});
+      // The override is stored whole, because `ctmFor` falls back record-then-record rather than
+      // field by field — and the form is showing every resolved value anyway.
+      if (any) byProp[code] = Object.assign({ on: true }, vals); else delete byProp[code];
+      pd[prop] = byProp;
+      const out = { propDef: pd, ctmEdit: null, ctmAsk: null };
+      if (!mode || mode === 'inherit') return out;
+      // Only the charges of this type, at this property.
+      const rows = s2.profileFees[prop] || this.profileRows(prop);
+      const mine = (r) => String(r.mits || '').toUpperCase() === code;
+      const fees = Object.assign({}, s2.profileFees);
+      fees[prop] = rows.map(r => {
+        if (!mine(r)) return r;
+        const L = Object.assign({}, r.listing);
+        // "Only new charges": nothing that exists may move, and a field that resolves to nothing
+        // today is indistinguishable from one nobody has filled — so the charge refuses this
+        // property's override outright rather than being written over with today's values. The
+        // charge type still reaches it, which is a separate question nobody just answered.
+        if (mode === 'new') L.noProp = true;
+        // "All charges": every override below the property is cleared, so each charge of this type
+        // reads the new default and nothing else.
+        else { K.forEach(k => { delete L[k]; }); delete L.noProp; delete L.noInherit; }
+        return Object.assign({}, r, { listing: L });
+      });
+      out.profileFees = fees;
+      return out;
+    });
+    this.flash(any ? code + ' overridden for ' + prop : code + ' follows the charge type again');
+  }
+  // How far this property's default should reach, asked the way the charge type's own defaults ask
+  // it (Figma `3595:57352`), one rung down and scoped to this property.
+  ctmAskHTML(){
+    const a = this.state.ctmAsk; if (!a) return '';
+    const mode = this.state.ctmMode || 'new';
+    const BRAND = 'var(--ac,var(--rmx-brand, #008dd5))';
+    const TXT = 'var(--rmx-text, #666666)';
+    const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    const opt = (v, title, sub) => {
+      const on = mode === v;
+      return `<div data-act="ctmMode" data-arg="${v}" style="display:flex;align-items:center;gap:12px;box-sizing:border-box;width:100%;padding:12px 16px 12px 8px;border:1px solid ${on ? BRAND : 'var(--rmx-line, #cedbe7)'};border-radius:4px;background:${on ? 'var(--rmx-brand-tint-bg, #ebf1f5)' : '#fff'};cursor:pointer">
+        <span style="flex:none;display:flex;align-items:center;justify-content:center;box-sizing:border-box;width:20px;height:20px;border:2px solid ${on ? BRAND : 'var(--rmx-text-muted, #b3b3b3)'};border-radius:200px">${on ? `<span style="width:10px;height:10px;border-radius:200px;background:${BRAND}"></span>` : ''}</span>
+        <span style="flex:1;min-width:0;display:flex;flex-direction:column;padding:4px 0">
+          <span style="font-size:14px;line-height:20px;font-weight:600;color:${TXT}">${title}</span>
+          ${sub ? `<span style="padding-top:8px;font-size:14px;line-height:20px;color:${TXT}">${sub}</span>` : ''}
+        </span>
+      </div>`;
+    };
+    return `<div style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:165">
+      <div data-act="noop" style="width:417px;max-width:94vw;max-height:92vh;box-sizing:border-box;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="flex:none;display:flex;align-items:center;justify-content:space-between;gap:8px;height:48px;box-sizing:border-box;padding:8px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
+          <span style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">Apply Defaults</span>
+          <svg class="ico" width="24" height="24" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="ctmAskCancel" style="color:${BRAND};cursor:pointer;flex:none"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
+        </div>
+        <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:24px">
+          <span style="font-size:14px;line-height:20px;color:${TXT}">${a.users} charge${a.users === 1 ? '' : 's'} at ${esc(a.prop)} use${a.users === 1 ? 's' : ''} the ${esc(a.code)} charge type.</span>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <span style="font-size:14px;line-height:20px;color:${TXT}">How would you like to apply these changes?</span>
+            ${opt('new', 'Only new charges', '')}
+            ${opt('inherit', 'All charges using default marketing', 'Overridden charges stay as they are')}
+            ${opt('all', 'All charges', 'Clears every charge override at this property')}
+          </div>
+        </div>
+        <div style="flex:none;display:flex;align-items:center;justify-content:flex-end;gap:16px;padding:8px 16px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7)">
+          <button data-act="ctmApply" data-arg="${mode}" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Save</button>
+          <button data-act="ctmAskCancel" class="btn-out" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+  }
   ctmEditHTML(){
     const e = this.state.ctmEdit; if (!e) return '';
     const prop = e.prop, code = String(e.code || '').toUpperCase();
@@ -4431,17 +4535,18 @@ class Component extends DCLogic {
   // cannot say different things about the same field.
   // Which tier a charge's marketing details come from, and which one an override here would be
   // overriding. `own` is the charge's own values, which only the charge form knows about.
-  mktSourceOf(code, own){
+  mktSourceOf(code, own, listing){
     const c = String(code || '').toUpperCase();
     const prop = this.state.property;
-    const p = c ? this.ctmOwn(prop, c) : null;
+    const L = listing || {};
+    const p = (c && !L.noProp) ? this.ctmOwn(prop, c) : null;
     // What it would be overriding: the property when that property has taken the type over,
     // otherwise the charge type itself.
     const label = p ? prop : (c ? c + ' charge type' : 'the charge type');
     if (!c) return { key:'none', label, chip:'', note:'Choose a charge type to see where these details come from.' };
     if (own) return { key:'charge', label, chip:'This charge', note:'' };
     if (p) return { key:'property', label, chip:prop, note:'its override of ' + c };
-    const t = this.mktDefFor(c) || {};
+    const t = (L.noInherit ? null : this.mktDefFor(c)) || {};
     const any = ['name','marketing','category','requirement','feeDue','schedule','refundable']
       .some(k => String(t[k] == null ? '' : t[k]).trim());
     if (any) return { key:'type', label, chip:c + ' charge type', note:'' };
@@ -7289,7 +7394,7 @@ class Component extends DCLogic {
     // and its General card is locked — so the code falls back to the charge's own.
     const codeNow = () => ((this.q('#m-ctype') || {}).value) || (ed && ed.mits) || '';
     const inhNow = () => {
-      const D = this.ctmFor(this.state.property, codeNow()) || {};
+      const D = this.chargeInherits(this.state.property, codeNow(), ed && ed.listing);
       return { name: D.name || '', marketing: D.marketing || '', requirement: D.requirement || '',
         schedule: D.schedule || '', feeDue: D.feeDue || '',
         refundable: D.refundable === 'yes' || D.refundable === true ? 'Refundable'
@@ -7336,7 +7441,7 @@ class Component extends DCLogic {
     window.__mktOvrNote = (code) => {
       // `own` is deliberately false: the strip names the tier below this charge, not whether the
       // charge has stepped off it.
-      const src = this.mktSourceOf(code, false);
+      const src = this.mktSourceOf(code, false, ed && ed.listing);
       const row = this.q('#m-ovr-src');
       if (!row) return;
       const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;');
@@ -7345,7 +7450,7 @@ class Component extends DCLogic {
         : esc(src.note);
     };
     window.__mktDefaults = (code) => {
-      const D = this.ctmFor(this.state.property, code) || {};
+      const D = this.chargeInherits(this.state.property, code, ed && ed.listing);
       const was = this._mktDefApplied || {};
       const now = {};
       // A field is ours to write when it is empty, or when it still holds the last default we put
@@ -7628,7 +7733,7 @@ class Component extends DCLogic {
     // opens holding its tier's values rather than blank. That is rendered into the markup rather
     // than patched in afterwards — a re-render while the form is open (a toast clearing is enough)
     // throws a DOM-only fill away, and these are now the only copy of those values on screen.
-    const INH = this.ctmFor(this.state.property, (ed && ed.mits) || '') || {};
+    const INH = this.chargeInherits(this.state.property, (ed && ed.mits) || '', ed && ed.listing);
     const inhRef = INH.refundable === 'yes' || INH.refundable === true ? 'Refundable'
       : INH.refundable === 'no' || INH.refundable === false ? 'Not Refundable' : '';
     // A category stored on the charge wins over the charge-type map — the same order the completeness
@@ -9025,6 +9130,7 @@ class Component extends DCLogic {
     out += this.ftSelHTML();
     out += this.mktSetupHTML();
     out += this.ctmEditHTML();
+    out += this.ctmAskHTML();
     out += this.mktDefAskHTML();
     out += this.mktAdvHTML();
     out += this.petTypeHTML();

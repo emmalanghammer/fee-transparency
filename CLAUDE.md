@@ -633,6 +633,34 @@ charge type's values back in the form, and Save does the rest. The override is s
 because `ctmFor` falls back record-then-record rather than field by field, and the form is showing
 every resolved value anyway.
 
+**How far a property's default reaches is asked too.** When `ctmSave` sees the override actually
+move *and* this property already runs charges of that type, it holds the values in `state.ctmAsk`
+and raises **`ctmAskHTML`** — the same Apply Defaults dialog the charge type's own defaults raise
+(Figma `3595:57352`), one rung down: a 417px overlay at `z-index:165`, a line saying how many
+charges at this property use the type, and the same three Radio Selectors. The Default Charge
+Marketing dialog stays open behind it, so **Cancel** returns with everything typed still on it —
+which is why `ctmSave` banks the typed values into `ctmEdit.vals` before raising it. `ctmCommit` is
+the one place that writes the override, whichever route reached it.
+
+- `new` — **Only new charges.** The default. Each charge of that type at that property is marked
+  `listing.noProp`: it refuses the **property's** override outright, exactly as `noInherit` refuses
+  the charge type's. The two are independent, because refusing one was never an answer about the
+  other. Writing today's resolved values instead cannot say it, for the same reason it couldn't a
+  rung up: a field that resolves to nothing today is indistinguishable from one nobody has filled.
+- `inherit` — **All charges using default marketing** / *Overridden charges stay as they are*.
+  Writes nothing: a charge with no value of its own already follows the new override through
+  `resolvedListing`.
+- `all` — **All charges** / *Clears every charge override at this property*. Deletes the marketing
+  fields and both refusals from every charge of that type at that property, so each reads the new
+  default and nothing else.
+
+**`chargeInherits(prop, code, listing)` is what the charge form fills from**, not `ctmFor`: the same
+two rungs with that charge's own refusals honoured, so what the form shows and what
+`resolvedListing` would publish cannot disagree. `mktSourceOf` takes the charge's `listing` for the
+same reason — a charge that refuses the property's override must not be told it inherits from it.
+`saveFee` carries both refusals forward, since editing a charge by hand is not an answer about
+inheritance.
+
 **The source row is the same component as the charge form's**: *Coming from* a brand chip reading
 `<CODE> charge type` while nothing differs and the property's name once something does, or, when the
 type has nothing set at all, a plain line saying so. `window.__ctmDiff` is the single answer that
