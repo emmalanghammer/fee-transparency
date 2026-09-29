@@ -231,7 +231,8 @@ the user to hard-reload rather than reporting a deploy as not landed.
 overlay** (General tab), **Charge Type Details overlay**, **Apply Defaults** (`3595:57352`),
 **Listings — not grouped** (`3602:3188`, the register with Property as its first column), the
 **Listing Errors overlay** (`3603:4096`), the **Recurring Charge Details overlay**
-(`3607:3831`, General over Charge Marketing) and **Edit Default Charge Marketing** (`3638:4452`). They are built from RMX component instances with Foundations variables
+(`3607:3831`, General over Charge Marketing) and the property's **Default Charge Marketing**
+(`3638:4452`). They are built from RMX component instances with Foundations variables
 bound — icons are `Flexible Icon` instances with the glyph swapped, registers are columns of
 Header + Cell, and fields are `Input Field`. Page `3465:40468` ("V2") holds the earlier iterations.
 
@@ -528,7 +529,7 @@ glyph at 20px on its own `0 0 20 20` box, so it can't live in the Material `ico`
 
 **The three surfaces that edit a charge's marketing carry the same field tooltips.** `mktHelp()`
 builds one map — **Charge Category, Charge Requirement, Charge Schedule, Fee Due** — read by the charge form, Charge Type
-Details' Default Charge Marketing and a property's Edit Default Charge Marketing, so the three
+Details' Default Charge Marketing and a property's own, so the three
 cannot say different things about the same field. **No field gained an icon it didn't have**: Name,
 Marketing Description, Fee Due and Refundable carry none anywhere. Charge Schedule and Fee Due are a
 matched pair — `schedTip()` reads *“Only applies to recurring charges.”* and `dueTip()` *“Only
@@ -546,7 +547,7 @@ says what that charge's schedule is instead of sitting blank beside the recurrin
 register's optional **Charge Schedule** column (off by default, on through Column Setup) is where
 that shows.
 
-**`ctmEditHTML()` is the override, and it has no mode either.** Figma `3591:138722` drew it as a
+**`ctmEditHTML()` is the property's own Default Charge Marketing**, and it has no mode either. Figma `3591:138722` drew it as a
 checkbox; the dialog now works the way the charge form does, so the two rungs are learned once. The
 **Override Charge Type** checkbox, the greyed locked fields, `ctmToggle`, `ctmReset` and
 `state.ctmEdit.on` are all gone. The fields are live and open holding what a charge of this type
@@ -557,17 +558,18 @@ type carries **Revert** (`#ctm-rev-<key>`), exactly as the charge form does.
 **Its shape is Figma `3638:4452`**, a 681px dialog over three stacked blocks 16px apart inside a
 16px body:
 
-- a grey `--rmx-bg-muted` strip, 36px with 8px side padding, carrying a 20px brand `info`, the
-  source line, and **Edit Charge Type** on the right. The source line is the same answer the Revert
-  links give: *Inherited from `<CODE>`* while nothing differs, *Set for `<property>`* once something
-  does, and a plain line when the charge type has nothing set at all. **Edit Charge Type**
-  (`ctmEditType`) opens Charge Type Details and **closes this dialog behind it** — the rule every
-  other "go there" link follows, and the reason anything typed here and not saved goes with it.
+- a grey `--rmx-bg-muted` strip, 36px with 8px side padding, carrying a 20px brand `info`,
+  ***Inherited from `<CODE>`***, and **Edit Charge Type** on the right. It says the charge type and
+  nothing else, whether or not anything has been overridden yet — that is what this dialog is an
+  override **of**, so the strip states the tier rather than narrating the form's state back. What
+  has been changed is already said by the Revert links. **Edit Charge Type** (`ctmEditType`) opens
+  Charge Type Details and **closes this dialog behind it** — the rule every other "go there" link
+  follows, and the reason anything typed here and not saved goes with it.
 - a line reading **Charge Type: `<CODE>`** over *n charges on this property using this charge type*,
   with **Revert All Fields** on the right. The count is `appliedRows(prop)` filtered to the code —
   the same source as the Default Charge Marketing register's Charges column, so the tile and the
-  dialog it opens can't disagree. Revert All Fields is always shown, as the Figma draws it;
-  reverting what already matches is a no-op.
+  dialog it opens can't disagree. **Revert All Fields only appears once a field differs** — offering
+  to undo nothing is an action that can't do anything.
 - the fields, one bordered card at 13px padding with 12px rows and 16px columns. **Revert sits at
   the far right of the label row**, not against the label, so the links line up down the column.
 

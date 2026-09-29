@@ -215,7 +215,7 @@ class Component extends DCLogic {
     ltGroupBy: true,      // Listings: Group by property — off shows one register with a Property column
     ftSetup: null,        // { sec:{what,def}, props:{<name>:true} } — the Fee Transparency Setup overlay
     propDef: {},          // { '<Property>': { '<CODE>': { on:true, name, category, … } } } — a property's override of a charge type
-    ctmEdit: null,        // { prop, code } — the Edit Default Charge Marketing dialog
+    ctmEdit: null,        // { prop, code } — the Default Charge Marketing dialog
  // Listings page: hide listings without errors
     ltErr: null, // { i, open } — Listing Errors popup for one listing
     // Charges register columns: chgCols is the chosen keys in order (null = defaults), colNames holds
@@ -3501,7 +3501,7 @@ class Component extends DCLogic {
       </div>
     </div>`;
   }
-  // ---------- Edit Default Charge Marketing (Figma 3591:138722) ----------
+  // ---------- Default Charge Marketing, a property's override (Figma 3638:4452) ----------
   // A property's override of one charge type. The checkbox is the whole decision: off, the fields
   // show the charge type's defaults, greyed and locked; on, they are this property's to set, and
   // every charge of that type here inherits them unless the charge itself says otherwise.
@@ -3547,14 +3547,12 @@ class Component extends DCLogic {
       + pair(fld('Charge Requirement', dd('ctm-requirement', REQ, v('requirement')), H.requirement, 'requirement'), fld('Charge Schedule', dd('ctm-schedule', SCHED, v('schedule')), H.schedule, 'schedule'))
       + pair(fld('Fee Due', dd('ctm-feeDue', DUE, v('feeDue')), H.feeDue, 'feeDue'), fld('Refundable', dd('ctm-refundable', REF, v('refundable')), '', 'refundable'));
 
-    // Figma `3638:4452`: a grey strip saying where the values on screen come from, with the way to
-    // go and change the thing they come from. It is the same answer that shows the Revert links —
-    // this property owns these values only where they differ from the charge type.
-    const typeHas = Object.keys(base).some(k => String(base[k] == null ? '' : base[k]).trim());
+    // Figma `3638:4452`: a grey strip naming the tier these values come from, with the way to go and
+    // change it. It says the charge type and nothing else — that is what this dialog is an override
+    // **of**, whether or not anything has been overridden yet, so it stays put rather than narrating
+    // the form's state back. What has been changed is already said by the Revert links.
     const bold = (t) => `<strong style="font-weight:600">${esc(t)}</strong>`;
-    const srcRow = (any) => any ? 'Set for ' + bold(prop)
-      : typeHas ? 'Inherited from ' + bold(code)
-      : bold(code) + ' has no default charge marketing yet';
+    const srcRow = 'Inherited from ' + bold(code);
     const any0 = CTMK.some(([k]) => String(v(k) || '') !== String(base[k] || ''));
     // The same count the Default Charge Marketing register shows, read from the same place, so the
     // tile and the dialog it opens can't disagree about how far this reaches.
@@ -3570,7 +3568,7 @@ class Component extends DCLogic {
         if (rev) rev.style.display = diff ? 'inline' : 'none';
         if (diff) any = true;
       });
-      const row = this.q('#ctm-src'); if (row) row.innerHTML = srcRow(any);
+      const rs = this.q('#ctm-reset'); if (rs) rs.style.display = any ? 'inline' : 'none';
       return any;
     };
     window.__ctmRevert = (k) => {
@@ -3584,20 +3582,20 @@ class Component extends DCLogic {
     return `<div data-act="ctmCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:150">
       <div data-act="noop" style="width:681px;max-width:94vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;gap:14px;padding:10px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
-          <span style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">Edit Default Charge Marketing</span>
+          <span style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">Default Charge Marketing</span>
           <div style="flex:1"></div>
           <span data-act="ctmCancel" style="display:flex;cursor:pointer">${this.ico('close', 20, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
         </div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:16px">
           <div style="display:flex;align-items:center;gap:8px;min-height:36px;box-sizing:border-box;padding:0 8px;background:var(--rmx-bg-muted, #f2f2f2);border-radius:4px;flex:none">
             ${this.ico('info', 20, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}
-            <span id="ctm-src" style="flex:1;min-width:0;font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${srcRow(any0)}</span>
+            <span id="ctm-src" style="flex:1;min-width:0;font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${srcRow}</span>
             <a data-act="ctmEditType" data-arg="${esc(code)}" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Edit Charge Type</a>
           </div>
           <div style="display:flex;align-items:center;gap:16px;flex:none">
             <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">Charge Type: <strong style="font-weight:600">${esc(code)}</strong></span>
             <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nCharges} charge${nCharges === 1 ? '' : 's'} on this property using this charge type</span>
-            <a id="ctm-reset" onclick="if(window.__ctmResetAll)window.__ctmResetAll()" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Revert All Fields</a>
+            <a id="ctm-reset" onclick="if(window.__ctmResetAll)window.__ctmResetAll()" style="display:${any0 ? 'inline' : 'none'};font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Revert All Fields</a>
           </div>
           <div style="display:flex;flex-direction:column;gap:12px;padding:13px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px">${body}</div>
         </div>
@@ -8662,7 +8660,7 @@ class Component extends DCLogic {
         ${ctmRows.length ? ctmRows.map(t => `<div style="min-width:344px;display:grid;grid-template-columns:${CTMCOLS};border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa)">
             ${ctmCell(esc2(t.code))}${ctmCell(String(t.n))}
             ${ctmCell(this.ctmOverridden(P.name, t.code) ? ctmTick : '')}
-            <span data-act="ctmOpen" data-arg="${esc2(t.code)}" title="Edit default charge marketing" style="display:flex;align-items:center;justify-content:center;min-height:38px;cursor:pointer">${EDIT_FILLED}</span>
+            <span data-act="ctmOpen" data-arg="${esc2(t.code)}" title="Edit this property's default charge marketing" style="display:flex;align-items:center;justify-content:center;min-height:38px;cursor:pointer">${EDIT_FILLED}</span>
           </div>`).join('')
           : `<div style="padding:14px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No charges on this property yet.</div>`}
       </div>`, '', false, true);
