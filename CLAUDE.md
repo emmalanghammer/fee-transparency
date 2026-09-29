@@ -211,18 +211,19 @@ a clean section says so rather than leaving you to infer it), a lozenge where th
 and a chevron only when there is something to open — a clean section still shows, so the breakdown answers "is it
 this?" for all three sources, but offers no chevron, because opening nothing is not an offer.
 
-**A section is always titled for its source**, with its count in brackets; **what state it is in
-sits on the right**, where the eye is already going. Rent Manager's and the provider's carry the
+**A section header carries no leading icon.** Its state is already said on the right, and by the
+card's own colour, so a third copy of it was decoration. **A section is always titled for its
+source**, with its count in brackets; **what state it is in sits on the right**, where the eye is
+already going. Rent Manager's and the provider's carry the
 **Missing Information** lozenge there; Charge Marketing Errors carries the words
 **Action Required: Listing Not Sent** in red SemiBold instead, needing no tint of its own because
 the header it sits in is already red. Only that one is ever red — a red border and a `#fdecee`
 header — and it is what makes the card look different rather than a second colour inside it. Rent
 Manager Errors and the provider's are both about a listing that went out, so both are amber.
 
-**The status glyphs are filled, not outlined.** The `ico` map carries Material's outlined set, which
-reads as a drawing at 20px in a header; `ltErrHTML` inlines the filled `error`, `warning` and
-`check_circle` (`D_ERR`, `D_WARN`, `D_OK` through `fill()`) so the state registers before the words
-do. Its body leads with *"These charges are missing marketing
+**The lozenge's glyph is filled, not outlined.** The `ico` map carries Material's outlined set,
+which reads as a drawing at that size; `ltErrHTML` inlines the filled `error` and `warning`
+(`D_ERR`, `D_WARN` through `fill()`). Its body leads with *"These charges are missing marketing
 information required to send to providers."* and **Add Charge Marketing** on the same row
 (`openFeeProfile`, which clears `ltErr` so the dialog closes behind it), then each charge in a
 numbered list: the name in SemiBold over *Missing: `<fields>`* in grey. Rent Manager Errors is amber
@@ -835,6 +836,14 @@ through `resolvedListing`; only what someone actually changed becomes the charge
 makes Option C safe — without it, opening a charge and pressing Save would freeze today's defaults
 onto it. The property specific branch (NSF, Late) does the same. `mktDefFill` still never runs on
 create, because copying the defaults down would make every new charge an override of them.
+
+**A pet type that carries the figure says so in General.** When one does, Amount and Amount Method
+grey out — which says they can't be edited but not why, and the pet type that explains it sits
+inside Charge Marketing, which is collapsed. So `#m-pet-amt-note` stands under the Amount row, in
+the same grey `--rmx-bg-muted` strip the cascade uses everywhere else for *this came from
+somewhere*: *"Amount and Amount Method come from the `<type>` pet type."* `__petApply` shows it with
+the lock and names the type. The hover tooltip that used to carry the same sentence is gone — it
+only fired if you happened to be over the row, which is the complaint.
 
 **A charge of nothing warns, where the property lists online.** `window.__amtNote` shows an amber
 note under the Amount when the method is **Flat** and the typed figure is zero or negative:
