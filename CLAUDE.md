@@ -61,10 +61,30 @@ for taking one back out, not for building the list from nothing. Next hands the 
 same `pubModal` a single property uses. Converting leaves the Setup overlay open: the rows flip to
 *Fee Transparent* and the banner disappears under you, which is the feedback.
 
-**The confirmation names every property it is about to convert**, bolded, in the question and the
-acknowledgement both — *"The Berkshires and The Windermere"*, not *"2 selected properties"*. A
-count says how many feeds change permanently, not which, and that is the one thing to read twice
-before pressing Convert.
+**The confirmation explains what will happen, it doesn't warn.** `pubModalHTML` opens on the
+outcome — *"The Berkshires and The Windermere will start advertising their full monthly price"* —
+over a neutral `--rmx-bg-subtle` panel, **What changes on their listings**, in the place and at the
+size of the amber warning it replaced, so the dialog keeps its shape. Three lines: every included
+charge shows alongside the rent (*"That is `n` charges across the two properties"*, counted live
+from `appliedRows(p).filter(r => r.ils)` — the same filter `ltChargeIssues` and the Listing Ready
+column use, so the number can't contradict them); each listing advertises a **Total Monthly Price**
+instead of rent alone; and, in grey and deliberately last, *charges you have left off listings stay
+off, and you can change that whenever you like*. The fear behind "can't be undone" is publishing
+something you didn't mean to, and that third line answers it better than a warning does.
+
+**Permanence is still said, once.** One grey line under the panel: *"Feeds pick this up on their
+next run. Activating can't be reversed from Rent Manager, but what each listing shows always follows
+your charges, so you stay in control of the price."* The scoping is the point — **the switch is what
+can't be reversed, not the pricing** — and it is why the rest of the dialog can afford to be calm.
+
+**There is no acknowledgement tick-box**, and `pubAck` and `pubModal.ack` are gone with it. A gate
+that disables the primary button until you agree belongs to a destructive action; this is the one
+the Listings banner, the Setup overlay and a green button have all been steering toward, and a third
+confirmation reads as the product doubting its own feature. Activate is live on arrival.
+
+**It still names every property it is about to activate**, bolded — *"The Berkshires and The
+Windermere"*, not *"2 selected properties"*. A count says how many feeds change permanently, not
+which, and which is the one thing to read twice.
 
 State is `ftSetup: { sec:{what,def}, props:{<name>:true} }` — null when closed. The overlay renders
 at `z-index:150`, under `pubModalHTML`'s 152, so the confirmation lands on top of it.
