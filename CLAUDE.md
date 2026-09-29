@@ -519,7 +519,9 @@ columns. **Features also sets the bottom row's height**: `card()`'s `scroll` fla
 and Default Charge Marketing a body of `flex:1 1 0; height:0; overflow-y:auto`, so their content
 contributes no intrinsic height and the grid row is sized by the one tile that does. However many
 floor plans or charge types a property has, the row stays as tall as Features and those two scroll
-inside it. The last is a register of the charge types the property
+inside it. **Both of their registers run edge to edge**: `margin:-14px -16px` cancels the card
+body's own padding and the cells carry their own 14px, so the two line up on the same left edge
+rather than each sitting inset inside its tile. The last is a register of the charge types the property
 actually runs — **Charge Type · Charges · Field Overrides** — and an edit pencil (`ctmOpen`). That pencil is RMX
 Iconography's **edit-filled** (Figma `3595:57346`), harvested rather than drawn: it is the filled
 glyph at 20px on its own `0 0 20 20` box, so it can't live in the Material `ico` map with the
