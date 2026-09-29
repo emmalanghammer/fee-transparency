@@ -187,17 +187,38 @@ Marketing Errors** section, so the dialog was a second door onto the same list. 
 how many charges still need details. **A still has them**, because its Overview register has no
 Errors column to carry the itemisation.
 
-**Errors counts the feed and the charges, apart but in one tone.** `ltIssues` returns `rm` (Rent
-Manager's own fields), `prov` (the `tz` errors, attributed to whichever providers carry `err`) and
-`charges` (`ltChargeIssues(prop)`, only when `ftApplicable`), and its icon is **red for any of
-them**, green for none. Charges short of marketing details make the listing advertise the wrong
-price, which is an error of the same weight as a rejected feed — and the Listing Ready Charges dot
-beside it is red for the same reason, so a row can't say amber in one column and red in the next.
-`ltErrHTML` shows all three as collapsible sections; the third, **Charge Marketing Errors**,
-itemises each charge and the fields it lacks, with **Add Charge Details** through to Marketing
-Setup — which goes to the property's **Charges** tab (`openFeeProfile`, which clears `ltErr` so the
-dialog closes behind it), because the charges are what needs filling in. `ltChargeIssues` takes a
-**property**, not a listing.
+**Errors is a lozenge naming the worst thing wrong**, to Figma `3640:5054`, and the line between
+its three states is whether the listing is **on the feed at all**:
+
+- **Action Required** (red `error` on `#fdecee`) — charges short of their marketing details, or a
+  provider that rejected it. The listing is not posting.
+- **Missing Information** (amber `warning` on `#fdf3e7`) — only Rent Manager's own fields are
+  short. It posts anyway.
+- **Sent to Provider** (green `check_circle` on `--rmx-success-bg`) — nothing.
+
+`ltFeedState(l)` decides it and `ltFeedLoz(l)` draws it: RMX's Lozenge at 24px with 8px sides, a
+16px icon 8px from 14/16 label text. A **`+n`** in grey follows when other sections carry something
+too, so the cell names the worst without pretending it is the only one. The overlay behind it is
+the same three sections in the same order, so the lozenge and what opens under it cannot disagree.
+`ltIssues` still returns `rm`, `prov` and `charges(ltChargeIssues(prop), only when `ftApplicable`);
+`ltChargeIssues` takes a **property**, not a listing.
+
+**`ltErrHTML` matches Figma `3642:6750`.** A 714px dialog, a 48px header reading
+*Listing Errors: `<property>` · `<unit>`*, then the three sections 8px apart, then an **OK** footer.
+A section is a bordered card: an icon, a title, a lozenge where the state has a name, and a chevron
+only when there is something to open — a clean section still shows, so the breakdown answers "is it
+this?" for all three sources, but offers no chevron, because opening nothing is not an offer.
+
+**The section that is stopping the listing looks different**, rather than carrying a second colour
+inside it: **Action Required: Listing Not Sent** takes a red border and a `#fdecee` header, so the
+eye lands on it before reading a word. Its body leads with *"These charges are missing marketing
+information required to send to providers."* and **Add Charge Marketing** on the same row
+(`openFeeProfile`, which clears `ltErr` so the dialog closes behind it), then each charge in a
+numbered list: the name in SemiBold over *Missing: `<fields>`* in grey. Rent Manager Errors is amber
+and carries the **Missing Information** lozenge in its header.
+
+**`ltErrOpen` opens whichever section is stopping the listing** — charges, else the provider, else
+Rent Manager. That is what the cell's lozenge named, and what they pressed it to read.
 
 **There is no column-picker / row-kebab column.** The trailing 38px track carrying `view_column` in
 the head and a `more_vert` in each row came off on 2026-09-25 — the kebab was unbuilt `todo` chrome,
@@ -554,8 +575,8 @@ glyph at 20px on its own `0 0 20 20` box, so it can't live in the Material `ico`
 **Field Overrides is a fraction, not a tick.** A tick only said whether an entry exists; the
 override is stored **whole**, so an entry says nothing about how much of it actually differs.
 `ctmOverrideCount(prop, code)` derives it — the property's stored values diffed against
-`mktDefFor(code)`, field by field — and reads `0/7` in grey until something does, then `n/7` in
-SemiBold. `ctmFields()` is the one list of the seven, read by the dialog, by `ctmSave` and by this
+`mktDefFor(code)`, field by field — and reads `0/7` in grey until something does, then `n/7` in the
+register's own ink. `ctmFields()` is the one list of the seven, read by the dialog, by `ctmSave` and by this
 count, so none of the three can be counting a different set.
 
 **The three surfaces that edit a charge's marketing carry the same field tooltips.** `mktHelp()`
