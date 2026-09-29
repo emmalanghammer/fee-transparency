@@ -188,12 +188,13 @@ how many charges still need details. **A still has them**, because its Overview 
 Errors column to carry the itemisation.
 
 **Errors is a lozenge naming the worst thing wrong**, to Figma `3640:5054`, and the line between
-its three states is whether the listing is **on the feed at all**:
+its three states is **whether the listing goes out at all**:
 
-- **Action Required** (red `error` on `#fdecee`) — charges short of their marketing details, or a
-  provider that rejected it. The listing is not posting.
-- **Missing Information** (amber `warning` on `#fdf3e7`) — only Rent Manager's own fields are
-  short. It posts anyway.
+- **Action Required** (red `error` on `#fdecee`) — charges short of their marketing details.
+  **This is the only thing that stops a listing being sent**: without every charge's details there
+  is no complete price to send, so the feed holds it.
+- **Missing Information** (amber `warning` on `#fdf3e7`) — Rent Manager's own fields are short, or
+  a provider is unhappy with what it got. The listing is out; something on it is incomplete.
 - **Sent to Provider** (green `check_circle` on `--rmx-success-bg`) — nothing.
 
 `ltFeedState(l)` decides it and `ltFeedLoz(l)` draws it: RMX's Lozenge at 24px with 8px sides, a
@@ -209,16 +210,19 @@ A section is a bordered card: an icon, a title, a lozenge where the state has a 
 only when there is something to open — a clean section still shows, so the breakdown answers "is it
 this?" for all three sources, but offers no chevron, because opening nothing is not an offer.
 
-**The section that is stopping the listing looks different**, rather than carrying a second colour
-inside it: **Action Required: Listing Not Sent** takes a red border and a `#fdecee` header, so the
-eye lands on it before reading a word. Its body leads with *"These charges are missing marketing
+**Only Charge Marketing Errors is ever red**, and it is what makes the card look different rather
+than a second colour inside it: **Action Required: Listing Not Sent** takes a red border and a
+`#fdecee` header, so the eye lands on it before reading a word. It is titled that **only when it has
+items** — clean, it reads *Charge Marketing Errors*, because a green tick over "Listing Not Sent"
+says two opposite things. Rent Manager Errors and the provider's are both about a listing that went
+out, so both are amber and both carry the **Missing Information** lozenge. Its body leads with *"These charges are missing marketing
 information required to send to providers."* and **Add Charge Marketing** on the same row
 (`openFeeProfile`, which clears `ltErr` so the dialog closes behind it), then each charge in a
 numbered list: the name in SemiBold over *Missing: `<fields>`* in grey. Rent Manager Errors is amber
 and carries the **Missing Information** lozenge in its header.
 
-**`ltErrOpen` opens whichever section is stopping the listing** — charges, else the provider, else
-Rent Manager. That is what the cell's lozenge named, and what they pressed it to read.
+**`ltErrOpen` opens whichever section is stopping the listing** — charges, else Rent Manager, else
+the provider. That is what the cell's lozenge named, and what they pressed it to read.
 
 **There is no column-picker / row-kebab column.** The trailing 38px track carrying `view_column` in
 the head and a `more_vert` in each row came off on 2026-09-25 — the kebab was unbuilt `todo` chrome,
