@@ -206,8 +206,9 @@ the same three sections in the same order, so the lozenge and what opens under i
 
 **`ltErrHTML` matches Figma `3642:6750`.** A 714px dialog, a 48px header reading
 *Listing Errors: `<property>` · `<unit>`*, then the three sections 8px apart, then an **OK** footer.
-A section is a bordered card: an icon, a title, a lozenge where the state has a name, and a chevron
-only when there is something to open — a clean section still shows, so the breakdown answers "is it
+A section is a bordered card: an icon, a title carrying its **count in brackets** (`(0)` included, so
+a clean section says so rather than leaving you to infer it), a lozenge where the state has a name,
+and a chevron only when there is something to open — a clean section still shows, so the breakdown answers "is it
 this?" for all three sources, but offers no chevron, because opening nothing is not an offer.
 
 **Only Charge Marketing Errors is ever red**, and it is what makes the card look different rather
