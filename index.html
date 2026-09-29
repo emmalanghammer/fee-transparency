@@ -540,13 +540,16 @@ class Component extends DCLogic {
   // the field the walkthrough goes to fill in.
   mktDefAll(){
     const SHORT = { RC:1, GARBAG:1, GARBAGEFEE:1, ADMIN:1, DP:1 };
+    const SITUATIONAL = { NSF:1, LATE:1 };
     const out = {};
     this.chargeTypeList().forEach(([code, desc]) => {
       const seed = this.mktDefSeed(code);
       const d = { name: desc, category: this.chargeCategoryFor(code), marketing: '',
         requirement: '', schedule: '', feeDue: '', refundable: seed.refundable };
       if (!SHORT[code]) {
-        d.requirement = this.inferRequirement({ mits: code, desc: desc });
+        // A property specific charge is by definition situational — it lands only when something
+        // happens — so its type says so rather than leaving `inferRequirement` to guess.
+        d.requirement = SITUATIONAL[code] ? 'Situational' : this.inferRequirement({ mits: code, desc: desc });
         d.schedule = 'Monthly';
         d.feeDue = seed.feeDue || 'During Term';
       }
@@ -701,8 +704,8 @@ class Component extends DCLogic {
       PETFEE:     ['Pet Rent', 'Monthly rent per pet on the lease, up to two pets.'],
       PETDP:      ['Pet Deposit', 'Refundable deposit charged when a pet is added to the lease.'],
       EVCHG:      ['EV Charging', 'Access to the property’s EV charging stations.'],
-      NSFFEE:     ['NSF Fee', 'Charged when a payment is returned for non-sufficient funds.'],
-      LC:         ['Late Fee', 'Charged when rent is received after the grace period.'],
+      NSF:        ['NSF Fee', 'Charged when a payment is returned for non-sufficient funds.'],
+      LATE:       ['Late Fee', 'Charged when rent is received after the grace period.'],
       HOLD:       ['Hold Fee', 'Fee to reserve a unit before the lease is signed.']
     };
     // Screening costs are collected with the application; deposits and prepaid rent at move-in.
@@ -760,11 +763,11 @@ class Component extends DCLogic {
       // both are `ils:false`, so they are never counted towards listing readiness.
       // GARBAGEFEE sits on a single unit, so Riverview keeps it and the walkthrough still has a charge
       // that reaches one unit and not the rest.
-      'Riverview Apartments': ['RC','GARBAG','GARBAGEFEE','ADMIN','DP','NSFFEE','LC'],
-      'The Berkshires':       ['RC','DP','NSFFEE','LC'],
-      'The Windermere':       ['RC','APPFEE','NSFFEE','LC'],
+      'Riverview Apartments': ['RC','GARBAG','GARBAGEFEE','ADMIN','DP','NSF','LATE'],
+      'The Berkshires':       ['RC','DP','NSF','LATE'],
+      'The Windermere':       ['RC','APPFEE','NSF','LATE'],
       // Oakwood is the finished example, so it carries the charges nearly every property has.
-      'Oakwood Manor':        ['RC','DP','ADMIN','GARBAG','NSFFEE','LC']
+      'Oakwood Manor':        ['RC','DP','ADMIN','GARBAG','NSF','LATE']
     };
   }
   propChargePlan(){
@@ -846,13 +849,13 @@ class Component extends DCLogic {
       // absent from chargeCategoryMap so the Charge Category error state is always demoable.
       Object.assign({ id:18, group:'opt-rec', mits:'EVCHG',      name:'EV charging',       desc:'EV charging station access',   freq:'Every Month', from:'01/01/2026', to:'', amount:'$35.00', amtMethod:'Flat', ils:true }, L('Property')),
       // Property specific charges. Every field is pulled from the property's own setup, so only the
-      // marketing details are editable. They arrive off listings — a returned payment or a late
-      // payment isn't part of the price a listing advertises — and they can't be copied between
-      // properties, since each property has its own.
-      Object.assign({ id:16, group:'sit-one', mits:'NSFFEE', name:'NSF Fee', desc:'NSF fee', from:'01/01/2026', to:'', amount:'$25.00', amtMethod:'Flat', ils:false,
+      // marketing details are editable. They arrive **on** listings: a resident should know what a
+      // returned payment or a late payment costs before they sign, which is the whole point of fee
+      // transparency. They can't be copied between properties, since each property has its own.
+      Object.assign({ id:16, group:'sit-one', mits:'NSF', name:'NSF Fee', desc:'NSF fee', from:'01/01/2026', to:'', amount:'$25.00', amtMethod:'Flat', ils:true,
         propSpecific:'NSF', cond:'Charged 25.00 for non-sufficient funds.',
         listing:{ name:'NSF Fee', category:'Violation', marketing:'', requirement:'Situational', feeDue:'During Term' } }, L('Property')),
-      Object.assign({ id:17, group:'sit-one', mits:'LC', name:'Late Fee', desc:'Late fee', from:'01/01/2026', to:'', amount:'$100.00', amtMethod:'Flat', ils:false,
+      Object.assign({ id:17, group:'sit-one', mits:'LATE', name:'Late Fee', desc:'Late fee', from:'01/01/2026', to:'', amount:'$100.00', amtMethod:'Flat', ils:true,
         propSpecific:'Late Charge', cond:'Charged 100.00 for paying late.',
         listing:{ name:'Late Fee', category:'Violation', marketing:'', requirement:'Situational', feeDue:'During Term' } }, L('Property'))
     ];
@@ -5510,15 +5513,15 @@ class Component extends DCLogic {
     return this.profileRows().filter(r => bs.sel[r.id]); }
   feeProfileBody(){
     const all = this.visibleRows();
-    // NSF and late fees are the property's own terms — charged when something goes wrong rather than
-    // for renting the place — so they read as their own section instead of sitting in One-Time
-    // beside the deposits. They are the same in either grouping, since neither question is asked of
-    // them: they can't be added, and their requirement is always Situational.
+    // NSF and late fees are charged when something goes wrong rather than for renting the place, so
+    // they read as their own **Situational Charges** section instead of sitting in One-Time beside
+    // the deposits. They are the same in either grouping, since neither question is asked of them:
+    // they can't be added, and their requirement is always Situational — which is what the section
+    // is named after.
     const spec = all.filter(r => r.propSpecific);
     const rows = all.filter(r => !r.propSpecific);
-    const specSection = !spec.length ? '' : this.acc(`Property Specific Charges (${spec.length})`,
-      'Set on the property, and never part of the price a listing advertises',
-      this.profileTable('spec', spec, '', { noLabel:true, noAdd:true, empty:'property specific' }), null, 'pf-spec');
+    const specSection = !spec.length ? '' : this.acc(`Situational Charges (${spec.length})`, '',
+      this.profileTable('spec', spec, '', { noLabel:true, noAdd:true, empty:'situational' }), null, 'pf-spec');
     let sections;
     if (this.state.groupByReq) {
       const sitHelp = `<span class="tipw" onclick="event.stopPropagation()"><span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M453-280h60v-240h-60v240Zm50.5-323.2q9.5-9.2 9.5-22.8 0-14.45-9.48-24.22-9.48-9.78-23.5-9.78t-23.52 9.78Q447-640.45 447-626q0 13.6 9.48 22.8 9.48 9.2 23.5 9.2t23.52-9.2ZM480.27-80q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg>What is a situational charge?</span><span class="tip" style="left:auto;right:0;top:24px">Additional fees may apply in cases of late payments, lease violations, or other charges.</span></span>`;

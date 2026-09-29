@@ -347,12 +347,20 @@ now. It costs the walkthrough nothing: both are `ils:false`, so they never count
 readiness, and Riverview still reads **0/5**.
 
 **NSF and late fees are their own section.** `feeProfileBody` splits `propSpecific` rows out of
-`visibleRows()` before anything else and renders them as **Property Specific Charges** under
-*Set on the property, and never part of the price a listing advertises* — below Recurring and
-One-Time, and the same in either grouping, because neither question is asked of them. The section
-has **no Add link** (`profileTable` skips it when `group` is empty: they are the property's, not a
-list you add to), and their **Charge Requirement is Situational and nothing else** — the dropdown
-offers the one option and takes no blank, and the Situational Charge Description is always showing.
+`visibleRows()` before anything else and renders them as **Situational Charges** — below Recurring
+and One-Time, the title alone with its count, and the same in either grouping, because neither
+question is asked of them. The section has **no Add link** (`profileTable` skips it when `group` is
+empty: they are the property's, not a list you add to), and their **Charge Requirement is
+Situational and nothing else** — which is what the section is named after. The dropdown offers the
+one option and takes no blank, and the Situational Charge Description is always showing.
+
+**They run on the `NSF` and `LATE` charge types**, and arrive **included on listings**. They used to
+carry codes no charge type had (`NSFFEE`, `LC`), so they inherited nothing and read as three fields
+short; now they take that type's defaults like any other charge — the **Name** is the type's
+description, **Charge Category** is Violation, and `mktDefAll` gives `NSF` and `LATE` a
+**Situational** requirement outright rather than letting `inferRequirement` guess, since a charge
+that lands only when something happens is situational by definition. A resident should know what a
+returned payment or a late payment costs before they sign, which is why they are on listings.
 
 **A charge kept off listings is asked none of the four states.** `__mitsRecheck` gates on the
 Include-on-listings toggle as well as `ilsOn()`: nothing will advertise an excluded charge, so it
@@ -704,7 +712,8 @@ Requirement, Charge Schedule and Fee Due. A complete default on those types woul
 make Riverview listing ready, collapsing the Happy Path — which exists to show a property with work
 still to do. Charge Requirement is what that walkthrough goes to fill in. **Adding a charge type to
 that list, or completing one of the five, changes what Happy Path demonstrates**: check Listings
-still reads 0/5 for Riverview afterwards.
+still reads **2/7** for Riverview afterwards. (It read 0/5 until the situational charges went onto
+listings: NSF and Late arrive complete from their charge types, so they count in both halves.)
 
 **`mktPricingBody` is no longer reachable in C.** The Pricing tab it lived on is gone with this
 design, and the per-charge Save footers (`mpSaveRow`, `mpCommit`, `mpCapture`) go with it. The code
