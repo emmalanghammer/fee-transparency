@@ -7821,7 +7821,7 @@ class Component extends DCLogic {
     const req = reqOwn || INH.requirement || '';
     const refundable = ed && ed.listing && ed.listing.refundable !== undefined
       ? (ed.listing.refundable ? 'Refundable' : 'Not Refundable') : inhRef;
-    const catBlock = `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">${lab('Charge Category', help.category, 'category')}
+    const catBlock = `<div style="display:flex;flex-direction:column;gap:4px;flex:0.8;min-width:0">${lab('Charge Category', help.category, 'category')}
       <input type="hidden" id="m-cat" value="${esc(edCat)}">
       <span id="m-cat-ph" style="display:${hasCode?'none':'block'};font-size:12px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">Select a charge type to display a charge category.</span>
       <span id="m-cat-disp" style="display:${edCat?'block':'none'};font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${edCat}</span>
@@ -8029,7 +8029,9 @@ class Component extends DCLogic {
           <div id="m-name-rent" style="display:${role0 === 'rent' ? 'block' : 'none'}">${this.singleSelect('m-name-rent-sel', nameOpts.rent, rentSel, { noSearch:true, js:nameJs })}</div>
           <div id="m-name-dep" style="display:${role0 === 'deposit' ? 'block' : 'none'}">${this.singleSelect('m-name-dep-sel', nameOpts.deposit, depSel, { noSearch:true, js:nameJs })}</div>
         </div>
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Marketing Description (Optional)', '', 'marketing')}<textarea id="m-marketing" class="fld" oninput="if(window.__mktDiff)window.__mktDiff()" style="height:36px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${(ed&&ed.listing&&ed.listing.marketing)||(ed?(INH.marketing||''):'')}</textarea></div>
+        <!-- The description is one line tall, so it gets the width: twice Name's, with Charge Category,
+             usually just a word, narrower than either. -->
+        <div style="flex:2;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Marketing Description (Optional)', '', 'marketing')}<textarea id="m-marketing" class="fld" oninput="if(window.__mktDiff)window.__mktDiff()" style="height:36px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${(ed&&ed.listing&&ed.listing.marketing)||(ed?(INH.marketing||''):'')}</textarea></div>
         ${catBlock}
       </div>
       ${leaseSection}
