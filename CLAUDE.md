@@ -605,7 +605,11 @@ Details' Default Charge Marketing and a property's own, so the three
 cannot say different things about the same field. **No field gained an icon it didn't have**: Name,
 Marketing Description, Fee Due and Refundable carry none anywhere. Charge Schedule and Fee Due are a
 matched pair — `schedTip()` reads *“Only applies to recurring charges.”* and `dueTip()` *“Only
-applies to one-time charges.”*, because a recurring charge is collected across the term by
+applies to one-time charges.”*
+
+**Marketing Description reads *(Optional)* on all three**, because it is the one field in Charge
+Marketing a listing can post without and nothing on the form said so. The property's own Marketing
+Description, in the Descriptions tile, is a different field and keeps its own label., because a recurring charge is collected across the term by
 definition and only a one-time charge has a moment to name. Charge Requirement's is `reqHelp()` with
 its three terms; Charge Category's dropped the clause saying it can't be edited here, which the
 cascade made untrue.
