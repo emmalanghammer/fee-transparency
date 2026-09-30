@@ -836,15 +836,16 @@ those values are now the only copy on screen rather than a mirror beside the rea
    and one `infoTip` beside the **Charge Marketing** heading saying the property doesn't advertise
    on a listing site, so none of this is published yet. There is no label on the right announcing
    it: that a charge is published nowhere is the least useful thing about it.
-2. **Advertising, not activated.** Amber. A **Required** lozenge sits on each short field's own
-   label (`#m-need-<key>`, written by `__mitsRecheck`) rather than a list of names underneath — a
-   list makes you match them back up, a mark on the field is the instruction. The note counts both:
-   *N fields on this charge*, and the property total, which is `otherShort` (every other `ils`
-   charge's `mitsMissing`) plus this charge's live count, so the two halves can't double-count.
+2. **Advertising, not activated.** Amber, and **nothing inside the card**: the header's amber
+   *Not Ready for Listings* and a **Required** lozenge on each short field's own label
+   (`#m-need-<key>`, written by `__mitsRecheck`) are the whole message. A mark on the field is the
+   instruction; a paragraph repeating it underneath only made you read the same thing twice. (It
+   used to carry *N fields on this charge, M across the property* — the property total went with
+   it, and `otherShort`, which walked every charge on the property on every recheck.)
 3. **Activated and complete.** Nothing inside the card at all. The header's **Listing Ready** says
    it, and said twice on one screen it is noise rather than reassurance.
 4. **Activated and short.** Red, and red is earned here and nowhere else — this is the one state
-   costing something today. The lozenge still reads **Required** — the field is the same field
+   costing something today, and **the only one that still puts anything in the card**. The lozenge still reads **Required** — the field is the same field
    either way, and only the tone differs. The card takes a red border, the note
    names the listings actually held back (*“Units 214 and 302 are not posting”*, from `affectedUnits`
    — the charge's own unit when it is written at unit level, everything the property advertises

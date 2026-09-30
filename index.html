@@ -8191,12 +8191,10 @@ class Component extends DCLogic {
           msg.style.display = 'flex'; msg.style.background = '#fdecee';
           mico.innerHTML = this.ico('error', 20, 'color:var(--rmx-error, #eb343c)');
           mtxt.innerHTML = `<strong style="font-weight:600">${u.length === 1 ? 'Unit ' + e2(u[0]) + ' is' : 'Units ' + e2(unitList(u)) + ' are'} not posting.</strong> Fee transparency is active on ${e2(this.state.property)}, so a listing carrying this charge is held back until every required field is filled in. Either finish the ${need.length === 1 ? 'one marked above' : need.length + ' marked above'}, or take this charge off listings.`;
-        } else if (need.length) {
-          msg.style.display = 'flex'; msg.style.background = '#fdf3e7';
-          mico.innerHTML = this.ico('error', 20, 'color:var(--rmx-attention, #f58220)');
-          mtxt.innerHTML = `${e2(this.state.property)} can't activate fee transparency while any charge on its listings is short. <strong style="font-weight:600">${need.length} ${need.length === 1 ? 'field' : 'fields'} on this charge</strong>, ${otherShort + need.length} across the property.`;
-        // Nothing to say when nothing is short: the header's **Listing Ready** says it, and said
-        // twice on one screen it is noise rather than reassurance.
+        // The only thing this block still says is state 4, where a listing is actually being held
+        // off the feed. Before activation the header's amber **Not Ready for Listings** and the
+        // **Required** marks on the fields already say what is short, and a paragraph repeating it
+        // is noise; with nothing short there is nothing to say at all.
         } else msg.style.display = 'none';
       }
       const dn = this.q('#m-date-note');
@@ -8231,12 +8229,6 @@ class Component extends DCLogic {
           <span id="m-ils-ico" style="display:inline-flex;flex:none;margin-top:1px"></span>
           <span id="m-ils-txt" style="flex:1;min-width:0;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)"></span>
         </div>`;
-    // State 2 counts the property, not just this charge: two fields here is a small job, and the
-    // total is what says whether to keep going. This charge's own share is read live off the form,
-    // so the two halves of that sentence can't double-count it.
-    const otherShort = this.appliedRows(this.state.property)
-      .filter(r => r.ils && !(ed && String(r.id) === String(ed.id)))
-      .reduce((n, r) => n + this.mitsMissing(r).length, 0);
     // State 4 names the listings that are actually held back. A charge written at unit level only
     // affects its own unit; anything wider affects everything the property advertises.
     const propUnits = this.listingsData().filter(l => l.prop === this.state.property).map(l => l.unit || l.prop);
