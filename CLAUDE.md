@@ -459,8 +459,9 @@ existing charge never re-applies them.
 **How far a default reaches is asked, not assumed.** When `ctSave` sees the marketing details
 changed *and* charges of that type already exist, it holds them in `state.mktDefDraft` and raises
 `mktDefAskHTML()` — the **Apply Defaults** dialog, Figma `3595:57352`: a 417px overlay at
-`z-index:165` (above Charge Type Details' 160), a line saying how many charges use the changed
-types, and three RMX Radio Selectors over a Save / Cancel footer. `mktDefApply` is what commits
+`z-index:165` (above Charge Type Details' 160), *How would you like to apply these changes?* and
+the RMX Radio Selectors over a Save / Cancel footer. It no longer says how many charges use the
+changed types — the user removed that line on 2026-09-30, from the property's dialog too. `mktDefApply` is what commits
 `state.mktDef`, not `ctSave` — otherwise `mktDefChanged` would be diffing against the values it
 just wrote. Only the types this save actually moved are touched.
 
@@ -705,8 +706,8 @@ after the frame was drawn.
 type would read actually move — ticking, unticking, or a changed field while ticked — *and* this
 property already runs charges of that type, it holds the values in `state.ctmAsk`
 and raises **`ctmAskHTML`** — the same Apply Defaults dialog the charge type's own defaults raise
-(Figma `3595:57352`), one rung down: a 417px overlay at `z-index:165`, a line saying how many
-charges at this property use the type, and the same three Radio Selectors. The Default Charge
+(Figma `3595:57352`), one rung down: a 417px overlay at `z-index:165` and the same Radio
+Selectors. The Default Charge
 Marketing dialog stays open behind it, so **Cancel** returns with everything typed still on it —
 which is why `ctmSave` banks the typed values into `ctmEdit.vals` before raising it. `ctmCommit` is
 the one place that writes the override, whichever route reached it.
