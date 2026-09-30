@@ -68,9 +68,10 @@ same `pubModal` a single property uses. Converting leaves the Setup overlay open
 **The confirmation explains what will happen, it doesn't warn.** `pubModalHTML` opens on the
 outcome — *"The Berkshires and The Windermere will start advertising their full monthly price"* —
 over a neutral `--rmx-bg-subtle` panel, **What this means for your listings:**, in the place and at
-the size of the amber warning it replaced, so the dialog keeps its shape. Three lines: *every charge
-you have included on listings shows alongside the rent* (the charge count that used to follow it is
-gone, and `nIls` with it); each listing advertises a **Total Monthly Price** in place of the
+the size of the amber warning it replaced, so the dialog keeps its shape. Three lines: the first
+used to read *every charge you have included on listings shows alongside the rent* (the charge count that used to follow it is
+gone, and `nIls` with it) — now *Instead of only displaying rent and deposit, every charge will
+appear on listings.*; each listing advertises a **Total Monthly Price** in place of the
 rent-only figure; and, deliberately last, *Excluded charges stay off listings so you can display
 charges when they're ready*. The fear behind "can't be undone" is publishing something you didn't
 mean to, and that third line answers it better than a warning does.
@@ -644,42 +645,47 @@ says what that charge's schedule is instead of sitting blank beside the recurrin
 register's optional **Charge Schedule** column (off by default, on through Column Setup) is where
 that shows.
 
-**`ctmEditHTML()` is the property's own Default Charge Marketing**, and it has no mode either. Figma `3591:138722` drew it as a
-checkbox; the dialog now works the way the charge form does, so the two rungs are learned once. The
-**Override Charge Type** checkbox, the greyed locked fields, `ctmToggle`, `ctmReset` and
-`state.ctmEdit.on` are all gone. The fields are live and open holding what a charge of this type
-reads at this property today — the property's own values where it has them, the charge type's
-otherwise. Nothing is *required* here, so no field carries a lozenge; a field moved off the charge
-type carries **Revert** (`#ctm-rev-<key>`), exactly as the charge form does.
+**`ctmEditHTML()` is the property's own Default Charge Marketing, and it has the checkbox again** —
+Figma `3591:138722`, exactly, at the user's request on 2026-09-30, replacing the grey *Inherited
+from* strip, **Edit Charge Type**, the per-field **Revert** links and **Revert All Fields** of
+`3638:4452`. `__ctmDiff`, `__ctmRevert`, `__ctmResetAll`, `#ctm-src`, `#ctm-reset` and the
+`ctmEditType` case are gone with them.
 
-**Its shape is Figma `3638:4452`**, a 681px dialog over three stacked blocks 16px apart inside a
-16px body:
+A 541px dialog: the 48px header, then a 16px body with 20px between its two blocks —
 
-- a grey `--rmx-bg-muted` strip, 36px with 8px side padding, carrying a 20px brand `info`,
-  ***Inherited from `<CODE>`***, and **Edit Charge Type** on the right. It says the charge type and
-  nothing else, whether or not anything has been overridden yet — that is what this dialog is an
-  override **of**, so the strip states the tier rather than narrating the form's state back. What
-  has been changed is already said by the Revert links. **Edit Charge Type** (`ctmEditType`) opens
-  Charge Type Details and **closes this dialog behind it** — the rule every other "go there" link
-  follows, and the reason anything typed here and not saved goes with it.
-- a line reading **Charge Type: `<CODE>`** over *n charges on this property using this charge type*,
-  with **Revert All Fields** on the right. The count is `appliedRows(prop)` filtered to the code —
-  the same source as the Default Charge Marketing register's Charges column, so the tile and the
-  dialog it opens can't disagree. **Revert All Fields only appears once a field differs** — offering
-  to undo nothing is an action that can't do anything.
-- the fields, one bordered card at 13px padding with 12px rows and 16px columns. **Revert sits at
-  the far right of the label row**, not against the label, so the links line up down the column.
+- **Charge Type: `<CODE>`** in navy with the code SemiBold, and 16px on, *n charges on this
+  property using this charge type* in navy **italic**. The count is `appliedRows(prop)` filtered to
+  the code, the same source as the register's Charges column.
+- the **Override Charge Type Defaults** checkbox (`#ctm-ovr`, `ctmToggle`) 12px over one bordered
+  fields card (12px padding, 12px rows, 16px columns). RMX's Checkbox: an empty 20px box with a 2px
+  `#b3b3b3` border, or RMX attention orange with a white check.
 
-**Ownership is derived on save, not declared.** `ctmSave` reads all seven fields, diffs them against
-`mktDefFor(code)`, and writes `state.propDef[prop][CODE]` only when something differs; matching the
-charge type on every field *is* following it, so that deletes the entry instead of storing a copy
-that would stop tracking. Reset all to default therefore needs no handler of its own — it puts the
-charge type's values back in the form, and Save does the rest. The override is stored **whole**,
-because `ctmFor` falls back record-then-record rather than field by field, and the form is showing
-every resolved value anyway.
+**The box is the declaration.** Unticked, every field is the RMX **disabled** Input Field — white at
+half alpha over `#f2f2f2`, a `#ebf1f5` border, `#b3b3b3` text — showing the charge type's values
+exactly, because that is what a charge here reads. Ticked, they are live and the property's own:
+seeded from what it has stored, falling back to the charge type, so every field starts filled.
+`state.ctmEdit.on` is back; ticking re-renders, so `ctmToggle` banks the typed values (and the
+extras, through `ctmReadAttrs()`) into `ctmEdit.vals` first.
 
-**How far a property's default reaches is asked too.** When `ctmSave` sees the override actually
-move *and* this property already runs charges of that type, it holds the values in `state.ctmAsk`
+**Ownership is declared, not derived.** Ticked, `ctmSave` stores every field with `on:true` — a copy
+that stops tracking the charge type, which is what overriding means — even where a field happens
+to match. Unticked, the entry is kept with `on:false` when it remembers anything, so ticking again
+brings the values back; `ctmOwn` ignores an entry that is off, so it applies to nothing and the
+Field Overrides count reads `0/7`. With nothing remembered it is deleted. `ctmReadForm()` and
+`ctmReadAttrs()` are the form readers, and `ctmCommit(prop, code, vals, on, mode)` the one writer.
+
+**The extras follow the box.** A Storage, Parking or Pet type's section still shows under the fields,
+but unticked it is locked (`pointer-events:none`, half opacity) — it is part of the override, not
+beside it, so a property's own lockers only apply once it overrides.
+
+**Labels kept from later requests.** The Figma frame predates *(Optional)* on Marketing Description,
+the italic *Recurring Charges Only* / *One-Time Charges Only* qualifiers and the `mktHelp()` icons on
+Charge Category and Charge Requirement; all three stay, because each was asked for on this dialog
+after the frame was drawn.
+
+**How far a property's default reaches is asked too.** When `ctmSave` sees what a charge of that
+type would read actually move — ticking, unticking, or a changed field while ticked — *and* this
+property already runs charges of that type, it holds the values in `state.ctmAsk`
 and raises **`ctmAskHTML`** — the same Apply Defaults dialog the charge type's own defaults raise
 (Figma `3595:57352`), one rung down: a 417px overlay at `z-index:165`, a line saying how many
 charges at this property use the type, and the same three Radio Selectors. The Default Charge
@@ -717,21 +723,14 @@ same reason — a charge that refuses the property's override must not be told i
 `saveFee` carries both refusals forward, since editing a charge by hand is not an answer about
 inheritance.
 
-**The source row is the same component as the charge form's**: *Coming from* a brand chip reading
-`<CODE> charge type` while nothing differs and the property's name once something does, or, when the
-type has nothing set at all, a plain line saying so. `window.__ctmDiff` is the single answer that
-lights the Revert links, the Reset link and the chip; `__ctmRevert(key)` is also what
-`__ctmResetAll` is made of.
-`componentDidUpdate` calls `__ctmDiff` so the row is right when the dialog opens.
-
 **The dialog is built from `ctFieldBits()`**, the shared RMX field bits, not one-off markup: `txt`
 is the enabled Input Field on `Component/input-default` (`#f5f8fa`, never white — a white input reads
 as a different control from the dropdown beside it), and `lab` is `Text/text-primary`. `txt` takes an
-optional fourth argument, the `oninput` that keeps the Changed marks live.
+optional fourth argument, an `oninput`.
 
 **`__ddSet` is a method, `ddSetInstall()`.** Setting a `singleSelect` from code — hidden input,
-display text and colour, row selection — is what Revert needs on both surfaces, so it is installed
-by whichever one is rendering rather than written twice.
+display text and colour, row selection — is what the charge form's `__mktDefaults` needs when a
+charge type is picked. The property dialog no longer uses it, since it has no Revert.
 
 **Every charge type starts with its default charge marketing set** (`mktDefAll()`, applied in
 `componentDidMount` and on every `scenarioApply`; it can't live in the state literal, which is

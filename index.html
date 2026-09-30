@@ -1104,7 +1104,6 @@ class Component extends DCLogic {
     // recomputed from the form rather than from the unsaved row.
     if (window.__mitsRecheck && this.q('#m-due')) window.__mitsRecheck();
     if (window.__amtNote && this.q('#m-amt-note')) window.__amtNote();
-    if (window.__ctmDiff && this.q('#ctm-src')) window.__ctmDiff();
     // The Charge Marketing override note and its locked mirror are written from the form itself, so
     // they are filled in once the form is on the page rather than during render.
     const snap = this._scrollSnap; this._scrollSnap = null;
@@ -1438,50 +1437,44 @@ class Component extends DCLogic {
       case 'ctmOpen': { const prop = this.state.property;
         const code = String(arg || '').toUpperCase();
         const own = ((this.state.propDef || {})[prop] || {})[code];
-        this.setState({ ctmEdit: { prop: prop, code: code,
+        // `on` is the Override Charge Type Defaults box. The values are seeded from whatever the
+        // property has stored even when it is off, so ticking it back brings them back.
+        this.setState({ ctmEdit: { prop: prop, code: code, on: !!(own && own.on),
           vals: Object.assign({}, this.mktDefFor(code) || {}, own || {}) } }); break; }
+      // Ticking re-renders, so the typed values are banked first — unticking and ticking again
+      // must not lose them.
+      case 'ctmToggle': { const e = this.state.ctmEdit; if (!e) break;
+        const vals = Object.assign({}, e.vals);
+        if (e.on) { Object.assign(vals, this.ctmReadForm());
+          const a = this.ctmReadAttrs(); if (a) vals.attrs = a; else delete vals.attrs; }
+        this.setState({ ctmEdit: Object.assign({}, e, { on: !e.on, vals: vals }) }); break; }
       case 'ctmCancel': this.setState({ ctmEdit: null }); break;
-      // The values on screen come from the charge type, so the banner offers the way to it — and
-      // closes this dialog behind it rather than stacking one over the other. Anything typed here
-      // and not saved goes with it, which is the same trade every other "go there" link makes.
-      case 'ctmEditType': this.setState({ ctmEdit: null, ctDetail: String(arg || '').toUpperCase() }); break;
       case 'ctmSave': { const e = this.state.ctmEdit; if (!e) break;
-        const read = id => { const el = document.getElementById(id); return el ? el.value : ''; };
         const base = this.mktDefFor(e.code) || {};
         const K = this.ctmFields();
-        const vals = {}; K.forEach(k => { vals[k] = read('ctm-' + k); });
-        // Storage / Parking / Pet extras ride along as `attrs`. They stay out of `ctmFields()` and
-        // out of the Field Overrides count, which is about the seven every charge has — but a
-        // property that has set them owns something, so they count towards whether an entry is
-        // written at all.
-        const ATTR = { stype:'storageType', uom:'uom', h:'height', w:'width', l:'length',
-          struct:'structure', size:'size', reg:'regular', hc:'handicapped', elec:'electric',
-          desc:'desc', pettype:'petType' };
-        const attrs = {}; let anyAttr = false;
-        Object.keys(ATTR).forEach(id => { const el = document.getElementById('ctm-at-' + id);
-          if (!el) return; const val = String(el.value || '').trim();
-          if (val) { attrs[ATTR[id]] = val; anyAttr = true; } });
-        if (anyAttr) vals.attrs = attrs;
-        // Ownership is derived here, not declared: this property keeps values of its own only where
-        // they actually differ from the charge type. Matching it on every field is what following it
-        // means, so that deletes the entry rather than storing a copy that would stop tracking.
-        const any = K.some(k => String(vals[k] || '') !== String(base[k] || '')) || anyAttr;
-        // How far a property's default reaches is asked, not assumed — the same question the charge
-        // type's own defaults ask, one rung down. Only worth asking when this property already runs
-        // charges of the type and the save actually moves something.
-        const was = this.ctmOwn(e.prop, e.code) || {};
-        const moved = K.some(k => String(vals[k] || '') !== String(was[k] == null ? (base[k] || '') : (was[k] || '')))
-          || JSON.stringify(attrs) !== JSON.stringify(was.attrs || {});
+        // The box is the declaration. Ticked, this property owns every field on screen — a copy that
+        // stops tracking the charge type, which is what overriding means. Unticked, it follows the
+        // charge type, and whatever it had typed is remembered (stored `on:false`) but applies to
+        // nothing — `ctmOwn` ignores an entry that is off.
+        let vals;
+        if (e.on) { vals = this.ctmReadForm(); const a = this.ctmReadAttrs(); if (a) vals.attrs = a; }
+        else vals = Object.assign({}, e.vals);
+        // How far it reaches is asked, not assumed — only when this property already runs charges
+        // of the type and what a charge would actually read has moved.
+        const was = this.ctmOwn(e.prop, e.code);
+        const before = was || base, after = e.on ? vals : base;
+        const moved = K.some(k => String(after[k] || '') !== String(before[k] || ''))
+          || JSON.stringify((e.on && vals.attrs) || {}) !== JSON.stringify((was && was.attrs) || {});
         const users = this.appliedRows(e.prop).filter(r => String(r.mits || '').toUpperCase() === e.code).length;
         if (moved && users) { this.setState(s2 => ({
           ctmEdit: Object.assign({}, s2.ctmEdit, { vals: vals }),
-          ctmAsk: { prop: e.prop, code: e.code, vals: vals, any: any, users: users }, ctmMode: 'new' })); break; }
-        this.ctmCommit(e.prop, e.code, vals, any, null);
+          ctmAsk: { prop: e.prop, code: e.code, vals: vals, on: e.on, users: users }, ctmMode: 'new' })); break; }
+        this.ctmCommit(e.prop, e.code, vals, e.on, null);
         break; }
       case 'ctmMode': this.setState({ ctmMode: arg || 'new' }); break;
       case 'ctmAskCancel': this.setState({ ctmAsk: null }); break;
       case 'ctmApply': { const a2 = this.state.ctmAsk; if (!a2) break;
-        this.ctmCommit(a2.prop, a2.code, a2.vals, a2.any, arg || 'new');
+        this.ctmCommit(a2.prop, a2.code, a2.vals, a2.on, arg || 'new');
         break; }
       case 'ftSetupClose': this.setState({ ftSetup: null }); break;
       case 'ftSetupSec': this.setState(s2 => { const f2 = s2.ftSetup, o = Object.assign({}, f2.sec || {});
@@ -3634,14 +3627,35 @@ class Component extends DCLogic {
   // every charge of that type here inherits them unless the charge itself says otherwise.
   // Writing a property's override, and whatever the answer about reach implies for the charges
   // already there. `mode` is null when nothing had to be asked.
-  ctmCommit(prop, code, vals, any, mode){
+  // The form's seven marketing fields, as typed.
+  ctmReadForm(){
+    const out = {};
+    this.ctmFields().forEach(k => { const el = document.getElementById('ctm-' + k); out[k] = el ? el.value : ''; });
+    return out;
+  }
+  // Storage / Parking / Pet extras, or null when none is set. They stay out of `ctmFields()` and out
+  // of the Field Overrides count, which is about the seven every charge has.
+  ctmReadAttrs(){
+    const ATTR = { stype:'storageType', uom:'uom', h:'height', w:'width', l:'length',
+      struct:'structure', size:'size', reg:'regular', hc:'handicapped', elec:'electric',
+      desc:'desc', pettype:'petType' };
+    const attrs = {}; let any = false;
+    Object.keys(ATTR).forEach(id => { const el = document.getElementById('ctm-at-' + id);
+      if (!el) return; const val = String(el.value || '').trim();
+      if (val) { attrs[ATTR[id]] = val; any = true; } });
+    return any ? attrs : null;
+  }
+  ctmCommit(prop, code, vals, on, mode){
     const K = this.ctmFields();
+    const base = this.mktDefFor(code) || {};
+    // Unticked with nothing remembered that differs is simply following the charge type — no entry.
+    const keep = on || K.some(k => String(vals[k] || '') !== String(base[k] || '')) || !!vals.attrs;
     this.setState(s2 => {
       const pd = Object.assign({}, s2.propDef);
       const byProp = Object.assign({}, pd[prop] || {});
       // The override is stored whole, because `ctmFor` falls back record-then-record rather than
       // field by field — and the form is showing every resolved value anyway.
-      if (any) byProp[code] = Object.assign({ on: true }, vals); else delete byProp[code];
+      if (keep) byProp[code] = Object.assign({}, vals, { on: !!on }); else delete byProp[code];
       pd[prop] = byProp;
       const out = { propDef: pd, ctmEdit: null, ctmAsk: null };
       if (!mode || mode === 'inherit') return out;
@@ -3665,7 +3679,7 @@ class Component extends DCLogic {
       out.profileFees = fees;
       return out;
     });
-    this.flash(any ? code + ' overridden for ' + prop : code + ' follows the charge type again');
+    this.flash(on ? code + ' overridden for ' + prop : code + ' follows the charge type');
   }
   // How far this property's default should reach, asked the way the charge type's own defaults ask
   // it (Figma `3595:57352`), one rung down and scoped to this property.
@@ -3707,127 +3721,96 @@ class Component extends DCLogic {
       </div>
     </div>`;
   }
+  // Figma `3591:138722`. One box decides whose values these are: unticked, the fields are disabled
+  // and show the charge type's; ticked, they are live and the property's own.
   ctmEditHTML(){
     const e = this.state.ctmEdit; if (!e) return '';
-    const prop = e.prop, code = String(e.code || '').toUpperCase();
+    const prop = e.prop, code = String(e.code || '').toUpperCase(), on = !!e.on;
     const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
-    // Seeded from the charge type merged with whatever this property already owns, so the form
-    // opens holding exactly what a charge of this type reads today.
     const base = this.mktDefFor(code) || {};
-    const v = (k) => { const o = (e.vals || {})[k]; return o != null && o !== '' ? o : (base[k] || ''); };
+    // Ticked: what the property has (or typed), falling back to the charge type so every field
+    // starts filled. Unticked: the charge type, exactly — that is what a charge here would read.
+    const v = (k) => { if (!on) return base[k] || ''; const o = (e.vals || {})[k]; return o != null && o !== '' ? o : (base[k] || ''); };
     const REQ = ['Required','Optional','Situational'];
     const DUE = [{value:'At Application',label:'At Application'},{value:'Move-In',label:'At Move-In'},
       {value:'During Term',label:'During Term'},{value:'Move-Out',label:'At Move-Out'}];
     const SCHED = ['Weekly','Monthly','Annually'];
     const REF = [{value:'yes',label:'Refundable'},{value:'no',label:'Not Refundable'}];
+    const LBL = {}; DUE.concat(REF).forEach(d => { LBL[d.value] = d.label; });
     const F = this.ctFieldBits();
     const lab = F.lab;
     const H = this.mktHelp();
-    const CTMK = [['name','ctm-name'], ['category','ctm-category'], ['marketing','ctm-marketing'],
-      ['requirement','ctm-requirement'], ['schedule','ctm-schedule'], ['feeDue','ctm-feeDue'],
-      ['refundable','ctm-refundable']];
-    // The same shape as the charge form: no mode to pick first, and no Changed lozenge. The fields
-    // are live and already hold what this property would show anyway; one that has been moved off
-    // the charge type offers **Revert** on its label, and Reset all to default does the lot.
-    const DIFFJS = 'if(window.__ctmDiff)window.__ctmDiff()';
-    // Figma `3638:4452`: the label row is the label and its help icon on the left, **Revert** at the
-    // far right — so the links line up down the column rather than each one sitting wherever its
-    // label happens to end.
-    const fld = (label, ctl, tip, key) => `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
-      <span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-height:20px">
-        <span style="display:inline;min-width:0">${lab(label)}${tip || ''}</span>
-        <span style="flex:1"></span>
-        ${!key ? '' : `<a id="ctm-rev-${key}" onclick="if(window.__ctmRevert)window.__ctmRevert('${key}')" style="display:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Revert</a>`}
-      </span>${ctl}</div>`;
-    const txt = (id, val) => F.txt(id, val, '', DIFFJS);
-    const area = (id, val) => `<textarea id="${id}" oninput="${DIFFJS}" style="box-sizing:border-box;width:100%;height:60px;padding:8px 10px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);resize:none">${esc(val)}</textarea>`;
-    const dd = (id, opts, val) => this.singleSelect(id, opts, val, { noSearch:true, blank:true, placeholder:' ', js:DIFFJS });
+    const fld = (label, ctl, tip) => `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
+      <span style="display:block;min-height:20px;line-height:20px">${lab(label)}${tip || ''}</span>${ctl}</div>`;
+    // The disabled Input Field: white at half alpha over #f2f2f2, a #ebf1f5 border and
+    // Text/text-disabled — the RMX disabled state, not a greyed-out copy of the live one.
+    const CHEV = `<svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-text-muted, #b3b3b3);flex:none"><path d="M480-344 240-584l43-43 197 197 197-197 43 43-240 240Z"/></svg>`;
+    const off = (val, chev, tall) => `<div style="display:flex;align-items:${tall ? 'flex-start' : 'center'};gap:8px;box-sizing:border-box;width:100%;height:${tall ? 56 : 36}px;padding:8px;background:#f9f9f9;border:1px solid #ebf1f5;border-radius:4px;cursor:default">
+      <span style="flex:1;min-width:0;font-size:14px;line-height:${tall ? 20 : 16}px;color:var(--rmx-text-muted, #b3b3b3);${tall ? '' : 'white-space:nowrap;'}overflow:hidden;text-overflow:ellipsis">${esc(LBL[val] || val)}</span>${chev ? CHEV : ''}</div>`;
+    const txt = (id, val) => on ? F.txt(id, val) : off(val, false);
+    const area = (id, val) => on
+      ? `<textarea id="${id}" style="box-sizing:border-box;width:100%;height:56px;padding:8px 12px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;font:400 14px/20px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);resize:none">${esc(val)}</textarea>`
+      : off(val, false, true);
+    const dd = (id, opts, val) => on ? this.singleSelect(id, opts, val, { noSearch:true, blank:true, placeholder:' ' }) : off(val, true);
 
     const pair = (a, b) => `<div style="display:flex;gap:16px">${a}${b}</div>`;
     // Storage, Parking and Pet charges advertise more than the seven fields every charge has, and
-    // those extras are as much a property's business as the rest — a property's lockers are its own
-    // size whatever the charge type says. So the category's own section shows here too, under the
-    // fields, and only for the category this charge type actually is.
-    const att = (this.ctmOwn(prop, code) || {}).attrs || {};
+    // those extras are a property's own — its lockers are its own size whatever the charge type
+    // says. They show under the fields, for the category this type actually is, and follow the
+    // same box: unticked, they apply to nothing, so they are shown but can't be touched.
+    const att = (e.vals || {}).attrs || {};
     const cat = String(v('category') || this.chargeCategoryFor(code) || '');
     const sub = (label, ctl) => `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab(label)}${ctl}</div>`;
     const dim = (id, val) => `<div style="display:flex;align-items:center;gap:6px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:36px;box-sizing:border-box;padding:0 10px">
       <input id="${id}" value="${esc(val || '')}" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">
       <span id="${id}-sfx" style="font-size:14px;color:var(--rmx-text-muted, #b3b3b3);flex:none">${esc((({ Inch:'in', Foot:'ft', Yard:'yd', Meter:'m' })[String(att.uom || '').trim()]) || '')}</span></div>`;
     const SPACE = ['None','Available','Reservable'];
+    const xdd = (id, opts, val) => this.singleSelect(id, opts, val, { noSearch:true, blank:true, placeholder:' ' });
     const extras = cat !== 'Storage' && cat !== 'Parking' && cat !== 'Pet' ? '' : `
-      <div style="display:flex;flex-direction:column;gap:12px;padding-top:13px;border-top:1px solid var(--rmx-line, #cedbe7)">
+      <div style="display:flex;flex-direction:column;gap:12px;padding-top:12px;border-top:1px solid var(--rmx-line, #cedbe7);${on ? '' : 'pointer-events:none;opacity:0.5'}">
         <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${esc(cat)} Details</span>
         ${cat === 'Storage' ? `
-          ${pair(sub('Storage Type', dd('ctm-at-stype', ['Bike','Closet','Locker','Other'], att.storageType || '')), sub('Storage Measurement Unit', this.singleSelect('ctm-at-uom', ['Inch','Foot','Yard','Meter'], att.uom || '', { noSearch:true, blank:true, placeholder:'\u00a0', js:"['ctm-at-h','ctm-at-w','ctm-at-l'].forEach(function(i){var e=document.getElementById(i+'-sfx');if(e)e.textContent=({Inch:'in',Foot:'ft',Yard:'yd',Meter:'m'})[_v]||''})" })))}
+          ${pair(sub('Storage Type', xdd('ctm-at-stype', ['Bike','Closet','Locker','Other'], att.storageType || '')), sub('Storage Measurement Unit', this.singleSelect('ctm-at-uom', ['Inch','Foot','Yard','Meter'], att.uom || '', { noSearch:true, blank:true, placeholder:' ', js:"['ctm-at-h','ctm-at-w','ctm-at-l'].forEach(function(i){var e=document.getElementById(i+'-sfx');if(e)e.textContent=({Inch:'in',Foot:'ft',Yard:'yd',Meter:'m'})[_v]||''})" })))}
           <div style="display:flex;gap:16px">${sub('Height', dim('ctm-at-h', att.height))}${sub('Width', dim('ctm-at-w', att.width))}${sub('Length', dim('ctm-at-l', att.length))}</div>` : ''}
         ${cat === 'Parking' ? `
-          ${pair(sub('Parking Type', dd('ctm-at-struct', ['Surface Lot','Garage Lot','Covered Lot','Street','Other','Garage (Attached)','Garage (Detached)','None'], att.structure || '')), sub('Vehicle Size', dd('ctm-at-size', ['Motorcycle','Compact','Car','Extended (RV/Boat)'], att.size || '')))}
-          <div style="display:flex;gap:16px">${sub('Standard Parking', dd('ctm-at-reg', SPACE, att.regular || ''))}${sub('Handicapped Parking', dd('ctm-at-hc', SPACE, att.handicapped || ''))}${sub('Electric Parking', dd('ctm-at-elec', SPACE, att.electric || ''))}</div>
+          ${pair(sub('Parking Type', xdd('ctm-at-struct', ['Surface Lot','Garage Lot','Covered Lot','Street','Other','Garage (Attached)','Garage (Detached)','None'], att.structure || '')), sub('Vehicle Size', xdd('ctm-at-size', ['Motorcycle','Compact','Car','Extended (RV/Boat)'], att.size || '')))}
+          <div style="display:flex;gap:16px">${sub('Standard Parking', xdd('ctm-at-reg', SPACE, att.regular || ''))}${sub('Handicapped Parking', xdd('ctm-at-hc', SPACE, att.handicapped || ''))}${sub('Electric Parking', xdd('ctm-at-elec', SPACE, att.electric || ''))}</div>
           ${sub('Parking Description', `<input id="ctm-at-desc" value="${esc(att.desc || '')}" placeholder="E.g. 50 surface spaces, 5 handicapped, 10 EV" style="width:100%;box-sizing:border-box;height:36px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:0 10px;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);outline:none">`)}` : ''}
-        ${cat === 'Pet' ? pair(sub('Pet Type', dd('ctm-at-pettype', this.petTypesFor().map(t => t.name), att.petType || '')), '<div style="flex:1;min-width:0"></div>') : ''}
+        ${cat === 'Pet' ? pair(sub('Pet Type', xdd('ctm-at-pettype', this.petTypesFor().map(t => t.name), att.petType || '')), '<div style="flex:1;min-width:0"></div>') : ''}
       </div>`;
-    const body = pair(fld('Name', txt('ctm-name', v('name')), '', 'name'), fld('Charge Category', dd('ctm-category', this.chargeCategoryOptions(), v('category')), H.category, 'category'))
-      + fld('Marketing Description (Optional)', area('ctm-marketing', v('marketing')), '', 'marketing')
-      + pair(fld('Charge Requirement', dd('ctm-requirement', REQ, v('requirement')), H.requirement, 'requirement'), fld(this.schedOnly(), dd('ctm-schedule', SCHED, v('schedule')), '', 'schedule'))
-      + pair(fld(this.dueOnly(), dd('ctm-feeDue', DUE, v('feeDue')), '', 'feeDue'), fld('Refundable', dd('ctm-refundable', REF, v('refundable')), '', 'refundable'))
+    const body = pair(fld('Name', txt('ctm-name', v('name'))), fld('Charge Category', dd('ctm-category', this.chargeCategoryOptions(), v('category')), H.category))
+      + fld('Marketing Description (Optional)', area('ctm-marketing', v('marketing')))
+      + pair(fld('Charge Requirement', dd('ctm-requirement', REQ, v('requirement')), H.requirement), fld(this.schedOnly(), dd('ctm-schedule', SCHED, v('schedule'))))
+      + pair(fld(this.dueOnly(), dd('ctm-feeDue', DUE, v('feeDue'))), fld('Refundable', dd('ctm-refundable', REF, v('refundable'))))
       + extras;
 
-    // Figma `3638:4452`: a grey strip naming the tier these values come from, with the way to go and
-    // change it. It says the charge type and nothing else — that is what this dialog is an override
-    // **of**, whether or not anything has been overridden yet, so it stays put rather than narrating
-    // the form's state back. What has been changed is already said by the Revert links.
-    const bold = (t) => `<strong style="font-weight:600">${esc(t)}</strong>`;
-    const srcRow = 'Inherited from ' + bold(code);
-    const any0 = CTMK.some(([k]) => String(v(k) || '') !== String(base[k] || ''));
-    // The same count the Default Charge Marketing register shows, read from the same place, so the
-    // tile and the dialog it opens can't disagree about how far this reaches.
+    // RMX Checkbox: an empty 20px box with a 2px Icon/icon-disabled border, or RMX attention orange
+    // with a white check — the orange is RMX's checked checkbox, not a brand choice made here.
+    const box = on
+      ? `<span style="display:flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:2px;background:var(--rmx-attention, #f58220);flex:none"><svg width="16" height="16" viewBox="0 -960 960 960" fill="#fff" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg></span>`
+      : `<span style="display:block;box-sizing:border-box;width:20px;height:20px;border-radius:2px;background:#fff;border:2px solid var(--rmx-text-muted, #b3b3b3);flex:none"></span>`;
+    // The same count the Default Charge Marketing register shows, read from the same place.
     const nCharges = this.appliedRows(prop).filter(r => String(r.mits || '').toUpperCase() === code).length;
 
-    this.ddSetInstall();
-    const LBL = {}; DUE.concat(REF).forEach(d => { LBL[d.value] = d.label; });
-    window.__ctmDiff = () => {
-      let any = false;
-      CTMK.forEach(([k, id]) => {
-        const el = this.q('#' + id), rev = this.q('#ctm-rev-' + k); if (!el) return;
-        const diff = String(el.value || '') !== String(base[k] || '');
-        if (rev) rev.style.display = diff ? 'inline' : 'none';
-        if (diff) any = true;
-      });
-      const rs = this.q('#ctm-reset'); if (rs) rs.style.display = any ? 'inline' : 'none';
-      return any;
-    };
-    window.__ctmRevert = (k) => {
-      const ent = CTMK.filter(x => x[0] === k)[0]; if (!ent) return;
-      const id = ent[1], val = base[k] || '', el = this.q('#' + id); if (!el) return;
-      if (this.q('#' + id + '-disp')) window.__ddSet(id, val, LBL[val] || val); else el.value = val;
-      window.__ctmDiff();
-    };
-    window.__ctmResetAll = () => { CTMK.forEach(x => window.__ctmRevert(x[0])); };
-
     return `<div data-act="ctmCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:150">
-      <div data-act="noop" style="width:681px;max-width:94vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
-        <div style="display:flex;align-items:center;gap:14px;padding:10px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
-          <span style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">Default Charge Marketing</span>
-          <div style="flex:1"></div>
-          <span data-act="ctmCancel" style="display:flex;cursor:pointer">${this.ico('close', 20, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
+      <div data-act="noop" style="width:541px;max-width:94vw;max-height:92vh;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;height:48px;box-sizing:border-box;padding:8px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
+          <span style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">Default Charge Marketing</span>
+          <span data-act="ctmCancel" style="display:flex;cursor:pointer">${this.ico('close', 24, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
         </div>
-        <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:16px">
-          <div style="display:flex;align-items:center;gap:8px;min-height:36px;box-sizing:border-box;padding:0 8px;background:var(--rmx-bg-muted, #f2f2f2);border-radius:4px;flex:none">
-            ${this.ico('info', 20, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}
-            <span id="ctm-src" style="flex:1;min-width:0;font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${srcRow}</span>
-            <a data-act="ctmEditType" data-arg="${esc(code)}" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Edit Charge Type</a>
+        <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:20px">
+          <div style="display:flex;align-items:center;gap:16px;flex:none;font-size:14px;color:var(--rmx-brand-dark, #13314c)">
+            <span style="white-space:nowrap">Charge Type: <strong style="font-weight:600">${esc(code)}</strong></span>
+            <span style="flex:1;min-width:0;font-style:italic">${nCharges} charge${nCharges === 1 ? '' : 's'} on this property using this charge type</span>
           </div>
-          <div style="display:flex;align-items:center;gap:16px;flex:none">
-            <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">Charge Type: <strong style="font-weight:600">${esc(code)}</strong></span>
-            <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nCharges} charge${nCharges === 1 ? '' : 's'} on this property using this charge type</span>
-            <a id="ctm-reset" onclick="if(window.__ctmResetAll)window.__ctmResetAll()" style="display:${any0 ? 'inline' : 'none'};font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Revert All Fields</a>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <span id="ctm-ovr" data-act="ctmToggle" role="checkbox" aria-checked="${on}" style="display:inline-flex;align-items:center;gap:8px;align-self:flex-start;cursor:pointer">${box}<span style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666);white-space:nowrap">Override Charge Type Defaults</span></span>
+            <div style="display:flex;flex-direction:column;gap:12px;padding:12px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px">${body}</div>
           </div>
-          <div style="display:flex;flex-direction:column;gap:12px;padding:13px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px">${body}</div>
         </div>
-        <div style="display:flex;justify-content:flex-end;gap:10px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:11px 16px;flex:none">
-          <button data-act="ctmSave" class="btn-pri" style="height:34px;min-height:34px;padding:0 20px;border-radius:4px;font-size:14px">Save</button>
-          <button data-act="ctmCancel" class="btn-out" style="height:34px;min-height:34px;padding:0 18px;border-radius:4px;font-size:14px">Cancel</button>
+        <div style="display:flex;justify-content:flex-end;align-items:center;gap:16px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:8px 16px;flex:none">
+          <button data-act="ctmSave" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Save</button>
+          <button data-act="ctmCancel" class="btn-out" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Cancel</button>
         </div>
       </div>
     </div>`;
@@ -4019,7 +4002,7 @@ class Component extends DCLogic {
             <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">What this means for your listings:</span>
             <div style="display:flex;align-items:flex-start;gap:10px">
               ${TICK}
-              <span style="font-size:14px;line-height:21px;color:var(--rmx-brand-dark, #13314c)">Every charge you have included on listings shows alongside the rent.</span>
+              <span style="font-size:14px;line-height:21px;color:var(--rmx-brand-dark, #13314c)">Instead of only displaying rent and deposit, every charge will appear on listings.</span>
             </div>
             <div style="display:flex;align-items:flex-start;gap:10px">
               ${TICK}
