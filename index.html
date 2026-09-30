@@ -188,7 +188,8 @@ class Component extends DCLogic {
     profMenu: null,
     recView: null,
     rowMenu: null,
-    // Properties whose complete pricing has been published from the Fee Transparency page.
+    // Properties whose complete pricing has been published. `componentDidMount` replaces this with
+    // the opening scenario's own plan, so it is only what the first paint shows.
     publishedProps: { 'Oakwood Manor': true },
     pubModal: null, // { prop } | { props } — Activate Fee Transparency confirmation
     mktSetup: false, // Marketing Setup overlay (opened from the action rail's copy flyout)
@@ -541,14 +542,12 @@ class Component extends DCLogic {
   // The charge types that arrive **without** Charge Requirement, Charge Schedule and Fee Due, so a
   // walkthrough has something to go and fill in. Which ones depends on what the scenario is for:
   //   · **Happy Path** leaves none short. It opens with every default already set, so the story is
-  //     "look at it, activate it" — Simple Demo is where the filling-in is demonstrated.
-  //   · **Simple Demo** leaves exactly its two, because going and filling them is the walkthrough.
+  //     "look at it, activate it".
   //   · everything else keeps the five Riverview's charges run on, so a real portfolio still shows
   //     a property with work outstanding.
   mktDefShort(){
     const k = this.scenarioKey();
     if (k === 'happy') return {};
-    if (k === 'demo') return { RC:1, GARBAG:1 };
     return { RC:1, GARBAG:1, GARBAGEFEE:1, ADMIN:1, DP:1 };
   }
   mktDefAll(){
@@ -789,22 +788,11 @@ class Component extends DCLogic {
       'Oakwood Manor':        ['RC','GARBAG','DP','NSF','LATE']
     };
   }
-  // The two scenarios that are a walkthrough rather than a portfolio: each names, per property, the
-  // charges it keeps. Everything else about them falls out of that one list — which properties
-  // exist, what they charge, and which charge types are on the books.
+  // The scenario that is a walkthrough rather than a portfolio names, per property, the charges it
+  // keeps. Everything else about it falls out of that one list — which properties exist, what they
+  // charge, and which charge types are on the books.
   walkCharges(){
-    const k = this.scenarioKey();
-    return k === 'happy' ? this.happyPathCharges() : k === 'demo' ? this.demoCharges() : null;
-  }
-  // Simple Demo is the smallest thing that still tells the whole story: two properties, two charges
-  // each, on two charge types. Both types arrive short (they are in `mktDefAll`'s SHORT list), so
-  // the walkthrough is: look at Listings, fill the two charge type defaults, come back and find the
-  // charges complete, activate. Nothing else is on screen to read past.
-  demoCharges(){
-    return {
-      'Riverview Apartments': ['RC','GARBAG'],
-      'The Berkshires':       ['RC','GARBAG']
-    };
+    return this.scenarioKey() === 'happy' ? this.happyPathCharges() : null;
   }
   propChargePlan(){
     const base = this.propChargePlanBase();
@@ -2727,8 +2715,7 @@ class Component extends DCLogic {
       { key:'happy', label:'Happy Path' },
       { key:'mid',   label:'Mid Conversion' },
       { key:'post',  label:'Post Conversion' },
-      { key:'noils', label:'On Rollout, No ILS' },
-      { key:'demo',  label:'Simple Demo' }
+      { key:'noils', label:'On Rollout, No ILS' }
     ];
   }
   scenarioLabel(){
@@ -2766,7 +2753,7 @@ class Component extends DCLogic {
     const names = this.propertiesData().map(p => p.name);
     const ils = {};
     // Every Happy Path property advertises online, so fee transparency is on the table for all of them.
-    if (key === 'happy' || key === 'demo') this.propertiesData().forEach(x => { ils[x.name] = true; });
+    if (key === 'happy') this.propertiesData().forEach(x => { ils[x.name] = true; });
     else if (key !== 'noils') this.scenarioMarketed().forEach(n => { ils[n] = true; });
     const plan = { ils, status:{}, fees:{}, published:{} };
     const convert = (n, complete, published, drift) => {
@@ -2790,21 +2777,18 @@ class Component extends DCLogic {
       convert('Clearcreek Condominiums', true, false);
       // The Berkshires, The Highlands, Valley Forge and The Arbors are still on legacy charges.
     } else if (key === 'happy') {
-      // The walkthrough opens with one property still on legacy charges and the rest waiting to
-      // convert, so both halves of the job are on screen from the first look at Listings.
-      ['The Berkshires','The Windermere'].forEach(n => convert(n, true, false));
-      // Oakwood Manor is the finished one: complete and converted.
-      convert('Oakwood Manor', true, true);
-      // Riverview Apartments is the one whose charges still need their marketing details.
+      // Every charge is complete and every property but one has activated, so the walkthrough is the
+      // last step and nothing else: Riverview Apartments, Ready to Activate, and the way to do it.
+      ['The Berkshires','The Windermere','Oakwood Manor'].forEach(n => convert(n, true, true));
+      // Riverview keeps the charges it already runs; its charge types' defaults complete them.
     } else if (key === 'post') {
       // Steady state: every property is converted, and every marketed one publishes complete pricing.
       names.forEach(n => convert(n, true, !!ils[n] && !this.mhOn(n)));
     }
-    // 'on', 'noils' and 'demo' are launch day — nothing is converted yet. Simple Demo opens on
-    // Listings, which is where its walkthrough starts.
+    // 'on' and 'noils' are launch day — nothing is converted yet.
     // In C the Listings page **is** the `feetrans` view: `'listings'` is not a view key and falls
     // through to the Unit page, which is where Post Conversion had been landing.
-    plan.view = (key === 'mid' || key === 'post' || key === 'demo') ? 'feetrans' : 'register';
+    plan.view = (key === 'mid' || key === 'post') ? 'feetrans' : 'register';
     // The announcement is opened deliberately from the nav, not thrown at the user on load.
     plan.announce = false;
     return plan;
@@ -2818,8 +2802,11 @@ class Component extends DCLogic {
     // The charge types come with their default charge marketing already set — `state.mktDef` can't
     // be built in the state literal, which is written before the methods exist.
     this.setState({ mktDef: this.mktDefAll() });
+    // The scenario is always applied, the opening one included — the state literal's portfolio is
+    // only a placeholder for the first paint, so what a scenario looks like lives in `scenarioPlan`
+    // alone and the two can't drift apart. (They had: Happy Path opened on the literal's copy.)
     const k = (String(location.search || '').match(/[?&]scen=([a-z0-9]+)/) || [])[1];
-    if (k && k !== this.state.scenario && this.scenarioList().some(o => o.key === k)) this.scenarioApply(k);
+    this.scenarioApply(k && this.scenarioList().some(o => o.key === k) ? k : this.state.scenario);
   }
   scenarioApply(key){
     this._scenFor = key;
@@ -3785,7 +3772,7 @@ class Component extends DCLogic {
     const body = pair(fld('Name', txt('ctm-name', v('name'))), fld('Charge Category', dd('ctm-category', this.chargeCategoryOptions(), v('category')), H.category))
       + fld('Marketing Description (Optional)', area('ctm-marketing', v('marketing')))
       + pair(fld('Charge Requirement', dd('ctm-requirement', REQ, v('requirement')), H.requirement), fld(this.schedOnly(), dd('ctm-schedule', SCHED, v('schedule'))))
-      + pair(fld(this.dueOnly(), dd('ctm-feeDue', DUE, v('feeDue'))), fld('Refundable', dd('ctm-refundable', REF, v('refundable'))))
+      + pair(fld(this.dueOnly(), dd('ctm-feeDue', DUE, v('feeDue'))), fld('Refundable (Optional)', dd('ctm-refundable', REF, v('refundable'))))
       + extras;
 
     // RMX Checkbox: an empty 20px box with a 2px Icon/icon-disabled border, or RMX attention orange
@@ -4073,7 +4060,13 @@ class Component extends DCLogic {
       // else reading a listing still has them.
       plan: l.unit || l.prop,
       type: this.ltBedBath(l)
-    }));
+    }))
+      // Happy Path is everything filled out, so no listing arrives carrying Rent Manager or provider
+      // gaps either — the seeded ones belong to the portfolio scenarios.
+      .map(l => (this.state.scenario || 'on') !== 'happy' ? l : Object.assign({}, l, {
+        rmErrors: 0, tzErrors: 0, feed: undefined,
+        providers: (l.providers || []).map(pv => Object.assign({}, pv, { sent: true, err: false }))
+      }));
     return port
       // Listings is the portfolio view in this version, so it has to be the same portfolio the
       // scoreboard counts — a walkthrough scenario that trims to four properties trims here too.
@@ -4810,7 +4803,7 @@ class Component extends DCLogic {
        </div>
        <div style="display:flex;gap:16px">
          ${mfld(this.dueOnly(), mdd('ctd-mkt-feeDue', DUE, d.feeDue || seed.feeDue))}
-         ${mfld('Refundable', mdd('ctd-mkt-refundable', REF, d.refundable || seed.refundable))}
+         ${mfld('Refundable (Optional)', mdd('ctd-mkt-refundable', REF, d.refundable || seed.refundable))}
        </div>`, true);
     const invTile = tile('Inventory Items',
       `<span data-act="todo" data-arg="Link Existing Inventory Item" style="display:inline-flex;align-items:center;gap:4px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Link Existing Inventory Item<svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M480-360 280-559h400L480-360Z"/></svg></span>`,
@@ -8035,7 +8028,7 @@ class Component extends DCLogic {
           ? `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Fee Due', '', 'due')}${dd('m-due',['At Application','Move-In','During Term','Move-Out'],(ed&&ed.listing&&ed.listing.feeDue)||(ed?(INH.feeDue||''):''),{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`
           : `<input type="hidden" id="m-due" value="During Term">`}
         ${isOne?'':`<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Schedule', '', 'sched')}${dd('m-sched',['Weekly','Monthly','Annually'],(ed&&ed.listing&&ed.listing.schedule)||(ed?(INH.schedule||''):''),{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`}
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Refundable', '', 'refund')}${dd('m-refund',['Refundable','Not Refundable'],refundable,{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mktDiff)window.__mktDiff()"})}</div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Refundable (Optional)', '', 'refund')}${dd('m-refund',['Refundable','Not Refundable'],refundable,{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mktDiff)window.__mktDiff()"})}</div>
       </div>
       <div id="m-sitdesc-wrap" style="display:${(spec||req==='Situational')?'flex':'none'};flex-direction:column;gap:4px">${lab('Situational Charge Description')}<textarea id="m-sitdesc" class="fld" style="height:48px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${esc(ed?ed.cond:'')}</textarea></div>
       ${attrSections}`;

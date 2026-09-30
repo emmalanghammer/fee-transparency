@@ -629,8 +629,9 @@ Marketing Description, Fee Due and Refundable carry none anywhere. Charge Schedu
 matched pair — `schedTip()` reads *“Only applies to recurring charges.”* and `dueTip()` *“Only
 applies to one-time charges.”*
 
-**Marketing Description reads *(Optional)* on all three**, because it is the one field in Charge
-Marketing a listing can post without and nothing on the form said so. The property's own Marketing
+**Marketing Description and Refundable read *(Optional)* on all three**, because they are the two
+fields in Charge Marketing a listing can post without (`mitsMissing` asks neither) and nothing on
+the form said so. The property's own Marketing
 Description, in the Descriptions tile, is a different field and keeps its own label., because a recurring charge is collected across the term by
 definition and only a one-time charge has a moment to name. Charge Requirement's is `reqHelp()` with
 its three terms; Charge Category's dropped the clause saying it can't be edited here, which the
@@ -746,11 +747,8 @@ by hand first.
 carries Name, Charge Category, Marketing Description and Refundable and stops before Charge
 Requirement, Charge Schedule and Fee Due, so a walkthrough has something to go and fill in.
 
-- **Happy Path** leaves **none** short: it opens with every default already set, every property
-  Ready to Activate, and the story is *look at it, activate it*. Five charge types across the whole
-  portfolio.
-- **Simple Demo** leaves **RC** and **GARBAG** short, because going and filling them is its
-  walkthrough.
+- **Happy Path** leaves **none** short: it opens with every default already set, and the story is
+  *activate the last one*. Five charge types across the whole portfolio.
 - **Everything else** keeps `RC`, `GARBAG`, `GARBAGEFEE`, `ADMIN` and `DP` short, so a real
   portfolio still shows properties with work outstanding. `on` reads 12/18 for Riverview, `mid` and
   `post` 16/16 — the regression check after any change here.
@@ -936,23 +934,29 @@ asked. `chargeColsDefault()` is what honours the gate, beside the existing `base
 
 ## Test feature states
 
-**Simple Demo is the walkthrough, start to finish.** Two properties — Riverview Apartments and The
-Berkshires — running two charges each (**RC** and **GARBAG**) on two charge types, and those are the
-only two types on the books. Both arrive short (they are in `mktDefAll`'s `SHORT` list), so the run
-is: open on **Listings** and see five units at 0/2, Action Required → Full Menu › Charge Types, open
-**RC**, fill Charge Requirement and Charge Schedule, Save & Close, answer **Apply Defaults** → back
-on Listings everything is 1/2 → do the same for **GARBAG** → 2/2, Sent to Provider → the property's
-Charges shows two complete charges → **View Setup**, both properties Ready, **Activate Fee
-Transparency**, and every listing picks up a Total Monthly Price. Nothing else is on screen to read
-past.
+**Simple Demo was removed on 2026-09-30**, and Happy Path took its place as the one walkthrough.
 
-`demoCharges()` is the whole definition: a keep list per property. `walkCharges()` is what answers
-*which walkthrough is on* — `happyPathCharges()`, `demoCharges()`, or null for the real portfolios —
-and `propertiesData()`, `portfolioTotal()` and `propChargePlan()` all read it, so the portfolio, the
-charges and the footer count cannot disagree. `chargeTypeList()` narrows to the demo's own types
-(`chargeTypeListAll()` is the full list), which is what makes the Charge Types register two rows and
-the walkthrough's "open a charge type" one click; the register, the typeahead and `mktDefAll` all
-read it, so they cannot disagree about what exists either.
+**Happy Path is everything done but one.** Four properties, all marketed online, every charge type's
+default charge marketing complete (`mktDefShort()` returns nothing for it). **The Berkshires, The
+Windermere and Oakwood Manor have activated**; **Riverview Apartments** is Ready to Activate, with
+its 5/5 complete from its charge types' defaults, so the walkthrough is the last step: Listings →
+View Setup (or the green *Ready to display all charges?*) → the one-property confirmation. No
+listing carries Rent Manager or provider errors either — `listingsData()` clears the seeded ones
+(`rmErrors`, `tzErrors`, a held feed, a provider error) in Happy Path only, since *everything filled
+out* includes those; every listing reads **Sent to Provider**, and only Riverview's Total Monthly
+Price is still `-`.
+
+`happyPathCharges()` is its keep list per property. `walkCharges()` returns it for Happy Path and
+null for the real portfolios, and `propertiesData()`, `portfolioTotal()` and `propChargePlan()` all
+read it, so the portfolio, the charges and the footer count cannot disagree. `chargeTypeList()`
+narrows to its own types (`chargeTypeListAll()` is the full list); the register, the typeahead and
+`mktDefAll` all read it, so they cannot disagree about what exists either.
+
+**The opening scenario is always applied.** `componentDidMount` runs `scenarioApply` on the URL's
+`?scen=` or, without one, `state.scenario` — it used to run only when the URL named a *different*
+scenario, so Happy Path opened on the state literal's hand-written copy of an old plan. The literal's
+`ilsProps` / `publishedProps` are now only what the first paint shows; `scenarioPlan` is the one
+definition of a scenario.
 
 **`'listings'` was never a view key.** In C the Listings page **is** the `feetrans` view, so
 `scenarioPlan`'s `plan.view` uses that — Post Conversion had been setting `'listings'`, which matches
@@ -961,6 +965,4 @@ nothing and falls through to the Unit page, so that scenario opened on a random 
 The Test Feature State selector starts **hidden**, so a demo never opens with a control that
 isn't part of the product. **Full Menu › Prototype › Show Test Feature State** turns it on (the
 menu item's label flips to Hide), clicking the Rent Manager logo toggles it, and `?test=1` on the
-URL starts with it showing. The Version switcher is not affected — it always shows. **Happy Path** is the default and the one used for walkthroughs: four properties, all
-marketed online, three with every marketing detail in place and waiting to convert, Riverview
-Apartments still missing details on all five of its charges.
+URL starts with it showing. The Version switcher is not affected — it always shows. **Happy Path** is the default and the one used for walkthroughs (above).
