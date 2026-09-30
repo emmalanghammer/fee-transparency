@@ -8949,12 +8949,28 @@ class Component extends DCLogic {
 
     const preview = `<button data-act="todo" data-arg="Preview" class="btn-pri" style="height:34px;min-height:34px;padding:0 18px;border-radius:4px;font-size:14px;flex:none">Preview</button>`;
     const mkProp = this.state.property;
-    const listing = card('Listing Details', `
-      <label style="display:inline-flex;align-items:center;gap:9px;cursor:pointer"><input type="checkbox" style="accent-color:var(--rmx-attention, #f58220);width:15px;height:15px;margin:0"><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Exclude Unit-specific information</span></label>
+    // Before a property activates, Listing Details is the tile as it ships today: the compliance
+    // note, the price it derives, and Deposit Fee(s) beside Lease Terms. Activated, the price and
+    // deposit come from the charges, so those give way to the leaner tile below.
+    const excl = `<label style="display:inline-flex;align-items:center;gap:9px;cursor:pointer"><input type="checkbox" style="accent-color:var(--rmx-attention, #f58220);width:15px;height:15px;margin:0"><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Exclude Unit-specific information</span></label>`;
+    const preFT = !this.state.publishedProps[P.name];
+    const listingInner = preFT ? `
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:#fff;border:1px solid var(--rmx-notice, #faa61c);border-radius:4px">
+        ${this.ico('warning', 24, 'color:var(--rmx-notice, #faa61c);flex:none')}
+        <span style="flex:1;min-width:0;font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">To comply with federal fee transparency requirements, ensure all required monthly fees are included in the price or clearly disclosed in the description. <a data-act="todo" data-arg="Learn More" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Learn More</a></span>
+      </div>
+      ${excl}
+      <div style="display:flex;flex-direction:column;gap:4px">${lab('Price')}<span style="font-size:14px;line-height:20px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Price is derived from the floor plan for properties set to Multi Family feed type.</span></div>
+      <div style="display:flex;gap:16px"><div style="flex:1;min-width:0">${field('Deposit Fee(s)', { t:'' })}</div><div style="flex:1;min-width:0">${field('Lease Terms', { t:'' })}</div></div>
+      <div style="display:flex;flex-direction:column;gap:4px">${lab('Property Images')}<div style="display:flex;gap:10px;align-items:center"><div style="flex:1;min-width:0">${ddPh({ t:'Property Image' })}</div>${preview}</div></div>
+      ${field('Unit Images', { t:'2 Selected' })}
+      ${field('Availability Date', { t:'' })}` : `
+      ${excl}
       ${field('Lease Terms', { t:'' })}
       <div style="display:flex;flex-direction:column;gap:4px">${lab('Property Images')}<div style="display:flex;gap:10px;align-items:center"><div style="flex:1;min-width:0">${ddPh({ t:'Property Image' })}</div>${preview}</div></div>
       <div style="display:flex;flex-direction:column;gap:4px">${lab('Unit Images')}<div style="display:flex;gap:10px;align-items:center"><div style="flex:1;min-width:0">${ddPh({ t:'' })}</div>${preview}</div></div>
-      ${field('Availability Date', { t:'' })}`,
+      ${field('Availability Date', { t:'' })}`;
+    const listing = card('Listing Details', listingInner,
       // The same Preview Pricing the property's Charges overlay offers, under the same gate: what an
       // advertised price would look like is only a question for a property that lists online.
       this.ftApplicable(P.name) ? `<a data-act="pricePreviewOpen" data-arg="${esc2(P.name)}" style="font-size:14px;font-weight:400;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Preview Pricing</a>` : '');

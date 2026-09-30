@@ -136,6 +136,17 @@ portfolio.
 is the way in, and the row belongs to the overlay. `ftPropRow(r, open, opts)` is still its own
 method, drawn only by `ftSetupHTML`.
 
+**Listing Details has two faces, and activation is the line** (2026-09-30). **Before** a property
+activates it is the tile as it ships today, to the user's mock: an amber-bordered note with a
+`warning` triangle — *"To comply with federal fee transparency requirements, ensure all required
+monthly fees are included in the price or clearly disclosed in the description."* and a **Learn More**
+(`todo`) — then Exclude Unit-specific information, **Price** over the bold *"Price is derived from the
+floor plan for properties set to Multi Family feed type."*, **Deposit Fee(s)** beside **Lease Terms**,
+Property Images + Preview, Unit Images as a full-width *2 Selected* with no Preview, and Availability
+Date. **After** activation the price and deposit come from the charges, so it is the lean tile:
+Exclude, Lease Terms, Property Images + Preview, Unit Images + Preview, Availability Date. `preFT` is
+`!publishedProps[P.name]`.
+
 **Listing Details carries Preview Pricing** as an action link in its tile header (the `card()`
 `right` slot), opening the same `pricePreviewOpen` the Charges overlay's button does, and under the
 same `ftApplicable` gate. The preview renders at z-index 152, over Marketing Setup's 145, and closing
