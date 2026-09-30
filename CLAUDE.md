@@ -670,7 +670,8 @@ from* strip, **Edit Charge Type**, the per-field **Revert** links and **Revert A
 `3638:4452`. `__ctmDiff`, `__ctmRevert`, `__ctmResetAll`, `#ctm-src`, `#ctm-reset` and the
 `ctmEditType` case are gone with them.
 
-A 541px dialog: the 48px header, then a 16px body with 20px between its two blocks —
+A 700px dialog (Figma's 541 widened on 2026-09-30 so the qualified labels — *Refundable (Optional)
+One-Time Charges Only* is the longest — each fit on one line): the 48px header, then a 16px body with 20px between its two blocks —
 
 - **Charge Type: `<CODE>`** in navy with the code SemiBold, and 16px on, *n charges on this
   property using this charge type* in navy **italic**. The count is `appliedRows(prop)` filtered to
