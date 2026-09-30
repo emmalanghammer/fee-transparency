@@ -639,7 +639,9 @@ cascade made untrue.
 **Charge Schedule is recurring-only, and a one-time charge is One-Time.** Which kind of charge a
 field applies to is part of what the field **is**, not a fact behind an icon — so on the two
 **default** surfaces the label says it: **Charge Schedule** *Recurring Charges Only* and **Fee Due**
-*One-Time Charges Only*, the qualifier in italics after the name, with no info icon on either.
+*One-Time Charges Only*, the qualifier in italics after the name, in Text/text-disabled grey
+(`--rmx-text-muted`, `#b3b3b3`) so it reads as a footnote rather than part of the label, with no
+info icon on either.
 `schedOnly()` and `dueOnly()` are the one place the phrasing lives, read by the charge type's tile
 and the property's dialog. **Refundable is one-time only too**: the charge form shows it only on a one-time charge (NSF and
 Late are `sit-one`, so they keep it), `resolvedListing` resolves a recurring charge's refundable to
