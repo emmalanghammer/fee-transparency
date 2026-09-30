@@ -642,7 +642,13 @@ field applies to is part of what the field **is**, not a fact behind an icon —
 **default** surfaces the label says it: **Charge Schedule** *Recurring Charges Only* and **Fee Due**
 *One-Time Charges Only*, the qualifier in italics after the name, with no info icon on either.
 `schedOnly()` and `dueOnly()` are the one place the phrasing lives, read by the charge type's tile
-and the property's dialog. **The charge form carries neither**, because it already knows which kind
+and the property's dialog. **Refundable is one-time only too**: the charge form shows it only on a one-time charge (NSF and
+Late are `sit-one`, so they keep it), `resolvedListing` resolves a recurring charge's refundable to
+nothing rather than its charge type's answer, and the two default surfaces label it
+**Refundable (Optional)** *One-Time Charges Only* through `refundOnly()`. A recurring charge is paid
+for the period it covers, so there is nothing to hand back.
+
+**The charge form carries neither qualifier**, because it already knows which kind
 of charge this is and renders Charge Schedule or Fee Due accordingly — a qualifier there names a
 case that can't arise. A marketing label flows as text rather than as a flex row, so the qualifier
 wraps like a sentence in a narrow column. `resolvedListing`
