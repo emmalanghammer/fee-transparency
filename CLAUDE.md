@@ -182,6 +182,17 @@ the RMX Tooltip below, and Marketing Setup › Pricing saves per charge. A chang
 belongs in both files. The rule is the dialog's **header** only: section titles, card titles and
 the Listings banner's own *Fee Transparency Setup* heading stay 16/600.
 
+**One exception: View Recurring Charges** (`recViewHTML`) matches RMX Pages `4217:79721`
+(`5XEzI94nmZsWE7rQQ7OIHP`) exactly, at the user's request on 2026-09-30, styling only: a 48px header
+whose title is **Label/M/SemiBold, 14px, text-primary grey** (the page pattern's own header, not the
+20px dialog title), 16px-sided Print and an Add with 20px icons; a `#f2f2f2` heading band at 16px
+holding the strip as an RMX **Scoreboard** — 24px `#425a70` colour bar (the property's own colour on
+the property view), white card at 16/32 with dropshadow-sm, the title at 16/600, items 32px apart,
+*Market Rent* over a SemiBold value — and the tune-icon toolbar; a register with 32px headers in
+Label/S/Medium (12.6px, 1.134px tracking), 36px rows striped from the first, 8px cell padding, a 10px
+level colour bar, 20px checks, and Figma's column widths (`recview3`); and a plain footer, the count
+SemiBold and the total Regular, both text-primary grey. The content is unchanged.
+
 `infoTip`'s panel is RMX's **Tooltip** (RMX Components `2944:203796`): 312px wide, 16px padding,
 1px `#cedbe7`, 4px radius, drop shadow `0 3px 6px rgba(0,0,0,0.10)`, Roboto Regular 14/20, left
 aligned. Its trigger is Material Icon / Medium / Brand — the squared `info_outline` at 20px, not the
