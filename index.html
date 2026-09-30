@@ -8126,7 +8126,7 @@ class Component extends DCLogic {
         const u = down ? affectedUnits() : [];
         // The one state that has to be legible without opening the section, because it is costing
         // something today.
-        cnt.textContent = u.length ? (u.length === 1 ? '1 listing off the feed' : u.length + ' listings off the feed') : '';
+        cnt.textContent = u.length ? (u.length === 1 ? '1 listing not sent' : u.length + ' listings not sent') : '';
         cnt.style.display = u.length ? 'inline-flex' : 'none';
       }
       const mico = this.q('#m-ils-ico'), mtxt = this.q('#m-ils-txt');
@@ -8136,7 +8136,7 @@ class Component extends DCLogic {
           const u = affectedUnits();
           msg.style.display = 'flex'; msg.style.background = '#fdecee';
           mico.innerHTML = this.ico('error', 20, 'color:var(--rmx-error, #eb343c)');
-          mtxt.innerHTML = `<strong style="font-weight:600">${u.length === 1 ? 'Unit ' + e2(u[0]) + ' is' : 'Units ' + e2(unitList(u)) + ' are'} not posting.</strong> Fee transparency is active on ${e2(this.state.property)}, so a listing carrying this charge is held back until every required field is filled in. Either finish the ${need.length === 1 ? 'one marked above' : need.length + ' marked above'}, or take this charge off listings.`;
+          mtxt.innerHTML = `<strong style="font-weight:600">${u.length === 1 ? 'Unit ' + e2(u[0]) + ' is' : 'Units ' + e2(unitList(u)) + ' are'} not posting.</strong> ${e2(this.state.property)} is fee transparent, so any listings using this charge will not be sent until every required field is filled in or the charge is excluded.`;
         // The only thing this block still says is state 4, where a listing is actually being held
         // off the feed. Before activation the header's amber **Not Ready for Listings** and the
         // **Required** marks on the fields already say what is short, and a paragraph repeating it
@@ -8185,7 +8185,8 @@ class Component extends DCLogic {
       }
       return propUnits;
     };
-    const unitList = (a) => a.length > 2 ? a.slice(0, 2).join(', ') + ' and ' + (a.length - 2) + ' more' : a.join(' and ');
+    // Every unit is named, comma-separated: which listings are held back is the one thing to read.
+    const unitList = (a) => a.join(', ');
     const ilsBox = this.ilsOn() ? `
         ${ilsNote}
         <input type="hidden" id="m-ils" value="${swOn?'1':'0'}">` : `<input type="hidden" id="m-ils" value="0">`;

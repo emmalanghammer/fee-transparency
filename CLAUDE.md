@@ -871,13 +871,15 @@ those values are now the only copy on screen rather than a mirror beside the rea
 3. **Activated and complete.** Nothing inside the card at all. The header's **Listing Ready** says
    it, and said twice on one screen it is noise rather than reassurance.
 4. **Activated and short.** Red, and red is earned here and nowhere else — this is the one state
-   costing something today, and **the only one that still puts anything in the card**. The lozenge still reads **Required** — the field is the same field
-   either way, and only the tone differs. The card takes a red border, the note
-   names the listings actually held back (*“Units 214 and 302 are not posting”*, from `affectedUnits`
-   — the charge's own unit when it is written at unit level, everything the property advertises
-   otherwise) and offers the second way out, taking the charge off listings. The count
-   (`#m-mkt-count`) sits in the **collapsed** header, because this is the one state that has to be
-   legible without opening the section.
+   costing something today, and **the only one that still puts anything in the card**. The lozenge still reads **Required for Listings** — the field is the same field
+   either way, and only the tone differs. The card takes a red border, and the note reads
+   *“Units 3B, 5A, 4C are not posting. Riverview Apartments is fee transparent, so any listings using
+   this charge will not be sent until every required field is filled in or the charge is
+   excluded.”* — **every** unit named, comma-separated (`unitList`), from `affectedUnits`: the
+   charge's own unit when it is written at unit level, everything the property advertises
+   otherwise. The count (`#m-mkt-count`) reads **3 listings not sent** (*1 listing not sent*) and
+   sits in the **collapsed** header, because this is the one state that has to be legible without
+   opening the section.
 
 **The Exceptions header is the heading alone.** What a charge covers is read off Charge Level in the
 General card above it, so restating it on the right said the same thing twice.
