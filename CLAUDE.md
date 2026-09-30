@@ -439,9 +439,27 @@ included, or clearing a field would be undone the next time the overlay opened. 
 reads it**: `state.mktDef` stays empty until someone saves, so a seed cannot quietly cascade and
 make a charge listing ready.
 
-**Charge Category is asked for once.** The Charge Type Information tile no longer carries it — it is
-set in Default Charge Marketing, and `ctSave` leaves the stored `category` alone, so it still serves
-as `chargeCategoryFor`'s fallback. The entry
+**Charge Category is asked for once, and it belongs to the charge type.** The Charge Type
+Information tile no longer carries it — it is set in Default Charge Marketing. **`chargeCategoryMap`
+reads `state.mktDef` over the built-in map and the register**, so the tile's value is the charge
+type's category everywhere, and a type whose defaults say none has none. `chargeCategoryMap(true)` is
+the map *before* anyone set anything, which is what `mktDefAll` seeds from, so a scenario reset can't
+inherit the last scenario's edits. **A charge never keeps a category of its own**: `resolvedListing`
+reads the property's override, else the charge type, else the map, and `saveFee` stores `''` on
+every charge, so changing a charge type's category moves every charge of it (the user asked for it
+"connected" on 2026-09-30). The charge form shows it read-only for the same reason.
+
+**Add Charge Category is back in reach.** A charge on a type with no category shows the red *You
+don't have a charge category assigned to this charge type* box with **Add Category**, which opens
+`catAddHTML`'s overlay. What it picks is held in `this._catAdds` (off state, so the half-filled form
+survives) and `catAddCommit()` writes it to the **charge type's** `mktDef` on each of `saveFee`'s
+three success paths — so it reaches every charge of that type, as the overlay says. Opening or
+cancelling the charge form discards an uncommitted pick. **Happy Path carries REKEY** (Rekey Fee) for
+this: the one company-wide, active type the map leaves uncategorised, with no charges on it, so
+adding a one-time REKEY charge shows the flow without touching any property's readiness. EVCHG is
+uncategorised too, but it is an ORI type Riverview doesn't rent out. In **Mid** and **Post
+Conversion** EVCHG's charge type carries *Utility* — the finished examples used to spell it on the
+charge, which a charge no longer can. The entry
 follows the code if the code is renamed. **The Marketing Center has no Charge Type Defaults
 button, tab or overlay** — that was the old home and it is gone.
 

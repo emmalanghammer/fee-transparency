@@ -500,7 +500,9 @@ class Component extends DCLogic {
     return {
       leaseRole: this.leaseRoleOf(r),
       name: pick('name'),
-      category: L.category || (CL.indexOf('category') >= 0 ? '' : (P.category || T.category || this.chargeCategoryFor(r.mits))),
+      // A charge can't set its own category — it is the charge type's (or the property's override of
+      // it), so changing it there moves every charge of the type.
+      category: P.category || T.category || this.chargeCategoryFor(r.mits),
       requirement: pick('requirement'),
       feeDue: pick('feeDue'),
       // A one-time charge has no schedule to choose, so it reads One-Time wherever a schedule is
@@ -562,11 +564,17 @@ class Component extends DCLogic {
     const SITUATIONAL = { NSF:1, LATE:1 };
     const copy = this.mktCopy();
     const out = {};
+    const raw = this.chargeCategoryMap(true);
+    // EV charging has no mapped category on purpose, so On Rollout shows a charge short of one. The
+    // converted portfolios have been through that and filled it in — on the charge type, which is the
+    // only place a category lives.
+    const k0 = this.scenarioKey();
+    if ((k0 === 'mid' || k0 === 'post') && !raw.EVCHG) raw.EVCHG = 'Utility';
     this.chargeTypeList().forEach(([code, desc]) => {
       const seed = this.mktDefSeed(code);
       // A charge type's default carries the sentence a listing would say about it, from the one
       // map the finished worked example reads too.
-      const d = { name: desc, category: this.chargeCategoryFor(code), marketing: (copy[code] || [])[1] || '',
+      const d = { name: desc, category: raw[code] || '', marketing: (copy[code] || [])[1] || '',
         requirement: '', schedule: '', feeDue: '', refundable: seed.refundable };
       if (!SHORT[code]) {
         // A property specific charge is by definition situational — it lands only when something
@@ -894,7 +902,9 @@ class Component extends DCLogic {
   }
   // Charge type -> MITS fee category. Codes absent here have no category assigned, which
   // surfaces the "Add Category" error state in the Add Charge modal.
-  chargeCategoryMap(){
+  // `raw` is the map before anyone has set a category on a charge type — what `mktDefAll` seeds
+  // the charge types' defaults from, so a scenario reset can't inherit the last scenario's edits.
+  chargeCategoryMap(raw){
     const base = { ADMIN:'Admin', AMENFEE:'Amenity', AMENITY:'Amenity', APPFEE:'Application', APPLICATION:'Application',
       CABLE:'Tech', CAM:'Service', CAMTAX:'Govt', CLEAN:'Clean', COVPARK:'Parking', DAMAGE:'Damage', DP:'Lease',
       ELEC:'Utility', GARAGE:'Parking', GARBAG:'Service', GARBAGEFEE:'Service', GAS:'Utility', H2O:'Utility',
@@ -905,10 +915,27 @@ class Component extends DCLogic {
     // Whatever the Charge Types register says wins — that is where a type's category is set.
     const fromReg = {};
     (this.state.chargeTypes || []).forEach(r => { if (r.category) fromReg[r.code] = r.category; });
-    // Categories assigned through the Add Charge Category overlay. Kept off state deliberately: the
-    // overlay opens over the charge details modal, whose fields are DOM-only, and a setState there
-    // would re-render the modal and wipe anything typed but not yet saved.
-    return Object.assign(base, fromReg, this._catAdds || {});
+    const out = Object.assign(base, fromReg);
+    if (raw) return out;
+    // A charge type's category is set in its own Default Charge Marketing, so that is what wins —
+    // and a type whose defaults say none has none, which is what raises Add Category on a charge.
+    const defs = this.state.mktDef || {};
+    Object.keys(defs).forEach(c => { const d = defs[c];
+      if (d && Object.prototype.hasOwnProperty.call(d, 'category')) { if (d.category) out[c] = d.category; else delete out[c]; } });
+    // Categories picked in the Add Charge Category overlay and not yet saved. Kept off state
+    // deliberately: the overlay opens over the charge details modal, whose fields are DOM-only, and a
+    // setState there would re-render the modal and wipe anything typed. `catAddCommit` writes them
+    // to the charge type when the charge saves.
+    return Object.assign(out, this._catAdds || {});
+  }
+  // Add Charge Category picks a category for the **charge type**, so it lands there when the charge
+  // saves and every charge of that type reads it. Cancelling the charge throws the pick away.
+  catAddCommit(){
+    const adds = this._catAdds || {}; this._catAdds = {};
+    const codes = Object.keys(adds); if (!codes.length) return;
+    this.setState(s2 => { const d = Object.assign({}, s2.mktDef);
+      codes.forEach(c => { d[c] = Object.assign({}, d[c] || {}, { category: adds[c] }); });
+      return { mktDef: d }; });
   }
   chargeCategoryFor(code){ return this.chargeCategoryMap()[(code||'').toUpperCase()] || ''; }
   // Categories no seeded charge type maps to yet, so they'd otherwise never appear in the list.
@@ -988,6 +1015,10 @@ class Component extends DCLogic {
     const walk = this.walkCharges();
     if (!walk) return this.chargeTypeListAll();
     const use = {}; Object.keys(walk).forEach(p2 => walk[p2].forEach(c => { use[c] = 1; }));
+    // One type no charge uses yet, and with no category: adding a charge on it is how the walkthrough
+    // shows Add Charge Category, without touching any property's readiness. REKEY is the one
+    // company-wide, active type the category map leaves out.
+    use.REKEY = 1;
     return this.chargeTypeListAll().filter(([code]) => use[code]);
   }
   chargeTypeListAll(){
@@ -1847,9 +1878,9 @@ class Component extends DCLogic {
 
       // ---- add / edit charge ----
       // 'cre' is a recurring charge with the commercial distribution sections added.
-      case 'addopen': this._mktDefApplied = null;
+      case 'addopen': this._mktDefApplied = null; this._catAdds = {};
         this.setState({ modal: arg === 'cre' ? { group: 'req-rec', cre: true } : { group: arg }, toggles: Object.assign({}, this.state.toggles, { modalIls: false }) }); break;
-      case 'addclose': this._mktDefApplied = null; this.setState({ modal: null }); break;
+      case 'addclose': this._mktDefApplied = null; this._catAdds = {}; this.setState({ modal: null }); break;
       case 'addsave': this.saveFee(); break;
 
       case 'tog': {
@@ -1895,7 +1926,7 @@ class Component extends DCLogic {
         listing: Object.assign({}, specEd.listing, {
           cleared: sCleared.length ? sCleared : undefined,
           name: sown(nm, SD.name),
-          category: sown(v('m-cat') || this.chargeCategoryFor(specEd.mits), SD.category || this.chargeCategoryFor(specEd.mits)),
+          category: '',
           marketing: sown(v('m-marketing'), SD.marketing),
           requirement: sown(req, SD.requirement),
           feeDue: sown(v('m-due') || 'During Term', SD.feeDue),
@@ -1904,6 +1935,7 @@ class Component extends DCLogic {
       this.setProfileRows(rows => rows.map(f => String(f.id) === String(id) ? Object.assign({}, f, patch) : f));
       this.logChargeEdit(specEd, Object.assign({}, specEd, patch));
       if (keep) return true;
+      this.catAddCommit();
       this.setState({ modal: null });
       this.flash('Charge updated');
       return true;
@@ -2009,7 +2041,7 @@ class Component extends DCLogic {
         return {
           cleared: cleared.length ? cleared : undefined,
           name: own(name, D.name),
-          category: own(v('m-cat') || cat, D.category || cat),
+          category: '',
           marketing: own(v('m-marketing'), D.marketing),
           requirement: own(req, D.requirement),
           feeDue: own(v('m-due'), D.feeDue),
@@ -2036,6 +2068,7 @@ class Component extends DCLogic {
         : (take && String(f.id) === String(take) ? unRent(f) : f)));
       this.logChargeEdit(m.edit, Object.assign({}, m.edit, row));
       if (keep) return true;
+      this.catAddCommit();
       this.setState({ modal: null }); this.flash('Charge updated'); return true;
     }
     const id = this.state.nextFeeId;
@@ -2044,6 +2077,7 @@ class Component extends DCLogic {
     this.logChange(this.state.property, this.histLabelFor(row),
       'Charge added · ' + row.amount + ' · ' + (row.listing.requirement || 'No requirement'), target || app, { chargeId: id });
     if (keep) { this.setState(s => ({ nextFeeId: s.nextFeeId + 1 })); return true; }
+    this.catAddCommit();
     this.setState(s => ({ modal: null, nextFeeId: s.nextFeeId + 1 }));
     this.flash('Charge added');
     return true;
@@ -7850,7 +7884,7 @@ class Component extends DCLogic {
       : INH.refundable === 'no' || INH.refundable === false ? 'Not Refundable' : '';
     // A category stored on the charge wins over the charge-type map — the same order the completeness
     // check uses, so the display can't claim "no category" on a charge that reads as Listing Ready.
-    const edCat = ed ? ((ed.listing && ed.listing.category) || INH.category || catFor(ed.mits)) : '';
+    const edCat = ed ? (INH.category || catFor(ed.mits)) : '';
     const hasCode = !!(ed && ed.mits);
     const reqOwn = (ed && ed.listing && ed.listing.requirement) || '';
     const req = reqOwn || INH.requirement || '';
