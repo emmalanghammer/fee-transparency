@@ -812,7 +812,7 @@ billed on its own frequency, so there is no single amount to divide. `saveFee` s
 **The section matches Figma `3606:62884`.** Collapsed by
 default, with **Include on listings** on the header's right — the toggle itself, so it can be set
 without opening the section; its `onclick` stops propagation or the header's own collapse fires
-under it. **Off, an amber `error` sits beside it** (`#m-ils-warn`, shown by `__calcNote` and
+under it. **Off, an amber `warning` triangle sits beside it** (`#m-ils-warn`, shown by `__calcNote` and
 `__mitsRecheck`) whose hover tooltip reads *“For full fee transparency, include this charge on
 listings so residents see it up front.”* — that used to be a standing line under the fields, which
 said the same thing whether or not anyone was looking for it. The header carries no count except in
