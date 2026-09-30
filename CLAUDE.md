@@ -65,27 +65,19 @@ for taking one back out, not for building the list from nothing. Next hands the 
 same `pubModal` a single property uses. Converting leaves the Setup overlay open: the rows flip to
 *Fee Transparent* and the banner disappears under you, which is the feedback.
 
-**The confirmation explains what will happen, it doesn't warn.** `pubModalHTML` opens on the
-outcome — *"The Berkshires and The Windermere will start advertising their full monthly price"* —
-over a neutral `--rmx-bg-subtle` panel, **What this means for your listings:**, in the place and at
-the size of the amber warning it replaced, so the dialog keeps its shape. Three lines: the first
-used to read *every charge you have included on listings shows alongside the rent* (the charge count that used to follow it is
-gone, and `nIls` with it) — now *Instead of only displaying rent and deposit, every charge will
-appear on listings.*; each listing advertises a **Total Monthly Price** in place of the
-rent-only figure; and, deliberately last, *Excluded charges stay off listings so you can display
-charges when they're ready*. The fear behind "can't be undone" is publishing something you didn't
-mean to, and that third line answers it better than a warning does.
+**The confirmation explains what will happen, it doesn't warn.** Its content is the user's own,
+word for word (2026-09-30): *"**`<Property>`** will start advertising listings with all charges
+included."* over a neutral `--rmx-bg-subtle` panel, **What this means for your listings:**, with
+three lines —
 
-**All three lines are in the dialog's own ink, and the glyph is what separates them.** The first two
-carry the green tick; the third carries `visibility_off`, the same glyph the register's **Excluded**
-pill wears, because it is about charges kept off listings. Grey had been marking that line and the
-permanence line as small print — but one is the reassurance the whole dialog rests on and the other
-is the single thing that can't be undone, so neither is something to skim.
+- ✓ *Instead of only displaying rent and deposit, all charges will show the Total Monthly Price.*
+- ✓ *This will send to the provider and is shown when the feed updates.*
+- `visibility_off` *Excluded charges stay off listings so they can display charges when they're
+  ready.* — the Excluded pill's glyph, since the line is about charges kept off listings.
 
-**Permanence is still said, once.** One line under the panel: *"Feeds pick this up on their next
-run. Activating can't be reversed from Rent Manager, but what each listing shows always follows your
-charges, so you stay in control of the price."* The scoping is the point — **the switch is what
-can't be reversed, not the pricing** — and it is why the rest of the dialog can afford to be calm.
+All three are in the dialog's own navy ink; only the property name is bold. **There is no paragraph
+under the panel any more** — the *Feeds pick this up… can't be reversed from Rent Manager…* line
+was removed at the user's request, so the dialog goes straight from the panel to Activate / Cancel.
 
 **There is no acknowledgement tick-box**, and `pubAck` and `pubModal.ack` are gone with it. A gate
 that disables the primary button until you agree belongs to a destructive action; this is the one
