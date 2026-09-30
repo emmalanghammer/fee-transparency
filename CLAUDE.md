@@ -993,6 +993,17 @@ asked. `chargeColsDefault()` is what honours the gate, beside the existing `base
 
 **Simple Demo was removed on 2026-09-30**, and Happy Path took its place as the one walkthrough.
 
+**Every Test Feature State shows five properties at most** (2026-09-30). Happy Path's four come from
+its keep list; the others from `scenarioFive()`, which `propertiesData()` filters by (properties added
+during a session are kept). **On Rollout, Post Conversion and On Rollout, No ILS**: Riverview
+Apartments, The Berkshires, The Windermere (listed online), Oakwood Manor (not marketed) and
+Clearcreek Condominiums (MH Village). **Mid Conversion**: Riverview (activated), The Windermere
+(activated, drifted), The Estates (short), The Hamptons (ready) and Clearcreek — so the mix is still
+all there. `portfolioTotal()` is simply that count. **Mid's five hand-set worked-example listings**
+(1127 Blackwell, Kirby, Timber Trail, Sheehan and a Clearcreek extra) are gone from
+`listingsData()`, since they sat outside the portfolio. The Riverview baselines are unchanged:
+`on` 12/18, `mid` and `post` 16/16.
+
 **Happy Path is everything done but one.** Four properties, all marketed online, every charge type's
 default charge marketing complete (`mktDefShort()` returns nothing for it). **The Berkshires, The
 Windermere and Oakwood Manor have activated**; **Riverview Apartments** is Ready to Activate, with

@@ -235,10 +235,24 @@ class Component extends DCLogic {
   };
 
   // ---------- properties (the top-level entity; fee profiles hang off these) ----------
+  // Every Test Feature State shows at most five properties, chosen so each still tells its story.
+  // Happy Path's four come from its own keep list; the others name theirs here.
+  scenarioFive(){
+    const k = this.scenarioKey();
+    // Mid Conversion is the mix: activated, activated and since drifted, still short, ready, and
+    // on a feed that never carries complete pricing.
+    if (k === 'mid') return ['Riverview Apartments','The Windermere','The Estates','The Hamptons','Clearcreek Condominiums'];
+    // The rest: three listed online, one not marketed at all, and one on MH Village.
+    return ['Riverview Apartments','The Berkshires','The Windermere','Oakwood Manor','Clearcreek Condominiums'];
+  }
   propertiesData(){
     const all = this.portfolioData();
     const keep = this.walkCharges();
-    if (!keep) return all;
+    if (!keep) {
+      const five = this.scenarioFive();
+      const added0 = (this.state.newProps || []).map(x => x.name);
+      return all.filter(x => five.indexOf(x.name) >= 0 || added0.indexOf(x.name) >= 0);
+    }
     // A walkthrough portfolio: only the simplified properties, plus anything added during the
     // walkthrough, so the flow can be demoed without scrolling past fifteen properties.
     const added = (this.state.newProps || []).map(x => x.name);
@@ -286,7 +300,7 @@ class Component extends DCLogic {
   propNames(){ return this.propertiesData().map(p => p.name); }
   // The register footer counts against the whole company, not the page of properties on screen. The
   // walkthrough portfolio is the whole company, so there it counts what's actually there.
-  portfolioTotal(){ return this.walkCharges() ? this.propertiesData().length : 42; }
+  portfolioTotal(){ return this.propertiesData().length; }
   propInfo(name){ const n = name || this.state.property; return this.propertiesData().find(p => p.name === n) || this.propertiesData()[0]; }
   properties(){ return this.propertiesData(); }
 
@@ -4139,16 +4153,6 @@ class Component extends DCLogic {
       // scoreboard counts — a walkthrough scenario that trims to four properties trims here too.
       .filter(l => this.propNames().indexOf(l.prop) >= 0)
       .filter(l => this.ilsOn(l.prop));
-    // The mock's worked examples: properties outside the demo portfolio with hand-set pricing states.
-    // A half-published mix only makes sense mid-conversion, so they sit out the other scenarios.
-    if ((this.state.scenario || 'on') !== 'mid') return port;
-    return [
-      { prop:'Clearcreek Condominiums', plan:'CC1141', type:'2B / 2B', avail:'12/31/2026', base:1150.00, total:1254.75, fixed:{ pill:'Fee Transparent', total:true } },
-      { prop:'1127 Blackwell',          plan:'2',      type:'SFH',     avail:'12/31/2026', base:null, rmErrors:6 },
-      { prop:'Kirby',                   plan:'3',      type:'2B / 2B', avail:'12/31/2026', base:1300.00, tzErrors:2, fixed:{ pill:'Legacy', warn:'Fee Transparency Issue - 12 charges need details' } },
-      { prop:'Timber Trail',            plan:'Timber', type:'SFH',     avail:'12/31/2026', base:2350.00, total:2500.00, fixed:{ pill:'Fee Transparent', total:true } },
-      { prop:'Sheehan',                 plan:'2',      type:'2B / 2B', avail:'12/31/2026', base:750.00, fixed:{ pill:'Legacy', legacy:true } }
-    ].concat(port);
   }
   // Required recurring charges that ride on top of base rent in the total monthly price.
   // ---- What each column of the listings register says, and where it gets it from ----
