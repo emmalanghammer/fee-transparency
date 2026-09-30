@@ -465,7 +465,7 @@ types, and three RMX Radio Selectors over a Save / Cancel footer. `mktDefApply` 
 just wrote. Only the types this save actually moved are touched.
 
 **There is no *Only new charges* option** — the user removed it on 2026-09-30, from this dialog and
-the property's, and **All charges using default marketing** is now the default in both
+the property's, and **Charges with Default Marketing** is now the default in both
 (`mktDefMode` / `ctmMode` start at `'inherit'`). The `'new'` branches of `mktDefApply` and
 `ctmCommit` are unreachable but left in; a charge that already carries `noInherit` or `noProp` from
 before still honours it. What the option did:
@@ -476,12 +476,12 @@ before still honours it. What the option did:
   marked `listing.noInherit` instead — it refuses the **charge type's** defaults outright, while
   the property's own override still reaches it, because refusing that was never asked for. In
   **A**, which copies defaults down rather than cascading, this is simply "write nothing".
-- `inherit` — **All charges using default marketing** / *Overridden charges stay as they are*. The default. In
+- `inherit` — **Charges with Default Marketing** / *Charges with overrides remain as they are.* The default. In
   C this writes nothing at all: a charge with no value of its own already follows the new default
   through `resolvedListing`, and one overridden at the property, on the charge, or by an earlier
   *Only new charges* is exactly what this answer leaves alone. In A it is `mktDefFill` with no
   force — fill the fields still empty.
-- `all` — **All charges** / *Clears every property and charge override*. In C it deletes those
+- `all` — **All Charges** / *This will clear every property and charge override.* In C it deletes those
   types' entries from `state.propDef`, and the marketing fields and `noInherit` from every charge
   of them, so everything reads the new default and nothing else. In A it is
   `mktDefFill(..., true)`, values someone typed included.
@@ -716,10 +716,10 @@ the one place that writes the override, whichever route reached it.
   the charge type's. The two are independent, because refusing one was never an answer about the
   other. Writing today's resolved values instead cannot say it, for the same reason it couldn't a
   rung up: a field that resolves to nothing today is indistinguishable from one nobody has filled.
-- `inherit` — **All charges using default marketing** / *Overridden charges stay as they are*.
+- `inherit` — **Charges with Default Marketing** / *Charges with overrides remain as they are.*
   Writes nothing: a charge with no value of its own already follows the new override through
   `resolvedListing`.
-- `all` — **All charges** / *Clears every charge override at this property*. Deletes the marketing
+- `all` — **All Charges** / *This will clear every charge override at this property.* Deletes the marketing
   fields and both refusals from every charge of that type at that property, so each reads the new
   default and nothing else.
 
