@@ -644,7 +644,9 @@ field applies to is part of what the field **is**, not a fact behind an icon —
 and the property's dialog. **Refundable is one-time only too**: the charge form shows it only on a one-time charge (NSF and
 Late are `sit-one`, so they keep it), `resolvedListing` resolves a recurring charge's refundable to
 nothing rather than its charge type's answer, and the two default surfaces label it
-**Refundable (Optional)** *One-Time Charges Only* through `refundOnly()`. A recurring charge is paid
+**Refundability (Optional)** *One-Time Charges Only* through `refundOnly()` — the field is
+*Refundability* on all three surfaces (the user renamed it on 2026-09-30); its values are still
+*Refundable* / *Not Refundable*. A recurring charge is paid
 for the period it covers, so there is nothing to hand back.
 
 **The charge form carries neither qualifier**, because it already knows which kind
@@ -911,7 +913,10 @@ create, because copying the defaults down would make every new charge an overrid
 
 **A pet type that carries the figure says so in General.** When one does, Amount and Amount Method
 grey out — which says they can't be edited but not why, and the pet type that explains it sits
-inside Charge Marketing, which is collapsed. So `#m-pet-amt-note` stands under the Amount row, in
+inside Charge Marketing, which is collapsed. **The lock follows the category, not the Pet Type
+field**: the Pet section keeps its value when the charge type changes, so `__petApply` only locks
+while `#m-cat` is *Pet`*, and `__attrCheck` re-runs it on every charge type change — moving a charge
+off PETFEE opens Amount and Amount Method back up, and moving it back re-locks them. So `#m-pet-amt-note` stands under the Amount row, in
 the same grey `--rmx-bg-muted` strip the cascade uses everywhere else for *this came from
 somewhere*: *"Amount and Amount Method come from the `<type>` pet type."* `__petApply` shows it with
 the lock and names the type. The hover tooltip that used to carry the same sentence is gone — it

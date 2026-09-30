@@ -4674,7 +4674,7 @@ class Component extends DCLogic {
   mktOnly(t){ return ` <em style="font-style:italic;color:var(--rmx-text, #666666)">${t}</em>`; }
   schedOnly(){ return 'Charge Schedule' + this.mktOnly('Recurring Charges Only'); }
   dueOnly(){ return 'Fee Due' + this.mktOnly('One-Time Charges Only'); }
-  refundOnly(){ return 'Refundable (Optional)' + this.mktOnly('One-Time Charges Only'); }
+  refundOnly(){ return 'Refundability (Optional)' + this.mktOnly('One-Time Charges Only'); }
   ctFieldBits(){
     const esc = v => ('' + (v == null ? '' : v)).replace(/"/g, '&quot;');
     const lab = (t, req) => `<span style="font-size:14px;color:var(--rmx-text, #666666)">${t}${req?' *':''}</span>`;
@@ -7564,6 +7564,9 @@ class Component extends DCLogic {
       if (sw) sw.style.display = (cc === 'Storage') ? 'flex' : 'none';
       if (pw) pw.style.display = (cc === 'Parking') ? 'flex' : 'none';
       if (tw) tw.style.display = (cc === 'Pet') ? 'flex' : 'none';
+      // The pet type's lock on Amount and Amount Method follows the category too, so moving the
+      // charge off a pet charge type opens them back up, and moving it back re-locks them.
+      if (window.__petApply) window.__petApply(((this.q('#m-at-petkind') || {}).value) || '');
     };
     // Choosing base rent where another charge at this level already holds it is a decision, not a
     // silent swap, so it asks first — and cancelling puts the radio back where it was.
@@ -7921,7 +7924,10 @@ class Component extends DCLogic {
       if (sumBox) sumBox.style.display = t ? 'block' : 'none';
       const amt = this.q('#m-amount');
       const petAmt = (x) => petAmtK(x, k);
-      const locked = !!(t && petAmt(t));
+      // A pet type only governs a pet charge. The Pet section keeps its value when the charge type
+      // changes, so the lock is asked of the category, not of whether a pet type is still picked.
+      const isPet = (((this.q('#m-cat') || {}).value) || '') === 'Pet';
+      const locked = !!(isPet && t && petAmt(t));
       if (amt) {
         if (locked) amt.value = this.money(petAmt(t)).replace('$','');
         amt.disabled = locked;
@@ -8037,7 +8043,7 @@ class Component extends DCLogic {
         ${isOne?'':`<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Schedule', '', 'sched')}${dd('m-sched',['Weekly','Monthly','Annually'],(ed&&ed.listing&&ed.listing.schedule)||(ed?(INH.schedule||''):''),{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`}
         <!-- Only a one-time charge is handed back or not: a recurring one is paid for the period it
              covers, so there is no question to answer. -->
-        ${isOne ? `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Refundable (Optional)', '', 'refund')}${dd('m-refund',['Refundable','Not Refundable'],refundable,{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mktDiff)window.__mktDiff()"})}</div>` : ''}
+        ${isOne ? `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Refundability (Optional)', '', 'refund')}${dd('m-refund',['Refundable','Not Refundable'],refundable,{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mktDiff)window.__mktDiff()"})}</div>` : ''}
       </div>
       <div id="m-sitdesc-wrap" style="display:${(spec||req==='Situational')?'flex':'none'};flex-direction:column;gap:4px">${lab('Situational Charge Description')}<textarea id="m-sitdesc" class="fld" style="height:48px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${esc(ed?ed.cond:'')}</textarea></div>
       ${attrSections}`;
