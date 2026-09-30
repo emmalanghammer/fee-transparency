@@ -464,13 +464,19 @@ types, and three RMX Radio Selectors over a Save / Cancel footer. `mktDefApply` 
 `state.mktDef`, not `ctSave` — otherwise `mktDefChanged` would be diffing against the values it
 just wrote. Only the types this save actually moved are touched.
 
-- `new` — **Only new charges**. The default. In **C** this cannot be done by writing today's
+**There is no *Only new charges* option** — the user removed it on 2026-09-30, from this dialog and
+the property's, and **All charges using default marketing** is now the default in both
+(`mktDefMode` / `ctmMode` start at `'inherit'`). The `'new'` branches of `mktDefApply` and
+`ctmCommit` are unreachable but left in; a charge that already carries `noInherit` or `noProp` from
+before still honours it. What the option did:
+
+- `new` — **Only new charges** *(removed)*. In **C** this cannot be done by writing today's
   resolved values onto each charge: a field that resolves to nothing today is indistinguishable
   from one nobody has filled, so the new default would reach it anyway. Each existing charge is
   marked `listing.noInherit` instead — it refuses the **charge type's** defaults outright, while
   the property's own override still reaches it, because refusing that was never asked for. In
   **A**, which copies defaults down rather than cascading, this is simply "write nothing".
-- `inherit` — **All charges using default marketing** / *Overridden charges stay as they are*. In
+- `inherit` — **All charges using default marketing** / *Overridden charges stay as they are*. The default. In
   C this writes nothing at all: a charge with no value of its own already follows the new default
   through `resolvedListing`, and one overridden at the property, on the charge, or by an earlier
   *Only new charges* is exactly what this answer leaves alone. In A it is `mktDefFill` with no
@@ -614,12 +620,12 @@ Iconography's **edit-filled** (Figma `3595:57346`), harvested rather than drawn:
 glyph at 20px on its own `0 0 20 20` box, so it can't live in the Material `ico` map with the
 `-960 960` ones and is inlined as `EDIT_FILLED` beside the register.
 
-**Field Overrides is a fraction, not a tick.** A tick only said whether an entry exists; the
-override is stored **whole**, so an entry says nothing about how much of it actually differs.
-`ctmOverrideCount(prop, code)` derives it — the property's stored values diffed against
-`mktDefFor(code)`, field by field — and reads `0/7` in grey until something does, then `n/7` in the
-register's own ink. `ctmFields()` is the one list of the seven, read by the dialog, by `ctmSave` and by this
-count, so none of the three can be counting a different set.
+**Property Override is a tick** (it was *Field Overrides*, an `n/7` fraction, and the user changed
+it back on 2026-09-30): the Charge Types register's own green filled check when the Override Charge
+Type Defaults box is ticked for that type at this property (`ctmOverridden`), and blank otherwise —
+an override remembered but unticked applies to nothing, so it shows nothing. `ctmOverrideCount` is
+no longer read by anything. `ctmFields()` is still the one list of the seven, read by the dialog and
+by `ctmSave`.
 
 **The three surfaces that edit a charge's marketing carry the same field tooltips.** `mktHelp()`
 builds one map — **Charge Category, Charge Requirement, Charge Schedule, Fee Due** — read by the charge form, Charge Type
@@ -705,7 +711,7 @@ Marketing dialog stays open behind it, so **Cancel** returns with everything typ
 which is why `ctmSave` banks the typed values into `ctmEdit.vals` before raising it. `ctmCommit` is
 the one place that writes the override, whichever route reached it.
 
-- `new` — **Only new charges.** The default. Each charge of that type at that property is marked
+- `new` — **Only new charges** *(removed — see the charge type's dialog above)*. Each charge of that type at that property was marked
   `listing.noProp`: it refuses the **property's** override outright, exactly as `noInherit` refuses
   the charge type's. The two are independent, because refusing one was never an answer about the
   other. Writing today's resolved values instead cannot say it, for the same reason it couldn't a
