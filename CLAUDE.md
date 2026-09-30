@@ -145,7 +145,9 @@ floor plan for properties set to Multi Family feed type."*, **Deposit Fee(s)** b
 Property Images + Preview, Unit Images as a full-width *2 Selected* with no Preview, and Availability
 Date. **After** activation the price and deposit come from the charges, so it is the lean tile:
 Exclude, Lease Terms, Property Images + Preview, Unit Images + Preview, Availability Date. `preFT` is
-`!publishedProps[P.name]`.
+`!publishedProps[P.name]`. **Features' Pets field follows the same line**: a plain dropdown, as it
+ships, before activation; after it, the note *"Pet details can be added on any charges with a PET
+charge category."* with **View Charges**.
 
 **Listing Details carries Preview Pricing** as an action link in its tile header (the `card()`
 `right` slot), opening the same `pricePreviewOpen` the Charges overlay's button does, and under the

@@ -8983,13 +8983,17 @@ class Component extends DCLogic {
         </div>
         <div style="min-width:0;display:flex;flex-direction:column;gap:12px">
           ${field('Laundry', { t:'' })}
-          <div style="display:flex;flex-direction:column;gap:4px">${lab('Pets')}
+          ${preFT
+            // Before activation Pets is the plain dropdown it ships as; once pet charges carry their own
+            // details onto listings, the field points at them instead.
+            ? field('Pets', { t:'' })
+            : `<div style="display:flex;flex-direction:column;gap:4px">${lab('Pets')}
             <div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;background:#fff;border:1px solid var(--rmx-attention, #f58220);border-radius:4px;padding:11px 13px">
               <svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5));flex:none;margin-top:1px"><path d="M453-280h60v-240h-60v240Zm50.5-323.2q9.5-9.2 9.5-22.8 0-14.45-9.48-24.22-9.48-9.78-23.5-9.78t-23.52 9.78Q447-640.45 447-626q0 13.6 9.48 22.8 9.48 9.2 23.5 9.2t23.52-9.2ZM480.27-80q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg>
               <span style="flex:1 1 120px;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Pet details can be added on any charges with a PET charge category.</span>
               <a data-act="openFeeProfile" data-arg="${mkProp}" style="flex:none;margin-top:1px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">View Charges</a>
             </div>
-          </div>
+          </div>`}
           ${field('Included Utilities', { t:'' })}
         </div>
       </div>`);
