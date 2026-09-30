@@ -214,6 +214,7 @@ class Component extends DCLogic {
     ltErrOnly: false,
     ltGroupBy: true,      // Listings: Group by property — off shows one register with a Property column
     ftSetup: null,        // { sec:{what,def}, props:{<name>:true} } — the Fee Transparency Setup overlay
+    mktFtOpen: true,      // Marketing Setup's own Fee Transparency row — open by default, it is the only one
     propDef: {},          // { '<Property>': { '<CODE>': { on:true, name, category, … } } } — a property's override of a charge type
     ctmEdit: null,        // { prop, code } — the Default Charge Marketing dialog
     ctmAsk: null,         // { prop, code, vals } — how far a property's override should reach
@@ -1484,6 +1485,7 @@ class Component extends DCLogic {
         o[arg] = !o[arg]; return { ftSetup: Object.assign({}, f2, { sec: o }) }; }); break;
       case 'ftSetupProp': this.setState(s2 => { const f2 = s2.ftSetup, o = Object.assign({}, f2.props || {});
         o[arg] = !o[arg]; return { ftSetup: Object.assign({}, f2, { props: o }) }; }); break;
+      case 'mktFtToggle': this.setState(s2 => ({ mktFtOpen: s2.mktFtOpen === false })); break;
       // One property ready goes straight to the confirmation — there is nothing to choose between.
       // Several, and you pick which first, because activating is permanent and "all of them" is a
       // decision rather than a default.
@@ -3828,18 +3830,79 @@ class Component extends DCLogic {
   // shortcut that saves the most typing, then the work itself — one row per property, each saying
   // what it is short and offering the way to fix it. The first two sections start collapsed,
   // because on the second visit you are here for the third.
-  ftSetupHTML(){
-    const st = this.state.ftSetup; if (!st) return '';
-    const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
-    const sec = st.sec || {}, po = st.props || {};
-
-    // Only properties fee transparency can apply to, and only those with charges listings carry.
-    const rows = this.propNames().filter(p => this.ftApplicable(p)).map(p => {
+  // ---------- Fee Transparency Setup: the property rows ----------
+  ftHomeSvg(){ return `<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="flex:none"><path d="M19.8376 10.8469L9.99318 1L0.148804 10.8469H1.76693L3.0763 9.5375V18.0306H7.56068V10.4712H12.4201V18.0306H16.9044V9.5375L18.2169 10.8469H19.8376Z"/></svg>`; }
+  // Every property fee transparency can apply to, and only where listings carry charges at all.
+  ftSetupRows(){
+    return this.propNames().filter(p => this.ftApplicable(p)).map(p => {
       const ch = this.ftCharges(p);
       const onList = ch.ready + ch.incomplete;
       return { p, ch, onList, whole: onList > 0 && ch.incomplete === 0,
         converted: !!this.state.publishedProps[p] };
     }).filter(r => r.onList > 0);
+  }
+  // One property's row. The Setup overlay draws every applicable property with it, and a property's
+  // own Marketing Setup draws that one property with it, so the two surfaces cannot disagree about
+  // where a property stands or what it offers. `opts.act` is what the header toggles, since the two
+  // keep their open state in different places; `opts.noDefaults` drops the Set Property Defaults
+  // sub-row on the surface that *is* the property's defaults.
+  ftPropRow(r, open, opts){
+    const o = opts || {};
+    const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+    const loz = (t, bg, fg, dot) => `<span style="display:inline-flex;align-items:center;gap:8px;height:24px;box-sizing:border-box;padding:0 9px;border-radius:4px;background:${bg};font-size:13px;color:${fg};white-space:nowrap;flex:none">${dot ? `<span style="width:8px;height:8px;border-radius:50%;flex:none;background:${dot}"></span>` : ''}${t}</span>`;
+    const link = (t, act, arg) => `<span data-act="${act}"${arg ? ` data-arg="${esc(arg)}"` : ''} style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${t}</span>`;
+    const chev = this.ico(open ? 'keyboard_arrow_up' : 'keyboard_arrow_down', 24, 'color:var(--rmx-text, #666666);flex:none');
+    const rule = `<div style="height:1px;background:var(--rmx-line, #cedbe7)"></div>`;
+    // Where a property stands reads in one column down the right, whichever of the three states it
+    // is in. Fee Transparent stays italic rather than becoming a lozenge: Ready and Not Ready are
+    // about work outstanding, and this one is about work finished.
+    const status = r.converted
+      ? `<span style="font-size:14px;font-style:italic;color:var(--rmx-text, #666666);white-space:nowrap">Fee Transparent</span>`
+      : r.whole
+      ? loz('Ready', 'var(--rmx-success-bg, #e2f1da)', 'var(--rmx-brand-dark, #13314c)', 'var(--rmx-success, #6eb744)')
+      : loz('Not Ready', '#fdf3e7', 'var(--rmx-brand-dark, #13314c)', 'var(--rmx-notice, #faa61c)');
+    // The action sits with the status it follows from, left of it — a row reads name on the left,
+    // then what to do about it and where it stands, together on the right.
+    const lead = r.converted ? '' : r.whole ? link('Activate Fee Transparency', 'pubOpen', r.p) : '';
+    const sub = (icon, label, value, action) => `<div style="display:flex;align-items:center;gap:12px;min-height:36px;box-sizing:border-box;padding:8px;background:var(--rmx-bg-subtle, #f5f8fa)">
+      ${icon}
+      <span style="flex:1;min-width:0;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}${value ? ` <strong style="font-weight:600">${value}</strong>` : ''}</span>
+      ${action || ''}
+    </div>`;
+    const tick = this.ico(r.whole ? 'check_circle' : 'error', 20, `color:${r.whole ? 'var(--rmx-success, #6eb744)' : 'var(--rmx-notice, #faa61c)'};flex:none`);
+    return `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden;background:#fff">
+      <div data-act="${o.act || 'ftSetupProp'}" data-arg="${esc(r.p)}" style="display:flex;align-items:center;gap:8px;min-height:40px;box-sizing:border-box;padding:8px;background:#fff;cursor:pointer;${open ? 'border-bottom:1px solid var(--rmx-line, #cedbe7);' : ''}">
+        <span style="display:inline-flex;color:var(--rmx-brand-dark, #13314c);flex:none">${this.ftHomeSvg()}</span>
+        <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${esc(r.p)}</span>
+        <div style="flex:1"></div>
+        ${lead}${status}${chev}
+      </div>
+      ${open ? `<div>
+        ${sub(tick, 'Listing Ready Charges:', `${r.ch.ready}/${r.onList}`, link(r.whole ? 'View Charges' : 'Add Charge Marketing', 'openFeeProfile', r.p))}
+        ${o.noDefaults ? '' : `${rule}
+        ${sub(this.ico('info', 20, 'color:var(--rmx-text, #666666);flex:none'), 'Set Property Defaults', '', link('Edit Defaults', 'mcOpenProp', r.p))}`}
+      </div>` : ''}
+    </div>`;
+  }
+  // The invitation into Setup, on Listings and on a property's own Marketing Setup. Figma
+  // 3561:122549 — it is the brand-tinted info surface, not a warning: the page offers the way in
+  // rather than arguing the case.
+  ftBannerHTML(){
+    const CHECKLIST = `<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="flex:none"><path d="M3.55 17.5375L0 13.9875L1.4 12.5875L3.525 14.7125L7.775 10.4625L9.175 11.8875L3.55 17.5375ZM3.55 9.5375L0 5.9875L1.4 4.5875L3.525 6.7125L7.775 2.4625L9.175 3.8875L3.55 9.5375ZM11 15.5375V13.5375H20V15.5375H11ZM11 7.5375V5.5375H20V7.5375H11Z"/></svg>`;
+    return `<div style="display:flex;align-items:center;gap:16px;background:rgba(232,246,250,0.5);border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;padding:16px">
+      <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
+        <span style="font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Fee Transparency Setup</span>
+        <span style="font-size:14px;line-height:20px;color:#616466">We&#39;ll walk you through everything that needs updating before activating fee transparency on your listings.</span>
+      </div>
+      <button data-act="ftSetupOpen" class="btn-pri" style="display:inline-flex;align-items:center;gap:8px;height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;flex:none;white-space:nowrap">${CHECKLIST}View Setup</button>
+    </div>`;
+  }
+  ftSetupHTML(){
+    const st = this.state.ftSetup; if (!st) return '';
+    const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+    const sec = st.sec || {}, po = st.props || {};
+
+    const rows = this.ftSetupRows();
     const canGo = this.ftReadyProps();
 
     const CARD = 'background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px';
@@ -3847,9 +3910,8 @@ class Component extends DCLogic {
     const DESC = (t) => `<span style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">${t}</span>`;
     const loz = (t, bg, fg, dot) => `<span style="display:inline-flex;align-items:center;gap:8px;height:24px;box-sizing:border-box;padding:0 9px;border-radius:4px;background:${bg};font-size:13px;color:${fg};white-space:nowrap;flex:none">${dot ? `<span style="width:8px;height:8px;border-radius:50%;flex:none;background:${dot}"></span>` : ''}${t}</span>`;
     const chev = (open) => this.ico(open ? 'keyboard_arrow_up' : 'keyboard_arrow_down', 24, 'color:var(--rmx-text, #666666);flex:none');
-    const link = (t, act, arg) => `<span data-act="${act}"${arg ? ` data-arg="${esc(arg)}"` : ''} style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${t}</span>`;
     const SETTINGS = `<svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="flex:none"><path d="M405-120 373-266q-15-6-29-14t-27-19l-140 44-95-165 111-97q-1-8-1.5-15.5T190-547q0-8 .5-15.5T192-578L81-675l95-165 140 44q13-11 27-19t29-14l32-146h190l32 146q15 6 29.5 14t26.5 19l140-44 95 165-111 97q1 8 1.5 15.5t.5 15.5q0 8-.5 15.5T806-562l111 97-95 165-140-44q-12 11-26.5 19T626-311l-32 146H405Zm75-260q41 0 70.5-29.5T580-480q0-41-29.5-70.5T480-580q-41 0-70.5 29.5T380-480q0 41 29.5 70.5T480-380Z"/></svg>`;
-    const PROPERTY = `<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="flex:none"><path d="M19.8376 10.8469L9.99318 1L0.148804 10.8469H1.76693L3.0763 9.5375V18.0306H7.56068V10.4712H12.4201V18.0306H16.9044V9.5375L18.2169 10.8469H19.8376Z"/></svg>`;
+    const PROPERTY = this.ftHomeSvg();
     const MEGAPHONE = `<svg class="ico" width="24" height="24" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="flex:none"><path d="M720-440v-80h160v80H720Zm48 280-128-96 48-64 128 96-48 64Zm-80-480-48-64 128-96 48 64-128 96ZM200-200v-160h-40q-33 0-56.5-23.5T80-440v-80q0-33 23.5-56.5T160-600h160l200-120v520L320-320h-40v160h-80Z"/></svg>`;
 
     // ---- the green banner: only when at least one property could be activated right now ----
@@ -3897,40 +3959,7 @@ class Component extends DCLogic {
     </div>`;
 
     // ---- section 3: the work, one row per property ----
-    const prop = (r) => {
-      const open = !!po[r.p];
-      // Where a property stands reads in one column down the right, whichever of the three states it
-      // is in — a converted property's *Fee Transparent* used to sit against its name, so the eye had
-      // to look in two places to compare rows. It stays italic rather than becoming a lozenge:
-      // Ready and Not Ready are about work outstanding, and this one is about work finished.
-      const status = r.converted
-        ? `<span style="font-size:14px;font-style:italic;color:var(--rmx-text, #666666);white-space:nowrap">Fee Transparent</span>`
-        : r.whole
-        ? loz('Ready', 'var(--rmx-success-bg, #e2f1da)', 'var(--rmx-brand-dark, #13314c)', 'var(--rmx-success, #6eb744)')
-        : loz('Not Ready', '#fdf3e7', 'var(--rmx-brand-dark, #13314c)', 'var(--rmx-notice, #faa61c)');
-      // The action sits with the status it follows from, left of it — a row reads name on the left,
-      // then what to do about it and where it stands, together on the right.
-      const lead = r.converted ? '' : r.whole ? link('Activate Fee Transparency', 'pubOpen', r.p) : '';
-      const sub = (icon, label, value, action) => `<div style="display:flex;align-items:center;gap:12px;min-height:36px;box-sizing:border-box;padding:8px;background:var(--rmx-bg-subtle, #f5f8fa)">
-        ${icon}
-        <span style="flex:1;min-width:0;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}${value ? ` <strong style="font-weight:600">${value}</strong>` : ''}</span>
-        ${action || ''}
-      </div>`;
-      const tick = this.ico(r.whole ? 'check_circle' : 'error', 20, `color:${r.whole ? 'var(--rmx-success, #6eb744)' : 'var(--rmx-notice, #faa61c)'};flex:none`);
-      return `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
-        <div data-act="ftSetupProp" data-arg="${esc(r.p)}" style="display:flex;align-items:center;gap:8px;min-height:40px;box-sizing:border-box;padding:8px;background:#fff;cursor:pointer;${open ? 'border-bottom:1px solid var(--rmx-line, #cedbe7);' : ''}">
-          <span style="display:inline-flex;color:var(--rmx-brand-dark, #13314c);flex:none">${PROPERTY}</span>
-          <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${esc(r.p)}</span>
-          <div style="flex:1"></div>
-          ${lead}${status}${chev(open)}
-        </div>
-        ${open ? `<div>
-          ${sub(tick, 'Listing Ready Charges:', `${r.ch.ready}/${r.onList}`, link(r.whole ? 'View Charges' : 'Add Charge Marketing', 'openFeeProfile', r.p))}
-          ${rule}
-          ${sub(this.ico('info', 20, 'color:var(--rmx-text, #666666);flex:none'), 'Set Property Defaults', '', link('Edit Defaults', 'mcOpenProp', r.p))}
-        </div>` : ''}
-      </div>`;
-    };
+    const prop = (r) => this.ftPropRow(r, !!po[r.p]);
     const charges = `<div style="${CARD};padding:17px;display:flex;flex-direction:column;gap:16px">
       <div style="display:flex;flex-direction:column;gap:12px">
         <div style="display:flex;align-items:center;gap:8px">
@@ -4312,17 +4341,7 @@ class Component extends DCLogic {
     const grouped = this.state.ltGroupBy !== false;
     // Nothing to warn about once every listing already advertises complete pricing.
     const needsFT = all.some(l => { const st = l.fixed || this.ltStatus(l.prop); return !st.total || !!st.warn; });
-    // Figma 3561:122549. The page no longer argues the case for fee transparency — it offers the
-    // way in. Setup is where the work is now, so the banner is an invitation, not a warning: the
-    // brand-tinted info surface rather than the amber one.
-    const CHECKLIST = `<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="flex:none"><path d="M3.55 17.5375L0 13.9875L1.4 12.5875L3.525 14.7125L7.775 10.4625L9.175 11.8875L3.55 17.5375ZM3.55 9.5375L0 5.9875L1.4 4.5875L3.525 6.7125L7.775 2.4625L9.175 3.8875L3.55 9.5375ZM11 15.5375V13.5375H20V15.5375H11ZM11 7.5375V5.5375H20V7.5375H11Z"/></svg>`;
-    const banner = `<div style="display:flex;align-items:center;gap:16px;background:rgba(232,246,250,0.5);border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;padding:16px">
-      <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
-        <span style="font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Fee Transparency Setup</span>
-        <span style="font-size:14px;line-height:20px;color:#616466">We&#39;ll walk you through everything that needs updating before activating fee transparency on your listings.</span>
-      </div>
-      <button data-act="ftSetupOpen" class="btn-pri" style="display:inline-flex;align-items:center;gap:8px;height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;flex:none;white-space:nowrap">${CHECKLIST}View Setup</button>
-    </div>`;
+    const banner = this.ftBannerHTML();
     const fopt = (v, t) => `<div data-act="ltPropSet" data-arg="${v}" style="padding:7px 14px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">${t}</div>`;
     const toolbar = `<div style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap">
       <div style="display:flex;flex-direction:column;gap:4px;width:248px">
@@ -4662,6 +4681,9 @@ class Component extends DCLogic {
   // behind an info icon on every surface; it is part of what the field **is**, so it reads in the
   // label itself, in italics after the name. `mktOnly` is the one place the phrasing lives, read by
   // the charge type's tile, the property's dialog and the charge's own form.
+  // Which kind of charge a field applies to is part of what the field *is*, so the label says it
+  // rather than an icon. Only on the two default surfaces: a charge form already knows which kind
+  // of charge it is, and shows Charge Schedule or Fee Due accordingly.
   mktOnly(t){ return ` <em style="font-style:italic;color:var(--rmx-text, #666666)">${t}</em>`; }
   schedOnly(){ return 'Charge Schedule' + this.mktOnly('Recurring Charges Only'); }
   dueOnly(){ return 'Fee Due' + this.mktOnly('One-Time Charges Only'); }
@@ -8015,9 +8037,9 @@ class Component extends DCLogic {
         <!-- A recurring charge is collected across the term by definition, so it carries During Term
              without asking. Only a one-time charge has a question to answer here. -->
         ${isOne
-          ? `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab(this.dueOnly(), '', 'due')}${dd('m-due',['At Application','Move-In','During Term','Move-Out'],(ed&&ed.listing&&ed.listing.feeDue)||(ed?(INH.feeDue||''):''),{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`
+          ? `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Fee Due', '', 'due')}${dd('m-due',['At Application','Move-In','During Term','Move-Out'],(ed&&ed.listing&&ed.listing.feeDue)||(ed?(INH.feeDue||''):''),{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`
           : `<input type="hidden" id="m-due" value="During Term">`}
-        ${isOne?'':`<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab(this.schedOnly(), '', 'sched')}${dd('m-sched',['Weekly','Monthly','Annually'],(ed&&ed.listing&&ed.listing.schedule)||(ed?(INH.schedule||''):''),{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`}
+        ${isOne?'':`<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Schedule', '', 'sched')}${dd('m-sched',['Weekly','Monthly','Annually'],(ed&&ed.listing&&ed.listing.schedule)||(ed?(INH.schedule||''):''),{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`}
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Refundable', '', 'refund')}${dd('m-refund',['Refundable','Not Refundable'],refundable,{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mktDiff)window.__mktDiff()"})}</div>
       </div>
       <div id="m-sitdesc-wrap" style="display:${(spec||req==='Situational')?'flex':'none'};flex-direction:column;gap:4px">${lab('Situational Charge Description')}<textarea id="m-sitdesc" class="fld" style="height:48px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${esc(ed?ed.cond:'')}</textarea></div>
@@ -8927,28 +8949,20 @@ class Component extends DCLogic {
             <span style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--rmx-brand-dark, #13314c)"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5))"><path d="M795-120q-116 0-236.5-56T335-335Q232-438 176-558.5T120-795q0-19.29 12.86-32.14Q145.71-840 165-840h140q14 0 24 10t14 25l26.93 125.64Q372-665 369.5-653.5t-10.73 19.73L259-533q26 44 55 82t64 72q37 38 78 69.5t86 55.5l95-98q10-11 23.15-15 13.15-4 25.85-2l119 26q15 4 25 16.04 10 12.05 10 26.96v135q0 19.29-12.86 32.14Q814.29-120 795-120ZM229-588l81-82-23-110H180q2 42 13.5 88.5T229-588Zm369 363q41 19 89 31t93 14v-107l-103-21-79 83ZM229-588Zm369 363Z"/></svg><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5))"><path d="M334.5-534.5Q346-546 346-563t-11.5-28.5Q323-603 306-603t-28.5 11.5Q266-580 266-563t11.5 28.5Q289-523 306-523t28.5-11.5Zm177 0Q523-546 523-563t-11.5-28.5Q500-603 483-603t-28.5 11.5Q443-580 443-563t11.5 28.5Q466-523 483-523t28.5-11.5Zm170 0Q693-546 693-563t-11.5-28.5Q670-603 653-603t-28.5 11.5Q613-580 613-563t11.5 28.5Q636-523 653-523t28.5-11.5ZM80-80v-740q0-24 18-42t42-18h680q24 0 42 18t18 42v520q0 24-18 42t-42 18H240L80-80Zm134-220h606v-520H140v600l74-80Zm-74 0v-520 520Z"/></svg>513-838-7264</span>
             <div style="flex:1"></div>
             <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);flex:none">Occupied Units: <strong>${P.occupied != null ? P.occupied : 30}</strong></span>
-            ${(() => {
-              // The same offer the property's card on Listings makes, so finishing a property's
-              // charges and converting it are one sitting rather than two — same `pubOpen`, same
-              // rules. Shown from the start, disabled until every charge listings carry is ready,
-              // and absent entirely once there is nothing left to convert. It sits beside the
-              // occupancy count rather than replacing it — that is a fact about the property, not
-              // a slot for whatever action is going.
-              const ch = this.ftCharges(P.name);
-              const onList = ch.ready + ch.incomplete;
-              const converted = !!this.state.publishedProps[P.name];
-              if (!this.ftApplicable(P.name) || !onList || converted) return '';
-              const arg = String(P.name).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-              // Disabled is RMX's own brand-primary-disabled — the brand blue at half alpha with white
-              // text — so it stays recognisably the same button rather than turning grey. The button
-              // takes no pointer events, so the tooltip wrapper around it gets the hover: a disabled
-              // control swallows them otherwise and the hover never fires.
-              const offBtn = `<button disabled style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font:400 14px Roboto,sans-serif;white-space:nowrap;flex:none;background:rgba(0,141,213,0.5);color:#fff;border:none;cursor:default;pointer-events:none">Activate Fee Transparency</button>`;
-              return ch.incomplete
-                ? `<span style="flex:none">${this.infoTip('<span style="display:block;white-space:normal">All charges need to have charge marketing filled out to activate fee transparency.</span>', undefined, { trigger: offBtn })}</span>`
-                : `<button data-act="pubOpen" data-arg="${arg}" class="btn-pri" style="height:34px;min-height:34px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap;flex:none">Activate Fee Transparency</button>`;
-            })()}
           </div>
+          ${(() => {
+            // Listings' invitation and this property's own row from the Setup overlay, on the page
+            // where the work is actually done. The row is the same `ftPropRow` the overlay draws,
+            // so the two cannot disagree — minus Set Property Defaults, because this page *is*
+            // them. The banner goes once the property is fee transparent; the row stays, since it
+            // is where the property's status reads.
+            const r = this.ftSetupRows().filter(x => x.p === P.name)[0];
+            if (!r) return '';
+            return `<div style="display:flex;flex-direction:column;gap:8px">
+              ${r.converted ? '' : this.ftBannerHTML()}
+              ${this.ftPropRow(r, this.state.mktFtOpen !== false, { act:'mktFtToggle', noDefaults:true })}
+            </div>`;
+          })()}
           <div style="display:grid;grid-template-columns:repeat(3, minmax(0,1fr));gap:16px;align-items:stretch;align-content:start">
             ${contact1}${contact2}${listing}${features}${floor}${ctm}
           </div>

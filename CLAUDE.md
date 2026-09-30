@@ -122,17 +122,26 @@ Charges · Errors**, one row per advertised unit (`listingsData()` in C is unit-
 property that hasn't still advertises rent alone, so it has no total to show — finishing its
 charges is not the same as publishing them.
 
-**The Marketing Setup overlay's property strip carries a filled Activate Fee Transparency
-button**, under the usual rules: shown from the start, disabled until every charge listings carry
-is ready, absent once the property has activated. Disabled is RMX's own
-`Background/Color/brand-primary-disabled` — the brand blue at half alpha with white text — so it
-stays recognisably the same button rather than turning grey, and hovering it says why: *“All charges
-need to have charge marketing filled out to activate fee transparency.”* The tooltip lives on a
-wrapper and the button takes `pointer-events:none`, because a disabled control swallows hover and
-the tip would never fire. It sits beside Occupied Units rather than
-replacing it — that count is a fact about the property, not a slot for whatever action is going.
-It reads saved state, like everything else in that overlay — which is live, because **each charge
-saves itself**.
+**Marketing Setup carries the Listings banner and that property's own Setup row**, directly under
+the property strip: the invitation into the checklist, then one `ftPropRow` — the same row the
+Setup overlay draws, so the property's status cannot read one thing on Listings and another on its
+own page. `ftSetupRows()` is the one place the rows are gathered and `ftBannerHTML()` the one place
+the banner is drawn, read by Listings and by here.
+
+Three things differ, and each is about where you already are. The **Set Property Defaults** sub-row
+is dropped (`opts.noDefaults`) — this page *is* the property's defaults, so *Edit Defaults* would
+point at itself. The row keeps its own open state in `state.mktFtOpen` through `mktFtToggle`
+(`opts.act`), and it starts **open**, since it is the only row and the count is the thing worth
+seeing. And the **banner goes once the property is fee transparent**, while the row stays — it is
+where the property's status reads.
+
+**The strip's own Activate Fee Transparency button came off with it.** The row says where the
+property stands *and* offers the action, so a second button beside Occupied Units was the same
+offer twice — and a **Not Ready** lozenge over *Listing Ready Charges: 0/2* says why you can't yet
+better than a disabled button with a tooltip did. `pubOpen` is unchanged; it is reached from the
+row now. Occupied Units stays, because that count is a fact about the property, not a slot for
+whatever action is going. The row reads saved state, like everything else in that overlay — which
+is live, because **each charge saves itself**.
 
 **Every expanded charge has its own Save footer** — in **both** builds — under the
 Include-on-listings toggle. `mpSaveRow` banks the open charge with `mpCapture()` then commits just
@@ -615,12 +624,14 @@ its three terms; Charge Category's dropped the clause saying it can't be edited 
 cascade made untrue.
 
 **Charge Schedule is recurring-only, and a one-time charge is One-Time.** Which kind of charge a
-field applies to is part of what the field **is**, not a fact behind an icon — so the label says it:
-**Charge Schedule** *Recurring Charges Only* and **Fee Due** *One-Time Charges Only*, the qualifier
-in italics after the name, with no info icon on either. `schedOnly()` and `dueOnly()` are the one
-place the phrasing lives, read by the charge type's tile, the property's dialog and the charge's own
-form. A marketing label flows as text rather than as a flex row, so the qualifier wraps like a
-sentence in a narrow column. `resolvedListing`
+field applies to is part of what the field **is**, not a fact behind an icon — so on the two
+**default** surfaces the label says it: **Charge Schedule** *Recurring Charges Only* and **Fee Due**
+*One-Time Charges Only*, the qualifier in italics after the name, with no info icon on either.
+`schedOnly()` and `dueOnly()` are the one place the phrasing lives, read by the charge type's tile
+and the property's dialog. **The charge form carries neither**, because it already knows which kind
+of charge this is and renders Charge Schedule or Fee Due accordingly — a qualifier there names a
+case that can't arise. A marketing label flows as text rather than as a flex row, so the qualifier
+wraps like a sentence in a narrow column. `resolvedListing`
 returns `'One-Time'` for a one-time charge rather than nothing, so wherever a schedule is read it
 says what that charge's schedule is instead of sitting blank beside the recurring ones. The Charges
 register's optional **Charge Schedule** column (off by default, on through Column Setup) is where
