@@ -856,7 +856,9 @@ The property's own Default Charge Marketing keeps its strip and its Reverts, bec
 and only on a field with nothing in it — the one thing worth reading is which fields are still
 empty. It says *for Listings* because the charge saves without it: what the field is required for
 is advertising, and a bare *Required* read as a form that wouldn't save. The Charges register's
-Listing Ready pill counts the same thing as **n Fields Missing**, not *n needed* — one field reads
+Listing Ready pill counts the same thing as **n Fields Missing** — amber while the property still
+publishes rent alone, **red** (`#fdecee` / `#a3252c`) once it has activated, the same line the charge
+form's header and the banner draw — not *n needed* — one field reads
 *1 Field Missing* too, with the hover naming it (it used to short-circuit to *Needs <field>*).
 
 **A label with a help icon is laid out differently from one without.** A marketing label normally
@@ -956,8 +958,8 @@ Marketing Name / Listing Ready / requirement / category columns, no Group by Req
 no Marketing Name / requirement / category columns, and Bulk Update is General-only.
 
 **`mitsBanner` is the one warning it does carry**, and only after activation: when a property has
-fee transparency active and a charge it carries on listings is short of its marketing details, an
-amber banner at the top of the overlay says *“N charges on listings are missing charge marketing”*
+fee transparency active and a charge it carries on listings is short of its marketing details, a
+**red** banner (`#fdecee`, `--rmx-error` border and icon) at the top of the overlay says *“N charges on listings are missing charge marketing”*
 over *“Fee transparency is active on <property>, so any listing using these charges will not post
 until every required field is filled out.”* Before activation there is nothing to warn about — the
 feed still publishes rent alone, and the Listing Ready column already says which charges are short. General's Listing Details carries no pricing callout and the

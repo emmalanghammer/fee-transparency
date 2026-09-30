@@ -5192,7 +5192,10 @@ class Component extends DCLogic {
   // work required is visible from the list without opening every charge.
   mitsStatusCell(r){
     const missing = this.mitsMissing(r);
-    const pill = (t) => `<span style="display:inline-flex;align-items:center;gap:5px;background:#fdf3e3;border-radius:12px;padding:2px 9px;cursor:default"><svg class="ico" width="14" height="14" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-attention, #f58220)"><path d="M503.5-289.48q9.5-9.48 9.5-23.5t-9.48-23.52q-9.48-9.5-23.5-9.5t-23.52 9.48q-9.5 9.48-9.5 23.5t9.48 23.52q9.48 9.5 23.5 9.5t23.52-9.48ZM453-433h60v-253h-60v253Zm27.27 353q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg><span style="font-size:14px;color:#7a5a2a;white-space:nowrap">${t}</span></span>`;
+    // Amber while the property still publishes rent alone; red once it has activated, because then a
+    // short charge is holding its listings off the feed.
+    const act = !!this.state.publishedProps[r._prop || this.state.property];
+    const pill = (t) => `<span style="display:inline-flex;align-items:center;gap:5px;background:${act ? '#fdecee' : '#fdf3e3'};border-radius:12px;padding:2px 9px;cursor:default"><svg class="ico" width="14" height="14" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:${act ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-attention, #f58220)'}"><path d="M503.5-289.48q9.5-9.48 9.5-23.5t-9.48-23.52q-9.48-9.5-23.5-9.5t-23.52 9.48q-9.5 9.48-9.5 23.5t9.48 23.52q9.48 9.5 23.5 9.5t23.52-9.48ZM453-433h60v-253h-60v253Zm27.27 353q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg><span style="font-size:14px;color:${act ? '#a3252c' : '#7a5a2a'};white-space:nowrap">${t}</span></span>`;
     // A charge kept off listings is not measured for readiness at all \u2014 nothing will advertise it,
     // so counting fields it will never need reads as work outstanding when there is none. It says
     // **Excluded** whatever its fields hold, which is the same answer `ltChargeIssues` gives (it
@@ -5569,8 +5572,10 @@ class Component extends DCLogic {
     const short = this.appliedRows(p).filter(r => r.ils && !this.mitsComplete(r));
     if (!short.length) return '';
     const n = short.length;
-    return `<div style="flex:none;display:flex;align-items:flex-start;gap:12px;padding:14px 16px;background:#fdf3e7;border:1px solid var(--rmx-attention, #f58220);border-radius:4px">
-      ${this.ico('error', 20, 'color:var(--rmx-attention, #f58220);flex:none;margin-top:1px')}
+    // Only ever shown once fee transparency is active, where a short charge is holding listings off
+    // the feed — so it is red, the colour this file keeps for that one state.
+    return `<div style="flex:none;display:flex;align-items:flex-start;gap:12px;padding:14px 16px;background:#fdecee;border:1px solid var(--rmx-error, #eb343c);border-radius:4px">
+      ${this.ico('error', 20, 'color:var(--rmx-error, #eb343c);flex:none;margin-top:1px')}
       <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
         <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${n} charge${n === 1 ? '' : 's'} on listings ${n === 1 ? 'is' : 'are'} missing charge marketing</span>
         <span style="font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">Fee transparency is active on ${String(p).replace(/&/g,'&amp;').replace(/</g,'&lt;')}, so any listing using ${n === 1 ? 'this charge' : 'these charges'} will not post until every required field is filled out.</span>
