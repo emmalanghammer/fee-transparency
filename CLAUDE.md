@@ -72,13 +72,19 @@ size of the amber warning it replaced, so the dialog keeps its shape. Three line
 charge shows alongside the rent (*"That is `n` charges across the two properties"*, counted live
 from `appliedRows(p).filter(r => r.ils)` — the same filter `ltChargeIssues` and the Listing Ready
 column use, so the number can't contradict them); each listing advertises a **Total Monthly Price**
-instead of rent alone; and, in grey and deliberately last, *charges you have left off listings stay
-off, and you can change that whenever you like*. The fear behind "can't be undone" is publishing
-something you didn't mean to, and that third line answers it better than a warning does.
+instead of rent alone; and, deliberately last, *charges you have left off listings stay off, and you
+can change that whenever you like*. The fear behind "can't be undone" is publishing something you
+didn't mean to, and that third line answers it better than a warning does.
 
-**Permanence is still said, once.** One grey line under the panel: *"Feeds pick this up on their
-next run. Activating can't be reversed from Rent Manager, but what each listing shows always follows
-your charges, so you stay in control of the price."* The scoping is the point — **the switch is what
+**All three lines are in the dialog's own ink, and the glyph is what separates them.** The first two
+carry the green tick; the third carries `visibility_off`, the same glyph the register's **Excluded**
+pill wears, because it is about charges kept off listings. Grey had been marking that line and the
+permanence line as small print — but one is the reassurance the whole dialog rests on and the other
+is the single thing that can't be undone, so neither is something to skim.
+
+**Permanence is still said, once.** One line under the panel: *"Feeds pick this up on their next
+run. Activating can't be reversed from Rent Manager, but what each listing shows always follows your
+charges, so you stay in control of the price."* The scoping is the point — **the switch is what
 can't be reversed, not the pricing** — and it is why the rest of the dialog can afford to be calm.
 
 **There is no acknowledgement tick-box**, and `pubAck` and `pubModal.ack` are gone with it. A gate
