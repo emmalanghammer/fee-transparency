@@ -67,14 +67,13 @@ same `pubModal` a single property uses. Converting leaves the Setup overlay open
 
 **The confirmation explains what will happen, it doesn't warn.** `pubModalHTML` opens on the
 outcome — *"The Berkshires and The Windermere will start advertising their full monthly price"* —
-over a neutral `--rmx-bg-subtle` panel, **What changes on their listings**, in the place and at the
-size of the amber warning it replaced, so the dialog keeps its shape. Three lines: every included
-charge shows alongside the rent (*"That is `n` charges across the two properties"*, counted live
-from `appliedRows(p).filter(r => r.ils)` — the same filter `ltChargeIssues` and the Listing Ready
-column use, so the number can't contradict them); each listing advertises a **Total Monthly Price**
-instead of rent alone; and, deliberately last, *charges you have left off listings stay off, and you
-can change that whenever you like*. The fear behind "can't be undone" is publishing something you
-didn't mean to, and that third line answers it better than a warning does.
+over a neutral `--rmx-bg-subtle` panel, **What this means for your listings:**, in the place and at
+the size of the amber warning it replaced, so the dialog keeps its shape. Three lines: *every charge
+you have included on listings shows alongside the rent* (the charge count that used to follow it is
+gone, and `nIls` with it); each listing advertises a **Total Monthly Price** in place of the
+rent-only figure; and, deliberately last, *Excluded charges stay off listings so you can display
+charges when they're ready*. The fear behind "can't be undone" is publishing something you didn't
+mean to, and that third line answers it better than a warning does.
 
 **All three lines are in the dialog's own ink, and the glyph is what separates them.** The first two
 carry the green tick; the third carries `visibility_off`, the same glyph the register's **Excluded**
@@ -128,26 +127,28 @@ Charges · Errors**, one row per advertised unit (`listingsData()` in C is unit-
 property that hasn't still advertises rent alone, so it has no total to show — finishing its
 charges is not the same as publishing them.
 
-**Marketing Setup carries the Listings banner and that property's own Setup row**, directly under
-the property strip: the invitation into the checklist, then one `ftPropRow` — the same row the
-Setup overlay draws, so the property's status cannot read one thing on Listings and another on its
-own page. `ftSetupRows()` is the one place the rows are gathered and `ftBannerHTML()` the one place
-the banner is drawn, read by Listings and by here.
+**Marketing Setup carries the Listings banner, scoped to its property.** Directly under the
+property strip, `ftBannerHTML(P.name)` — the same banner Listings draws — whose **View Setup**
+opens the overlay with `ftSetup.only` set: that property's row alone, already expanded, and without
+its *Set Property Defaults* sub-row, because the page behind the scrim *is* those defaults. The
+banner goes once the property is fee transparent, or where fee transparency can't apply to it.
 
-Three things differ, and each is about where you already are. The **Set Property Defaults** sub-row
-is dropped (`opts.noDefaults`) — this page *is* the property's defaults, so *Edit Defaults* would
-point at itself. The row keeps its own open state in `state.mktFtOpen` through `mktFtToggle`
-(`opts.act`), and it starts **open**, since it is the only row and the count is the thing worth
-seeing. And the **banner goes once the property is fee transparent**, while the row stays — it is
-where the property's status reads.
+**`ftScopeNames()` is the one scope**, read by `ftSetupRows()` and `ftReadyProps()` — so the rows,
+the green *Ready to display all charges?* banner, the Select Properties picker and
+`ftActivateReady` all stop at the property the overlay was opened from, and activating from there
+goes straight to the one-property confirmation. From Listings there is no `only`, and it is the
+portfolio.
 
-**The strip's own Activate Fee Transparency button came off with it.** The row says where the
-property stands *and* offers the action, so a second button beside Occupied Units was the same
-offer twice — and a **Not Ready** lozenge over *Listing Ready Charges: 0/2* says why you can't yet
-better than a disabled button with a tooltip did. `pubOpen` is unchanged; it is reached from the
-row now. Occupied Units stays, because that count is a fact about the property, not a slot for
-whatever action is going. The row reads saved state, like everything else in that overlay — which
-is live, because **each charge saves itself**.
+**The property row itself is not on Marketing Setup** — it was, briefly, and came off: the banner
+is the way in, and the row belongs to the overlay. `ftPropRow(r, open, opts)` is still its own
+method, drawn only by `ftSetupHTML`.
+
+**The strip carries no Activate Fee Transparency button.** Activating runs through Setup, where the
+row says where the property stands *and* offers the action; a button beside Occupied Units was the
+same offer twice, and a disabled one with a tooltip explained less than a **Not Ready** lozenge
+over *Listing Ready Charges: 0/2* does. Occupied Units stays — it is a fact about the property, not
+a slot for whatever action is going. Everything in that overlay reads saved state, which is live,
+because **each charge saves itself**.
 
 **Every expanded charge has its own Save footer** — in **both** builds — under the
 Include-on-listings toggle. `mpSaveRow` banks the open charge with `mpCapture()` then commits just
