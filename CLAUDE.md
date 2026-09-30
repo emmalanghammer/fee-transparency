@@ -614,10 +614,13 @@ definition and only a one-time charge has a moment to name. Charge Requirement's
 its three terms; Charge Category's dropped the clause saying it can't be edited here, which the
 cascade made untrue.
 
-**Charge Schedule is recurring-only, and a one-time charge is One-Time.** A charge type is used by
-both kinds of charge, so neither Charge Type Details nor the property's override can know which the
-schedule is being set for — both carry `schedTip()` on the field: *“Only applies to recurring
-charges.”* `resolvedListing`
+**Charge Schedule is recurring-only, and a one-time charge is One-Time.** Which kind of charge a
+field applies to is part of what the field **is**, not a fact behind an icon — so the label says it:
+**Charge Schedule** *Recurring Charges Only* and **Fee Due** *One-Time Charges Only*, the qualifier
+in italics after the name, with no info icon on either. `schedOnly()` and `dueOnly()` are the one
+place the phrasing lives, read by the charge type's tile, the property's dialog and the charge's own
+form. A marketing label flows as text rather than as a flex row, so the qualifier wraps like a
+sentence in a narrow column. `resolvedListing`
 returns `'One-Time'` for a one-time charge rather than nothing, so wherever a schedule is read it
 says what that charge's schedule is instead of sitting blank beside the recurring ones. The Charges
 register's optional **Charge Schedule** column (off by default, on through Column Setup) is where
@@ -717,14 +720,23 @@ by whichever one is rendering rather than written twice.
 written before the methods exist). The tiering is there to look at rather than something to set up
 by hand first.
 
-**Five types are deliberately left short**: `RC`, `GARBAG`, `GARBAGEFEE`, `ADMIN` and `DP`, the ones
-Riverview's charges run on. They carry Name, Charge Category and Refundable and stop before Charge
-Requirement, Charge Schedule and Fee Due. A complete default on those types would cascade down and
-make Riverview listing ready, collapsing the Happy Path — which exists to show a property with work
-still to do. Charge Requirement is what that walkthrough goes to fill in. **Adding a charge type to
-that list, or completing one of the five, changes what Happy Path demonstrates**: check Listings
-still reads **2/7** for Riverview afterwards. (It read 0/5 until the situational charges went onto
-listings: NSF and Late arrive complete from their charge types, so they count in both halves.)
+**Which types are left short depends on what the scenario is for** (`mktDefShort()`). A short type
+carries Name, Charge Category, Marketing Description and Refundable and stops before Charge
+Requirement, Charge Schedule and Fee Due, so a walkthrough has something to go and fill in.
+
+- **Happy Path** leaves **none** short: it opens with every default already set, every property
+  Ready to Activate, and the story is *look at it, activate it*. Five charge types across the whole
+  portfolio.
+- **Simple Demo** leaves **RC** and **GARBAG** short, because going and filling them is its
+  walkthrough.
+- **Everything else** keeps `RC`, `GARBAG`, `GARBAGEFEE`, `ADMIN` and `DP` short, so a real
+  portfolio still shows properties with work outstanding. `on` reads 12/18 for Riverview, `mid` and
+  `post` 16/16 — the regression check after any change here.
+
+**`mktCopy()` is the resident-facing name and sentence per charge type**, read by the finished
+worked example (`listingReadyRows`) **and** by `mktDefAll`, so a charge type's default Marketing
+Description and the example's are never two different sentences. `mktDefSeed` gives a **deposit**
+Fee Due **Move-In** rather than During Term, because that is when one is collected.
 
 **`mktPricingBody` is no longer reachable in C.** The Pricing tab it lived on is gone with this
 design, and the per-charge Save footers (`mpSaveRow`, `mpCommit`, `mpCapture`) go with it. The code
@@ -793,34 +805,15 @@ sections' cards line up on the same left and right edges.
 `window.__mktOverride` and `window.__mktLockSync`. The fields are always live and already hold what
 the charge inherits, so nothing has to be understood before anyone can type.
 
-**The section is drawn the way a property's own Default Charge Marketing is**, so the two rungs of
-the cascade read the same: a grey `--rmx-bg-muted` strip, 36px with 8px sides, carrying a 20px brand
-`info`, ***Inherited from `<tier>`***, and **Revert All Fields** on the right. The strip names the
-tier and nothing else — the property's override of this charge type where it has one, otherwise the
-charge type — because that is what the charge is an override **of**, whether or not anything has
-been overridden yet.
+**The section says nothing about where its values came from.** The grey *Inherited from `<tier>`*
+strip, **Revert All Fields** and the per-field **Revert** links are all gone, and with them
+`__mktDiff`, `__mktRevert`, `__mktResetAll`, `__mktOvrNote` and `MKTKEYS`. On the charge, the tier is
+plumbing: the fields hold what will be advertised, and that is the question the form is answering.
+The property's own Default Charge Marketing keeps its strip and its Reverts, because there the tier
+**is** the subject.
 
-**A label carries two marks, and only ever one at a time.** The lozenge is **Required**, on the left
-with the field's name, and only on a field with nothing in it — there is no *Changed* lozenge,
-because marking a field that has been filled in made every label something to read when the one
-thing worth reading is which are still empty. At the **far right** of the label row, a field moved
-off what it inherits offers **Revert** (`#m-rev-<key>`), so the links line up down the column. The
-link is the whole mark: an edited field hands back the way out without also being labelled.
-
-`window.__mktDiff` is the one place that answers *is this field the charge's own?*, and it lights the
-Revert links, the Reset link and the source row's chip together, so the three cannot disagree.
-`MKTKEYS` is the one list of which field is which; `__mktRevert(key)` hands one field back and
-`__mktResetAll` all of them, recording the value it gave as `__mktDefaults`' own so a later charge
-type change still refills it. `codeNow()` is where the charge type comes from — the form's own input,
-or the charge's `mits` on a **property specific** charge (NSF, Late), whose General card is locked
-and has no Charge Type input to read.
-
-**A source row states which tier the values come from**: *Coming from* a brand chip naming the tier,
-and for a property override the clause *its override of `<CODE>`*. `mktSourceOf(code, own)` answers
-it — the charge's own values win, then the property's override (`ctmOwn`), then the charge type when
-it has anything set, and a type with nothing set says so instead of naming a source. `own` is now
-`__mktDiff`'s answer rather than a checkbox, so the row flips to **This charge** the moment a field
-is edited and back the moment it is reverted.
+**A label carries one mark.** The **Required** lozenge, inline after the field's name, and only on a
+field with nothing in it — the one thing worth reading is which fields are still empty.
 
 **What a charge inherits is rendered into the fields, not patched in afterwards.** `chargeForm`
 resolves `INH = ctmFor(property, code)` once and falls every field back to it, so an inheriting

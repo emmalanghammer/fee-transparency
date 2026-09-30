@@ -538,13 +538,29 @@ class Component extends DCLogic {
   // property with work still to do, and a complete default on those types would cascade down and
   // make it ready. They carry the descriptive fields and stop before Charge Requirement, which is
   // the field the walkthrough goes to fill in.
+  // The charge types that arrive **without** Charge Requirement, Charge Schedule and Fee Due, so a
+  // walkthrough has something to go and fill in. Which ones depends on what the scenario is for:
+  //   · **Happy Path** leaves none short. It opens with every default already set, so the story is
+  //     "look at it, activate it" — Simple Demo is where the filling-in is demonstrated.
+  //   · **Simple Demo** leaves exactly its two, because going and filling them is the walkthrough.
+  //   · everything else keeps the five Riverview's charges run on, so a real portfolio still shows
+  //     a property with work outstanding.
+  mktDefShort(){
+    const k = this.scenarioKey();
+    if (k === 'happy') return {};
+    if (k === 'demo') return { RC:1, GARBAG:1 };
+    return { RC:1, GARBAG:1, GARBAGEFEE:1, ADMIN:1, DP:1 };
+  }
   mktDefAll(){
-    const SHORT = { RC:1, GARBAG:1, GARBAGEFEE:1, ADMIN:1, DP:1 };
+    const SHORT = this.mktDefShort();
     const SITUATIONAL = { NSF:1, LATE:1 };
+    const copy = this.mktCopy();
     const out = {};
     this.chargeTypeList().forEach(([code, desc]) => {
       const seed = this.mktDefSeed(code);
-      const d = { name: desc, category: this.chargeCategoryFor(code), marketing: '',
+      // A charge type's default carries the sentence a listing would say about it, from the one
+      // map the finished worked example reads too.
+      const d = { name: desc, category: this.chargeCategoryFor(code), marketing: (copy[code] || [])[1] || '',
         requirement: '', schedule: '', feeDue: '', refundable: seed.refundable };
       if (!SHORT[code]) {
         // A property specific charge is by definition situational — it lands only when something
@@ -564,7 +580,8 @@ class Component extends DCLogic {
     const deposit = /^(DP|DEP|SD|SECDEP|PETDEP)/.test(c) || /\bdeposits?\b/.test(text);
     // Deposit first: a security deposit is not a rent charge, however the words read.
     const rent = !deposit && (/^(RC|RENT|LMR|PRORATE)/.test(c) || /\brent\b/.test(text));
-    return { name: desc, refundable: deposit ? 'yes' : '', feeDue: rent ? 'During Term' : '' };
+    return { name: desc, refundable: deposit ? 'yes' : '',
+      feeDue: deposit ? 'Move-In' : rent ? 'During Term' : '' };
   }
   // What a charge of this type starts with **at this property**: the property's own override of the
   // charge type when it has one, otherwise the charge type's default. One function, so the chain is
@@ -686,9 +703,11 @@ class Component extends DCLogic {
   // details and is included on listings — so the "done" state can be shown next to the properties
   // still missing fields. It has to be marketed on listings for any of that to be visible.
   listingReadyProps(){ return this.scenarioKey() === 'happy' ? this.happyReadyProps() : ['The Hamptons']; }
-  listingReadyRows(prop){
-    // Resident-facing name and description per charge; everything else follows from the charge.
-    const M = {
+  // Resident-facing name and description per charge type: what a listing would actually say about
+  // it. One map, read by the finished worked example **and** by `mktDefAll`, so a charge type's
+  // default Marketing Description and the example's are never two different sentences.
+  mktCopy(){
+    return {
       RC:         ['Rent', 'Base monthly rent for the unit.'],
       GARBAG:     ['Trash Collection', 'Weekly curbside trash and recycling pickup.'],
       WATER:      ['Water & Sewer', 'Water and sewer, billed monthly based on the unit’s share of the property total.'],
@@ -708,6 +727,9 @@ class Component extends DCLogic {
       LATE:       ['Late Fee', 'Charged when rent is received after the grace period.'],
       HOLD:       ['Hold Fee', 'Fee to reserve a unit before the lease is signed.']
     };
+  }
+  listingReadyRows(prop){
+    const M = this.mktCopy();
     // Screening costs are collected with the application; deposits and prepaid rent at move-in.
     const dueAtApp = /^(ADMIN|APPFEE)$/;
     const dueAtMoveIn = /^(DP|LMR|KEY|PETDP)$/;
@@ -757,17 +779,14 @@ class Component extends DCLogic {
   // one of them and their charges have to be listing ready.
   happyPathCharges(){
     return {
-      // Every property runs an NSF and a late fee, so every keep list carries them — they are what
-      // the Property Specific Charges section is, and a walkthrough that never shows it would be
-      // the one scenario where that section doesn't exist. They cost the walkthrough nothing:
-      // both are `ils:false`, so they are never counted towards listing readiness.
-      // GARBAGEFEE sits on a single unit, so Riverview keeps it and the walkthrough still has a charge
-      // that reaches one unit and not the rest.
-      'Riverview Apartments': ['RC','GARBAG','GARBAGEFEE','ADMIN','DP','NSF','LATE'],
+      // Five charge types across the whole portfolio: rent, a recurring fee, a deposit, and the two
+      // situational ones. `NSF` and `LATE` are here only so the **Situational Charges** section is on
+      // screen — they cost nothing else, since every property runs them and they arrive complete.
+      'Riverview Apartments': ['RC','GARBAG','DP','NSF','LATE'],
       'The Berkshires':       ['RC','DP','NSF','LATE'],
-      'The Windermere':       ['RC','APPFEE','NSF','LATE'],
-      // Oakwood is the finished example, so it carries the charges nearly every property has.
-      'Oakwood Manor':        ['RC','DP','ADMIN','GARBAG','NSF','LATE']
+      'The Windermere':       ['RC','GARBAG','NSF','LATE'],
+      // Oakwood is the finished example, so it carries all three priced charges.
+      'Oakwood Manor':        ['RC','GARBAG','DP','NSF','LATE']
     };
   }
   // The two scenarios that are a walkthrough rather than a portfolio: each names, per property, the
@@ -965,16 +984,15 @@ class Component extends DCLogic {
     const hit = this.chargeTypeList().filter(c => c[0] === String(code || '').toUpperCase())[0];
     return hit ? hit[1] : '';
   }
+  // A walkthrough puts only the types it actually uses on the books, so the Charge Types register is
+  // a handful of rows rather than thirty-eight and "open a charge type" is one click. Everything
+  // downstream reads this — the register, the typeahead and `mktDefAll` — so they cannot disagree
+  // about what exists.
   chargeTypeList(){
-    // Simple Demo puts only the types it actually uses on the books, so the Charge Types register
-    // is two rows rather than thirty-eight and the walkthrough's "open a charge type" is one click.
-    // Everything downstream reads this — the register, the typeahead and `mktDefAll` — so they
-    // cannot disagree about what exists.
-    if (this.scenarioKey() === 'demo') {
-      const use = {}; Object.keys(this.demoCharges()).forEach(p2 => this.demoCharges()[p2].forEach(c => { use[c] = 1; }));
-      return this.chargeTypeListAll().filter(([code]) => use[code]);
-    }
-    return this.chargeTypeListAll();
+    const walk = this.walkCharges();
+    if (!walk) return this.chargeTypeListAll();
+    const use = {}; Object.keys(walk).forEach(p2 => walk[p2].forEach(c => { use[c] = 1; }));
+    return this.chargeTypeListAll().filter(([code]) => use[code]);
   }
   chargeTypeListAll(){
     return [['ADMIN','Administrative Fee'],['AMENFEE','Amenity Fee'],['APPFEE','Application Fee'],['CABLE','Cable Utility'],
@@ -1089,9 +1107,6 @@ class Component extends DCLogic {
     if (window.__ctmDiff && this.q('#ctm-src')) window.__ctmDiff();
     // The Charge Marketing override note and its locked mirror are written from the form itself, so
     // they are filled in once the form is on the page rather than during render.
-    // What the charge inherits is rendered into the fields themselves, so this only has to mark
-    // which of them have been moved off it.
-    if (window.__mktDiff && this.q('#m-ovr-src')) window.__mktDiff();
     const snap = this._scrollSnap; this._scrollSnap = null;
     if (this._resetScroll) { this._resetScroll = false; return; }
     if (snap) { const panes = this.scrollPanes(); snap.forEach((v,i)=>{ if(panes[i]) panes[i].scrollTop = v; }); }
@@ -3709,8 +3724,8 @@ class Component extends DCLogic {
     // far right — so the links line up down the column rather than each one sitting wherever its
     // label happens to end.
     const fld = (label, ctl, tip, key) => `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
-      <span style="display:flex;align-items:center;gap:6px;min-height:20px">
-        <span style="display:inline-flex;align-items:center;gap:6px;min-width:0">${lab(label)}${tip || ''}</span>
+      <span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-height:20px">
+        <span style="display:inline;min-width:0">${lab(label)}${tip || ''}</span>
         <span style="flex:1"></span>
         ${!key ? '' : `<a id="ctm-rev-${key}" onclick="if(window.__ctmRevert)window.__ctmRevert('${key}')" style="display:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Revert</a>`}
       </span>${ctl}</div>`;
@@ -3744,8 +3759,8 @@ class Component extends DCLogic {
       </div>`;
     const body = pair(fld('Name', txt('ctm-name', v('name')), '', 'name'), fld('Charge Category', dd('ctm-category', this.chargeCategoryOptions(), v('category')), H.category, 'category'))
       + fld('Marketing Description (Optional)', area('ctm-marketing', v('marketing')), '', 'marketing')
-      + pair(fld('Charge Requirement', dd('ctm-requirement', REQ, v('requirement')), H.requirement, 'requirement'), fld('Charge Schedule', dd('ctm-schedule', SCHED, v('schedule')), H.schedule, 'schedule'))
-      + pair(fld('Fee Due', dd('ctm-feeDue', DUE, v('feeDue')), H.feeDue, 'feeDue'), fld('Refundable', dd('ctm-refundable', REF, v('refundable')), '', 'refundable'))
+      + pair(fld('Charge Requirement', dd('ctm-requirement', REQ, v('requirement')), H.requirement, 'requirement'), fld(this.schedOnly(), dd('ctm-schedule', SCHED, v('schedule')), '', 'schedule'))
+      + pair(fld(this.dueOnly(), dd('ctm-feeDue', DUE, v('feeDue')), '', 'feeDue'), fld('Refundable', dd('ctm-refundable', REF, v('refundable')), '', 'refundable'))
       + extras;
 
     // Figma `3638:4452`: a grey strip naming the tier these values come from, with the way to go and
@@ -4614,15 +4629,6 @@ class Component extends DCLogic {
       <div style="display:flex;justify-content:flex-end"><span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">${rows.length} Charge Types</span></div>
     </div>`;
   }
-  // Add Charge Type (mock 2219-6759) and Charge Type Details (mock 2219-2622). Both write to the same
-  // register rows, so a type added here is immediately offered on a property's Charges tab.
-  // Charge Schedule is set on a charge type and on a property's override of one, but a charge type
-  // is used by both recurring and one-time charges, so neither form can know which this is for. The
-  // field says so, and a one-time charge reads One-Time whatever is set here.
-  schedTip(){ return this.infoTip('<span style="display:block;white-space:normal">Only applies to recurring charges.</span>'); }
-  // Fee Due is Charge Schedule's opposite number: a recurring charge is collected across the term
-  // by definition, so only a one-time charge has a moment to name.
-  dueTip(){ return this.infoTip('<span style="display:block;white-space:normal">Only applies to one-time charges.</span>'); }
   // One set of field tooltips for every surface that edits a charge's marketing details: the charge
   // itself, the charge type's defaults, and a property's override of them. Built once so the three
   // cannot say different things about the same field.
@@ -4648,12 +4654,17 @@ class Component extends DCLogic {
   mktHelp(){
     if (!this._mktHelp) this._mktHelp = {
       category: this.fieldHelp('Charge Category', 'The category listings report this charge under. A charge without one can\'t go on a listing.'),
-      requirement: this.reqHelp(),
-      schedule: this.schedTip(),
-      feeDue: this.dueTip()
+      requirement: this.reqHelp()
     };
     return this._mktHelp;
   }
+  // Charge Schedule and Fee Due each apply to one kind of charge and not the other. That used to sit
+  // behind an info icon on every surface; it is part of what the field **is**, so it reads in the
+  // label itself, in italics after the name. `mktOnly` is the one place the phrasing lives, read by
+  // the charge type's tile, the property's dialog and the charge's own form.
+  mktOnly(t){ return ` <em style="font-style:italic;color:var(--rmx-text, #666666)">${t}</em>`; }
+  schedOnly(){ return 'Charge Schedule' + this.mktOnly('Recurring Charges Only'); }
+  dueOnly(){ return 'Fee Due' + this.mktOnly('One-Time Charges Only'); }
   ctFieldBits(){
     const esc = v => ('' + (v == null ? '' : v)).replace(/"/g, '&quot;');
     const lab = (t, req) => `<span style="font-size:14px;color:var(--rmx-text, #666666)">${t}${req?' *':''}</span>`;
@@ -4783,10 +4794,10 @@ class Component extends DCLogic {
        ${mfld('Marketing Description (Optional)', marea('ctd-mkt-marketing', d.marketing || ''))}
        <div style="display:flex;gap:16px">
          ${mfld('Charge Requirement', mdd('ctd-mkt-requirement', REQ, d.requirement || ''), H.requirement)}
-         ${mfld('Charge Schedule', mdd('ctd-mkt-schedule', SCHED, d.schedule || ''), H.schedule)}
+         ${mfld(this.schedOnly(), mdd('ctd-mkt-schedule', SCHED, d.schedule || ''))}
        </div>
        <div style="display:flex;gap:16px">
-         ${mfld('Fee Due', mdd('ctd-mkt-feeDue', DUE, d.feeDue || seed.feeDue), H.feeDue)}
+         ${mfld(this.dueOnly(), mdd('ctd-mkt-feeDue', DUE, d.feeDue || seed.feeDue))}
          ${mfld('Refundable', mdd('ctd-mkt-refundable', REF, d.refundable || seed.refundable))}
        </div>`, true);
     const invTile = tile('Inventory Items',
@@ -7398,15 +7409,11 @@ class Component extends DCLogic {
     // mark, so a field that has been edited offers the way back without also being labelled.
     const lab = (t,tip,key) => !key
       ? `<span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--rmx-text, #666666)">${t}${tip||''}</span>`
-      // A marketing field's label is the row the property's own Default Charge Marketing draws:
-      // the name, its help icon and the **Required** mark on the left, **Revert** at the far right,
-      // so the links line up down the column instead of landing wherever each label ends.
-      : `<span style="display:flex;align-items:center;gap:6px;min-height:20px;font-size:14px;color:var(--rmx-text, #666666)">
-          <span style="display:inline-flex;align-items:center;gap:6px;min-width:0">${t}${tip||''}</span>
-          <span id="m-need-${key}" style="display:none;align-items:center"></span>
-          <span style="flex:1"></span>
-          <a id="m-rev-${key}" onclick="if(window.__mktRevert)window.__mktRevert('${key}')" style="display:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Revert</a>
-        </span>`;
+      // A marketing field's label carries the **Required** mark `__mitsRecheck` writes while the
+      // field has nothing in it, and nothing else. It flows as text rather than as a flex row, so a
+      // label carrying its *Recurring Charges Only* qualifier wraps like a sentence in a narrow
+      // column instead of breaking into two blocks.
+      : `<span style="display:block;min-height:20px;font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">${t}${tip||''}<span id="m-need-${key}" style="display:none;align-items:center;vertical-align:middle;margin-left:6px"></span></span>`;
     // Charge Category and Charge Schedule carry the form's other two help icons.
     const help = this.mktHelp();
     const sect = (t,inner) => `<div style="display:flex;flex-direction:column;gap:10px"><span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span><div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:12px">${inner}</div></div>`;
@@ -7474,77 +7481,7 @@ class Component extends DCLogic {
     // swaps one set of defaults for the next without ever overwriting something typed by hand.
     // DOM-only, like every other live update in this form: a setState here would wipe the rest of it.
     this.ddSetInstall();
-    // There is no override mode. The fields are always live and already hold what the charge
-    // inherits, so nobody has to understand the tier model before they can type. Each field answers
-    // for itself: one that has been moved off its inherited value wears a Changed mark with Revert,
-    // and `saveFee` stores only those. MKTKEYS is the one list of which field is which — the marker
-    // key, the input, and the key `__mktDefaults` tracks it under.
-    const MKTKEYS = [['name','m-name','name'], ['marketing','m-marketing','marketing'],
-      ['req','m-req','requirement'], ['sched','m-sched','schedule'],
-      ['due','m-due','feeDue'], ['refund','m-refund','refundable']];
     const DUEL = { 'Move-In':'At Move-In', 'Move-Out':'At Move-Out' };
-    // What this charge would show with nothing of its own: the property's override of its charge
-    // type if it has one, otherwise the charge type's default. The same chain `resolvedListing`
-    // walks, so the form and the listing can't disagree about what "the default" is.
-    // A property specific charge (NSF, Late) has no Charge Type input to read — its type is fixed
-    // and its General card is locked — so the code falls back to the charge's own.
-    const codeNow = () => ((this.q('#m-ctype') || {}).value) || (ed && ed.mits) || '';
-    const inhNow = () => {
-      const D = this.chargeInherits(this.state.property, codeNow(), ed && ed.listing);
-      return { name: D.name || '', marketing: D.marketing || '', requirement: D.requirement || '',
-        schedule: D.schedule || '', feeDue: D.feeDue || '',
-        refundable: D.refundable === 'yes' || D.refundable === true ? 'Refundable'
-          : D.refundable === 'no' || D.refundable === false ? 'Not Refundable' : '' };
-    };
-    // A field is the charge's own only where it actually differs. The same answer lights the Changed
-    // marks, the Reset all link and the "This charge" chip in the source row, so the three cannot
-    // disagree.
-    window.__mktDiff = () => {
-      const D = inhNow();
-      let any = false;
-      MKTKEYS.forEach(([key, id, dk]) => {
-        const el = this.q('#' + id), rev = this.q('#m-rev-' + key);
-        // A recurring charge's Fee Due is a fixed hidden input — there is no control to differ.
-        const live = !!el && (id === 'm-name' || id === 'm-marketing' || !!this.q('#' + id + '-disp'));
-        const diff = live && String(el.value || '') !== String(D[dk] || '');
-        if (rev) rev.style.display = diff ? 'inline' : 'none';
-        if (diff) any = true;
-      });
-      const rs = this.q('#m-mkt-reset'); if (rs) rs.style.display = any ? 'inline' : 'none';
-      if (window.__mktOvrNote) window.__mktOvrNote(codeNow());
-      return any;
-    };
-    // Handing one field back to whatever it inherits — what Reset all to default is made of. It
-    // stays a field `__mktDefaults` may refill when the charge type changes, so the value it was
-    // just given is recorded as ours.
-    window.__mktRevert = (key) => {
-      const D = inhNow();
-      const ent = MKTKEYS.filter(k => k[0] === key)[0]; if (!ent) return;
-      const id = ent[1], dk = ent[2], val = D[dk] || '';
-      if (id === 'm-name') { const e = this.q('#m-name');
-        if (e) { e.value = val; const t = this.q('#m-name-text'); if (t) t.setAttribute('data-typed', val); } }
-      else if (id === 'm-marketing') { const e = this.q('#m-marketing'); if (e) e.value = val; }
-      else if (this.q('#' + id + '-disp')) window.__ddSet(id, val, DUEL[val] || val);
-      const was = this._mktDefApplied || (this._mktDefApplied = {});
-      was[dk] = val;
-      if (window.__mitsRecheck) window.__mitsRecheck();
-      if (window.__mktDiff) window.__mktDiff();
-    };
-    window.__mktResetAll = () => { MKTKEYS.forEach(k => window.__mktRevert(k[0])); };
-    // One row says which tier the values on screen come from. The charge type can change while the
-    // form is open, and so can whether anything has been edited, so it is rewritten by `__mktDiff`
-    // rather than rendered once.
-    window.__mktOvrNote = (code) => {
-      // `own` is deliberately false: the strip names the tier below this charge, not whether the
-      // charge has stepped off it.
-      const src = this.mktSourceOf(code, false, ed && ed.listing);
-      const row = this.q('#m-ovr-src');
-      if (!row) return;
-      const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;');
-      row.innerHTML = src.chip
-        ? `Inherited from <strong style="font-weight:600">${esc(src.chip)}</strong>`
-        : esc(src.note);
-    };
     window.__mktDefaults = (code) => {
       const D = this.chargeInherits(this.state.property, code, ed && ed.listing);
       const was = this._mktDefApplied || {};
@@ -7601,7 +7538,6 @@ class Component extends DCLogic {
       this._mktDefApplied = now;
       if (window.__attrCheck) window.__attrCheck();
       if (window.__mitsRecheck) window.__mitsRecheck();
-      if (window.__mktDiff) window.__mktDiff();
     };
     // Storage / Parking categories reveal their optional attribute sections.
     window.__attrCheck = () => {
@@ -8079,9 +8015,9 @@ class Component extends DCLogic {
         <!-- A recurring charge is collected across the term by definition, so it carries During Term
              without asking. Only a one-time charge has a question to answer here. -->
         ${isOne
-          ? `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Fee Due', help.feeDue, 'due')}${dd('m-due',['At Application','Move-In','During Term','Move-Out'],(ed&&ed.listing&&ed.listing.feeDue)||(ed?(INH.feeDue||''):''),{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`
+          ? `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab(this.dueOnly(), '', 'due')}${dd('m-due',['At Application','Move-In','During Term','Move-Out'],(ed&&ed.listing&&ed.listing.feeDue)||(ed?(INH.feeDue||''):''),{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`
           : `<input type="hidden" id="m-due" value="During Term">`}
-        ${isOne?'':`<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Schedule', help.schedule, 'sched')}${dd('m-sched',['Weekly','Monthly','Annually'],(ed&&ed.listing&&ed.listing.schedule)||(ed?(INH.schedule||''):''),{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`}
+        ${isOne?'':`<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab(this.schedOnly(), '', 'sched')}${dd('m-sched',['Weekly','Monthly','Annually'],(ed&&ed.listing&&ed.listing.schedule)||(ed?(INH.schedule||''):''),{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`}
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Refundable', '', 'refund')}${dd('m-refund',['Refundable','Not Refundable'],refundable,{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mktDiff)window.__mktDiff()"})}</div>
       </div>
       <div id="m-sitdesc-wrap" style="display:${(spec||req==='Situational')?'flex':'none'};flex-direction:column;gap:4px">${lab('Situational Charge Description')}<textarea id="m-sitdesc" class="fld" style="height:48px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${esc(ed?ed.cond:'')}</textarea></div>
@@ -8201,7 +8137,6 @@ class Component extends DCLogic {
       if (dn) { const show = di.expired || di.future;
         dn.style.display = show ? 'flex' : 'none';
         dn.innerHTML = show ? dateNoteHTML(di) : ''; }
-      if (window.__mktDiff) window.__mktDiff();
     };
     // Any charge left off listings gets a quiet nudge rather than an alert — nothing is wrong, it just
     // won't be visible to residents up front.
@@ -8253,16 +8188,6 @@ class Component extends DCLogic {
     // Option C: no mode at all. The source row says which tier the values come from, the fields
     // below it are live and already hold exactly that, and Reset all to default hands the whole
     // charge back to its tier in one move rather than field by field.
-    // The same grey strip the property's Default Charge Marketing carries (Figma `3638:4452`), so
-    // the two rungs of the cascade are read the same way: a 20px brand `info`, the tier these values
-    // come from, and the way back on the right. It names the tier and nothing else — that is what
-    // this charge is an override **of**, whether or not anything has been overridden yet, and what
-    // has been changed is already said by the Revert links.
-    const ovrRow = `<div style="display:flex;align-items:center;gap:8px;min-height:36px;box-sizing:border-box;padding:0 8px;background:var(--rmx-bg-muted, #f2f2f2);border-radius:4px;flex:none">
-        ${this.ico('info', 20, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}
-        <span id="m-ovr-src" style="flex:1;min-width:0;font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></span>
-        <a id="m-mkt-reset" onclick="if(window.__mktResetAll)window.__mktResetAll()" style="display:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Revert All Fields</a>
-      </div>`;
     // A property that doesn't advertise online is not being asked any of this: no Include on
     // listings toggle, nothing marked missing, and one info icon beside the heading saying why —
     // rather than a label on the right announcing that the charge is published nowhere, which is
@@ -8283,7 +8208,6 @@ class Component extends DCLogic {
         </div>
         <div id="m-mkt-body" style="display:none;flex-direction:column;gap:14px">
           <div id="m-mkt-card" style="display:flex;flex-direction:column;gap:14px;padding:14px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px">
-            ${ovrRow}
             <div id="m-mkt-fields" style="display:flex;flex-direction:column;gap:12px">${listing}</div>
             ${missingMsg}
           </div>
