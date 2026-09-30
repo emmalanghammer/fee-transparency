@@ -721,6 +721,16 @@ the one place that writes the override, whichever route reached it.
   fields and both refusals from every charge of that type at that property, so each reads the new
   default and nothing else.
 
+**Storage and Parking Details sit on both default surfaces** (2026-09-30), from one builder,
+`attrDefSections(pre, att, cat, opts)`: Charge Type Details' Default Charge Marketing tile (`ctd-at-*`,
+saved by `ctSave` as `mktDef[CODE].attrs`) and the property's dialog (`ctm-at-*`, with Pet too). Every
+section is rendered and the one matching the category shows; the Charge Category dropdown calls
+`__attrDefShow(pre, value)`, so changing it swaps the section live. `attrRead(pre, cat)` reads only
+that category's fields, so a hidden section can't leak into the save. `mktDefChanged` counts an
+`attrs` change, so it raises Apply Defaults like any other. The property dialog shows the charge
+type's details, locked, while unticked. A new charge fills them from the property's override, else
+the charge type (`saveFee`'s create fallback and `__mktDefaults`).
+
 **Storage, Parking and Pet carry more than the seven fields, and those are the property's too.**
 A Storage, Parking or Pet charge type's dialog shows that category's own section under the fields
 (`ctm-at-*`, the same field sets the charge form's `attrSections` use) — a property's lockers are
