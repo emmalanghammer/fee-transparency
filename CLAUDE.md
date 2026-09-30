@@ -834,8 +834,12 @@ plumbing: the fields hold what will be advertised, and that is the question the 
 The property's own Default Charge Marketing keeps its strip and its Reverts, because there the tier
 **is** the subject.
 
-**A label carries one mark.** The **Required** lozenge, inline after the field's name, and only on a
-field with nothing in it — the one thing worth reading is which fields are still empty.
+**A label carries one mark.** The **Required for Listings** lozenge, inline after the field's name,
+and only on a field with nothing in it — the one thing worth reading is which fields are still
+empty. It says *for Listings* because the charge saves without it: what the field is required for
+is advertising, and a bare *Required* read as a form that wouldn't save. The Charges register's
+Listing Ready pill counts the same thing as **n Fields Missing** (*1 Field Missing*), not
+*n needed*.
 
 **A label with a help icon is laid out differently from one without.** A marketing label normally
 flows as text, so the italic qualifiers wrap like a sentence — but an inline tooltip wrapper then sat
