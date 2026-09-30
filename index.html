@@ -487,15 +487,20 @@ class Component extends DCLogic {
     // type's defaults were last saved, so it doesn't take them. The property's own override still
     // reaches it — that is a separate, deliberate act, and refusing it was never asked for.
     const T = L.noInherit ? {} : (this.mktDefFor(r && r.mits) || {});
+    // `cleared` lists the fields someone emptied on this charge by hand. An empty field otherwise
+    // means "follow the tier", so without it a cleared requirement would quietly come back from the
+    // charge type and the charge would read listing ready over a field that is blank.
+    const CL = L.cleared || [];
     const pick = (k) => {
       const v = L[k]; if (v != null && v !== '') return v;
+      if (CL.indexOf(k) >= 0) return '';
       const p = P[k]; if (p != null && p !== '') return p;
       return T[k] || '';
     };
     return {
       leaseRole: this.leaseRoleOf(r),
       name: pick('name'),
-      category: L.category || P.category || T.category || this.chargeCategoryFor(r.mits),
+      category: L.category || (CL.indexOf('category') >= 0 ? '' : (P.category || T.category || this.chargeCategoryFor(r.mits))),
       requirement: pick('requirement'),
       feeDue: pick('feeDue'),
       // A one-time charge has no schedule to choose, so it reads One-Time wherever a schedule is
@@ -1292,7 +1297,7 @@ class Component extends DCLogic {
             propDef = nextDef;
             eachCharge(r => {
               const L = Object.assign({}, r.listing);
-              ['name','marketing','category','requirement','feeDue','schedule','refundable','noInherit','noProp']
+              ['name','marketing','category','requirement','feeDue','schedule','refundable','noInherit','noProp','cleared']
                 .forEach(k => { delete L[k]; });
               return L;
             });
@@ -1879,8 +1884,12 @@ class Component extends DCLogic {
       const sown = (cur, inh) => String(cur == null ? '' : cur) === String(inh == null ? '' : inh) ? '' : cur;
       const sRefLbl = SD.refundable === 'yes' || SD.refundable === true ? 'Refundable'
         : SD.refundable === 'no' || SD.refundable === false ? 'Not Refundable' : '';
+      const sRefNow = ((this.q('#m-refund') || {}).value) || '';
+      const sWas = { name: [nm, SD.name], marketing: [v('m-marketing'), SD.marketing], refundable: this.q('#m-refund') ? [sRefNow, sRefLbl] : null };
+      const sCleared = Object.keys(sWas).filter(k => sWas[k] && String(sWas[k][0] || '') === '' && String(sWas[k][1] || '') !== '');
       const patch = { ils: ilsOn, cond: v('m-sitdesc') || specEd.cond,
         listing: Object.assign({}, specEd.listing, {
+          cleared: sCleared.length ? sCleared : undefined,
           name: sown(nm, SD.name),
           category: sown(v('m-cat') || this.chargeCategoryFor(specEd.mits), SD.category || this.chargeCategoryFor(specEd.mits)),
           marketing: sown(v('m-marketing'), SD.marketing),
@@ -1988,7 +1997,13 @@ class Component extends DCLogic {
           : D.refundable === 'no' || D.refundable === false ? 'Not Refundable' : '';
         const refNow = ((this.q('#m-refund') || {}).value) || '';
         const cat = this.chargeCategoryFor(code);
+        // The form opens holding what the charge inherits, so a field that is empty now was emptied
+        // on purpose — recorded as `cleared`, so it stays empty rather than inheriting again.
+        const was = { name: [name, D.name], marketing: [v('m-marketing'), D.marketing], requirement: [req, D.requirement],
+          feeDue: [v('m-due'), D.feeDue], schedule: isOne ? null : [v('m-sched'), D.schedule], refundable: this.q('#m-refund') ? [refNow, refLbl] : null };
+        const cleared = Object.keys(was).filter(k => was[k] && String(was[k][0] || '') === '' && String(was[k][1] || '') !== '');
         return {
+          cleared: cleared.length ? cleared : undefined,
           name: own(name, D.name),
           category: own(v('m-cat') || cat, D.category || cat),
           marketing: own(v('m-marketing'), D.marketing),
@@ -3656,7 +3671,7 @@ class Component extends DCLogic {
         if (mode === 'new') L.noProp = true;
         // "All charges": every override below the property is cleared, so each charge of this type
         // reads the new default and nothing else.
-        else { K.forEach(k => { delete L[k]; }); delete L.noProp; delete L.noInherit; }
+        else { K.forEach(k => { delete L[k]; }); delete L.noProp; delete L.noInherit; delete L.cleared; }
         return Object.assign({}, r, { listing: L });
       });
       out.profileFees = fees;
@@ -5157,13 +5172,13 @@ class Component extends DCLogic {
     if (!r.ils) {
       return `<span style="display:inline-flex;align-items:center;gap:5px;background:var(--rmx-bg-muted, #f2f2f2);border-radius:12px;padding:2px 9px;cursor:default" title="This charge isn&#39;t included on listings, so it isn&#39;t measured for listing readiness"><svg class="ico" width="14" height="14" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-text-muted, #b3b3b3)"><path d="m629-419-44-44q26-71-27-118t-115-24l-44-44q17-11 38-16t43-5q71 0 120.5 49.5T650-500q0 22-5.5 43.5T629-419Zm129 129-40-40q49-36 85.5-80.5T857-500q-50-111-150-175.5T490-740q-42 0-86 8t-69 19l-46-47q35-16 89.5-28T485-800q143 0 261.5 81.5T920-500q-26 64-67 117t-95 93Zm58 226L648-229q-35 14-79 21.5t-89 7.5q-146 0-265-81.5T40-500q20-52 55.5-101.5T182-696L56-822l42-43 757 757-39 44ZM223-654q-37 27-71.5 71T102-500q51 111 153.5 175.5T488-260q33 0 65-4t48-12l-64-64q-11 5-27 7.5t-30 2.5q-70 0-120-49t-50-121q0-15 2.5-30t7.5-27l-97-97Zm305 142Zm-116 58Z"/></svg><span style="font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap">Excluded</span></span>`;
     }
-    // One missing field is named outright; more than one needs the hover to list them.
-    if (missing.length === 1) return pill('Needs ' + missing[0]);
+    // One missing field reads like several — "1 Field Missing", with the hover naming it — so the
+    // column says the same kind of thing on every row.
     if (missing.length) {
       // The register scrolls and clips, so this one is placed against the window rather than the cell
       // — the same panel the form's help icons use, which is why it can't be cut off.
       return this.infoTip(
-        `<span style="display:block;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);padding-bottom:9px;border-bottom:1px solid var(--rmx-line, #cedbe7)">${missing.length} fields still required:</span>`
+        `<span style="display:block;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);padding-bottom:9px;border-bottom:1px solid var(--rmx-line, #cedbe7)">${missing.length} ${missing.length === 1 ? 'field' : 'fields'} still required:</span>`
         + `<span style="display:flex;flex-direction:column;gap:10px;padding-top:11px">${missing.map(n=>`<span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${n}</span>`).join('')}</span>`, undefined, { trigger: pill(missing.length + (missing.length === 1 ? ' Field Missing' : ' Fields Missing')) });
     }
     return `<span style="display:inline-flex;align-items:center;gap:5px"><svg title="Charge ready" class="ico" width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" aria-label="Charge ready" style="color:var(--rmx-success, #6eb744)"><path d="m421-298 283-283-46-45-237 237-120-120-45 45 165 166Zm59 218q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 31.5-156t86-127Q252-817 325-848.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 82-31.5 155T763-197.5q-54 54.5-127 86T480-80Zm0-60q142 0 241-99.5T820-480q0-142-99-241t-241-99q-141 0-240.5 99T140-480q0 141 99.5 240.5T480-140Zm0-340Z"/></svg></span>`;
@@ -7792,7 +7807,9 @@ class Component extends DCLogic {
     // opens holding its tier's values rather than blank. That is rendered into the markup rather
     // than patched in afterwards — a re-render while the form is open (a toast clearing is enough)
     // throws a DOM-only fill away, and these are now the only copy of those values on screen.
-    const INH = this.chargeInherits(this.state.property, (ed && ed.mits) || '', ed && ed.listing);
+    // A field emptied on this charge (`listing.cleared`) reopens empty, not holding the tier's value.
+    const INH = Object.assign({}, this.chargeInherits(this.state.property, (ed && ed.mits) || '', ed && ed.listing));
+    ((ed && ed.listing && ed.listing.cleared) || []).forEach(k => { INH[k] = ''; });
     const inhRef = INH.refundable === 'yes' || INH.refundable === true ? 'Refundable'
       : INH.refundable === 'no' || INH.refundable === false ? 'Not Refundable' : '';
     // A category stored on the charge wins over the charge-type map — the same order the completeness

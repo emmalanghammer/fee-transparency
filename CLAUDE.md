@@ -850,8 +850,8 @@ The property's own Default Charge Marketing keeps its strip and its Reverts, bec
 and only on a field with nothing in it — the one thing worth reading is which fields are still
 empty. It says *for Listings* because the charge saves without it: what the field is required for
 is advertising, and a bare *Required* read as a form that wouldn't save. The Charges register's
-Listing Ready pill counts the same thing as **n Fields Missing** (*1 Field Missing*), not
-*n needed*.
+Listing Ready pill counts the same thing as **n Fields Missing**, not *n needed* — one field reads
+*1 Field Missing* too, with the hover naming it (it used to short-circuit to *Needs <field>*).
 
 **A label with a help icon is laid out differently from one without.** A marketing label normally
 flows as text, so the italic qualifiers wrap like a sentence — but an inline tooltip wrapper then sat
@@ -900,7 +900,19 @@ General card above it, so restating it on the right said the same thing twice.
 
 **`saveFee` asks ownership of each field on its own.** A value that still matches what the charge
 inherits (`ctmFor(property, code)`) is stored **empty**, so the charge keeps following its tier
-through `resolvedListing`; only what someone actually changed becomes the charge's. That is what
+through `resolvedListing`; only what someone actually changed becomes the charge's.
+
+**A field emptied by hand is recorded as `listing.cleared`**, not stored empty. The form opens
+holding what the charge inherits, so a field that is empty at Save was emptied on purpose — and
+stored empty it would mean *follow the tier*, so a cleared Charge Requirement came straight back
+from the charge type and the charge kept reading **Listing Ready** over a blank field (the bug the
+user hit on 2026-09-30). `resolvedListing`'s `pick` returns `''` for a cleared field unless the
+charge has a value of its own (so a Bulk Update value still wins), the form reopens it empty
+(`INH` is blanked for those keys), re-filling it with the inherited value drops it from `cleared`
+and it inherits again, and both **All Charges** resets delete `cleared` with the rest. It covers
+Name, Marketing Description, Charge Requirement, Fee Due, Charge Schedule and Refundable, and the
+NSF / Late branch the three it can edit. Clearing an optional field (Marketing Description,
+Refundable) keeps it empty and the charge still ready. That is what
 makes Option C safe — without it, opening a charge and pressing Save would freeze today's defaults
 onto it. The property specific branch (NSF, Late) does the same. `mktDefFill` still never runs on
 create, because copying the defaults down would make every new charge an override of them.
