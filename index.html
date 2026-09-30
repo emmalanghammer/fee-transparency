@@ -3741,7 +3741,9 @@ class Component extends DCLogic {
     const lab = F.lab;
     const H = this.mktHelp();
     const fld = (label, ctl, tip) => `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
-      <span style="display:block;min-height:20px;line-height:20px">${lab(label)}${tip || ''}</span>${ctl}</div>`;
+      ${tip
+        ? `<span style="display:inline-flex;align-items:center;gap:6px;min-height:20px;line-height:20px;white-space:nowrap">${lab(label)}${tip}</span>`
+        : `<span style="display:block;min-height:20px;line-height:20px">${lab(label)}</span>`}${ctl}</div>`;
     // The disabled Input Field: white at half alpha over #f2f2f2, a #ebf1f5 border and
     // Text/text-disabled — the RMX disabled state, not a greyed-out copy of the live one.
     const CHEV = `<svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-text-muted, #b3b3b3);flex:none"><path d="M480-344 240-584l43-43 197 197 197-197 43 43-240 240Z"/></svg>`;
@@ -7421,7 +7423,12 @@ class Component extends DCLogic {
       // field has nothing in it, and nothing else. It flows as text rather than as a flex row, so a
       // label carrying its *Recurring Charges Only* qualifier wraps like a sentence in a narrow
       // column instead of breaking into two blocks.
-      : `<span style="display:block;min-height:20px;font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">${t}${tip||''}<span id="m-need-${key}" style="display:none;align-items:center;vertical-align:middle;margin-left:6px"></span></span>`;
+      // A label with a help icon keeps the name and the icon as one unit that never breaks, so the
+      // icon can't wrap onto a line of its own like a word; the Required lozenge is what drops to
+      // the next line when the column is narrow. Those labels carry no qualifier to wrap.
+      : tip
+      ? `<span style="display:flex;flex-wrap:wrap;align-items:center;column-gap:6px;row-gap:4px;min-height:20px;font-size:14px;line-height:20px;color:var(--rmx-text, #666666)"><span style="display:inline-flex;align-items:center;gap:6px;white-space:nowrap">${t}${tip}</span><span id="m-need-${key}" style="display:none;align-items:center;flex:none"></span></span>`
+      : `<span style="display:block;min-height:20px;font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">${t}<span id="m-need-${key}" style="display:none;align-items:center;vertical-align:middle;margin-left:6px"></span></span>`;
     // Charge Category and Charge Schedule carry the form's other two help icons.
     const help = this.mktHelp();
     const sect = (t,inner) => `<div style="display:flex;flex-direction:column;gap:10px"><span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span><div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:12px">${inner}</div></div>`;
@@ -8860,7 +8867,10 @@ class Component extends DCLogic {
       ${field('Lease Terms', { t:'' })}
       <div style="display:flex;flex-direction:column;gap:4px">${lab('Property Images')}<div style="display:flex;gap:10px;align-items:center"><div style="flex:1;min-width:0">${ddPh({ t:'Property Image' })}</div>${preview}</div></div>
       <div style="display:flex;flex-direction:column;gap:4px">${lab('Unit Images')}<div style="display:flex;gap:10px;align-items:center"><div style="flex:1;min-width:0">${ddPh({ t:'' })}</div>${preview}</div></div>
-      ${field('Availability Date', { t:'' })}`);
+      ${field('Availability Date', { t:'' })}`,
+      // The same Preview Pricing the property's Charges overlay offers, under the same gate: what an
+      // advertised price would look like is only a question for a property that lists online.
+      this.ftApplicable(P.name) ? `<a data-act="pricePreviewOpen" data-arg="${esc2(P.name)}" style="font-size:14px;font-weight:400;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Preview Pricing</a>` : '');
     const amen = ['Theater','Outdoor Grill','Hot Tub','Game Room','Utility Laundry Room','Dog Park','Community Garden','Pool','Fitness Center'];
     const features = card('Features', `
       <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
@@ -8928,6 +8938,14 @@ class Component extends DCLogic {
 
     return `<div style="flex:1;min-height:0;display:flex;flex-direction:column;background:var(--rmx-bg-subtle, #f5f8fa)">
         <div style="flex:1;min-height:0;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:16px;background:var(--rmx-bg-subtle, #f5f8fa)">
+          ${(() => {
+            // Listings' invitation, above the property strip, on the page where the work is actually done. View Setup opens the
+            // overlay scoped to this property alone. It goes once the property is fee transparent, or
+            // if fee transparency can't apply to it at all.
+            const r = this.propNames().includes(P.name) && this.ftApplicable(P.name) ? this.ftCharges(P.name) : null;
+            if (!r || !(r.ready + r.incomplete) || this.state.publishedProps[P.name]) return '';
+            return this.ftBannerHTML(P.name);
+          })()}
           <div style="display:flex;align-items:center;gap:22px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:14px 20px;flex-wrap:wrap">
             <span style="font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${P.name}</span>
             <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Owner: ${P.manager}</span>
@@ -8936,14 +8954,6 @@ class Component extends DCLogic {
             <div style="flex:1"></div>
             <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);flex:none">Occupied Units: <strong>${P.occupied != null ? P.occupied : 30}</strong></span>
           </div>
-          ${(() => {
-            // Listings' invitation, on the page where the work is actually done. View Setup opens the
-            // overlay scoped to this property alone. It goes once the property is fee transparent, or
-            // if fee transparency can't apply to it at all.
-            const r = this.propNames().includes(P.name) && this.ftApplicable(P.name) ? this.ftCharges(P.name) : null;
-            if (!r || !(r.ready + r.incomplete) || this.state.publishedProps[P.name]) return '';
-            return this.ftBannerHTML(P.name);
-          })()}
           <div style="display:grid;grid-template-columns:repeat(3, minmax(0,1fr));gap:16px;align-items:stretch;align-content:start">
             ${contact1}${contact2}${listing}${features}${floor}${ctm}
           </div>

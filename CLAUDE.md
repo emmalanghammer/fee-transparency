@@ -128,8 +128,8 @@ Charges · Errors**, one row per advertised unit (`listingsData()` in C is unit-
 property that hasn't still advertises rent alone, so it has no total to show — finishing its
 charges is not the same as publishing them.
 
-**Marketing Setup carries the Listings banner, scoped to its property.** Directly under the
-property strip, `ftBannerHTML(P.name)` — the same banner Listings draws — whose **View Setup**
+**Marketing Setup carries the Listings banner, scoped to its property.** First thing on the page,
+**above** the property strip, `ftBannerHTML(P.name)` — the same banner Listings draws — whose **View Setup**
 opens the overlay with `ftSetup.only` set: that property's row alone, already expanded, and without
 its *Set Property Defaults* sub-row, because the page behind the scrim *is* those defaults. The
 banner goes once the property is fee transparent, or where fee transparency can't apply to it.
@@ -143,6 +143,11 @@ portfolio.
 **The property row itself is not on Marketing Setup** — it was, briefly, and came off: the banner
 is the way in, and the row belongs to the overlay. `ftPropRow(r, open, opts)` is still its own
 method, drawn only by `ftSetupHTML`.
+
+**Listing Details carries Preview Pricing** as an action link in its tile header (the `card()`
+`right` slot), opening the same `pricePreviewOpen` the Charges overlay's button does, and under the
+same `ftApplicable` gate. The preview renders at z-index 152, over Marketing Setup's 145, and closing
+it returns to Marketing Setup. On a narrow pane the tile's title wraps to make room for it.
 
 **The strip carries no Activate Fee Transparency button.** Activating runs through Setup, where the
 row says where the property stands *and* offers the action; a button beside Occupied Units was the
@@ -831,6 +836,15 @@ The property's own Default Charge Marketing keeps its strip and its Reverts, bec
 
 **A label carries one mark.** The **Required** lozenge, inline after the field's name, and only on a
 field with nothing in it — the one thing worth reading is which fields are still empty.
+
+**A label with a help icon is laid out differently from one without.** A marketing label normally
+flows as text, so the italic qualifiers wrap like a sentence — but an inline tooltip wrapper then sat
+on the text baseline, riding high and touching the word, and on a narrow column the icon wrapped onto
+a line of its own. So Charge Category and Charge Requirement (the only two with icons, and neither
+carries a qualifier) put the name and the icon in one `white-space:nowrap` inline-flex unit, centred,
+6px apart; on the charge form the **Required** lozenge sits after that unit in a wrapping flex row, so
+it is the lozenge that drops to the next line when the column is narrow. The property dialog's
+labels do the same.
 
 **What a charge inherits is rendered into the fields, not patched in afterwards.** `chargeForm`
 resolves `INH = ctmFor(property, code)` once and falls every field back to it, so an inheriting
