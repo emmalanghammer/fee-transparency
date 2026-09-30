@@ -754,10 +754,24 @@ dropping it, so `saveFee` still reads every field.
 
 **The header carries where the charge stands.** A status dot and **Listing Ready** sit beside the
 title (`#m-lr-status`, written by `__mitsRecheck` through `lrMarkup`), so it reads with the section
-collapsed — which is how it is most of the time. Green *Listing Ready*, red *Not Ready for
-Listings*, grey *Listing Ready - Excluded* when the charge is off listings, since an excluded charge
-is not measured for readiness. A property that doesn't advertise online carries **no status at
-all**, because none of this is asked of it.
+collapsed — which is how it is most of the time. Green *Listing Ready*; grey *Excluded from
+listings* when the charge is off listings, since an excluded charge is not measured for readiness;
+and *Not Ready for Listings* **amber before the property has activated, red after** — the same line
+the four states draw, because before activation the feed still publishes rent and a short charge is
+a plan, while after it is holding a listing off the feed. A property that doesn't advertise online
+carries **no status at all**, because none of this is asked of it.
+
+**The Charges register says Excluded before it says anything else.** `mitsStatusCell` tests `r.ils`
+**first**: a charge kept off listings reads a grey **Excluded** pill whatever its fields hold, since
+nothing will advertise it and counting fields it will never need reads as work outstanding when
+there is none. It used to count first and only mention exclusion once every field was filled, so an
+excluded charge could sit there saying *2 needed* forever. That is the same answer `ltChargeIssues`
+gives (it only counts `ils` charges) and the same one the charge form's header gives.
+
+**A one-time charge can be prorated.** `#m-prorate`, *"Prorate overall charge amount based on move
+in date"*, sits under Amount Method and Amount on the one-time form only — a recurring charge is
+billed on its own frequency, so there is no single amount to divide. `saveFee` stores it as
+`row.prorate`.
 
 **The section matches Figma `3606:62884`.** Collapsed by
 default, with **Include on listings** on the header's right — the toggle itself, so it can be set
