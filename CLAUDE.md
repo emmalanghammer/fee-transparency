@@ -239,6 +239,13 @@ its three states is **whether the listing goes out at all**:
   a provider is unhappy with what it got. The listing is out; something on it is incomplete.
 - **Sent to Provider** (green `check_circle` on `--rmx-success-bg`) — nothing.
 
+**Charge marketing is only an error once the property has activated** (2026-09-30). Before that its
+listings still go out on rent and deposit alone, so `ltIssues` returns no `charges` for it and the
+only states it can be in are **Sent to Provider** and **Missing Information**; `ltErrHTML` drops the
+Charge Marketing Errors section entirely, so the overlay is Rent Manager and the provider. The
+Listing Ready Charges column still reports how far along the charges are — that is progress, not an
+error.
+
 `ltFeedState(l)` decides it and `ltFeedLoz(l)` draws it: RMX's Lozenge at 24px with 8px sides, a
 16px icon 8px from 14/16 label text. A **`+n`** in grey follows when other sections carry something
 too, so the cell names the worst without pretending it is the only one. The overlay behind it is
