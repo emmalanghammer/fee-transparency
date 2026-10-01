@@ -62,8 +62,12 @@ one helper is also what the button acts on and what the picker lists, so the thr
 `ftActivateReady` opens `ftSelHTML`'s **Select Properties** picker (z-index 151, above the Setup
 overlay) with everything ready already ticked — you arrived by asking to activate, so the picker is
 for taking one back out, not for building the list from nothing. Next hands the selection to the
-same `pubModal` a single property uses. Converting leaves the Setup overlay open: the rows flip to
-*Fee Transparent* and the banner disappears under you, which is the feedback.
+same `pubModal` a single property uses. **Activating closes the Setup overlay** (and the picker)
+and raises `pubDoneHTML`: a 460px dialog in the confirmation's own chrome — *Fee Transparency
+Activated*, a green check over the neutral panel saying *"`<Property>` is now fee transparent.
+Listings will show the Total Monthly Price when the feed updates."*, and **OK** (`pubDoneClose`).
+It replaces the *Fee transparency activated* toast, so there is one acknowledgement, not two.
+`state.pubDone` is `{ props }`, cleared on every scenario switch.
 
 **The confirmation explains what will happen, it doesn't warn.** Its content is the user's own,
 word for word (2026-09-30): *"**`<Property>`** will start advertising listings with all charges
