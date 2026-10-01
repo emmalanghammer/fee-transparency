@@ -224,6 +224,10 @@ places on one screen is one place too many, so the header is the chevron and the
 
 **The cell opens the property's Charges** (`openFeeProfile`, 2026-10-01): the fraction is the way
 into where those charges are, turning brand blue on hover. It used to report and nothing more.
+**Charges opened from Listings closes back to Listings**: `openFeeProfile` records `chargesFrom`
+when the view is `feetrans` (the count, Setup's View Charges, the Errors breakdown's Add Charge
+Marketing all qualify) and `chargesClose` returns there; the property page's own Charges tab clears
+it, so from there it still closes to the property page.
 
 **The cell no longer opens the itemised dialog.** It used to open `ltReadyHTML`, which itemised the charges
 still short — but the Errors icon in the very next column already does that, in its **Charge

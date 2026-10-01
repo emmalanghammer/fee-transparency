@@ -1599,14 +1599,17 @@ class Component extends DCLogic {
       case 'txnAddSave': this.setState({ modal: null }); this.flash('Charge added'); break;
       case 'txnViewClose': this.setState({ txnView: false }); break;
       case 'proptab':
-        if (arg === 'General' || arg === 'Charges') { this._resetScroll = true; this.setState({ propTab: arg }); }
+        if (arg === 'General' || arg === 'Charges') { this._resetScroll = true; this.setState({ propTab: arg, chargesFrom: null }); }
         // The other property tabs aren't built. Nothing to report, so nothing is said.
         break;
       case 'openFeeProfile': {
         // Reached from the Errors breakdown as well as the property page, so the dialog it was
         // opened from has to close behind it.
         this.setState({ recView: null, mktSetup: false, mktAdv: false, ltErr: null, ftSetup: null });
-        this.go('property', { property: arg || this.state.property, propTab: 'Charges' });
+        // Opened from Listings — the count, Setup's View Charges, the Errors breakdown — it closes back
+        // to Listings rather than stranding you on the property page it sits over.
+        this.go('property', { property: arg || this.state.property, propTab: 'Charges',
+          chargesFrom: this.state.view === 'feetrans' ? 'feetrans' : null });
         break;
       }
 
@@ -1881,7 +1884,9 @@ class Component extends DCLogic {
       // ---- recurring charges overlay ----
       case 'recViewOpen': this.setState({ recView: (arg === 'unit' ? 'unit' : 'property') }); break;
       case 'recViewClose': this.setState({ recView: null }); break;
-      case 'chargesClose': this.setState({ propTab: 'General' }); break;
+      case 'chargesClose':
+        if (this.state.chargesFrom) { this.go(this.state.chargesFrom, { propTab: 'General', chargesFrom: null }); break; }
+        this.setState({ propTab: 'General' }); break;
 
       // ---- fee row mutations ----
       case 'feeils': { const r = this.profileRows().find(f => f.id === +arg);
