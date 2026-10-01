@@ -944,9 +944,14 @@ those values are now the only copy on screen rather than a mirror beside the rea
 **The section reads in four states, and which one is the property's answer, not the charge's.**
 `__mitsRecheck` paints all of it from `ilsOn()` and `publishedProps`.
 
-1. **Not advertised online.** No Include-on-listings toggle, nothing marked missing, no message —
-   and one `infoTip` beside the **Charge Marketing** heading saying the property doesn't advertise
-   on a listing site, so none of this is published yet. There is no label on the right announcing
+1. **Fee transparency can't apply** — not advertised online, *or* listed only on MH Village. The
+   test is `ftApplicable`, not `ilsOn` (2026-10-01): the same one Listings and the Charges register's
+   Listing Ready column use, so Clearcreek no longer reads *Not Ready for Listings* on its charges
+   while its Listings row reads `—`. The hidden `#m-ils` keeps the charge's own setting rather than
+   `0`, so saving a charge here never quietly takes it off listings. No status in the header,
+   no Include-on-listings toggle, nothing marked missing, no message —
+   and one `infoTip` beside the **Charge Marketing** heading saying why — it doesn't advertise on a
+   listing site, or it lists only on a provider that doesn't carry complete pricing. There is no label on the right announcing
    it: that a charge is published nowhere is the least useful thing about it.
 2. **Advertising, not activated.** Amber, and **nothing inside the card**: the header's amber
    *Not Ready for Listings* and a **Required** lozenge on each short field's own label

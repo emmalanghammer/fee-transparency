@@ -8197,7 +8197,7 @@ class Component extends DCLogic {
         }
       }
       const onIls = ((this.q('#m-ils') || {}).value) === '1';
-      if (st) st.innerHTML = lrMarkup(this.ilsOn() && onIls ? need.length : 0, onIls, !!this.state.publishedProps[this.state.property]);
+      if (st) st.innerHTML = lrMarkup(this.ftApplicable(this.state.property) && onIls ? need.length : 0, onIls, !!this.state.publishedProps[this.state.property]);
       if (note) note.style.display = onIls ? 'none' : 'inline-flex';
       // Which of the four states this section is in is decided by the property, not the charge:
       // whether it advertises online at all, and whether fee transparency is already active on it.
@@ -8206,7 +8206,9 @@ class Component extends DCLogic {
       // register gives, where its Listing Ready cell reads Charge excluded rather than a count, and
       // the same one `ltChargeIssues` gives, which only counts charges carried on listings. The
       // warning beside the toggle is the whole story there.
-      const live = this.ilsOn() && onIls, act = !!this.state.publishedProps[this.state.property];
+      // Asked only where fee transparency can apply — the same test Listings and the Charges register
+      // use, so a property on no feed, or only on MH Village, reads no status here either.
+      const live = this.ftApplicable(this.state.property) && onIls, act = !!this.state.publishedProps[this.state.property];
       const e2 = (t) => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
       // The mark goes on the field rather than into a list underneath: a list makes you match the
       // names back up, a mark on the field is the instruction. It reads **Required** in both states
@@ -8266,7 +8268,7 @@ class Component extends DCLogic {
     const swJs = "if(this.getAttribute('data-dis')==='1')return;var on=this.getAttribute('data-on')==='1';on=!on;this.setAttribute('data-on',on?'1':'0');document.getElementById('m-ils').value=on?'1':'0';this.style.background=on?'var(--ac,var(--rmx-brand, #008dd5))':'var(--rmx-line, #cedbe7)';this.firstElementChild.style.left=on?'16px':'2px';this.firstElementChild.firstElementChild.style.display=on?'block':'none';if(window.__calcNote)window.__calcNote();if(window.__mitsRecheck)window.__mitsRecheck()";
     // Figma `3606:62884`: Include on listings sits on the section header, so it can be set without
     // opening the section. `stopPropagation` keeps the header's own collapse from firing under it.
-    const ilsSwitch = this.ilsOn()
+    const ilsSwitch = this.ftApplicable(this.state.property)
       ? `<span id="m-ils-warn" onclick="event.stopPropagation()" style="display:${swOn ? 'none' : 'inline-flex'};align-items:center;margin-right:10px">${ilsWarnTip}</span>`
         + `<label onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:10px;cursor:${swLive?'pointer':'default'}"><span id="m-ils-sw" data-dis="${swLive?'0':'1'}" onclick="${swJs}" data-on="${swOn?'1':'0'}" style="display:inline-block;width:32px;height:18px;border-radius:999px;background:${!swLive?'#dfe6ec':(swOn?'var(--ac,var(--rmx-brand, #008dd5))':'var(--rmx-line, #cedbe7)')};position:relative;flex:none;cursor:${swLive?'pointer':'default'}">${knob}</span><span id="m-ils-lbl" style="font-size:14px;color:${swLive?'var(--rmx-brand-dark, #13314c)':'var(--rmx-text-muted, #b3b3b3)'}">Include on listings</span></label>`
       : '';
@@ -8292,9 +8294,12 @@ class Component extends DCLogic {
     };
     // Every unit is named, comma-separated: which listings are held back is the one thing to read.
     const unitList = (a) => a.join(', ');
-    const ilsBox = this.ilsOn() ? `
+    const ilsBox = this.ftApplicable(this.state.property) ? `
         ${ilsNote}
-        <input type="hidden" id="m-ils" value="${swOn?'1':'0'}">` : `<input type="hidden" id="m-ils" value="0">`;
+        <input type="hidden" id="m-ils" value="${swOn?'1':'0'}">`
+      // No toggle where fee transparency can't apply, but the charge keeps whatever it was set to —
+      // saving it here must not quietly take it off listings.
+      : `<input type="hidden" id="m-ils" value="${swOn?'1':'0'}">`;
 
     // ---- Marketing Details: on the charge again, but collapsed — it is not what most people open
     // this form to change, and the header says whether anything is outstanding. Collapsing hides the
@@ -8308,7 +8313,9 @@ class Component extends DCLogic {
     // listings toggle, nothing marked missing, and one info icon beside the heading saying why —
     // rather than a label on the right announcing that the charge is published nowhere, which is
     // the least useful thing about it.
-    const offTip = this.ilsOn() ? '' : this.infoTip(`<span style="display:block;white-space:normal">${esc(this.state.property)} doesn't advertise on a listing site, so none of this is published anywhere yet. Filling it in now means the charge is ready the day the property is listed.</span>`);
+    const offTip = this.ftApplicable(this.state.property) ? '' : this.infoTip(`<span style="display:block;white-space:normal">${this.ilsOn()
+      ? esc(this.state.property) + ' lists only on a provider that doesn&#39;t carry complete pricing, so none of this is published yet.'
+      : esc(this.state.property) + ' doesn&#39;t advertise on a listing site, so none of this is published anywhere yet.'} Filling it in now means the charge is ready the day it is.</span>`);
     // The header carries where this charge stands, so it reads with the section collapsed, which is
     // how it is most of the time. `__mitsRecheck` writes it, and a property that doesn't advertise
     // online is asked none of this, so it carries no status at all.
@@ -8317,7 +8324,7 @@ class Component extends DCLogic {
           <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" id="m-mkt-caret" style="color:var(--rmx-text, #666666)"><path d="M530-481 332-679l43-43 241 241-241 241-43-43 198-198Z"/></svg>
           <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Charge Marketing</span>
           ${!offTip ? '' : `<span onclick="event.stopPropagation()" style="display:inline-flex;align-items:center">${offTip}</span>`}
-          ${!this.ilsOn() ? '' : `<span id="m-lr-status" style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap"></span>`}
+          ${!this.ftApplicable(this.state.property) ? '' : `<span id="m-lr-status" style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap"></span>`}
           <span id="m-mkt-count" style="display:none;align-items:center;height:22px;box-sizing:border-box;padding:0 9px;border-radius:4px;background:#fdecee;font-size:13px;color:#a3252c;white-space:nowrap"></span>
           <div style="flex:1"></div>
           ${mktNote}
