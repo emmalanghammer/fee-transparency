@@ -191,7 +191,11 @@ the property view), white card at 16/32 with dropshadow-sm, the title at 16/600,
 *Market Rent* over a SemiBold value — and the tune-icon toolbar; a register with 32px headers in
 Label/S/Medium (12.6px, 1.134px tracking), 36px rows striped from the first, 8px cell padding, a 10px
 level colour bar, 20px checks, and Figma's column widths (`recview3`); and a plain footer, the count
-SemiBold and the total Regular, both text-primary grey. The content is unchanged.
+SemiBold and the total Regular, both text-primary grey. The content is unchanged. **The unit's
+Recurring Charges tile** (`recChargesTableHTML`) wears the same register styling — 25px bar column,
+Label/S/Medium tracked headers, Frequency left-aligned, rows striped from the first, comments in the
+register's navy — and keeps its own content (no checkbox or kebab columns, *Monthly*, the To Date
+dash, the Override and Excluded pills); its tracks moved to `recchg2-*`.
 
 `infoTip`'s panel is RMX's **Tooltip** (RMX Components `2944:203796`): 312px wide, 16px padding,
 1px `#cedbe7`, 4px radius, drop shadow `0 3px 6px rgba(0,0,0,0.10)`, Roboto Regular 14/20, left

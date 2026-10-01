@@ -6670,18 +6670,20 @@ class Component extends DCLogic {
     const propAmt = {};
     rec.forEach(f => { if (String(f.level||'Property') === 'Property') propAmt[f.mits] = f.amount; });
     const lvlMap={ 'Property':{c:'#1570ef',l:'Property'}, 'Unit type':{c:'#d92d20',l:'Unit Type'}, 'Unit Type':{c:'#d92d20',l:'Unit Type'}, 'Unit':{c:'#099250',l:'Unit'}, 'ORI':{c:'#6a4aa8',l:'Other Rentable Item'}, 'Tenant':{c:'#98a2b3',l:'Tenant'} };
-    const recColK = 'recchg-' + (two ? '2' : '1');
-    const recCols = this.colTracks(recColK, two ? '32px 94px minmax(100px,1fr) minmax(120px,1fr) minmax(120px,1fr) 80px 92px 92px 110px' : '32px 94px minmax(110px,1fr) minmax(150px,1fr) 84px 96px 96px 124px');
-    const rh=(t,align)=>`<span style="display:flex;align-items:center;height:32px;box-sizing:border-box;padding:0 8px;font-size:14px;font-weight:500;letter-spacing:0.5px;color:var(--rmx-brand-dark, #13314c);background:#fff;border-bottom:1px solid var(--rmx-line, #cedbe7);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${align==='right'?'justify-content:flex-end;text-align:right':''}">${t}</span>`;
-    const heads = two ? [['',''],['',''],['Charge Type',''],['Comment',''],['Comment',''],['Frequency','right'],['From Date',''],['To Date',''],['Amount','right']] : [['',''],['',''],['Charge Type',''],['Comment',''],['Frequency','right'],['From Date',''],['To Date',''],['Amount','right']];
+    // Styled as the View Recurring Charges register it opens (RMX Pages `4217:79721`): a 25px bar
+    // column, Label/S/Medium headers, rows striped from the first, comments in the register's ink.
+    const recColK = 'recchg2-' + (two ? '2' : '1');
+    const recCols = this.colTracks(recColK, two ? '25px 94px minmax(100px,1fr) minmax(120px,1fr) minmax(120px,1fr) 80px 92px 92px 110px' : '25px 94px minmax(110px,1fr) minmax(150px,1fr) 84px 96px 96px 124px');
+    const rh=(t,align)=>`<span style="display:flex;align-items:center;height:32px;box-sizing:border-box;padding:0 8px;font:500 12.6px Roboto,sans-serif;letter-spacing:1.134px;color:var(--rmx-brand-dark, #13314c);background:#fff;border-bottom:1px solid var(--rmx-line, #cedbe7);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${align==='right'?'justify-content:flex-end;text-align:right':''}">${t}</span>`;
+    const heads = two ? [['',''],['',''],['Charge Type',''],['Comment',''],['Comment',''],['Frequency',''],['From Date',''],['To Date',''],['Amount','right']] : [['',''],['',''],['Charge Type',''],['Comment',''],['Frequency',''],['From Date',''],['To Date',''],['Amount','right']];
     const recHead=`<div ${this.colHead(recColK)} style="display:grid;grid-template-columns:${recCols}">${heads.map(h=>rh(h[0],h[1])).join('')}</div>`;
     const cell=(t,align,color)=>`<span style="display:flex;align-items:center;height:36px;box-sizing:border-box;padding:0 8px;font-size:14px;color:${color||'var(--rmx-brand-dark, #13314c)'};border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${align==='right'?'justify-content:flex-end;text-align:right':''}">${t}</span>`;
-    const barFor=(c)=>`<span style="display:flex;justify-content:center;height:36px;box-sizing:border-box;border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)"><span style="width:10px;background:${c}"></span></span>`;
+    const barFor=(c)=>`<span style="display:flex;justify-content:center;height:36px;box-sizing:border-box;padding:0 8px;border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)"><span style="width:10px;background:${c}"></span></span>`;
     const lock = '';
     const row=(idx,bar,level,code,comment,amount,commentColor,comment2)=>{
-      const rowBg = (idx%2===1) ? 'var(--rmx-bg-subtle, #f5f8fa)' : '#fff';
-      const mid = two ? `${cell(comment,'',commentColor||'var(--rmx-text, #666666)')}${cell(comment2||'','',commentColor||'var(--rmx-text, #666666)')}` : cell(comment,'',commentColor||'var(--rmx-text, #666666)');
-      return `<div style="display:grid;grid-template-columns:${recCols};background:${rowBg}">${barFor(bar)}${cell(level + lock)}${cell(code)}${mid}${cell('Monthly','right')}${cell('01/01/2026')}${cell('—','','var(--rmx-text-muted, #b3b3b3)')}${cell(amount,'right')}</div>`;
+      const rowBg = (idx%2===1) ? '#fff' : 'var(--rmx-bg-subtle, #f5f8fa)';
+      const mid = two ? `${cell(comment,'',commentColor)}${cell(comment2||'','',commentColor)}` : cell(comment,'',commentColor);
+      return `<div style="display:grid;grid-template-columns:${recCols};background:${rowBg}">${barFor(bar)}${cell(level + lock)}${cell(code)}${mid}${cell('Monthly')}${cell('01/01/2026')}${cell('—','','var(--rmx-text-muted, #b3b3b3)')}${cell(amount,'right')}</div>`;
     };
     const ovrPill=`<span style="margin-left:8px;background:#fdeedd;color:var(--rmx-attention, #f58220);border-radius:4px;padding:1px 8px;font-size:14px">Override</span>`;
     const ovrAmt=(was,now)=>`<s style="color:var(--rmx-text-muted, #b3b3b3);font-size:14px">${was}</s> <span style="color:var(--rmx-text-muted, #b3b3b3)">→</span> <span style="font-weight:600;color:var(--rmx-attention, #f58220)">${now}</span>`;
