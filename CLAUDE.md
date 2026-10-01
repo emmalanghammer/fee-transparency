@@ -1096,4 +1096,6 @@ nothing and falls through to the Unit page, so that scenario opened on a random 
 The Test Feature State selector starts **hidden**, so a demo never opens with a control that
 isn't part of the product. **Full Menu › Prototype › Show Test Feature State** turns it on (the
 menu item's label flips to Hide), clicking the Rent Manager logo toggles it, and `?test=1` on the
-URL starts with it showing. The Version switcher is not affected — it always shows. **Happy Path** is the default and the one used for walkthroughs (above).
+URL starts with it showing. The Version switcher is not affected — it always shows. **On Rollout is the default** (2026-10-01): `state.scenario` starts at `'on'`, so a bare link opens
+it. **Happy Path** is the one used for walkthroughs (above) — reach it through the Test Feature
+State picker or `?scen=happy`.
