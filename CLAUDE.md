@@ -833,9 +833,18 @@ Requirement, Charge Schedule and Fee Due, so a walkthrough has something to go a
 
 - **Happy Path** leaves **none** short: it opens with every default already set, and the story is
   *activate the last one*. Five charge types across the whole portfolio.
-- **Everything else** keeps `RC`, `GARBAG`, `GARBAGEFEE`, `ADMIN` and `DP` short, so a real
-  portfolio still shows properties with work outstanding. `on` reads 12/18 for Riverview, `mid` and
-  `post` 16/16 — the regression check after any change here.
+- **Everything else** keeps **`GARBAG`** short, and only it (2026-10-01): one type, one charge per
+  property, so a property still working on its charges is short exactly one.
+
+**The portfolio scenarios are small too** (On Rollout, Mid and Post Conversion, No ILS):
+`portfolioCharges()` is their keep list per property, read through `propChargePlan` and
+`chargeTypeList` exactly as Happy Path's is, so Charge Types is eight — RC, DP, APPFEE, GARBAG,
+PETFEE, COVPARK, NSF, LATE — and a property's Charges five to eight rows. Rent, the deposit, the
+**application fee**, Garbage, NSF and Late everywhere; PETFEE and COVPARK where the property rents
+them, so the Pet and Parking detail sections are on screen; Clearcreek runs no deposit. Mid
+Conversion's Windermere drifts **one** charge. REKEY stays Happy Path's alone. The regression check:
+Riverview reads **7/8** in `on` and **6/6** in `mid` and `post`; `mid` reads The Windermere 4/5
+(*Action Required*) and The Estates 6/7; Happy Path stays 5/5.
 
 **`mktCopy()` is the resident-facing name and sentence per charge type**, read by the finished
 worked example (`listingReadyRows`) **and** by `mktDefAll`, so a charge type's default Marketing
@@ -1052,8 +1061,7 @@ Clearcreek Condominiums (MH Village). **Mid Conversion**: Riverview (activated),
 (activated, drifted), The Estates (short), The Hamptons (ready) and Clearcreek — so the mix is still
 all there. `portfolioTotal()` is simply that count. **Mid's five hand-set worked-example listings**
 (1127 Blackwell, Kirby, Timber Trail, Sheehan and a Clearcreek extra) are gone from
-`listingsData()`, since they sat outside the portfolio. The Riverview baselines are unchanged:
-`on` 12/18, `mid` and `post` 16/16.
+`listingsData()`, since they sat outside the portfolio. Riverview's baselines are in *Which types are left short* above.
 
 **Happy Path is everything done but one.** Four properties, all marketed online, every charge type's
 default charge marketing complete (`mktDefShort()` returns nothing for it). **The Berkshires, The

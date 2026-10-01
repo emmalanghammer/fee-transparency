@@ -571,7 +571,9 @@ class Component extends DCLogic {
   mktDefShort(){
     const k = this.scenarioKey();
     if (k === 'happy') return {};
-    return { RC:1, GARBAG:1, GARBAGEFEE:1, ADMIN:1, DP:1 };
+    // One type, used by one charge on each property, so a property still working on its charges is
+    // short exactly one: Garbage.
+    return { GARBAG:1 };
   }
   mktDefAll(){
     const SHORT = this.mktDefShort();
@@ -579,11 +581,6 @@ class Component extends DCLogic {
     const copy = this.mktCopy();
     const out = {};
     const raw = this.chargeCategoryMap(true);
-    // EV charging has no mapped category on purpose, so On Rollout shows a charge short of one. The
-    // converted portfolios have been through that and filled it in — on the charge type, which is the
-    // only place a category lives.
-    const k0 = this.scenarioKey();
-    if ((k0 === 'mid' || k0 === 'post') && !raw.EVCHG) raw.EVCHG = 'Utility';
     this.chargeTypeList().forEach(([code, desc]) => {
       const seed = this.mktDefSeed(code);
       // A charge type's default carries the sentence a listing would say about it, from the one
@@ -818,6 +815,24 @@ class Component extends DCLogic {
       'Oakwood Manor':        ['RC','GARBAG','DP','NSF','LATE']
     };
   }
+  // The portfolio scenarios (On Rollout, Mid and Post Conversion, No ILS) keep a short list too, so a
+  // property's Charges is a handful of rows and Charge Types is eight. Rent, the deposit and the
+  // application fee everywhere; Garbage is the one recurring fee and the one charge left short;
+  // pet and covered parking stay where the property rents them out, so those detail sections are on
+  // screen; NSF and Late everywhere, as in Happy Path.
+  portfolioCharges(){
+    const core = ['RC','DP','APPFEE','GARBAG','NSF','LATE'];
+    return {
+      'Riverview Apartments':    core.concat(['PETFEE','COVPARK']),
+      'The Berkshires':          core.slice(),
+      'The Windermere':          core.concat(['COVPARK']),
+      'Oakwood Manor':           core.slice(),
+      'The Estates':             core.concat(['PETFEE']),
+      'The Hamptons':            core.slice(),
+      // Manufactured housing: lot rent and the basics, no deposit.
+      'Clearcreek Condominiums': ['RC','APPFEE','GARBAG','NSF','LATE']
+    };
+  }
   // The scenario that is a walkthrough rather than a portfolio names, per property, the charges it
   // keeps. Everything else about it falls out of that one list — which properties exist, what they
   // charge, and which charge types are on the books.
@@ -826,7 +841,7 @@ class Component extends DCLogic {
   }
   propChargePlan(){
     const base = this.propChargePlanBase();
-    const simple = this.walkCharges();
+    const simple = this.walkCharges() || this.portfolioCharges();
     if (!simple) return base;
     // The plan names what a property doesn't run, so a keep list becomes everything else — the
     // property-specific NSF and late fees included, which keeps the one-time section to the keeps.
@@ -1026,13 +1041,12 @@ class Component extends DCLogic {
   // downstream reads this — the register, the typeahead and `mktDefAll` — so they cannot disagree
   // about what exists.
   chargeTypeList(){
-    const walk = this.walkCharges();
-    if (!walk) return this.chargeTypeListAll();
+    const walk = this.walkCharges() || this.portfolioCharges();
     const use = {}; Object.keys(walk).forEach(p2 => walk[p2].forEach(c => { use[c] = 1; }));
     // One type no charge uses yet, and with no category: adding a charge on it is how the walkthrough
     // shows Add Charge Category, without touching any property's readiness. REKEY is the one
     // company-wide, active type the category map leaves out.
-    use.REKEY = 1;
+    if (this.walkCharges()) use.REKEY = 1;
     return this.chargeTypeListAll().filter(([code]) => use[code]);
   }
   chargeTypeListAll(){
@@ -2843,7 +2857,7 @@ class Component extends DCLogic {
       ['Riverview Apartments','Greenbriar Village'].forEach(n => convert(n, true, true));
       // Converted with every detail in place, then two charges drifted — which is the only way a
       // converted property can need attention, since the conversion itself is gated on being ready.
-      convert('The Windermere', true, true, 2);
+      convert('The Windermere', true, true, 1);
       ['The Estates','Willow Creek','Pinewood Place'].forEach(n => convert(n, false, false));
       ['The Hamptons','Stonegate Village'].forEach(n => convert(n, true, false));
       // Not enabled for listings, so there is nothing for these to convert to.
