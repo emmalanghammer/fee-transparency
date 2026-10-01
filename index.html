@@ -4439,7 +4439,9 @@ class Component extends DCLogic {
       if (!this.ftApplicable(prop) || !onList) return cell('\u2014');
       const whole = ch.incomplete === 0;
       const dot = whole ? 'var(--rmx-success, #6eb744)' : 'var(--rmx-error, #eb343c)';
-      return `<span title="${whole ? 'Every charge listings carry is ready' : ch.incomplete + ' charge' + (ch.incomplete === 1 ? '' : 's') + ' still need details'}" style="display:flex;align-items:center;gap:8px;min-height:36px;box-sizing:border-box;padding:0 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap"><span style="flex:none;width:8px;height:8px;border-radius:50%;background:${dot}"></span>${ch.ready}/${onList}</span>`;
+      // It opens the property's Charges, where those charges are — the count is the way in.
+      const arg = String(prop).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+      return `<span data-act="openFeeProfile" data-arg="${arg}" title="${whole ? 'Every charge listings carry is ready' : ch.incomplete + ' charge' + (ch.incomplete === 1 ? '' : 's') + ' still need details'} — view charges" onmouseover="this.style.color='var(--ac,var(--rmx-brand, #008dd5))'" onmouseout="this.style.color='var(--rmx-brand-dark, #13314c)'" style="cursor:pointer;display:flex;align-items:center;gap:8px;min-height:36px;box-sizing:border-box;padding:0 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap"><span style="flex:none;width:8px;height:8px;border-radius:50%;background:${dot}"></span>${ch.ready}/${onList}</span>`;
     };
 
     const group = (g, gi) => {

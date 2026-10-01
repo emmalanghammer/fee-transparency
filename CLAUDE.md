@@ -222,7 +222,10 @@ apply to (`ftApplicable` is false: not on an ILS feed, or on MH Village) reads `
 question isn't asked of it. **The group header no longer carries it** — the same number in two
 places on one screen is one place too many, so the header is the chevron and the property name.
 
-**The cell reports and nothing more.** It used to open `ltReadyHTML`, which itemised the charges
+**The cell opens the property's Charges** (`openFeeProfile`, 2026-10-01): the fraction is the way
+into where those charges are, turning brand blue on hover. It used to report and nothing more.
+
+**The cell no longer opens the itemised dialog.** It used to open `ltReadyHTML`, which itemised the charges
 still short — but the Errors icon in the very next column already does that, in its **Charge
 Marketing Errors** section, so the dialog was a second door onto the same list. `ltReadyHTML`,
 `ltReadyOpen`/`ltReadyClose` and `state.ltReady` are gone from C; the cell keeps a `title` saying
