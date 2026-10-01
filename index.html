@@ -6753,7 +6753,6 @@ class Component extends DCLogic {
     const total = rows.length;
     const sum = rows.reduce((n, r) => n + this.parseAmt(r.amount), 0);
     const lvl = { 'Property':'#1570ef', 'Unit Type':'#d92d20', 'Unit type':'#d92d20', 'Unit':'#099250', 'ORI':'#6a4aa8' };
-    const cb = (label) => `<label style="display:flex;align-items:center;gap:8px;padding:7px 14px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap"><span style="width:18px;height:18px;border-radius:2px;box-sizing:border-box;border:2px solid var(--ac,var(--rmx-brand, #008dd5));background:#fff;flex:none"></span>${label}</label>`;
     const orange = `<span style="width:20px;height:20px;border-radius:2px;box-sizing:border-box;background:var(--rmx-attention, #f58220);border:1px solid var(--rmx-attention, #f58220);display:flex;align-items:center;justify-content:center;flex:none"><svg class="ico" width="14" height="14" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:#fff"><path d="M378-246 154-470l43-43 181 181 384-384 43 43-427 427Z"/></svg></span>`;
     // Column widths, header and cells are RMX Pages `4217:79721`: 32px headers in Label/S/Medium
     // (12.6px, 1.134px tracking), 36px striped rows, 8px cell padding.
@@ -6773,15 +6772,16 @@ class Component extends DCLogic {
       ${cell(String(r.amount||'').replace(/^\$/,''),'justify-content:flex-end')}
       <span data-act="todo" data-arg="Row actions" style="display:flex;align-items:center;justify-content:center;height:36px;cursor:pointer"><svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5))"><path d="M400-720a80 80 0 1 0 160 0 80 80 0 1 0-160 0ZM400-480a80 80 0 1 0 160 0 80 80 0 1 0-160 0ZM400-240a80 80 0 1 0 160 0 80 80 0 1 0-160 0Z"/></svg></span>
     </div>`).join('');
-    // The tune icon is the filter control in production; the three scopes it used to show in a row
-    // sit in its panel.
-    const filterJs = "var p=document.getElementById('recview-filt');p.style.display=(p.style.display==='block'?'none':'block')";
-    const filters = `<div style="display:flex;align-items:center">
-      <span style="position:relative;display:inline-flex">
-        <span onclick="${filterJs}" title="Filters" style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:4px;cursor:pointer">${this.ico('tune', 22, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
-        <span id="recview-filt" style="display:none;position:absolute;left:0;top:36px;z-index:1000;background:#fff;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);padding:4px 0">${cb('Past')}${cb('Future')}${cb('Exceptions')}</span>
-      </span>
-    </div>`;
+    // RMX Pages `4217:79721`: the three scopes as a row of blue checkboxes under the Scoreboard —
+    // a 20px white box with a 2px brand border and a brand label, 16px apart. Ticking fills the box
+    // and shows the check; nothing is filtered, as nothing was behind the tune icon either.
+    const CHECK = `<svg width="16" height="16" viewBox="0 -960 960 960" fill="#fff" aria-hidden="true" style="display:none"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg>`;
+    const flip = "var b=this.firstElementChild,on=b.getAttribute('data-on')!=='1';b.setAttribute('data-on',on?'1':'0');b.style.background=on?'var(--ac,var(--rmx-brand, #008dd5))':'#fff';b.firstElementChild.style.display=on?'block':'none'";
+    const scope = (label) => `<span onclick="${flip}" role="checkbox" style="display:inline-flex;align-items:center;gap:8px;cursor:pointer">
+        <span data-on="0" style="display:flex;align-items:center;justify-content:center;width:20px;height:20px;box-sizing:border-box;border:2px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:2px;background:#fff;flex:none">${CHECK}</span>
+        <span style="font-size:14px;line-height:20px;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap">${label}</span>
+      </span>`;
+    const filters = `<div style="display:flex;align-items:center;gap:16px">${scope('Past')}${scope('Future')}${scope('Exceptions')}</div>`;
     // It sits over the details page rather than replacing it: anchored just under the app bar, with
     // the page dimmed around its edges.
     return `<div data-act="recViewClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;padding:60px 20px 20px;box-sizing:border-box;z-index:100"><div data-act="noop" style="flex:1;min-width:0;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.28);display:flex;flex-direction:column;overflow:hidden">

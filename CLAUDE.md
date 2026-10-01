@@ -188,7 +188,9 @@ whose title is **Label/M/SemiBold, 14px, text-primary grey** (the page pattern's
 20px dialog title), 16px-sided Print and an Add with 20px icons; a `#f2f2f2` heading band at 16px
 holding the strip as an RMX **Scoreboard** — 24px `#425a70` colour bar (the property's own colour on
 the property view), white card at 16/32 with dropshadow-sm, the title at 16/600, items 32px apart,
-*Market Rent* over a SemiBold value — and the tune-icon toolbar; a register with 32px headers in
+*Market Rent* over a SemiBold value — and, under it, **Past / Future / Exceptions as blue checkboxes**
+(20px white box, 2px brand border, brand label, 16px apart; they tick visually and filter nothing),
+which replaced the tune icon and its popover; a register with 32px headers in
 Label/S/Medium (12.6px, 1.134px tracking), 36px rows striped from the first, 8px cell padding, a 10px
 level colour bar, 20px checks, and Figma's column widths (`recview3`); and a plain footer, the count
 SemiBold and the total Regular, both text-primary grey. The content is unchanged. **The unit's
