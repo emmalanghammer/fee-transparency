@@ -370,7 +370,13 @@ Header + Cell, and fields are `Input Field`. Page `3465:40468` ("V2") holds the 
 `gh run view <id> --json status,conclusion` until it says `completed success`, then the change
 is live at <https://emmalanghammer.github.io/fee-transparency/>.
 
-**Do not republish the artifact.** <https://claude.ai/artifact/JCtc82KKhtuQJ1eEDfiQdj> is
+**The experiment has its own artifact**: <https://claude.ai/artifact/EUHAs2bDnbKeqggx91vT4e>,
+published on 2026-10-01 at the user's request from `index.html` plus its 18 supporting files
+(`support.js`, `favicon.svg`, `vendor/*`, the two `ds/…` files and the 11 `assets/` it loads). It is
+a snapshot: republishing `index.html` from a session that published it, or passing that URL as
+`url`, updates it — only when the user asks.
+
+**Do not republish the old artifact.** <https://claude.ai/artifact/JCtc82KKhtuQJ1eEDfiQdj> is
 frozen at Version 29, which matches `main`. It is the shareable record of that snapshot, so
 pushing `experiment` work into it would destroy the thing it exists to preserve. Publish an
 artifact again only when the user asks — and if they want the experiment shared, ask whether
