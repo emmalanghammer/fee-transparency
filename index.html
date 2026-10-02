@@ -9063,19 +9063,53 @@ class Component extends DCLogic {
       </div>`);
     const uts = this.utData();
     // A register inside a tile runs flush to the tile's edges: the body's own padding is cancelled
-    // and the cells carry their own 14px, the same as Default Charge Marketing beside it, so the two
+    // and the cells carry their own, the same as Default Charge Marketing beside it, so the two
     // registers in the bottom row line up on the same left edge.
-    // Name and Unit Type carry the same string, so without a gap between the tracks they ran into
-    // each other and read as one word.
-    const FPCOLS = 'display:grid;grid-template-columns:1.3fr 1.3fr 1fr 0.7fr 0.7fr;gap:8px';
-    const FPCELL = 'min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
-    const fpRow = (name, count, beds, baths) => `<div style="${FPCOLS};padding:9px 14px;border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);font-size:14px;color:var(--rmx-brand-dark, #13314c)"><span style="${FPCELL}">${name}</span><span style="${FPCELL}">${name}</span><span>${count}</span><span>${beds}</span><span>${baths}</span></div>`;
-    const floor = card('Floor Plans', `
+    // Only what fits a third-width tile is a column — Name, Unit Type, Unit Count. The rest of a
+    // floor plan (Beds, Baths, Price, Images) opens under its row from the chevron. The toggle is
+    // DOM-only (`window.__fpToggle`), since a re-render would wipe anything typed on the page;
+    // `this._fpOpen` remembers which rows are open so an unrelated re-render keeps them so.
+    const fpOpen = this._fpOpen || (this._fpOpen = {});
+    const FPCOLS = 'display:grid;grid-template-columns:36px minmax(0,1.2fr) minmax(0,1.2fr) minmax(0,1fr) 36px;align-items:center';
+    const FPCELL = 'min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 8px';
+    const fpHead = (t) => `<span style="${FPCELL};font:500 12.6px Roboto,sans-serif;letter-spacing:1.134px;color:var(--rmx-brand-dark, #13314c)">${t}</span>`;
+    const money = (v) => (Math.round(v * 100) / 100).toFixed(2);
+    const fpPlans = uts.length ? uts.map((t, i) => {
+      const rents = this.units().filter(u => u.type === t.name).map(u => parseFloat(String(u.rent || '').replace(/[^0-9.]/g, ''))).filter(n => !isNaN(n));
+      const lo = rents.length ? Math.min.apply(null, rents) : 0, hi = rents.length ? Math.max.apply(null, rents) : 0;
+      return { name: t.name, count: t.units,
+        beds: /studio/i.test(t.name) ? '0' : ((t.name.match(/^(\d)/) || [, '2'])[1]),
+        baths: ((t.name.match(/(\d)BA?$/) || t.name.match(/\/ ?(\d)/) || [, '1'])[1]) + '.0',
+        price: lo === hi ? money(lo) : money(lo) + ' - ' + money(hi),
+        images: (i % 3) + 1 };
+    }) : [{ name:'2B / 2B', count:14, beds:'2', baths:'2.0', price:'1500.00 - 1650.00', images:2 }, { name:'1B / 1B', count:18, beds:'1', baths:'1.0', price:'1150.00 - 1275.00', images:1 }];
+    const fpRow = (f, i) => {
+      const open = !!fpOpen[f.name];
+      const kv = (k, v) => `<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:8px;padding:6px 0;font-size:14px;line-height:20px"><span style="color:var(--rmx-text, #666666)">${k}</span><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--rmx-brand-dark, #13314c)">${v}</span></div>`;
+      return `<div data-fp="${i}" style="border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)">
+        <div style="${FPCOLS};min-height:36px;font-size:14px;color:var(--rmx-brand-dark, #13314c)">
+          <span onclick="window.__fpToggle(this, ${i})" data-fpname="${esc2(f.name)}" title="Show floor plan details" style="display:flex;align-items:center;justify-content:center;height:36px;cursor:pointer;color:var(--ac,var(--rmx-brand, #008dd5))"><span data-fpchev style="display:inline-flex;transition:transform .15s;transform:rotate(${open ? '0' : '-90'}deg)">${this.ico('keyboard_arrow_down', 20)}</span></span>
+          <span style="${FPCELL}">${esc2(f.name)}</span><span style="${FPCELL}">${esc2(f.name)}</span><span style="${FPCELL}">${f.count}</span>
+          <span data-act="todo" data-arg="Floor plan actions" style="display:flex;align-items:center;justify-content:center;height:36px;cursor:pointer;color:var(--rmx-text, #666666)">${this.ico('more_vert', 20)}</span>
+        </div>
+        <div data-fpbody style="display:${open ? 'block' : 'none'};padding:2px 16px 8px 44px">
+          ${kv('Beds', f.beds)}${kv('Baths', f.baths)}${kv('Price', f.price)}${kv('Images', f.images)}
+        </div>
+      </div>`;
+    };
+    if (!window.__fpToggle) window.__fpToggle = (el, i) => {
+      const row = el.closest('[data-fp]'); if (!row) return;
+      const body = row.querySelector('[data-fpbody]'), chev = row.querySelector('[data-fpchev]');
+      const open = body.style.display === 'none';
+      body.style.display = open ? 'block' : 'none';
+      chev.style.transform = 'rotate(' + (open ? '0' : '-90') + 'deg)';
+      const store = this._fpOpen || (this._fpOpen = {}); store[el.getAttribute('data-fpname')] = open;
+    };
+    const floor = card(`<span style="display:inline-flex;align-items:center;gap:16px">Floor Plans<a data-act="todo" data-arg="Add Item" style="display:inline-flex;align-items:center;gap:5px;font-size:14px;font-weight:400;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap"><svg class="ico" width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M450-450H200v-60h250v-250h60v250h250v60H510v250h-60v-250Z"/></svg>Add Item</a></span>`, `
       <div style="margin:-14px -16px">
-        <div style="${FPCOLS};padding:8px 14px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);border-bottom:1px solid var(--rmx-line, #cedbe7)"><span style="${FPCELL}">Name</span><span style="${FPCELL}">Unit Type</span><span style="${FPCELL}">Unit Count</span><span>Beds</span><span>Baths</span></div>
-        ${uts.length ? uts.map(t => fpRow(t.name, t.units, (t.name.match(/^(\d)/)||[,'2'])[1], ((t.name.match(/(\d)B$/)||t.name.match(/\/ ?(\d)/)||[,'2'])[1]) + '.0')).join('') : fpRow('2B / 2B', 14, 2, '2.0') + fpRow('1B / 1B', 18, 1, '1.0')}
-      </div>`,
-      `<a data-act="todo" data-arg="Add Item" style="display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap"><svg class="ico" width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M450-450H200v-60h250v-250h60v250h250v60H510v250h-60v-250Z"/></svg>Add Item</a>`, false, true);
+        <div style="${FPCOLS};min-height:32px;border-bottom:1px solid var(--rmx-line, #cedbe7)"><span></span>${fpHead('Name')}${fpHead('Unit Type')}${fpHead('Unit Count')}<span></span></div>
+        ${fpPlans.map(fpRow).join('')}
+      </div>`, '', false, true);
     // Figma 3576:12748. The property's charges roll up to their charge types here: one row per
     // type, the count it covers, and whether this property has taken the type's defaults over.
     // Editing happens in a dialog, so the tile stays a sixth of the screen.

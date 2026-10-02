@@ -687,6 +687,13 @@ Iconography's **edit-filled** (Figma `3595:57346`), harvested rather than drawn:
 glyph at 20px on its own `0 0 20 20` box, so it can't live in the Material `ico` map with the
 `-960 960` ones and is inlined as `EDIT_FILLED` beside the register.
 
+**Floor Plans shows only what fits, and the rest drops down** (2026-10-02, to the user's mock).
+Its columns are a brand chevron · **Name · Unit Type · Unit Count** · a `todo` kebab, headers in
+Label/S/Medium tracked; the chevron opens the row onto grey-labelled **Beds, Baths, Price, Images**
+(Price is the unit type's rent range, `990.00 - 995.00`). **+ Add Item** sits beside the title, not
+on the right. The toggle is DOM-only (`window.__fpToggle`) with `this._fpOpen` remembering open rows
+across re-renders, since a `setState` would wipe whatever is typed on the page.
+
 **Property Override is a tick** (it was *Field Overrides*, an `n/7` fraction, and the user changed
 it back on 2026-09-30): the Charge Types register's own green filled check when the Override Charge
 Type Defaults box is ticked for that type at this property (`ctmOverridden`), and blank otherwise —
