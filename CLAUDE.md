@@ -206,8 +206,7 @@ wears the same register styling (25px level bar, Label/S/Medium tracked headers,
 the first) and carries **recurring and one-time charges together** — `unitRecurring` then
 `unitOneTime`, the same level rule; situational NSF / Late are left out. **Frequency is the number**
 (`freqNum`, `1`), and a one-time charge reads **One-time** with no From or To Date. The footer is
-the View Recurring Charges one, twice: **n Active Recurring Charges $x** and **n Active One-Time
-Charges $y**, the count SemiBold — Market Rent counts as the unit's own market rent.
+the View Recurring Charges one, twice: **n Recurring Charges $x** and **n One-Time Charges $y**, the count SemiBold — Market Rent counts as the unit's own market rent.
 **Columns that don't fit drop into a row dropdown**, as Floor Plans does, through container queries
 on `.uchg` (so it answers to the tile's width, not the window's): under 860px **From / To Date** go
 first, recurring rows only; under 620px **Comment**; under 440px **Level** and **Frequency**. The
@@ -218,7 +217,8 @@ There is no unit-type page in the prototype, so the unit page's is the one tile.
 
 **The overlay the tile opens follows it** (2026-10-05): `recViewHTML` is now titled **View
 Charges**, lists one-time charges after recurring (*One-time* in Frequency, no dates), and its footer
-reads **n of n Recurring Charges $x** then **n of n One-Time Charges $y**. Its columns drop into a
+reads the same, **n Recurring Charges $x** then **n One-Time Charges $y** — no *Active*, no
+*n of n*, in either (2026-10-05). Its columns drop into a
 row dropdown the same way, through container queries on `.vchg` — From / To Date under 1060px
 (recurring rows only), Comment under 700px, Level and Frequency under 480px — with the chevron
 between the level bar and the orange checkbox (`window.__vchgToggle`, `this._vchgOpen`). At full
