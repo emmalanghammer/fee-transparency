@@ -6854,32 +6854,84 @@ class Component extends DCLogic {
     const unitScope = this.state.recView === 'unit';
     const info = this.unitInfo(this.state.unit);
     const prop = this.state.property;
-    // Recurring charges only. The unit view shows every level that reaches this unit — the same
-    // filter the unit page uses, so a charge scoped to another unit doesn't turn up here.
-    const rows = unitScope ? this.unitRecurring(this.state.unit)
+    // Recurring then one-time charges (2026-10-05, matching the unit page's Charges tile). The unit
+    // view shows every level that reaches this unit — the same filters the unit page uses, so a
+    // charge scoped to another unit doesn't turn up here. Situational NSF / Late are left out.
+    const rec = unitScope ? this.unitRecurring(this.state.unit)
       : this.propertyCharges().filter(f => !f.excluded && !/-one$/.test(f.group) && f.level === 'Property');
-    const total = rows.length;
-    const sum = rows.reduce((n, r) => n + this.parseAmt(r.amount), 0);
+    const one = unitScope ? this.unitOneTime(this.state.unit)
+      : this.propertyCharges().filter(f => !f.excluded && /-one$/.test(f.group) && !/^sit-/.test(f.group) && f.level === 'Property');
+    // Market Rent is a reference, not a figure — on a unit it is that unit's market rent.
+    const amtOf = (r) => /market rent/i.test(String(r.amount || '')) ? (unitScope ? this.parseAmt(info.rent) : 0) : this.parseAmt(r.amount);
+    const sum = (list) => list.reduce((n, r) => n + amtOf(r), 0);
     const lvl = { 'Property':'#1570ef', 'Unit Type':'#d92d20', 'Unit type':'#d92d20', 'Unit':'#099250', 'ORI':'#6a4aa8' };
     const orange = `<span style="width:20px;height:20px;border-radius:2px;box-sizing:border-box;background:var(--rmx-attention, #f58220);border:1px solid var(--rmx-attention, #f58220);display:flex;align-items:center;justify-content:center;flex:none"><svg class="ico" width="14" height="14" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:#fff"><path d="M378-246 154-470l43-43 181 181 384-384 43 43-427 427Z"/></svg></span>`;
-    // Column widths, header and cells are RMX Pages `4217:79721`: 32px headers in Label/S/Medium
-    // (12.6px, 1.134px tracking), 36px striped rows, 8px cell padding.
-    const colK = 'recview3';
-    const cols = this.colTracks(colK, '25px 32px 142px 118px minmax(160px,1fr) 114px 188px 162px 164px 37px');
-    const heads = ['','',''].concat(['Charge Type','Comment','Frequency','From Date','To Date','Amount','']);
-    const hc = (t,i) => `<span style="display:flex;align-items:center;height:32px;box-sizing:border-box;padding:0 8px;font:500 12.6px Roboto,sans-serif;letter-spacing:1.134px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${/Amount/.test(t)?'justify-content:flex-end;':''}">${t}</span>`;
-    const cell = (t,extra) => `<span style="display:flex;align-items:center;height:36px;box-sizing:border-box;padding:0 8px;font-size:14px;color:var(--rmx-brand-dark, #13314c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
+    // Header and cells are RMX Pages `4217:79721`: 32px headers in Label/S/Medium (12.6px, 1.134px
+    // tracking), 36px striped rows, 8px cell padding; at full width, Figma's column widths. What the
+    // overlay can't fit drops into the row's dropdown, as on the unit tile — From / To Date first
+    // (recurring only), then Comment, then Level and Frequency — through container queries on `.vchg`.
+    const css = `<style>
+      .vchg { container-type:inline-size; }
+      .vchg .vchg-r { display:grid; grid-template-columns:25px 0 32px 142px 118px minmax(160px,1fr) 114px 188px 162px 164px 37px; align-items:center; }
+      .vchg .vchg-chev { visibility:hidden; overflow:hidden; }
+      .vchg .vchg-det, .vchg .vchg-d { display:none; }
+      @container (max-width: 1060px) {
+        .vchg .vchg-r { grid-template-columns:25px 32px 32px 120px 104px minmax(140px,1fr) 96px 140px 37px; }
+        .vchg .c-from, .vchg .c-to { display:none !important; }
+        .vchg [data-rec="1"] .vchg-chev { visibility:visible; }
+        .vchg [data-rec="1"] .vchg-det.open { display:block; }
+        .vchg .d-from, .vchg .d-to { display:grid; }
+      }
+      @container (max-width: 700px) {
+        .vchg .vchg-r { grid-template-columns:25px 32px 32px 110px minmax(90px,1fr) 96px 120px 37px; }
+        .vchg .c-comment { display:none !important; }
+        .vchg .vchg-chev { visibility:visible; }
+        .vchg .vchg-det.open { display:block; }
+        .vchg .d-comment { display:grid; }
+      }
+      @container (max-width: 480px) {
+        .vchg .vchg-r { grid-template-columns:25px 32px 32px minmax(70px,1fr) 100px 37px; }
+        .vchg .c-level, .vchg .c-freq { display:none !important; }
+        .vchg .d-level, .vchg .d-freq { display:grid; }
+      }
+    </style>`;
+    const hc = (t, cls) => `<span class="${cls||''}" style="display:flex;align-items:center;height:32px;box-sizing:border-box;padding:0 8px;font:500 12.6px Roboto,sans-serif;letter-spacing:1.134px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${/Amount/.test(t)?'justify-content:flex-end;':''}">${t}</span>`;
+    const cell = (t, cls, extra) => `<span class="${cls||''}" style="display:flex;align-items:center;height:36px;box-sizing:border-box;padding:0 8px;font-size:14px;color:var(--rmx-brand-dark, #13314c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
+    const kv = (cls, k, v) => `<div class="vchg-d ${cls}" style="grid-template-columns:minmax(0,1fr) minmax(0,3fr);gap:8px;padding:6px 0;font-size:14px;line-height:20px;max-width:640px"><span style="color:var(--rmx-text, #666666)">${k}</span><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--rmx-brand-dark, #13314c)">${v}</span></div>`;
+    const head = `<div class="vchg-r" style="background:#fff;border-bottom:1px solid var(--rmx-line, #cedbe7)">${hc('')}${hc('', 'vchg-chev')}${hc('')}${hc('', 'c-level')}${hc('Charge Type')}${hc('Comment', 'c-comment')}${hc('Frequency', 'c-freq')}${hc('From Date', 'c-from')}${hc('To Date', 'c-to')}${hc('Amount')}${hc('')}</div>`;
+    const openSet = this._vchgOpen || (this._vchgOpen = {});
+    if (!window.__vchgToggle) window.__vchgToggle = (el) => {
+      const row = el.closest('[data-vchg]'); if (!row) return;
+      const det = row.querySelector('.vchg-det'), chev = row.querySelector('[data-vchgchev]');
+      const open = !det.classList.contains('open');
+      det.classList.toggle('open', open);
+      chev.style.transform = 'rotate(' + (open ? '0' : '-90') + 'deg)';
+      (this._vchgOpen || (this._vchgOpen = {}))[row.getAttribute('data-vchg')] = open;
+    };
     // Striped from the first row, as the register draws it: register-row-striped, then white.
-    const body = rows.map((r,i) => `<div style="display:grid;grid-template-columns:${cols};align-items:center;background:${i%2?'#fff':'var(--rmx-bg-subtle, #f5f8fa)'};border-bottom:1px solid #ebf1f5">
+    const all = rec.map(r => [r, false]).concat(one.map(r => [r, true]));
+    const body = all.map(([r, isOne], i) => {
+      const key = (isOne ? 'o' : 'r') + ':' + r.mits + ':' + (r.id || i);
+      const open = !!openSet[key];
+      const freq = isOne ? 'One-time' : (this.freqNum(r) || '1');
+      const comment = r.desc || r.name || '';
+      return `<div data-vchg="${key.replace(/"/g,'&quot;')}" data-rec="${isOne ? '0' : '1'}" style="background:${i%2?'#fff':'var(--rmx-bg-subtle, #f5f8fa)'};border-bottom:1px solid #ebf1f5">
+      <div class="vchg-r">
       <span style="align-self:stretch;display:flex;justify-content:center;padding:0 8px"><span style="width:10px;background:${lvl[r.level]||lvl['Property']}"></span></span>
+      <span class="vchg-chev" onclick="window.__vchgToggle(this)" title="Show charge details" style="display:flex;align-items:center;justify-content:center;height:36px;cursor:pointer;color:var(--ac,var(--rmx-brand, #008dd5))"><span data-vchgchev style="display:inline-flex;transition:transform .15s;transform:rotate(${open ? '0' : '-90'}deg)">${this.ico('keyboard_arrow_down', 20)}</span></span>
       <span style="display:flex;align-items:center;justify-content:center;height:36px">${orange}</span>
-      ${cell(this.levelLabel(r.level))}
-      ${cell(r.mits)}${cell(r.desc||r.name)}
-      ${cell(this.freqNum(r)||'1')}
-      ${cell(r.from||'')}${cell(r.to||'')}
-      ${cell(String(r.amount||'').replace(/^\$/,''),'justify-content:flex-end')}
+      ${cell(this.levelLabel(r.level), 'c-level')}
+      ${cell(r.mits)}${cell(comment, 'c-comment')}
+      ${cell(freq, 'c-freq')}
+      ${isOne ? cell('', 'c-from') + cell('', 'c-to') : cell(r.from||'', 'c-from') + cell(r.to||'', 'c-to')}
+      ${cell(String(r.amount||'').replace(/^\$/,''), '', 'justify-content:flex-end')}
       <span data-act="todo" data-arg="Row actions" style="display:flex;align-items:center;justify-content:center;height:36px;cursor:pointer"><svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5))"><path d="M400-720a80 80 0 1 0 160 0 80 80 0 1 0-160 0ZM400-480a80 80 0 1 0 160 0 80 80 0 1 0-160 0ZM400-240a80 80 0 1 0 160 0 80 80 0 1 0-160 0Z"/></svg></span>
-    </div>`).join('');
+      </div>
+      <div class="vchg-det${open ? ' open' : ''}" style="padding:2px 16px 8px 97px">
+        ${kv('d-level', 'Level', this.levelLabel(r.level))}${kv('d-comment', 'Comment', comment || '—')}${kv('d-freq', 'Frequency', freq)}
+        ${isOne ? '' : kv('d-from', 'From Date', r.from || '—') + kv('d-to', 'To Date', r.to || '—')}
+      </div>
+    </div>`; }).join('');
     // RMX Pages `4217:79721`: the three scopes as a row of blue checkboxes under the Scoreboard —
     // a 20px white box with a 2px brand border and a brand label, 16px apart. Ticking fills the box
     // and shows the check; nothing is filtered, as nothing was behind the tune icon either.
@@ -6896,7 +6948,7 @@ class Component extends DCLogic {
       <!-- RMX Pages 4217:79721 draws this page's header compact: Label/M/SemiBold in text-primary grey,
            not the 20px dialog title the rest of the prototype's overlays use. -->
       <div style="display:flex;align-items:center;gap:8px;height:48px;box-sizing:border-box;padding:8px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
-        <span style="font:600 14px Roboto,sans-serif;color:var(--rmx-text, #666666);padding-right:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">View Recurring Charges</span><div style="flex:1"></div>
+        <span style="font:600 14px Roboto,sans-serif;color:var(--rmx-text, #666666);padding-right:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">View Charges</span><div style="flex:1"></div>
         ${!unitScope ? '' : `<a data-act="openFeeProfile" data-arg="${String(prop).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap;padding:0 8px">Manage All Charges</a>`}
         <button data-act="todo" data-arg="Print" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Print</button>
         ${`<button data-act="todo" data-arg="Add charge" class="btn-pri" style="height:36px;min-height:36px;padding:0 8px;border-radius:4px;font-size:14px;display:inline-flex;align-items:center;gap:8px"><svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M453-280h60v-166h167v-60H513v-174h-60v174H280v60h173v166Zm27.27 200q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg><span style="padding:0 8px">Add</span><svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M480-360 280-559h400L480-360Z"/></svg></button>`}
@@ -6922,14 +6974,17 @@ class Component extends DCLogic {
         </div>`}
         ${filters}
         </div>
-        <div style="overflow-x:auto"><div style="min-width:1150px">
-          <div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};background:#fff;border-bottom:1px solid var(--rmx-line, #cedbe7)">${heads.map(hc).join('')}</div>
+        ${css}<div class="vchg">
+          ${head}
           ${body}
-        </div></div>
+        </div>
       </div>
-      <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:8px 16px;background:#fff;flex:none">
-        <span style="font-size:14px;font-weight:600;color:var(--rmx-text, #666666)">${total} of ${total} Recurring Charges</span>
-        <span style="font-size:14px;color:var(--rmx-text, #666666)">${this.money(sum)}</span>
+      <div style="display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:4px 8px;padding:8px 16px;background:#fff;flex:none">
+        <!-- The unit tile's footer: a count and a total for each kind of charge. -->
+        <span style="font-size:14px;font-weight:600;color:var(--rmx-text, #666666)">${rec.length} of ${rec.length} Recurring Charges</span>
+        <span style="font-size:14px;color:var(--rmx-text, #666666);margin-right:16px">${this.money(sum(rec))}</span>
+        <span style="font-size:14px;font-weight:600;color:var(--rmx-text, #666666)">${one.length} of ${one.length} One-Time Charges</span>
+        <span style="font-size:14px;color:var(--rmx-text, #666666)">${this.money(sum(one))}</span>
       </div>
     </div></div>`;
   }

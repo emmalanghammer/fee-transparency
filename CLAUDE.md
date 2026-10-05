@@ -216,6 +216,14 @@ none until Comment goes. Toggling is DOM-only (`window.__chgToggle`, open rows i
 The column-resize tracks (`recchg2-*`) and the unused `twoComment` / `exclusion` options are gone.
 There is no unit-type page in the prototype, so the unit page's is the one tile.
 
+**The overlay the tile opens follows it** (2026-10-05): `recViewHTML` is now titled **View
+Charges**, lists one-time charges after recurring (*One-time* in Frequency, no dates), and its footer
+reads **n of n Recurring Charges $x** then **n of n One-Time Charges $y**. Its columns drop into a
+row dropdown the same way, through container queries on `.vchg` — From / To Date under 1060px
+(recurring rows only), Comment under 700px, Level and Frequency under 480px — with the chevron
+between the level bar and the orange checkbox (`window.__vchgToggle`, `this._vchgOpen`). At full
+width it keeps Figma's column widths; the `recview3` resize tracks are gone.
+
 `infoTip`'s panel is RMX's **Tooltip** (RMX Components `2944:203796`): 312px wide, 16px padding,
 1px `#cedbe7`, 4px radius, drop shadow `0 3px 6px rgba(0,0,0,0.10)`, Roboto Regular 14/20, left
 aligned. Its trigger is Material Icon / Medium / Brand — the squared `info_outline` at 20px, not the
