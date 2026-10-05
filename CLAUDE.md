@@ -199,11 +199,22 @@ Charges** text action left of Print opens the property's Charges (`openFeeProfil
 that returns to the unit page (`chargesFrom` records `unit` as well as `feetrans`); a register with 32px headers in
 Label/S/Medium (12.6px, 1.134px tracking), 36px rows striped from the first, 8px cell padding, a 10px
 level colour bar, 20px checks, and Figma's column widths (`recview3`); and a plain footer, the count
-SemiBold and the total Regular, both text-primary grey. The content is unchanged. **The unit's
-Recurring Charges tile** (`recChargesTableHTML`) wears the same register styling — 25px bar column,
-Label/S/Medium tracked headers, Frequency left-aligned, rows striped from the first, comments in the
-register's navy — and keeps its own content (no checkbox or kebab columns, *Monthly*, the To Date
-dash, the Override and Excluded pills); its tracks moved to `recchg2-*`.
+SemiBold and the total Regular, both text-primary grey. The content is unchanged.
+
+**The unit's tile is Charges, not Recurring Charges** (`recChargesTableHTML`, 2026-10-05). It
+wears the same register styling (25px level bar, Label/S/Medium tracked headers, rows striped from
+the first) and carries **recurring and one-time charges together** — `unitRecurring` then
+`unitOneTime`, the same level rule; situational NSF / Late are left out. **Frequency is the number**
+(`freqNum`, `1`), and a one-time charge reads **One-time** with no From or To Date. The footer is
+the View Recurring Charges one, twice: **n Active Recurring Charges $x** and **n Active One-Time
+Charges $y**, the count SemiBold — Market Rent counts as the unit's own market rent.
+**Columns that don't fit drop into a row dropdown**, as Floor Plans does, through container queries
+on `.uchg` (so it answers to the tile's width, not the window's): under 860px **From / To Date** go
+first, recurring rows only; under 620px **Comment**; under 440px **Level** and **Frequency**. The
+chevron (after the level bar) shows only where the row has something hidden, so a one-time row has
+none until Comment goes. Toggling is DOM-only (`window.__chgToggle`, open rows in `this._chgOpen`).
+The column-resize tracks (`recchg2-*`) and the unused `twoComment` / `exclusion` options are gone.
+There is no unit-type page in the prototype, so the unit page's is the one tile.
 
 `infoTip`'s panel is RMX's **Tooltip** (RMX Components `2944:203796`): 312px wide, 16px padding,
 1px `#cedbe7`, 4px radius, drop shadow `0 3px 6px rgba(0,0,0,0.10)`, Roboto Regular 14/20, left
