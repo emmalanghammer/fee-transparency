@@ -229,7 +229,7 @@ design canvas *Standardized Charges Tiles*, <https://claude.ai/artifact/3rJtePCj
   Exceptions** checkboxes on the left (where the property's level tabs sit — a unit has no levels to
   pick) and **Preview Pricing** (under `ftApplicable`), **Add Charge** split and a kebab on the
   right; **Recurring Charges (n)** and **One-Time Charges (n)** as white collapsible cards whose
-  register sits 16px in from the edges, each row led by an orange **include** checkbox (visual only)
+  register sits 16px in from the edges, **unstriped** (`striped:false`; the tile keeps its stripes), each row led by an orange **include** checkbox (visual only)
   and ending in Listing Ready and a kebab, with *+ Add … Charge* rows; and the totals footer. No
   Situational section and no filter button. Print is gone from it.
 - **The property's Charges overlay** (`chargesOverlay`) gained the property scoreboard

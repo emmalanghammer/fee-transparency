@@ -6858,7 +6858,7 @@ class Component extends DCLogic {
       const comment = esc2(f.desc || f.name || '') + (over ? ovrPill : '');
       const amt = String(f.amount || '').replace(/^\$/, '');
       const lvl = esc2(this.chargeLevelName(f));
-      const bg = i % 2 === 0 ? 'var(--rmx-bg-subtle, #f5f8fa)' : '#fff';
+      const bg = (o.striped !== false && i % 2 === 0) ? 'var(--rmx-bg-subtle, #f5f8fa)' : '#fff';
       const cells = C.map(c => {
         const k = c[0];
         if (k === 'chk') return `<span class="c-chk">${CHK}</span>`;
@@ -6944,7 +6944,7 @@ class Component extends DCLogic {
       </span>`;
     const filters = `<div style="display:flex;align-items:center;gap:16px">${scope('Past')}${scope('Future')}${scope('Exceptions')}</div>`;
     const card = (id, title, list, addLabel, group) => {
-      const reg = this.chargeRegisterHTML('vchg', list, { chk: true, ready: ft, kebab: true, tiers: [1080, 760, 520] });
+      const reg = this.chargeRegisterHTML('vchg', list, { chk: true, ready: ft, kebab: true, striped: false, tiers: [1080, 760, 520] });
       return `<section style="flex:none;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
         <div onclick="var b=this.nextElementSibling,o=b.style.display!=='none';b.style.display=o?'none':'block';this.querySelector('[data-secchev]').style.transform='rotate('+(o?-90:0)+'deg)'" style="display:flex;align-items:center;gap:8px;height:48px;padding:0 12px;cursor:pointer">
           <span data-secchev style="display:inline-flex;transition:transform .15s;color:var(--ac,var(--rmx-brand, #008dd5))">${this.ico('keyboard_arrow_down', 22)}</span>
@@ -6965,7 +6965,8 @@ class Component extends DCLogic {
         ${!unitScope ? '' : `<a data-act="openFeeProfile" data-arg="${propEsc}" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap;padding:0 8px">All ${prop} Charges</a>`}
         ${this.ico('close', 24, 'color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer').replace('<svg ', '<svg data-act="recViewClose" ')}
       </div>
-      <div style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:16px;padding:16px">
+      <div class="rv-noshrink" style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:16px;padding:16px">
+        <style>.rv-noshrink > * { flex-shrink:0; }</style>
         ${unitScope ? '' : this.recViewPropStrip()}
         ${!unitScope ? '' : `<div style="display:flex;align-items:stretch;min-height:64px;border-radius:4px;overflow:hidden;box-shadow:2px 2px 12px -5px rgba(76,76,76,0.08),0 4px 15px -5px rgba(76,76,76,0.08),0 -1px 20px -5px rgba(76,76,76,0.02)">
           <div style="width:24px;flex:none;background:var(--rmx-overlay-search, #425a70)"></div>
