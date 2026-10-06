@@ -195,35 +195,47 @@ the property view), white card at 16/32 with dropshadow-sm, the title at 16/600,
 *Market Rent* over a SemiBold value — and, under it, **Past / Future / Exceptions as blue checkboxes**
 (20px white box, 2px brand border, brand label, 16px apart; they tick visually and filter nothing),
 which replaced the tune icon and its popover; on the **unit** view only, a brand **All `<Property>`
-Charges** text action (*All Riverview Apartments Charges*; it was *Manage All Charges* until
+Charges** text action (still there after the 2026-10-06 restyle below) (*All Riverview Apartments Charges*; it was *Manage All Charges* until
 2026-10-05) left of Print opens the property's Charges (`openFeeProfile`), and closing
 that returns to the unit page (`chargesFrom` records `unit` as well as `feetrans`); a register with 32px headers in
 Label/S/Medium (12.6px, 1.134px tracking), 36px rows striped from the first, 8px cell padding, a 10px
 level colour bar, 20px checks, and Figma's column widths (`recview3`); and a plain footer, the count
 SemiBold and the total Regular, both text-primary grey. The content is unchanged.
 
-**The unit's tile is Charges, not Recurring Charges** (`recChargesTableHTML`, 2026-10-05). It
-wears the same register styling (25px level bar, Label/S/Medium tracked headers, rows striped from
-the first) and carries **recurring and one-time charges together** — `unitRecurring` then
-`unitOneTime`, the same level rule; situational NSF / Late are left out. **Frequency is the number**
-(`freqNum`, `1`), and a one-time charge reads **One-time** with no From or To Date. The footer is
-the View Recurring Charges one, twice: **n Recurring Charges $x** and **n One-Time Charges $y**, the count SemiBold — Market Rent counts as the unit's own market rent.
-**Columns that don't fit drop into a row dropdown**, as Floor Plans does, through container queries
-on `.uchg` (so it answers to the tile's width, not the window's): under 860px **From / To Date** go
-first, recurring rows only; under 620px **Comment**; under 440px **Level** and **Frequency**. The
-chevron (after the level bar) shows only where the row has something hidden, so a one-time row has
-none until Comment goes. Toggling is DOM-only (`window.__chgToggle`, open rows in `this._chgOpen`).
-The column-resize tracks (`recchg2-*`) and the unused `twoComment` / `exclusion` options are gone.
-There is no unit-type page in the prototype, so the unit page's is the one tile.
+**The Charges tile and the Charges overlays are standardized** (2026-10-06, built from the user's
+design canvas *Standardized Charges Tiles*, <https://claude.ai/artifact/3rJtePCj3e5Agc1zTXiTj3>).
 
-**The overlay the tile opens follows it** (2026-10-05): `recViewHTML` is now titled **View
-Charges**, lists one-time charges after recurring (*One-time* in Frequency, no dates), and its footer
-reads the same, **n Recurring Charges $x** then **n One-Time Charges $y** — no *Active*, no
-*n of n*, in either (2026-10-05). Its columns drop into a
-row dropdown the same way, through container queries on `.vchg` — From / To Date under 1060px
-(recurring rows only), Comment under 700px, Level and Frequency under 480px — with the chevron
-between the level bar and the orange checkbox (`window.__vchgToggle`, `this._vchgOpen`). At full
-width it keeps Figma's column widths; the `recview3` resize tracks are gone.
+- **One Charges tile** (`recChargesTile(scope)`) on the **property's General tab** (it used to carry
+  none) and on the **unit page**. Header: *Charges*, **Add Charge** (`addopen`) and the pop-out — the
+  property's opens its Charges overlay (`openFeeProfile`), a unit's the unit's (`recViewOpen`). Body:
+  one list, recurring then one-time (a one-time charge reads **One-time** in Frequency, no dates),
+  under **Charge Type · Comment · Frequency · From · To · Amount · Charge Level**. No level bar, no
+  Listing Ready, no kebab, no Add rows. Footer **n Recurring Charges $x · n One-Time Charges $y**
+  (`chargeTotals`; Market Rent is the unit's rent on a unit and *+ Market Rent* on the property).
+  `chargeScope(scope)` is what both read: a unit's reach (`unitRecurring` / `unitOneTime`), or every
+  charge the property carries; situational NSF / Late never appear. There is no unit-type page in the
+  prototype, so the canvas's unit type tile has nowhere to go.
+- **`chargeRegisterHTML(ns, list, opts)`** is the one register: `[include checkbox] · [chevron] ·
+  Charge Type · Comment · Frequency · From · To · Amount · Charge Level · [Listing Ready] · [kebab]`.
+  Charge Level is the **name** (`chargeLevelName`: the property, the unit type, the unit, or an ORI's
+  rentable-item type) with no tag. What doesn't fit drops into the row's dropdown through container
+  queries on `.<ns>` — From / To first (recurring rows only), then Comment and Charge Level, then
+  Frequency and Listing Ready — the chevron showing only where its row has something hidden
+  (`window.__chgRegToggle`, `this._chgRegOpen`). The tile is `uchg` (tiers 900/680/460), the unit
+  overlay `vchg` (1080/760/520).
+- **The unit's Charges overlay** (`recViewHTML`, was *View Charges*): a 56px header titled
+  **Charges** (20px Regular) with **All `<Property>` Charges** and the close; then on the `#f3f4f8`
+  ground, with no rules between bands, the unit scoreboard, a toolbar with **Past / Future /
+  Exceptions** checkboxes on the left (where the property's level tabs sit — a unit has no levels to
+  pick) and **Preview Pricing** (under `ftApplicable`), **Add Charge** split and a kebab on the
+  right; **Recurring Charges (n)** and **One-Time Charges (n)** as white collapsible cards whose
+  register sits 16px in from the edges, each row led by an orange **include** checkbox (visual only)
+  and ending in Listing Ready and a kebab, with *+ Add … Charge* rows; and the totals footer. No
+  Situational section and no filter button. Print is gone from it.
+- **The property's Charges overlay** (`chargesOverlay`) gained the property scoreboard
+  (`recViewPropStrip`) above its tabs, lost the rule under the level tabs, and has the totals footer
+  plus **n Situational Charges — When they occur** (`chargesOverlayFoot`). Its register, tabs and
+  filter are otherwise as they were.
 
 `infoTip`'s panel is RMX's **Tooltip** (RMX Components `2944:203796`): 312px wide, 16px padding,
 1px `#cedbe7`, 4px radius, drop shadow `0 3px 6px rgba(0,0,0,0.10)`, Roboto Regular 14/20, left
