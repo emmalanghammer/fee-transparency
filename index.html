@@ -4686,6 +4686,41 @@ class Component extends DCLogic {
     return { 'Riverview Apartments': { rec: [['RC','Flat Amount'],['PETFEE','Pet Recurring Amount']],
                                        one: [['DP','Flat Amount'],['FMR','Unit Market Rent'],['APPFEE','Flat Amount']] } };
   }
+  // What a Tenant Charge Setup source became on the property charge: a flat figure stays flat, a pet
+  // type's amount stays with the pet type, and anything the charge read from elsewhere is now that
+  // charge's Reference amount.
+  tcsAmountOf(src){
+    if (/^flat/i.test(src)) return 'Flat';
+    if (/^pet/i.test(src)) return 'From the pet type';
+    return 'Reference: ' + src;
+  }
+  // The note over both Tenant Charge Setups — the System Preferences page (no property) and a
+  // property's own overlay. It answers, in order: where do I edit these now, and what happened to
+  // the Charge Source. The property's version carries the way there as a button.
+  tcsBanner(prop){
+    const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+    const INFO = `<svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5));flex:none;margin-top:2px"><path d="M453-280h60v-240h-60v240Zm50.5-323.2q9.5-9.2 9.5-22.8 0-14.45-9.48-24.22-9.48-9.78-23.5-9.78t-23.52 9.78Q447-640.45 447-626q0 13.6 9.48 22.8 9.48 9.2 23.5 9.2t23.52-9.2ZM480.27-80q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg>`;
+    const b = t => `<strong style="font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</strong>`;
+    const li = t => `<li style="padding-left:2px">${t}</li>`;
+    const title = prop ? 'Edit these charges in the property&#39;s Charges' : 'Edit tenant charges in each property&#39;s Charges';
+    const lead = prop
+      ? `With the fee transparency update, the charges set up here became property-level charges on ${b(prop)}.`
+      : `With the fee transparency update, every charge set up here became a property-level charge on the properties that use it.`;
+    return `<div style="display:flex;align-items:flex-start;gap:12px;background:rgba(232,246,250,0.5);border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;padding:16px;max-width:880px;box-sizing:border-box;flex:none">
+      ${INFO}
+      <div style="display:flex;flex-direction:column;gap:8px;flex:1;min-width:0">
+        <span style="font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title}</span>
+        <span style="font-size:14px;line-height:20px;color:#616466">${lead}</span>
+        <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:14px;line-height:20px;color:#616466">
+          ${li(`${b('Change a charge on the property, not here.')} Rent quotes, the Move In wizard and the Add Tenant wizard add charges from ${prop ? 'its' : 'each property&#39;s'} Charges now, and this setup is kept read-only for reference.`)}
+          ${li(`${b('The Charge Source is now the charge&#39;s Amount.')} A source like Unit Market Rent became a ${b('Reference')} amount, a Flat Amount became a flat amount, and a pet type amount still comes from the pet type.`)}
+        </ul>
+        ${prop
+          ? `<button data-act="openFeeProfile" data-arg="${esc(prop)}" class="btn-pri" style="align-self:flex-start;margin-top:4px;height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Go to ${prop} Charges</button>`
+          : `<span style="font-size:14px;line-height:20px;color:#616466">Select a property in the tables below to open its charges.</span>`}
+      </div>
+    </div>`;
+  }
   // The property's own Tenant Charge Setup (property rail › Tenant Charge Setup). After rollout it is a
   // record, like the System Preferences page: what this property used, read-only, under a note saying
   // those charges are now the property's own. Override System Preferences keeps the state it had —
@@ -4698,17 +4733,17 @@ class Component extends DCLogic {
     const set = own || this.tcsSystem();
     const ink = own ? 'var(--rmx-brand-dark, #13314c)' : 'var(--rmx-text-muted, #b3b3b3)';
     const X = `<svg class="ico" width="24" height="24" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>`;
-    const INFO = `<svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5));flex:none;margin-top:2px"><path d="M453-280h60v-240h-60v240Zm50.5-323.2q9.5-9.2 9.5-22.8 0-14.45-9.48-24.22-9.48-9.78-23.5-9.78t-23.52 9.78Q447-640.45 447-626q0 13.6 9.48 22.8 9.48 9.2 23.5 9.2t23.52-9.2ZM480.27-80q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg>`;
     const CHECK = `<svg width="14" height="14" viewBox="0 -960 960 960" fill="#fff" aria-hidden="true"><path d="M378-246 154-470l43-43 181 181 384-384 43 43-427 427Z"/></svg>`;
     const box = own
       ? `<span style="width:20px;height:20px;box-sizing:border-box;border-radius:2px;background:var(--rmx-attention, #f58220);opacity:0.6;display:inline-flex;align-items:center;justify-content:center;flex:none">${CHECK}</span>`
       : `<span style="width:20px;height:20px;box-sizing:border-box;border-radius:2px;border:2px solid #b3b3b3;opacity:0.6;flex:none"></span>`;
     const th = t => `<span style="padding:12px 16px;font-size:14px;font-weight:600;letter-spacing:0.5px;color:${ink}">${t}</span>`;
     const table = (rows) => `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
-      <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--rmx-line, #cedbe7)">${th('Charge Type')}${th('Charge Source')}</div>
-      ${rows.map(([c, src], i) => `<div style="display:grid;grid-template-columns:1fr 1fr;background:${i % 2 ? 'var(--rmx-bg-subtle, #f5f8fa)' : '#fff'}">
+      <div style="display:grid;grid-template-columns:0.8fr 1fr 1fr;border-bottom:1px solid var(--rmx-line, #cedbe7)">${th('Charge Type')}${th('Charge Source')}${th('Amount on the Charge')}</div>
+      ${rows.map(([c, src], i) => `<div style="display:grid;grid-template-columns:0.8fr 1fr 1fr;background:${i % 2 ? 'var(--rmx-bg-subtle, #f5f8fa)' : '#fff'}">
         <span style="padding:12px 16px;font-size:14px;line-height:20px;color:${ink}">${c}</span>
-        <span style="padding:12px 16px;font-size:14px;line-height:20px;color:${ink}">${src}</span></div>`).join('')}
+        <span style="padding:12px 16px;font-size:14px;line-height:20px;color:${ink}">${src}</span>
+        <span style="padding:12px 16px;font-size:14px;line-height:20px;color:${ink}">${this.tcsAmountOf(src)}</span></div>`).join('')}
     </div>`;
     const card = (title, inner) => `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;background:#fff;overflow:hidden;flex:none">
       <div style="padding:12px 12px 10px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);border-bottom:2px solid var(--ac,var(--rmx-brand, #008dd5))">${title}</div>
@@ -4720,14 +4755,7 @@ class Component extends DCLogic {
           <span data-act="tcsPropClose" style="display:inline-flex;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">${X}</span>
         </div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:16px">
-          <div style="display:flex;align-items:flex-start;gap:12px;background:rgba(232,246,250,0.5);border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;padding:16px;flex:none">
-            ${INFO}
-            <div style="display:flex;flex-direction:column;gap:8px;flex:1;min-width:0">
-              <span style="font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">These tenant charges are now property charges</span>
-              <span style="font-size:14px;line-height:20px;color:#616466">With the fee transparency update, each charge set up here was added to <strong style="font-weight:600;color:var(--rmx-brand-dark, #13314c)">${prop}</strong>'s Charges as a property-level charge, with the same charge source. Rent quotes, the Move In wizard and the Add Tenant wizard now add charges from the property's Charges, so this setup no longer adds any.</span>
-              <a data-act="openFeeProfile" data-arg="${esc(prop)}" style="align-self:flex-start;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">View Charges</a>
-            </div>
-          </div>
+          ${this.tcsBanner(prop)}
           <span style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--rmx-text, #666666)">${box}Override System Preferences</span>
           ${card('Default Recurring Charges', table(set.rec))}
           ${card('Default One-Time Charges', table(set.one))}
@@ -4775,11 +4803,11 @@ class Component extends DCLogic {
     const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
     const props = this.propertiesData().map(p => p.name);
     const movedTo = (code) => props.filter(n => this.profileRows(n).some(r => r.mits === code && r.level === 'Property'));
-    const spCols = this.colTracks('tcsmoved', 'minmax(0,0.7fr) minmax(0,1fr) minmax(0,1.6fr)');
+    const spCols = this.colTracks('tcsmoved2', 'minmax(0,0.6fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.5fr)');
     const head = (t) => `<span style="padding:14px 16px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span>`;
     const chargeTable = (rows) => `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden;max-width:880px">
-      <div ${this.colHead('tcsmoved')} style="display:grid;grid-template-columns:${spCols};background:#fff;border-bottom:1px solid var(--rmx-line, #cedbe7)">
-        ${head('Charge Type')}${head('Charge Source')}${head('Now a Property Charge On')}
+      <div ${this.colHead('tcsmoved2')} style="display:grid;grid-template-columns:${spCols};background:#fff;border-bottom:1px solid var(--rmx-line, #cedbe7)">
+        ${head('Charge Type')}${head('Charge Source')}${head('Amount on the Charge')}${head('Property Charge On')}
       </div>
       ${rows.map(([code, source], i) => {
         const on = movedTo(code);
@@ -4789,17 +4817,11 @@ class Component extends DCLogic {
         return `<div style="display:grid;grid-template-columns:${spCols};align-items:start;background:${i % 2 ? 'var(--rmx-bg-subtle, #f5f8fa)' : '#fff'}">
         <span style="padding:12px 16px;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">${code}</span>
         <span style="padding:12px 16px;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">${source}</span>
+        <span style="padding:12px 16px;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">${this.tcsAmountOf(source)}</span>
         <span style="padding:12px 16px;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">${links}</span>
       </div>`; }).join('')}
     </div>`;
-    const INFO = `<svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5));flex:none;margin-top:2px"><path d="M453-280h60v-240h-60v240Zm50.5-323.2q9.5-9.2 9.5-22.8 0-14.45-9.48-24.22-9.48-9.78-23.5-9.78t-23.52 9.78Q447-640.45 447-626q0 13.6 9.48 22.8 9.48 9.2 23.5 9.2t23.52-9.2ZM480.27-80q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg>`;
-    const movedBanner = `<div style="display:flex;align-items:flex-start;gap:12px;background:rgba(232,246,250,0.5);border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;padding:16px;max-width:880px;box-sizing:border-box">
-      ${INFO}
-      <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
-        <span style="font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Your default tenant charges are now property charges</span>
-        <span style="font-size:14px;line-height:20px;color:#616466">With the fee transparency update, each charge set up here was added as a property-level charge, with the same charge source, on the properties that use it. Rent quotes, the Move In wizard and the Add Tenant wizard now add charges from each property's Charges, so this page no longer adds any. To change one, open the property's charges below.</span>
-      </div>
-    </div>`;
+    const movedBanner = this.tcsBanner();
     const body = sel !== 'Tenant Charge Setup'
       ? `<div style="padding:40px 4px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">${sel} preferences</div>`
       : `${movedBanner}
@@ -6635,7 +6657,8 @@ class Component extends DCLogic {
     const stepOff = (icon) => `<span style="display:flex;align-items:center;justify-content:center;width:22px;height:22px;border:1px solid var(--rmx-line-soft, #ebf1f5);border-radius:2px;background:var(--rmx-bg-subtle, #f5f8fa);cursor:default">${this.ico(icon, 14, 'color:var(--rmx-text-muted, #b3b3b3)')}</span>`;
     const stepper = (r, on) => { const n = this.rqQtyOf(r), mx = r.max;
       const count = `<span style="min-width:20px;text-align:center;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${n}${mx ? `<span style="color:var(--rmx-text-muted, #b3b3b3)">/${mx}</span>` : ''}</span>`;
-      return `<span style="display:inline-flex;align-items:center;justify-content:flex-end;gap:6px;width:80px;flex:none">${(!r.pet || !on) ? '' : `${n <= 1 ? stepOff('remove') : step(r,-1,'remove')}${count}${mx && n >= mx ? stepOff('add') : step(r,1,'add')}`}</span>`; };
+      if (!r.pet || !on) return '';
+      return `<span style="display:inline-flex;align-items:center;justify-content:flex-end;gap:6px;flex:none">${n <= 1 ? stepOff('remove') : step(r,-1,'remove')}${count}${mx && n >= mx ? stepOff('add') : step(r,1,'add')}</span>`; };
     const tenantPill = `<span class="lvl" style="flex:none;font-size:12px;padding:1px 8px;background:var(--rmx-bg-muted, #f2f2f2);color:var(--rmx-text, #666666)">Tenant</span>`;
     const pickRow = (r, one) => {
       const on = r.lock ? true : this.rqOn(r);
@@ -6644,10 +6667,10 @@ class Component extends DCLogic {
         <label${act} style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;cursor:${r.lock ? 'default' : 'pointer'}">
           ${box(on, r.lock, r.id)}
           ${r.level === 'Tenant' ? tenantPill : `<span class="lvl ${LVL[r.level] || 'lvl-prop'}" style="flex:none;font-size:12px;padding:1px 8px">${this.levelLabel(r.level)}</span>`}
-          <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.comment || r.type}</span>
+          <span style="flex:1;min-width:0;line-height:20px;overflow-wrap:anywhere">${r.comment || r.type}</span>
         </label>
         ${stepper(r, on)}
-        <span style="flex:none;min-width:116px;text-align:right;font-size:14px;color:var(--rmx-ink-2, #424e5b);white-space:nowrap">${money(r.amount)}${one ? '/one-time' : '/mo'}</span>
+        <span style="flex:none;text-align:right;font-size:14px;color:var(--rmx-ink-2, #424e5b);white-space:nowrap">${money(r.amount)}${one ? '/one-time' : '/mo'}</span>
       </div>`;
     };
     const subLbl = (t) => `<span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3);margin-top:4px">${t}</span>`;
@@ -6666,12 +6689,12 @@ class Component extends DCLogic {
     const oneChosen = chosen(one.primary).concat(one.oris.reduce((a, g) => a.concat(chosen(g)), []));
 
     return `<div style="margin:-16px;display:flex;flex-wrap:wrap;align-items:stretch">
-      <div style="flex:1;min-width:300px;padding:16px 20px;display:flex;flex-direction:column;gap:14px;box-sizing:border-box">
+      <div style="flex:3 1 360px;min-width:300px;padding:16px 20px;display:flex;flex-direction:column;gap:14px;box-sizing:border-box">
         ${rule('Select Charges')}
         ${pickGroup('Recurring', rec.primary, rec.oris, false, addLink('Add Recurring Charge', 'rec'), 'No recurring charges on this property.')}
         ${pickGroup('One-Time', one.primary, one.oris, true, addLink('Add One-Time Charge', 'one'), 'No one-time charges on this property.')}
       </div>
-      <div style="flex:1;min-width:320px;background:var(--rmx-bg-subtle, #f5f8fa);padding:16px 20px;box-sizing:border-box;display:flex;flex-direction:column;gap:10px">
+      <div style="flex:2 1 300px;min-width:300px;background:var(--rmx-bg-subtle, #f5f8fa);padding:16px 20px;box-sizing:border-box;display:flex;flex-direction:column;gap:10px">
         <div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
           <div style="padding:14px 16px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
             <div style="display:flex;flex-direction:column">

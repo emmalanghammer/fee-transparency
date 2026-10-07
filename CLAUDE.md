@@ -700,7 +700,9 @@ to the pet type's Max Charge Amount (`petCapOf`, shared with the preview's rule)
 Charge Type; Comment; Frequency / From / To on a recurring one; Amount) and **no Charge Marketing**,
 because a tenant's own charge is never advertised. It lands in `rq.extra`, ticked, with a grey
 *Tenant* pill. On every picker row the level pill sits **right after the checkbox**, before the
-charge's name (2026-10-07). Its boxes are the **RMX Checkbox** (`rmxCheckbox(on, disabled, attrs)`, RMX
+charge's name (2026-10-07). The name gets the room: it **wraps** rather than truncating, the pet stepper
+takes space only on a ticked pet row (it used to reserve 80px on every row), the amount has no
+min-width, and the picker pane takes the larger share of the dialog (3:2 against the price card). Its boxes are the **RMX Checkbox** (`rmxCheckbox(on, disabled, attrs)`, RMX
 Components `179:1357`): 20px, 2px corners; checked attention-orange with a 1px stroke and the white
 `check` filling it; unchecked white in a 2px `#b3b3b3` stroke; a charge that can't come off is the
 **Disabled checked** variant (the orange under a 50% white wash, no stroke) — it used to be a grey
@@ -1206,13 +1208,28 @@ Pricing Preview and rent quote take Dog's two-pet cap and $50 maximum.
 Preferences. It is `tcsPropHTML()`, opened from the property rail's Copy flyout (**Tenant Charge
 Setup**, under Charges and Marketing Setup) as `state.tcsProp`. It is a 640px overlay at z-index 145,
 read-only after rollout, with the same story as the System Preferences page. The info banner says
-*These tenant charges are now property charges*, names the property, and offers **View Charges**
+`tcsBanner(prop)` (below), naming the property and offering **Go to `<Property>` Charges**
 (`openFeeProfile`, which clears `tcsProp`). Under it, **Override System Preferences** keeps the state
 it had but can't be changed: ticked with the property's own list in navy, or unticked with System
 Preferences' list greyed, as production draws them. Then **Default Recurring Charges** and **Default
 One-Time Charges**, Charge Type · Charge Source, with a lone **Close**. `tcsSystem()` is the one
 System Preferences list, read by both surfaces. `tcsOverrides()` holds the properties that overrode
 it: only **Riverview Apartments**, whose list adds APPFEE.
+
+**Both Tenant Charge Setups share one note, `tcsBanner(prop)`** (2026-10-07). It answers two
+questions, in order: where to edit these charges now, and what happened to their Charge Source. The
+title is *Edit tenant charges in each property's Charges* on System Preferences, and *Edit these
+charges in the property's Charges* on a property. A lead sentence follows, then two bold-led
+bullets:
+- **Change a charge on the property, not here.** The wizards read the property's Charges, and this
+  setup is read-only.
+- **The Charge Source is now the charge's Amount.** Unit Market Rent became a Reference amount, Flat
+  stayed flat, and a pet type amount still comes from the pet type.
+
+The property's note ends in a primary **Go to `<Property>` Charges** button. System Preferences
+points to the property links in its tables instead. Both tables gained **Amount on the Charge**
+(`tcsAmountOf(src)`: *Flat*, *From the pet type*, or *Reference: `<source>`*), so the source and
+what it became sit side by side. System Preferences' last column is now **Property Charge On**.
 
 **FMR (first month's rent) is the worked example of a referenced source.** Its Tenant Charge Setup
 source was **Unit Market Rent**, so it arrived as a required one-time Property charge with
@@ -1224,9 +1241,8 @@ keeps FMR on every property, Happy Path included. The charge form's Reference dr
 Market Rent* and opens on the charge's own reference. Its Fee Due seeds to **Move-In**
 (`mktDefSeed`).
 
-`sysPrefsBody()` keeps the page, under a brand info banner, *Your default tenant charges are now
-property charges*, that says what happened. Both sections stay as a read-only record: **Charge Type
-· Charge Source · Now a Property Charge On**, with no kebab, reorder handle, Add link or posting-day
+`sysPrefsBody()` keeps the page, under `tcsBanner()` (below), that says what happened. Both sections stay as a read-only record: **Charge Type
+· Charge Source · Amount on the Charge · Property Charge On**, with no kebab, reorder handle, Add link or posting-day
 option. The last column names every property carrying that code at Property level as links to
 `openFeeProfile`. `chargesFrom` records `sysprefs` too, so closing Charges returns here. The
 earlier *Activate Fee Transparency* banner, the *Only properties that do not have Fee Transparency…*
