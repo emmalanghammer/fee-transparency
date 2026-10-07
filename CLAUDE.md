@@ -466,7 +466,9 @@ now. It costs the walkthrough nothing: both are `ils:false`, so they never count
 readiness, and Riverview still reads **0/5**.
 
 **NSF and late fees are their own section.** `feeProfileBody` splits `propSpecific` rows out of
-`visibleRows()` before anything else and renders them as **Situational Charges** — below Recurring
+`visibleRows()` before anything else and renders them as **Penalty Charges** (renamed from
+*Situational Charges* on 2026-10-07, so the section's name is its own and not the Charge Requirement
+value, since not everyone uses charge marketing) — below Recurring
 and One-Time, the title alone with its count, and the same in either grouping, because neither
 question is asked of them. The section has **no Add link** (`profileTable` skips it when `group` is
 empty: they are the property's, not a list you add to), and their **Charge Requirement is
@@ -913,15 +915,15 @@ Requirement, Charge Schedule and Fee Due, so a walkthrough has something to go a
 
 **The portfolio scenarios are small too** (On Rollout, Mid and Post Conversion, No ILS):
 `portfolioCharges()` is their keep list per property, read through `propChargePlan` and
-`chargeTypeList` exactly as Happy Path's is, so Charge Types is eight — RC, DP, APPFEE, GARBAG,
-PETFEE, COVPARK, NSF, LATE — and a property's Charges five to eight rows. Rent, the deposit, the
-**application fee**, Garbage, NSF and Late everywhere; PETFEE and COVPARK where the property rents
+`chargeTypeList` exactly as Happy Path's is, so Charge Types is nine — RC, DP, FMR, APPFEE, GARBAG,
+PETFEE, COVPARK, NSF, LATE — and a property's Charges six to ten rows. Rent, the deposit, **first
+month's rent**, the **application fee**, Garbage, NSF and Late everywhere; PETFEE and COVPARK where the property rents
 them, so the Pet and Parking detail sections are on screen; Clearcreek runs no deposit. Mid
 Conversion's Windermere drifts **one** charge. REKEY stays Happy Path's alone. **Riverview also keeps
 `SF`, unit 1A's own Storage closet** (2026-10-07, every scenario including Happy Path), so a unit page
-has a unit-level charge to open and edit. The regression check: Riverview reads **8/9** in `on` and
-**7/7** in `mid` and `post`; `mid` reads The Windermere 4/5 (*Action Required*) and The Estates 6/7;
-Happy Path's Riverview reads **6/6**.
+has a unit-level charge to open and edit. The regression check: Riverview reads **9/10** in `on` and
+**8/8** in `mid` and `post`; `mid` reads The Windermere 5/6 (*Action Required*) and The Estates 7/8;
+Happy Path's Riverview reads **7/7**. (FMR added one to each on 2026-10-07.)
 
 **`mktCopy()` is the resident-facing name and sentence per charge type**, read by the finished
 worked example (`listingReadyRows`) **and** by `mktDefAll`, so a charge type's default Marketing
@@ -1129,10 +1131,20 @@ asked. `chargeColsDefault()` is what honours the gate, beside the existing `base
 ## Tenant Charge Setup
 
 **At rollout, Tenant Charge Setup's charges became property charges on every property** (2026-10-07).
-Each default (RC and PETFEE recurring, DP one-time) was added as a property-level charge with the
+Each default (RC and PETFEE recurring, DP and FMR one-time) was added as a property-level charge with the
 same charge source on the properties that use it. Rent quotes and the Move In and Add Tenant wizards
 now read the property's Charges. Those charges are **ordinary**: nothing marks where they came from.
 Every Test Feature State is at or after rollout, so this is the only face the page has.
+
+**FMR (first month's rent) is the worked example of a referenced source.** Its Tenant Charge Setup
+source was **Unit Market Rent**, so it arrived as a required one-time Property charge with
+`amtMethod:'Reference'`, `amount:'Unit Market Rent'` and **no `est`**. Every pricer
+(Pricing Preview `amtOf`, rent quote `rqRows`' `base`, `rqAmountSources`) falls through figure →
+`est` → `/market/` → the unit's `rent`, which is what the unit page's Market Rent tile shows. So FMR
+follows the unit chosen. RC still carries `est:1350`, so its preview figure does not. Every scenario
+keeps FMR on every property, Happy Path included. The charge form's Reference dropdown offers *Unit
+Market Rent* and opens on the charge's own reference. Its Fee Due seeds to **Move-In**
+(`mktDefSeed`).
 
 `sysPrefsBody()` keeps the page, under a brand info banner, *Your default tenant charges are now
 property charges*, that says what happened. Both sections stay as a read-only record: **Charge Type
@@ -1159,7 +1171,7 @@ all there. `portfolioTotal()` is simply that count. **Mid's five hand-set worked
 **Happy Path is everything done but one.** Four properties, all marketed online, every charge type's
 default charge marketing complete (`mktDefShort()` returns nothing for it). **The Berkshires, The
 Windermere and Oakwood Manor have activated**; **Riverview Apartments** is Ready to Activate, with
-its 5/5 complete from its charge types' defaults, so the walkthrough is the last step: Listings →
+its 7/7 complete from its charge types' defaults, so the walkthrough is the last step: Listings →
 View Setup (or the green *Ready to display all charges?*) → the one-property confirmation. No
 listing carries Rent Manager or provider errors either — `listingsData()` clears the seeded ones
 (`rmErrors`, `tzErrors`, a held feed, a provider error) in Happy Path only, since *everything filled

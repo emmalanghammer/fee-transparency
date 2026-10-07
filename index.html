@@ -5721,13 +5721,14 @@ class Component extends DCLogic {
   feeProfileBody(){
     const all = this.visibleRows();
     // NSF and late fees are charged when something goes wrong rather than for renting the place, so
-    // they read as their own **Situational Charges** section instead of sitting in One-Time beside
+    // they read as their own **Penalty Charges** section (it was *Situational Charges* until 2026-10-07 —
+    // renamed so it doesn't borrow the Charge Requirement value) instead of sitting in One-Time beside
     // the deposits. They are the same in either grouping, since neither question is asked of them:
     // they can't be added, and their requirement is always Situational — which is what the section
     // is named after.
     const spec = all.filter(r => r.propSpecific);
     const rows = all.filter(r => !r.propSpecific);
-    const specSection = !spec.length ? '' : this.acc(`Situational Charges (${spec.length})`, '',
+    const specSection = !spec.length ? '' : this.acc(`Penalty Charges (${spec.length})`, '',
       this.profileTable('spec', spec, '', { noLabel:true, noAdd:true, empty:'situational' }), null, 'pf-spec');
     let sections;
     if (this.state.groupByReq) {
