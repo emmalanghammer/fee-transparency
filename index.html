@@ -605,8 +605,9 @@ class Component extends DCLogic {
     const deposit = /^(DP|DEP|SD|SECDEP|PETDEP)/.test(c) || /\bdeposits?\b/.test(text);
     // Deposit first: a security deposit is not a rent charge, however the words read.
     const rent = !deposit && (/^(RC|RENT|LMR|PRORATE)/.test(c) || /\brent\b/.test(text));
+    // First month's rent is rent, but it is collected once, at move-in.
     return { name: desc, refundable: deposit ? 'yes' : '',
-      feeDue: deposit ? 'Move-In' : rent ? 'During Term' : '' };
+      feeDue: (deposit || c === 'FMR') ? 'Move-In' : rent ? 'During Term' : '' };
   }
   // What a charge of this type starts with **at this property**: the property's own override of the
   // charge type when it has one, otherwise the charge type's default. One function, so the chain is
@@ -741,6 +742,7 @@ class Component extends DCLogic {
       ADMIN:      ['Administrative Fee', 'One-time fee to prepare and process the lease.'],
       APPFEE:     ['Application Fee', 'Charged per applicant to run screening and credit checks.'],
       DP:         ['Security Deposit', 'Refundable deposit held for the term of the lease.'],
+      FMR:        ['First Month’s Rent', 'First month of rent, collected at move-in.'],
       LMR:        ['Last Month’s Rent', 'Final month of rent, collected before move-in.'],
       KEY:        ['Key & Fob Deposit', 'Refundable deposit for unit keys and building fobs.'],
       SF:         ['Storage Closet', 'Private storage closet, available to reserve while supplies last.'],
@@ -758,7 +760,7 @@ class Component extends DCLogic {
     const M = this.mktCopy();
     // Screening costs are collected with the application; deposits and prepaid rent at move-in.
     const dueAtApp = /^(ADMIN|APPFEE)$/;
-    const dueAtMoveIn = /^(DP|LMR|KEY|PETDP)$/;
+    const dueAtMoveIn = /^(DP|FMR|LMR|KEY|PETDP)$/;
     const req = g => /^req/.test(g) ? 'Required' : /^opt/.test(g) ? 'Optional' : 'Situational';
     // Every charge the property runs is in the finished example — the counts here are read against
     // the same set the register and the tab banners read, so nothing may be quietly dropped.
@@ -809,11 +811,11 @@ class Component extends DCLogic {
       // situational ones. `NSF` and `LATE` are here only so the **Situational Charges** section is on
       // screen — they cost nothing else, since every property runs them and they arrive complete.
       // SF is unit 1A's own storage closet, so a unit page has a charge it can edit (2026-10-07).
-      'Riverview Apartments': ['RC','GARBAG','DP','SF','NSF','LATE'],
-      'The Berkshires':       ['RC','DP','NSF','LATE'],
-      'The Windermere':       ['RC','GARBAG','NSF','LATE'],
+      'Riverview Apartments': ['RC','GARBAG','DP','FMR','SF','NSF','LATE'],
+      'The Berkshires':       ['RC','DP','FMR','NSF','LATE'],
+      'The Windermere':       ['RC','GARBAG','FMR','NSF','LATE'],
       // Oakwood is the finished example, so it carries all three priced charges.
-      'Oakwood Manor':        ['RC','GARBAG','DP','NSF','LATE']
+      'Oakwood Manor':        ['RC','GARBAG','DP','FMR','NSF','LATE']
     };
   }
   // The portfolio scenarios (On Rollout, Mid and Post Conversion, No ILS) keep a short list too, so a
@@ -822,7 +824,7 @@ class Component extends DCLogic {
   // pet and covered parking stay where the property rents them out, so those detail sections are on
   // screen; NSF and Late everywhere, as in Happy Path.
   portfolioCharges(){
-    const core = ['RC','DP','APPFEE','GARBAG','NSF','LATE'];
+    const core = ['RC','DP','FMR','APPFEE','GARBAG','NSF','LATE'];
     return {
       // SF is unit 1A's own storage closet, so a unit page has a charge it can edit (2026-10-07).
       'Riverview Apartments':    core.concat(['PETFEE','COVPARK','SF']),
@@ -832,7 +834,7 @@ class Component extends DCLogic {
       'The Estates':             core.concat(['PETFEE']),
       'The Hamptons':            core.slice(),
       // Manufactured housing: lot rent and the basics, no deposit.
-      'Clearcreek Condominiums': ['RC','APPFEE','GARBAG','NSF','LATE']
+      'Clearcreek Condominiums': ['RC','FMR','APPFEE','GARBAG','NSF','LATE']
     };
   }
   // The scenario that is a walkthrough rather than a portfolio names, per property, the charges it
@@ -906,6 +908,10 @@ class Component extends DCLogic {
       Object.assign({ id:5,  group:'req-one', mits:'ADMIN',      name:'Administrative fee',desc:'Administrative fee',           from:'01/01/2026', to:'', amount:'$150.00',   amtMethod:'Flat', ils:true  }, L('Property')),
       Object.assign({ id:6,  group:'req-one', mits:'APPFEE',     name:'Application fee',   desc:'Application fee, per applicant',from:'01/01/2026', to:'', amount:'$50.00',   amtMethod:'Flat', ils:true  }, L('Property')),
       Object.assign({ id:7,  group:'req-one', mits:'DP',         name:'Security deposit',  desc:'Security deposit',             from:'01/01/2026', to:'', amount:'$500.00',   amtMethod:'Flat', ils:true }, L('Property')),
+      // First month's rent came over from Tenant Charge Setup at rollout, charge source Unit Market
+      // Rent: no figure and no estimate, so every preview and quote prices it from the unit's own
+      // Market Rent — what the unit page's Market Rent tile shows.
+      Object.assign({ id:19, group:'req-one', mits:'FMR',        name:"First month's rent",desc:"First month's rent",           from:'01/01/2026', to:'', amount:'Unit Market Rent', amtMethod:'Reference', ils:true }, L('Property')),
       Object.assign({ id:8,  group:'req-one', mits:'LMR',        name:"Last month's rent", desc:"Last month's rent, prepaid",   from:'01/01/2026', to:'', amount:'$1,350.00', amtMethod:'Flat', ils:true  }, L('Property')),
       Object.assign({ id:9,  group:'req-one', mits:'KEY',        name:'Key & fob deposit', desc:'Key & fob deposit',            from:'01/01/2026', to:'', amount:'$50.00',    amtMethod:'Flat', ils:true  }, L('Property')),
       Object.assign({ id:10, group:'opt-rec', mits:'SF',         name:'Storage closet',    desc:'Corner storage closet',        freq:'Every Month', from:'01/01/2026', to:'', amount:'$40.00',      amtMethod:'Flat', ils:true }, L('Unit','1A')),
@@ -939,7 +945,7 @@ class Component extends DCLogic {
     const base = { ADMIN:'Admin', AMENFEE:'Amenity', AMENITY:'Amenity', APPFEE:'Application', APPLICATION:'Application',
       CABLE:'Tech', CAM:'Service', CAMTAX:'Govt', CLEAN:'Clean', COVPARK:'Parking', DAMAGE:'Damage', DP:'Lease',
       ELEC:'Utility', GARAGE:'Parking', GARBAG:'Service', GARBAGEFEE:'Service', GAS:'Utility', H2O:'Utility',
-      HO4:'Insurance', HOA:'Service', HOLD:'Admin', KEY:'Key', LATE:'Violation', LC:'Violation', LMR:'Lease',
+      HO4:'Insurance', HOA:'Service', HOLD:'Admin', KEY:'Key', LATE:'Violation', LC:'Violation', FMR:'Lease', LMR:'Lease',
       NSF:'Violation', NSFFEE:'Violation', PARK:'Parking', PETDP:'Pet',
       PETFEE:'Pet', PET:'Pet', RC:'Lease', RUBS:'Utility', SEWER:'Utility', SF:'Storage', STORAGE:'Storage',
       TRANSFER:'Transfer', TRASH:'Service', UTIL:'Utility', WATER:'Utility' };
@@ -1056,7 +1062,7 @@ class Component extends DCLogic {
       ['CAM','Common Area Maintenance'],['CAMTAX','CAM - Taxes'],['CLEAN','Cleaning Fee'],['COVPARK','Covered Parking'],
       ['DAMAGE','Damage Repair'],['DP','Security Deposit'],['ELEC','Electric Utility'],['EPAYAJ','ePay Refund Adjustment'],
       ['EPD','Early Payment Discount'],['GARAGE','Garage Fee'],['GARBAG','Garbage Fee'],['GARBAGEFEE','Additional Trash Valet'],
-      ['EVCHG','EV Charging Station'],
+      ['EVCHG','EV Charging Station'],['FMR',"First Month's Rent"],
       ['GAS','Gas Utility'],['H2O','Water Utility'],['HO4','Renters Insurance'],['HOA','HOA Fee'],['HOLD','Hold Fee'],
       ['KEY','Key & Fob Deposit'],['LATE','Late Fee'],['LMR',"Last Month's Rent"],['NSF','NSF Fee'],['PARK','Parking'],
       ['PETDP','Pet Deposit'],['PETFEE','Pet Rent'],['RC','Rent'],['REKEY','Rekey Fee'],['RUBS','Flat Bill for All Utilities'],['SEWER','Sewer Utility'],
@@ -2797,13 +2803,11 @@ class Component extends DCLogic {
         </div>
       </div></div>`;
   }
-  // The Charges overlay's footer (2026-10-06, to the user's canvas): the tile's two totals, then how
-  // many situational charges the property carries — they have no figure until something happens.
+  // The Charges overlay's footer (2026-10-06, to the user's canvas): the tile's two totals. It used
+  // to add *n Situational Charges — When they occur*; the user took that off on 2026-10-07.
   chargesOverlayFoot(){
     const { rec, one } = this.chargeScope('property');
-    const sit = this.propertyCharges().filter(f => !f.excluded && (f.propSpecific || /^sit-/.test(f.group || ''))).length;
-    const sitPart = !sit ? '' : `<span style="display:inline-flex;align-items:baseline;gap:8px;white-space:nowrap"><span style="font-weight:600">${sit} Situational Charge${sit === 1 ? '' : 's'}</span><span>When they occur</span></span>`;
-    return `<div style="display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:4px 24px;padding:12px 16px;flex:none;font-size:14px;color:var(--rmx-text, #666666)">${this.chargeTotals('property', rec, one)}${sitPart}</div>`;
+    return `<div style="display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:4px 24px;padding:12px 16px;flex:none;font-size:14px;color:var(--rmx-text, #666666)">${this.chargeTotals('property', rec, one)}</div>`;
   }
   // Right-hand quick-action rail on property details (mock 2475-38346).
   rail(){
@@ -4686,7 +4690,7 @@ class Component extends DCLogic {
       ? `<div style="padding:40px 4px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">${sel} preferences</div>`
       : `${movedBanner}
       ${sect('Default Recurring Charges', chargeTable([['RC','Flat Amount'],['PETFEE','Pet Type Recurring Amount']]))}
-      ${sect('Default One-Time, Deposit, and Prorated Charges', chargeTable([['DP','Flat Amount']]))}`;
+      ${sect('Default One-Time, Deposit, and Prorated Charges', chargeTable([['DP','Flat Amount'],['FMR','Unit Market Rent']]))}`;
 
     return `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden">
       <div style="width:374px;max-width:30%;flex:none;background:var(--rmx-brand-dark, #13314c);display:flex;flex-direction:column;overflow-y:auto;padding-bottom:20px">
@@ -8053,7 +8057,7 @@ class Component extends DCLogic {
       <div style="flex:1;min-width:0">
         <input type="hidden" id="m-source" value="${src}">
         <div id="m-blk-flat" style="display:${src==='Flat'?'flex':'none'};flex-direction:column;gap:4px">${lab('Amount')}${iconInput('m-amount',amtFlat,'00.00','')}</div>
-        <div id="m-blk-ref" style="display:${src==='Reference'?'flex':'none'};flex-direction:column;gap:4px">${lab('Amount')}${dd('m-ref',['Market Rent','Field: Market Rent','Unit UDF: Parking Spot #'],'Market Rent',{noSearch:true})}</div>
+        <div id="m-blk-ref" style="display:${src==='Reference'?'flex':'none'};flex-direction:column;gap:4px">${lab('Amount')}${dd('m-ref',['Market Rent','Unit Market Rent','Field: Market Rent','Unit UDF: Parking Spot #'],(ed && src==='Reference' && ed.amount) || 'Market Rent',{noSearch:true})}</div>
         <div id="m-blk-calc" style="display:${src==='Calculation'?'flex':'none'};flex-direction:column;gap:4px">${lab('Amount')}${iconInput('m-calc','','','edit')}</div>
       </div>`;
     // A charge of nothing, or less than nothing, has no price for a listing site to advertise, so it

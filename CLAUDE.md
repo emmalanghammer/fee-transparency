@@ -243,7 +243,8 @@ design canvas *Standardized Charges Tiles*, <https://claude.ai/artifact/3rJtePCj
   at z-index 120, over the unit overlay's 100. Riverview keeps `SF`, 1A's own Storage closet, in every scenario for exactly this.
 - **The property's Charges overlay** (`chargesOverlay`) gained the property scoreboard
   (`recViewPropStrip`) above its tabs, lost the rule under the level tabs, and has the totals footer
-  plus **n Situational Charges — When they occur** (`chargesOverlayFoot`). Its register, tabs and
+  (`chargesOverlayFoot`) — the two totals only; its *n Situational Charges — When they occur* came
+  off on 2026-10-07. Its register, tabs and
   filter are otherwise as they were.
 
 `infoTip`'s panel is RMX's **Tooltip** (RMX Components `2944:203796`): 312px wide, 16px padding,
