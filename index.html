@@ -75,6 +75,12 @@ window.__resources = {
     /* Orange checkboxes render a white checkmark (native accent-color can't set the tick color). */
     .btn-out { background:#fff; color:var(--ac,var(--rmx-brand, #008dd5)); border:1px solid var(--ac,var(--rmx-brand, #008dd5)); border-radius:4px; padding:6px 14px; font:400 13px Roboto,sans-serif; cursor:pointer; }
     .btn-pri { background:var(--ac,var(--rmx-brand, #008dd5)); color:#fff; border:none; border-radius:4px; padding:6px 14px; font:400 13px Roboto,sans-serif; cursor:pointer; }
+    /* An expand-on-focus text box: one line in the row, ellipsized by the label laid over it, and on
+       focus it grows down over whatever is below to show everything, so the form never gets taller. */
+    .md-x:not(:focus) { color:transparent !important; -webkit-text-fill-color:transparent !important; }
+    .md-x:focus { z-index:20; box-shadow:0 6px 20px rgba(0,0,0,0.18); border-color:var(--ac,var(--rmx-brand, #008dd5)); outline:none; }
+    .md-x:focus + .md-ell { display:none; }
+    .cf-ro .md-ell { color:#b3b3b3; }
     .fld { padding:7px 10px; border:1px solid var(--rmx-line, #cedbe7); background:var(--rmx-bg-subtle, #f5f8fa); border-radius:4px; font:400 14px Roboto,sans-serif; color:var(--rmx-brand-dark, #13314c); width:100%; box-sizing:border-box; }
     /* What someone typed is content, so it reads navy; what they haven't typed stays muted. */
     input, textarea { color:var(--rmx-brand-dark, #13314c); }
@@ -1427,6 +1433,11 @@ class Component extends DCLogic {
         }
         this.setState(s => ({ unitSel: null, rq: Object.assign({}, s.rq, { unit: pick }) })); break; }
       case 'rqOpen': this.setState({ rq: this.rqBlank() }); break;
+      // The Move In wizard (RMX Pages `4671:33014`).
+      case 'miOpen': this.setState({ mi: { prop: 'Riverview Apartments' } }); break;
+      case 'miClose': this.setState({ mi: null }); break;
+      case 'miSave': { const u = (this.q('#mi-unit') || {}).value || '';
+        this.setState({ mi: null }); this.flash('Charlie Apegian moved in' + (u ? ' to ' + u : '')); break; }
       case 'rqClose': this.setState({ rq: null, rqAdd: null }); break;
       case 'rqNext': this.rqCapture(); this.setState(s => ({ rq: Object.assign({}, s.rq, { step:2 }) })); break;
       case 'rqBack': this.setState(s => ({ rq: Object.assign({}, s.rq, { step:1 }) })); break;
@@ -2432,6 +2443,11 @@ class Component extends DCLogic {
       'link':'M450-280H280q-83 0-141.5-58.5T80-480q0-83 58.5-141.5T280-680h170v60H280q-58.33 0-99.17 40.76-40.83 40.77-40.83 99Q140-422 180.83-381q40.84 41 99.17 41h170v60ZM325-450v-60h310v60H325Zm185 170v-60h170q58.33 0 99.17-40.76 40.83-40.77 40.83-99Q820-538 779.17-579q-40.84-41-99.17-41H510v-60h170q83 0 141.5 58.5T880-480q0 83-58.5 141.5T680-280H510Z',
       'list':'M290-620v-60h550v60H290Zm0 170v-60h550v60H290Zm0 170v-60h550v60H290ZM150-620q-12 0-21-9t-9-21.5q0-12.5 9-21t21.5-8.5q12.5 0 21 8.62 8.5 8.63 8.5 21.38 0 12-8.62 21-8.63 9-21.38 9Zm0 170q-12 0-21-9t-9-21.5q0-12.5 9-21t21.5-8.5q12.5 0 21 8.62 8.5 8.63 8.5 21.38 0 12-8.62 21-8.63 9-21.38 9Zm0 170q-12 0-21-9t-9-21.5q0-12.5 9-21t21.5-8.5q12.5 0 21 8.62 8.5 8.63 8.5 21.38 0 12-8.62 21-8.63 9-21.38 9Z',
       'lock':'M220-80q-24.75 0-42.37-17.63Q160-115.25 160-140v-434q0-24.75 17.63-42.38Q195.25-634 220-634h70v-96q0-78.85 55.61-134.42Q401.21-920 480.11-920q78.89 0 134.39 55.58Q670-808.85 670-730v96h70q24.75 0 42.38 17.62Q800-598.75 800-574v434q0 24.75-17.62 42.37Q764.75-80 740-80H220Zm0-60h520v-434H220v434Zm314.5-162.03Q557-324.06 557-355q0-30-22.67-54.5t-54.5-24.5q-31.83 0-54.33 24.5t-22.5 55q0 30.5 22.67 52.5t54.5 22q31.83 0 54.33-22.03ZM350-634h260v-96q0-54.17-37.88-92.08-37.88-37.92-92-37.92T388-822.08q-38 37.91-38 92.08v96ZM220-140v-434 434Z',
+      'cloud_upload':'M260-160q-91 0-155.5-63T40-377q0-78 47-139t123-78q25-92 100-149t170-57q117 0 198.5 81.5T760-520q69 8 114.5 59.5T920-340q0 75-52.5 127.5T740-160H520q-33 0-56.5-23.5T440-240v-206l-64 62-56-56 160-160 160 160-56 56-64-62v206h220q42 0 71-29t29-71q0-42-29-71t-71-29h-60v-80q0-83-58.5-141.5T480-720q-83 0-141.5 58.5T280-520h-20q-58 0-99 41t-41 99q0 58 41 99t99 41h100v80H260Zm220-280Z',
+      'content_paste':'M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h167q11-35 43-57.5t70-22.5q40 0 71.5 22.5T594-840h166q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560h-80v120H280v-120h-80v560Zm280-560q17 0 28.5-11.5T520-800q0-17-11.5-28.5T480-840q-17 0-28.5 11.5T440-800q0 17 11.5 28.5T480-760Z',
+      'location_on':'M480-480q33 0 56.5-23.5T560-560q0-33-23.5-56.5T480-640q-33 0-56.5 23.5T400-560q0 33 23.5 56.5T480-480Zm0 294q122-112 181-203.5T720-552q0-109-69.5-178.5T480-800q-101 0-170.5 69.5T240-552q0 71 59 162.5T480-186Zm0 106Q319-217 239.5-334.5T160-552q0-150 96.5-239T480-880q127 0 223.5 89T800-552q0 100-79.5 217.5T480-80Zm0-480Z',
+      'photo_camera':'M480-260q75 0 127.5-52.5T660-440q0-75-52.5-127.5T480-620q-75 0-127.5 52.5T300-440q0 75 52.5 127.5T480-260Zm0-80q-42 0-71-29t-29-71q0-42 29-71t71-29q42 0 71 29t29 71q0 42-29 71t-71 29ZM160-120q-33 0-56.5-23.5T80-200v-480q0-33 23.5-56.5T160-760h126l74-80h240l74 80h126q33 0 56.5 23.5T880-680v480q0 33-23.5 56.5T800-120H160Zm0-80h640v-480H638l-73-80H395l-73 80H160v480Zm320-240Z',
+      'phone_iphone':'M280-40q-33 0-56.5-23.5T200-120v-720q0-33 23.5-56.5T280-920h400q33 0 56.5 23.5T760-840v720q0 33-23.5 56.5T680-40H280Zm0-120v40h400v-40H280Zm0-80h400v-480H280v480Zm0-560h400v-40H280v40Zm0 0v-40 40Zm0 640v40-40Z',
       'mail':'M140-160q-24 0-42-18t-18-42v-520q0-24 18-42t42-18h680q24 0 42 18t18 42v520q0 24-18 42t-42 18H140Zm340-302L140-685v465h680v-465L480-462Zm0-60 336-218H145l335 218ZM140-685v-55 520-465Z',
       'menu':'M120-240v-60h720v60H120Zm0-210v-60h720v60H120Zm0-210v-60h720v60H120Z',
       'merge':'m256-120-42-42 196-196q24-24 32-44t8-59v-265l-90 90-42-42 162-162 162 162-42 42-90-90v265q0 39 8 59t32 44l196 196-42 42-224-224-224 224Z',
@@ -2936,6 +2952,14 @@ class Component extends DCLogic {
   // test setup across, not just ?test=. The scenario rides in the query string: written on every
   // change below, read back once here. Guarded, because a hot reload calls this again.
   componentDidMount(){
+    // The expand-on-focus box (`.md-x`): open, it grows to fit its text; closed, it goes back to one
+    // line and the ellipsized label over it is brought up to date.
+    window.__mdFit = (el, open) => {
+      if (!el) return;
+      el.style.height = '36px';
+      if (open) el.style.height = Math.max(36, el.scrollHeight + 2) + 'px';
+      else { el.scrollTop = 0; const lab = el.nextElementSibling; if (lab) lab.textContent = el.value; }
+    };
     if (this._scenRead) return;
     this._scenRead = true;
     // The charge types come with their default charge marketing already set — `state.mktDef` can't
@@ -3492,7 +3516,7 @@ class Component extends DCLogic {
     const chip = (c, t) => `<span style="display:inline-flex;align-items:center;gap:7px;background:${c.bg};border-radius:4px;padding:4px 11px;font-size:14px;color:${c.fg};white-space:nowrap"><span style="width:7px;height:7px;border-radius:50%;background:${c.dot};flex:none"></span>${t}</span>`;
     const meta = (n, t) => `<span style="display:inline-flex;align-items:center;gap:7px;white-space:nowrap">${icon(n)}<span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${t}</span></span>`;
     const splitBtn = (t) => `<span style="display:inline-flex;align-items:stretch;flex:none">
-      <span data-act="todo" data-arg="${t}" class="btn-pri" style="display:inline-flex;align-items:center;height:32px;padding:0 16px;border-radius:4px 0 0 4px;font-size:14px;white-space:nowrap">${t}</span>
+      <span data-act="${t === 'Move In' ? 'miOpen' : 'todo'}" data-arg="${t}" class="btn-pri" style="display:inline-flex;align-items:center;height:32px;padding:0 16px;border-radius:4px 0 0 4px;font-size:14px;white-space:nowrap">${t}</span>
       <span data-act="todo" data-arg="${t}" style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:32px;background:var(--rmx-brand-hover, #0071aa);border-radius:0 4px 4px 0;cursor:pointer"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:#fff"><path d="M480-360 280-559h400L480-360Z"/></svg></span>
     </span>`;
     const stat = (l, v) => `<div style="display:flex;align-items:center;justify-content:flex-end;gap:12px">
@@ -3582,7 +3606,7 @@ class Component extends DCLogic {
       ${twoUp(field('Rent Min.', num('1,000.00')), field('Rent Max.', num('1,650.00')))}
       ${twoUp(field('Move In Date', date('')), field('Move Out Date', date('')))}
       <div style="flex:1"></div>`);
-    const lease = tile('Reservation / Expected Lease Information', link('Move In') + openIcon('Reservation'), `
+    const lease = tile('Reservation / Expected Lease Information', `<span data-act="miOpen" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Move In</span>` + openIcon('Reservation'), `
       ${field('Reserved Unit', `<div style="display:flex;align-items:center;gap:8px">${dd('201C')}${sqBtn('apartment')}</div>`)}
       ${field('Other Rentable Item Unit', `<div style="display:flex;align-items:center;gap:8px">${dd('')}${sqBtn('apartment')}</div>`)}
       ${twoUp(field('Reserved Move In', date('')), field('Reserved Move Out', date('')))}
@@ -6377,6 +6401,140 @@ class Component extends DCLogic {
         </div>
       </div></div>`;
   }
+  // ---------- Move In wizard (RMX Pages `4671:33014`, 2026-10-07) ----------
+  // Opened from the prospect's Move In button (and the Reservation tile's Move In link). One scrolling
+  // canvas of tiles beside a navy left nav that jumps between them: Account, Lease, Home, Addresses +
+  // Comment, Miscellaneous, Payment Rules, Contacts, User Defined Fields, Deposit, Recurring Charges,
+  // One-Time Charges, Meter Readings, Tenant Self-Inspection; Move In / Cancel underneath. Only the
+  // charges are live: **picking the Unit fills Recurring and One-Time Charges with that unit's
+  // charges** (`unitRecurring` / `unitOneTime` — the property's, its unit type's and its own), DOM-only
+  // through `window.__miUnit` so nothing typed elsewhere in the wizard is lost.
+  miChargeTilesHTML(unit){
+    const info = unit ? this.unitInfo(unit) : null;
+    const names = {}; this.chargeTypeListAll().forEach(t => { names[t[0]] = t[1]; });
+    const ctLabel = (c) => c + (names[c] ? ' - ' + names[c] : '');
+    const amtOf = (f) => /market rent/i.test(String(f.amount || '')) ? this.parseAmt(info && info.rent) : this.parseAmt(f.amount);
+    const dec = (n) => n.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
+    const short = (d) => { const m = String(d || '').match(/^(\d\d)\/(\d\d)\/\d\d(\d\d)$/); return m ? `${m[1]}/${m[2]}/${m[3]}` : (d || ''); };
+    const ink = 'var(--rmx-brand-dark, #13314c)';
+    const hd = (t) => `<span style="display:flex;align-items:center;height:32px;box-sizing:border-box;padding:4px 8px;background:#fff;border-top:1px solid var(--rmx-line, #cedbe7);border-bottom:1px solid var(--rmx-line, #cedbe7);font-size:14px;font-weight:600;color:${ink};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>`;
+    const cl = (t) => `<span style="display:flex;align-items:center;height:44px;box-sizing:border-box;padding:0 8px;border-bottom:1px solid var(--rmx-line-soft, #ebf1f5);font-size:14px;color:${ink};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>`;
+    const keb = `<span data-act="todo" data-arg="Charge actions" style="display:flex;align-items:center;justify-content:center;height:44px;border-bottom:1px solid var(--rmx-line-soft, #ebf1f5);cursor:pointer">${this.ico('more_vert', 20, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>`;
+    const blank = `<span style="height:44px;border-bottom:1px solid var(--rmx-line-soft, #ebf1f5)"></span>`;
+    const tot = (n) => `<div style="display:flex;justify-content:flex-end;padding:8px 16px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);font-size:12px;color:var(--rmx-text, #666666)">Total: ${dec(n)}</div>`;
+    const none = (t) => `<div style="grid-column:1/-1;padding:12px 16px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3);border-bottom:1px solid var(--rmx-line-soft, #ebf1f5)">${t}</div>`;
+    const rec = info ? this.unitRecurring(unit) : [];
+    const one = info ? this.unitOneTime(unit) : [];
+    const src = (f) => this.levelLabel(f.level || 'Property');
+    const RC = '40px minmax(90px,1fr) minmax(130px,1.3fr) minmax(110px,1fr) minmax(60px,119px) minmax(96px,120px) minmax(96px,119px) minmax(96px,120px) 40px';
+    const OC = 'minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 120px 40px';
+    const msg = 'Select a unit to fill its charges.';
+    const recReg = `<div style="display:grid;grid-template-columns:${RC}">${hd('')}${hd('Source')}${hd('Charge Type')}${hd('Comment')}${hd('Freq')}${hd('From Date')}${hd('To Date')}${hd('Amount')}${hd('')}
+      ${rec.length ? rec.map(f => blank + cl(src(f)) + cl(ctLabel(f.mits)) + cl(f.desc || '') + cl(this.freqNum(f) || '1') + cl(short(f.from)) + cl(short(f.to)) + cl(dec(amtOf(f))) + keb).join('') : none(info ? 'No recurring charges reach this unit.' : msg)}</div>`;
+    const oneReg = `<div style="display:grid;grid-template-columns:${OC}">${hd('Date')}${hd('Charge Type')}${hd('Reference')}${hd('Comment')}${hd('Amount')}${hd('')}
+      ${one.length ? one.map(f => cl(short(f.from)) + cl(ctLabel(f.mits)) + cl('') + cl(f.desc || '') + cl(dec(amtOf(f))) + keb).join('') : none(info ? 'No one-time charges reach this unit.' : msg)}</div>`;
+    return this.miTile('Recurring Charges', `<div style="overflow-x:auto"><div style="min-width:760px">${recReg}</div></div>` + tot(rec.reduce((n, f) => n + amtOf(f), 0)), { flush:true, id:'mi-sec-charges' })
+      + this.miTile('One-Time Charges', `<div style="overflow-x:auto"><div style="min-width:640px">${oneReg}</div></div>` + tot(one.reduce((n, f) => n + amtOf(f), 0)), { flush:true });
+  }
+  // A Content tile with the overline, as overlay forms use it: a 36px header over a 2px brand rule.
+  miTile(title, body, o){
+    o = o || {};
+    return `<section${o.id ? ` id="${o.id}"` : ''} style="${o.span ? `grid-column:span ${o.span};` : ''}flex:1 1 auto;min-width:0;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden;display:flex;flex-direction:column">
+      <div style="display:flex;align-items:center;gap:8px;min-height:36px;box-sizing:border-box;padding:8px;border-bottom:2px solid var(--ac,var(--rmx-brand, #008dd5))"><span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${title}</span>${o.mid || ''}<div style="flex:1"></div>${o.right || ''}</div>
+      <div style="${o.flush ? '' : 'padding:16px;'}display:flex;flex-direction:column;gap:16px;flex:1">${body}</div>
+    </section>`;
+  }
+  miHTML(){
+    const m = this.state.mi; if (!m) return '';
+    const ink = 'var(--rmx-brand-dark, #13314c)';
+    const lab = (t) => `<span style="font-size:14px;color:var(--rmx-text, #666666)">${t}</span>`;
+    const box = (inner, dis) => `<div style="display:flex;align-items:center;gap:8px;height:36px;box-sizing:border-box;padding:0 8px;background:${dis ? '#f2f2f2' : 'var(--rmx-bg-subtle, #f5f8fa)'};border:1px solid ${dis ? 'var(--rmx-line-soft, #ebf1f5)' : 'var(--rmx-line, #cedbe7)'};border-radius:4px;min-width:0">${inner}</div>`;
+    const val = (v, ph, dis) => v ? `<span style="flex:1;min-width:0;font-size:14px;color:${dis ? 'var(--rmx-text-muted, #b3b3b3)' : ink};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v}</span>`
+      : `<input placeholder="${ph || ''}" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:${ink}">`;
+    const ic = (n, c) => this.ico(n, 20, `color:${c || 'var(--rmx-text, #666666)'};flex:none`);
+    const fld = (l, v, o) => { o = o || {};
+      const inner = (o.search ? ic('search', 'var(--ac,var(--rmx-brand, #008dd5))') : '') + val(v, o.ph, o.dis) + (o.date ? ic('calendar_today') : '') + (o.dd ? ic('arrow_drop_down') : '') + (o.calc ? ic('calculate') : '');
+      return `<div style="display:flex;flex-direction:column;gap:4px;min-width:0;${o.span ? `grid-column:span ${o.span};` : ''}">${lab(l)}<div style="display:flex;gap:8px;align-items:center">${`<div style="flex:1;min-width:0">${box(inner, o.dis)}</div>`}${o.btn || ''}</div></div>`; };
+    const sqBtn = (n, light) => `<span data-act="todo" data-arg="${n}" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;flex:none;border-radius:4px;background:${light ? '#a6d1ec' : 'var(--ac,var(--rmx-brand, #008dd5))'};cursor:pointer">${this.ico(n, 20, 'color:#fff')}</span>`;
+    // Columns wrap rather than squeeze: two across fall to one under ~460px, three under ~620px.
+    const fit = { '1fr 1fr':'repeat(auto-fit,minmax(220px,1fr))', '1fr 1fr 1fr':'repeat(auto-fit,minmax(200px,1fr))' };
+    const grid = (cols, inner, gap) => `<div style="display:grid;grid-template-columns:${fit[cols] || cols};gap:${gap || '12px 16px'};align-items:start">${inner}</div>`;
+    const cb = (t, on, dis) => `<span style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:${dis ? 'var(--rmx-text-muted, #b3b3b3)' : ink}"><span style="width:20px;height:20px;box-sizing:border-box;border-radius:2px;display:flex;align-items:center;justify-content:center;${on ? 'background:var(--rmx-attention, #f58220);border:2px solid var(--rmx-attention, #f58220)' : 'background:#fff;border:2px solid #b3b3b3'}">${on ? this.ico('check', 14, 'color:#fff') : ''}</span>${t}</span>`;
+    const rd = (t, on, dis) => `<span style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:${dis ? 'var(--rmx-text-muted, #b3b3b3)' : ink}"><span style="width:20px;height:20px;box-sizing:border-box;border-radius:50%;border:2px solid ${on ? 'var(--ac,var(--rmx-brand, #008dd5))' : '#b3b3b3'};display:flex;align-items:center;justify-content:center">${on ? `<span style="width:10px;height:10px;border-radius:50%;background:var(--ac,var(--rmx-brand, #008dd5))"></span>` : ''}</span>${t}</span>`;
+    const units = this.units().map(u => ({ value:u.u, label:u.u + ' - ' + u.type }));
+    const unitSel = `<div style="display:flex;flex-direction:column;gap:4px;min-width:0">${lab('Unit')}<div style="display:flex;gap:8px;align-items:center"><div style="flex:1;min-width:0">${this.singleSelect('mi-unit', units, '', { placeholder:' ', js:"if(window.__miUnit)window.__miUnit()" })}</div>${sqBtn('apartment')}</div></div>`;
+    if (!window.__miUnit) window.__miUnit = () => {
+      const u = (document.getElementById('mi-unit') || {}).value || '';
+      const host = document.getElementById('mi-charges'); if (host) host.innerHTML = this.miChargeTilesHTML(u);
+    };
+    const T = (id, title, body, o) => this.miTile(title, body, Object.assign({ id }, o || {}));
+    const account = T('mi-sec-lease', 'Account', grid('1fr 1fr', fld('First Name', 'Charlie') + fld('Last Name *', 'Apegian')));
+    const lease = T('', 'Lease', `<div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start"><div style="flex:2 1 440px;min-width:0">` + grid('1fr 1fr',
+        fld('Property *', 'Riverview Apartments', { search:true, dd:true }) + unitSel
+        + fld('Move In Date *', '01/01/2026', { date:true }) + fld('Move Out Date', '', { ph:'mm/dd/yy', date:true, btn: sqBtn('move', true) })
+        + fld('Lease Start Date', '', { ph:'mm/dd/yy', date:true }) + fld('Lease End Date', '', { ph:'mm/dd/yy', date:true })
+        + fld('Lease Sign Date', '', { ph:'mm/dd/yy', date:true }) + fld('Lease Term', '', { dd:true })) + `</div>`
+      + `<div style="flex:1 1 240px;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Lease Documents')}<div style="display:flex;align-items:center;justify-content:center;gap:10px;height:88px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:6px"><div style="flex:1;align-self:stretch;display:flex;align-items:center;justify-content:center;gap:10px;border:2px dashed var(--rmx-line, #cedbe7);border-radius:2px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))">${this.ico('cloud_upload', 18, 'color:var(--ac,var(--rmx-brand, #008dd5))')}Upload<span style="color:var(--rmx-line, #cedbe7)">|</span>${this.ico('content_paste', 16, 'color:var(--ac,var(--rmx-brand, #008dd5))')}Paste</div></div></div></div>`);
+    const home = T('', 'Home', `<span style="font-size:14px;color:${ink}">No home is currently linked to the unit. How do you want to record the tenant's home?</span>
+      <div style="display:flex;gap:24px;flex-wrap:wrap">${rd('Create a lease for the unit only')}${rd('Enter resident owned RV details')}${rd('Link an existing home', true)}</div>
+      ${grid('1fr 1fr 1fr', fld('Home', 'SW010', { dd:true }) + fld('Home Location Start Date', '01/01/2026', { date:true }) + fld('Homeowner Status', 'Community Owned', { dd:true }))}
+      <div>${cb('Add a lease for this home', true)}</div>`);
+    const addr = this.miTile('Addresses', `<div style="display:flex;border-bottom:1px solid var(--rmx-line, #cedbe7);margin:-16px -16px 0">${['Primary','Alternate','Forwarding'].map((t, i) => `<span style="flex:1;text-align:center;padding:12px;font-size:14px;${i === 0 ? `font-weight:600;color:${ink};box-shadow:inset 0 -2px 0 var(--ac,var(--rmx-brand, #008dd5))` : 'color:var(--rmx-text, #666666)'}">${t}</span>`).join('')}</div>
+      <div style="display:flex;justify-content:flex-end"><span data-act="todo" data-arg="View on Map" style="display:inline-flex;align-items:center;gap:4px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">${this.ico('location_on', 16, 'color:var(--ac,var(--rmx-brand, #008dd5))')}View on Map</span></div>
+      <div style="min-height:70px;padding:8px 10px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;font-size:14px;line-height:1.45;color:${ink}">1492 Loveland-Madeira Road Unit # 02<br>Loveland, OH 45140</div>
+      <div style="display:flex;align-items:center;gap:16px">${cb('Default', true)}<div style="flex:1"></div><span style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))">Fill From Unit Address</span><span style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))">Details</span></div>`, { span:1 });
+    const comment = this.miTile('Comment', `<div style="display:flex;justify-content:flex-end">${this.ico('menu', 20, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</div><textarea style="min-height:110px;resize:vertical;box-sizing:border-box;padding:8px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;font:400 14px Roboto,sans-serif"></textarea><div>${cb('Show on Comment Banner')}</div>`);
+    const row2 = `<div style="display:flex;flex-wrap:wrap;gap:24px"><div style="flex:687 1 380px;min-width:0;display:flex">${addr}</div><div style="flex:471 1 280px;min-width:0;display:flex">${comment}</div></div>`;
+    const misc = T('mi-sec-general', 'Miscellaneous', grid('1fr 1fr', fld('Rent Period', 'Monthly', { dd:true }) + fld('Due Date *', '1', { dd:true })
+      + fld('Default Tax Type ID', '', { dd:true }) + fld('Display', 'Default', { dd:true }) + fld('Leasing Agent', '', { search:true }) + fld('Subsidies', '', { dd:true })
+      + fld('Statement Method', '&lt; Use Property Default &gt;', { dd:true, span:2 })));
+    const pay = T('', 'Payment Rules', `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">${cb("Don't Charge Late Fees")}${cb("Don't Accept Checks")}${cb("Don't Send AR Automation Notifications")}</div>`);
+    const contacts = T('mi-sec-contacts', 'Contacts', `<div style="display:flex;gap:16px;align-items:flex-start">
+        <span style="position:relative;width:88px;height:88px;flex:none;border-radius:50%;background:var(--rmx-bg-muted, #f2f2f2);display:flex;align-items:center;justify-content:center">${this.ico('photo_camera', 36, 'color:var(--ac,var(--rmx-brand, #008dd5))')}<span style="position:absolute;right:-2px;bottom:4px;width:24px;height:24px;border-radius:50%;background:var(--ac,var(--rmx-brand, #008dd5));display:flex;align-items:center;justify-content:center">${this.ico('add', 18, 'color:#fff')}</span></span>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">
+          ${grid('1fr 1fr', fld('Contact Type', '', { dd:true }) + fld('Applicant Type', 'Primary', { dd:true }), '8px 8px')}
+          ${grid('1fr 1fr 1fr', box(val('', 'First Name')) + box(val('', 'Middle Name')) + box(val('', 'Last Name *')), '8px')}
+          ${grid('1fr 1fr', box(ic('mail', 'var(--ac,var(--rmx-brand, #008dd5))') + val('', 'Email Address')) + box(ic('phone_iphone') + val('', 'Phone Number')), '8px')}
+          <div style="display:flex;gap:110px">${cb('Primary', true)}${cb('Show On Statement/Labels', true)}</div>
+        </div></div>
+      <span data-act="todo" data-arg="Add New Contact" style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">${this.ico('add', 18, 'color:var(--ac,var(--rmx-brand, #008dd5))')}Add New Contact</span>`);
+    const udfRow = (n, inner) => `<div style="display:grid;grid-template-columns:1fr 1fr;align-items:center;min-height:32px;border-bottom:1px solid var(--rmx-line-soft, #ebf1f5)"><span style="padding:4px 8px;font-size:14px;color:${ink}">${n}</span><div style="padding:4px 8px">${inner}</div></div>`;
+    const udf = T('mi-sec-udf', 'User Defined Fields', `<div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--rmx-line, #cedbe7)"><span style="padding:6px 8px;font-size:14px;font-weight:600;color:${ink}">Name</span><span style="padding:6px 8px;font-size:14px;font-weight:600;color:${ink}">Value</span></div>
+      ${udfRow('Emergency Contact Name', box(val('')))}${udfRow('Emergency Contact Number', box(val('')))}${udfRow('Image', box(val('')))}`,
+      { flush:true, right:`<span data-act="todo" data-arg="View All UDFs" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">View All UDFs</span>` });
+    const deposit = T('', 'Deposit', fld('Deposit Type', '', { dd:true }) + fld('Deposit Amount', '0.00', { dis:true, calc:true }) + fld('Deposit Date', 'mm/dd/yy', { dis:true, date:true }) + `<div>${cb('Deposit Prior to GL Start Date', true)}</div>`);
+    const meter = T('mi-sec-meter', 'Meter Readings', `<div style="display:flex;align-items:center;gap:10px;min-height:44px;box-sizing:border-box;padding:0 12px;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;font-size:14px;color:${ink}">${this.ico('info', 20, 'color:var(--ac,var(--rmx-brand, #008dd5))')}To request a move in reading, select a unit with at least one utility set up.</div>
+      <span style="font-size:14px;color:${ink}">Do you want to request a move in meter reading?</span><div style="display:flex;gap:24px">${rd('Not right now', true)}${rd('Yes', false, true)}</div>`);
+    const tsi = T('mi-sec-tsi', 'Tenant Self-Inspection', grid('1fr 1fr', fld('Template *', '&lt;Use Unit Default&gt;', { dis:true, dd:true }) + fld('Inspection Type *', '', { dis:true, dd:true })
+        + fld('Expiration Date *', '01/01/2026', { dis:true, date:true }) + fld('Description', '', { dis:true })),
+      { mid: `<span style="display:inline-flex;align-items:center;gap:8px;margin-left:4px">${this.ico('info', 18, 'color:var(--ac,var(--rmx-brand, #008dd5))')}<span style="width:30px;height:16px;border-radius:8px;background:#b3b3b3;position:relative"><span style="position:absolute;left:2px;top:2px;width:12px;height:12px;border-radius:50%;background:#fff"></span></span></span>` });
+    const nav = [['Lease','mi-sec-lease'],['General Information','mi-sec-general'],['Contacts *','mi-sec-contacts'],['User Defined Fields','mi-sec-udf'],['Charges','mi-sec-charges'],['Move-In Reading','mi-sec-meter'],['Tenant Self-Inspection','mi-sec-tsi']];
+    const go = "var n=this.parentElement.children;for(var i=0;i<n.length;i++){n[i].style.background='transparent';n[i].style.color='#fff'}this.style.background='#fff';this.style.color='#13314c';var t=document.getElementById(this.getAttribute('data-to'));if(t)t.scrollIntoView({behavior:'smooth',block:'start'})";
+    const navItems = nav.map(([t, id], i) => `<span data-to="${id}" onclick="${go}" style="display:flex;align-items:center;height:42px;box-sizing:border-box;padding:0 6px;border-radius:8px 0 0 8px;font-size:14px;cursor:pointer;${i === 0 ? `background:#fff;color:${ink}` : 'background:transparent;color:#fff'}">${t}</span>`).join('');
+    return `<div data-act="miClose" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;padding:60px 20px 20px;box-sizing:border-box;z-index:150">
+      <div data-act="noop" style="flex:1;min-width:0;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="flex:1;min-height:0;display:flex">
+          <nav aria-label="Move In sections" style="width:220px;flex:none;background:var(--rmx-brand-dark, #13314c);display:flex;flex-direction:column;justify-content:space-between;padding:0 0 32px 16px;box-sizing:border-box">
+            <div style="display:flex;flex-direction:column">
+              <div style="display:flex;align-items:center;justify-content:space-between;height:72px;padding:0 16px 0 0"><span style="font-size:20px;line-height:24px;color:#fff">Move In</span>${this.ico('help', 20, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</div>
+              <div style="display:flex;flex-direction:column">${navItems}</div>
+            </div>
+            <img src="assets/logo-rentmanager-mark-white.svg" alt="" style="width:96px;height:96px;opacity:.2;align-self:center;margin-right:16px">
+          </nav>
+          <div style="flex:1;min-width:0;overflow-y:auto;padding:32px clamp(16px,4vw,56px);box-sizing:border-box">
+            <div style="max-width:1178px;margin:0 auto;display:flex;flex-direction:column;gap:24px">
+              ${account}${lease}${home}${row2}${misc}${pay}${contacts}${udf}${deposit}
+              <div id="mi-charges" style="display:flex;flex-direction:column;gap:24px">${this.miChargeTilesHTML('')}</div>
+              ${meter}${tsi}
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:16px;padding:8px 16px;border-top:1px solid var(--rmx-line, #cedbe7);background:var(--rmx-bg-subtle, #f5f8fa);flex:none">
+          <button data-act="miSave" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Move In</button>
+          <button data-act="miClose" class="btn-out" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Cancel</button>
+        </div>
+      </div></div>`;
+  }
   rqStep2(){
     const q = this.state.rq;
     const rec = this.rqRecurring(), one = this.rqOneTime();
@@ -7333,7 +7491,7 @@ class Component extends DCLogic {
     const chip = (t) => `<span style="display:inline-flex;align-items:center;gap:7px;background:var(--rmx-success-bg, #e2f1da);border-radius:4px;padding:4px 11px;font-size:14px;color:#2f5d43;white-space:nowrap"><span style="width:7px;height:7px;border-radius:50%;background:var(--rmx-success, #6eb744);flex:none"></span>${t}</span>`;
     const meta = (n, t, act, arg) => `<span${act?` data-act="${act}"${arg?` data-arg="${arg}"`:''}`:''} style="display:inline-flex;align-items:center;gap:7px;white-space:nowrap${act?';cursor:pointer':''}">${icon(n)}<span style="font-size:14px;color:${act?'var(--ac,var(--rmx-brand, #008dd5))':'var(--rmx-brand-dark, #13314c)'}">${t}</span></span>`;
     const splitBtn = (t) => `<span style="display:inline-flex;align-items:stretch;flex:none">
-      <span data-act="todo" data-arg="${t}" class="btn-pri" style="display:inline-flex;align-items:center;height:32px;padding:0 16px;border-radius:4px 0 0 4px;font-size:14px;white-space:nowrap">${t}</span>
+      <span data-act="${t === 'Move In' ? 'miOpen' : 'todo'}" data-arg="${t}" class="btn-pri" style="display:inline-flex;align-items:center;height:32px;padding:0 16px;border-radius:4px 0 0 4px;font-size:14px;white-space:nowrap">${t}</span>
       <span data-act="todo" data-arg="${t}" style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:32px;background:var(--rmx-brand-hover, #0071aa);border-radius:0 4px 4px 0;cursor:pointer">${this.ico('arrow_drop_down', 18, 'color:#fff')}</span>
     </span>`;
     const stat = (l, v) => `<div style="display:flex;align-items:center;justify-content:flex-end;gap:12px">
@@ -7936,7 +8094,7 @@ class Component extends DCLogic {
       }
       now.name = D.name || '';
       const mk = this.q('#m-marketing');
-      if (mk && mine(mk.value, 'marketing')) mk.value = D.marketing || '';
+      if (mk && mine(mk.value, 'marketing')) { mk.value = D.marketing || ''; window.__mdFit(mk, 0); }
       now.marketing = D.marketing || '';
       [['m-req', 'requirement', D.requirement], ['m-sched', 'schedule', D.schedule],
        ['m-due', 'feeDue', D.feeDue]].forEach(([id, key, val]) => {
@@ -8453,7 +8611,7 @@ class Component extends DCLogic {
           <div id="m-name-rent" style="display:${role0 === 'rent' ? 'block' : 'none'}">${this.singleSelect('m-name-rent-sel', nameOpts.rent, rentSel, { noSearch:true, js:nameJs })}</div>
           <div id="m-name-dep" style="display:${role0 === 'deposit' ? 'block' : 'none'}">${this.singleSelect('m-name-dep-sel', nameOpts.deposit, depSel, { noSearch:true, js:nameJs })}</div>
         </div>
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Marketing Description (Optional)', '', 'marketing')}<textarea id="m-marketing" class="fld" oninput="if(window.__mktDiff)window.__mktDiff()" style="height:36px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${(ed&&ed.listing&&ed.listing.marketing)||(ed?(INH.marketing||''):'')}</textarea></div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Marketing Description (Optional)', '', 'marketing')}<div style="position:relative;height:36px"><textarea id="m-marketing" class="fld md-x" onfocus="window.__mdFit(this,1)" onblur="window.__mdFit(this,0)" oninput="if(window.__mktDiff)window.__mktDiff();window.__mdFit(this,1)" style="position:absolute;top:0;left:0;width:100%;height:36px;resize:none;overflow:hidden;box-sizing:border-box;padding:7px 12px;font:400 14px/20px Roboto,sans-serif">${(ed&&ed.listing&&ed.listing.marketing)||(ed?(INH.marketing||''):'')}</textarea><span class="md-ell" style="position:absolute;top:1px;left:1px;right:1px;padding:7px 11px;font:400 14px/20px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none">${(ed&&ed.listing&&ed.listing.marketing)||(ed?(INH.marketing||''):'')}</span></div></div>
         ${catBlock}
       </div>
       ${leaseSection}
@@ -9697,6 +9855,7 @@ class Component extends DCLogic {
     out += this.copyFeesHTML();
     out += this.rqHTML();
     out += this.rqAddHTML();
+    out += this.miHTML();
     out += this.unitSelHTML();
     out += this.amtSelHTML();
     out += this.ftHelpHTML();

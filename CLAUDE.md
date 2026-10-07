@@ -688,6 +688,22 @@ Charge Type; Comment; Frequency / From / To on a recurring one; Amount) and **no
 because a tenant's own charge is never advertised. It lands in `rq.extra`, ticked, with a grey
 *Tenant* pill.
 
+**The prospect's Move In opens the Move In wizard** (`miHTML`, 2026-10-07, RMX Pages
+`4671:33014` in `5XEzI94nmZsWE7rQQ7OIHP`): the prospect strip's **Move In** button and the
+Reservation tile's **Move In** link (`miOpen`). A 220px navy left nav — *Move In* with a help icon,
+then Lease, General Information, Contacts \*, User Defined Fields, Charges, Move-In Reading, Tenant
+Self-Inspection, the active one a white tab, each scrolling the canvas to its tile (DOM-only), with the
+RM house mark faded at the bottom — beside one scrolling canvas of overline Content tiles
+(`miTile`: 36px header, 2px brand rule): Account, Lease, Home, Addresses + Comment, Miscellaneous,
+Payment Rules, Contacts, User Defined Fields, Deposit, **Recurring Charges**, **One-Time Charges**,
+Meter Readings, Tenant Self-Inspection; Move In / Cancel underneath (`miSave` closes and confirms).
+Everything but the charges is furniture. **Picking the Unit fills both charge registers with that
+unit's charges** (`miChargeTilesHTML` over `unitRecurring` / `unitOneTime`; Source is the charge's
+level, Charge Type *CODE - Description*, Market Rent the unit's rent, totals in the footer),
+DOM-only through `window.__miUnit` so the rest of the wizard keeps what's typed. Columns wrap and the
+registers scroll sideways on a narrow pane. Five Material glyphs were added to the `ico` map for it
+(`cloud_upload`, `content_paste`, `location_on`, `photo_camera`, `phone_iphone`).
+
 The rent quote's charge step borrows the Pricing Preview's UI outright — picker left, price card on
 a tinted pane right. Each row wears its **charge level** as a pill, because two charges can share a
 name and differ only in what they attach to. `rqRows`' `applies()` offers only what would actually
@@ -1084,6 +1100,15 @@ Refundable) keeps it empty and the charge still ready. That is what
 makes Option C safe — without it, opening a charge and pressing Save would freeze today's defaults
 onto it. The property specific branch (NSF, Late) does the same. `mktDefFill` still never runs on
 create, because copying the defaults down would make every new charge an override of them.
+
+**Marketing Description on the charge form expands on focus** (2026-10-07). It keeps its third of
+the Name / Marketing Description / Charge Category row at 36px, because the form is kept short on
+purpose. At rest, the ellipsized `.md-ell` label laid over the box shows one line. Focused, `.md-x`
+grows to fit its text (`window.__mdFit`, defined in `componentDidMount`), floating over the row below
+with the dropdown panel's shadow and a brand border, so nothing below moves. Blurring collapses it
+and refreshes the label. `__mktDefaults` calls `__mdFit(mk, 0)` when it writes the box. Under
+`modal.ro` the label is muted grey. The charge type tile and the property dialog are unchanged: there
+the field already has its own full-width row and a taller box.
 
 **A pet type that carries the figure says so in General.** When one does, Amount and Amount Method
 grey out — which says they can't be edited but not why, and the pet type that explains it sits
