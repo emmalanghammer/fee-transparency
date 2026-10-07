@@ -23,8 +23,11 @@ banner, a toolbar, then the properties. `ltGroups()` gathers the listings under 
 at 16/600 over *"We'll walk you through everything that needs updating before activating fee
 transparency on your listings."* at 14/20 `#616466`, and a primary **View Setup** button carrying
 the Material `checklist` glyph. It replaced the amber callout that argued the case for fee
-transparency: the page now offers the way in rather than making the argument. It still hides once
-every listing already advertises complete pricing (`needsFT`).
+transparency: the page now offers the way in rather than making the argument. It hides once
+**every property fee transparency can apply to has activated** (`needsFT`: any `ftApplicable`
+property not in `publishedProps`), so Post Conversion shows none and Happy Path loses it the moment
+Riverview activates. A property it can't apply to never activates, so it can't hold the banner on
+screen (2026-10-07; it used to wait on every listing advertising a complete price).
 
 **View Setup opens `ftSetupHTML()`** — the Fee Transparency Setup overlay, matching Figma
 `3562:42475`. A 972px dialog: header, then three cards 8px apart inside a 16px scrolling body.
@@ -1135,6 +1138,20 @@ Each default (RC and PETFEE recurring, DP and FMR one-time) was added as a prope
 same charge source on the properties that use it. Rent quotes and the Move In and Add Tenant wizards
 now read the property's Charges. Those charges are **ordinary**: nothing marks where they came from.
 Every Test Feature State is at or after rollout, so this is the only face the page has.
+
+**A Reference amount names its source** (2026-10-07). The charge form's Amount Method reads
+**Flat · Calculation · Reference**, in that order, as does Bulk Update's. On Reference, the Amount
+dropdown is `refSources()`: the sources Tenant Charge Setup offered (**Unit Type Recurring Charge,
+Unit Recurring Charge, Unit Market Rent, Asset Market Rent**), then a few UDFs. RC now reads *Unit
+Market Rent* and COVPARK, an ORI charge, *Asset Market Rent*. Only `/unit market rent/i` prices from
+the unit's rent, in the pricers and in `chargeTotals`' *+ Market Rent*, so an asset's market rent is
+never read as the unit's. The other sources have no figure in the prototype and price at their `est`
+or nothing.
+
+**PETFEE came over as Pet Type Recurring Amount, so it names its pet type**: `attrs:{ petType:'Dog',
+petKind:'rec' }`, $25.00, out of `propCharges`' drift. Opening it, `__petApply` locks Amount and
+Amount Method and shows *Amount and Amount Method come from the Dog pet type.* in General, and the
+Pricing Preview and rent quote take Dog's two-pet cap and $50 maximum.
 
 **A property has its own Tenant Charge Setup too**, because a property could override System
 Preferences. It is `tcsPropHTML()`, opened from the property rail's Copy flyout (**Tenant Charge

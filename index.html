@@ -888,7 +888,7 @@ class Component extends DCLogic {
   // A property's charges: the reference set minus what it doesn't run, with its own amounts.
   propCharges(prop){
     const skip = this.propChargePlan()[prop] || [];
-    const drift = /^(GARBAG|GARBAGEFEE|WATER|ADMIN|APPFEE|DP|KEY|SF|AMENFEE|COVPARK|HOLD|PETFEE|PETDP|EVCHG)$/;
+    const drift = /^(GARBAG|GARBAGEFEE|WATER|ADMIN|APPFEE|DP|KEY|SF|AMENFEE|COVPARK|HOLD|PETDP|EVCHG)$/;
     const money = n => '$' + n.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
     return this.baseCharges().filter(r => skip.indexOf(r.mits) < 0).map(r => {
       if (!drift.test(r.mits)) return r;
@@ -902,7 +902,7 @@ class Component extends DCLogic {
   baseCharges(){
     const L = (level, target) => ({ level, target: target || '' });
     return [
-      Object.assign({ id:1,  group:'req-rec', mits:'RC',         name:'Rent',              desc:'Base rent',                    freq:'Every Month', from:'01/01/2026', to:'', amount:'Market Rent', amtMethod:'Reference', est:1350, ils:true  }, L('Property')),
+      Object.assign({ id:1,  group:'req-rec', mits:'RC',         name:'Rent',              desc:'Base rent',                    freq:'Every Month', from:'01/01/2026', to:'', amount:'Unit Market Rent', amtMethod:'Reference', est:1350, ils:true  }, L('Property')),
       Object.assign({ id:2,  group:'req-rec', mits:'GARBAG',     name:'Trash collection',  desc:'Trash collection',             freq:'Every Month', from:'01/01/2026', to:'', amount:'$28.00',      amtMethod:'Flat',      ils:true  }, L('Property')),
       Object.assign({ id:3,  group:'req-rec', mits:'WATER',      name:'Water service',     desc:'RUBS billing',                 freq:'Every Month', from:'01/01/2026', to:'', amount:'Calculated',  amtMethod:'Calculation', est:38, ils:true }, L('Property')),
       Object.assign({ id:4,  group:'req-rec', mits:'GARBAGEFEE', name:'Trash valet',       desc:'Additional trash valet',       freq:'Every Month', from:'01/01/2026', to:'', amount:'$4.00',       amtMethod:'Flat',      ils:true  }, L('Unit','4C')),
@@ -917,11 +917,14 @@ class Component extends DCLogic {
       Object.assign({ id:9,  group:'req-one', mits:'KEY',        name:'Key & fob deposit', desc:'Key & fob deposit',            from:'01/01/2026', to:'', amount:'$50.00',    amtMethod:'Flat', ils:true  }, L('Property')),
       Object.assign({ id:10, group:'opt-rec', mits:'SF',         name:'Storage closet',    desc:'Corner storage closet',        freq:'Every Month', from:'01/01/2026', to:'', amount:'$40.00',      amtMethod:'Flat', ils:true }, L('Unit','1A')),
       Object.assign({ id:11, group:'opt-rec', mits:'AMENFEE',    name:'Pool & fitness',    desc:'Pool & fitness access',        freq:'Every Month', from:'01/01/2026', to:'', amount:'$28.00',      amtMethod:'Flat', ils:true  }, L('Property')),
-      Object.assign({ id:12, group:'opt-rec', mits:'COVPARK',    name:'Covered parking',   desc:'Covered parking, 12 spots total',freq:'Every Month',from:'01/01/2026', to:'', amount:'Market Rent', amtMethod:'Reference', est:75, ils:true, oriType:'Covered Parking' }, L('ORI')),
+      Object.assign({ id:12, group:'opt-rec', mits:'COVPARK',    name:'Covered parking',   desc:'Covered parking, 12 spots total',freq:'Every Month',from:'01/01/2026', to:'', amount:'Asset Market Rent', amtMethod:'Reference', est:75, ils:true, oriType:'Covered Parking' }, L('ORI')),
       Object.assign({ id:13, group:'opt-one', mits:'HOLD',       name:'Hold fee',          desc:'Unit reservation fee',         from:'01/01/2026', to:'', amount:'$200.00',   amtMethod:'Flat', ils:true  }, L('Property')),
       // Pet rent and pet deposit are add-ons a resident chooses by bringing a pet, so they're optional.
       // Damage-type charges stay situational — nobody opts into those.
-      Object.assign({ id:14, group:'opt-rec', mits:'PETFEE',     name:'Pet rent',          desc:'Per pet, max $90',             freq:'Every Month', from:'01/01/2026', to:'', amount:'$45.00',      amtMethod:'Flat', ils:true }, L('Property')),
+      // Pet rent came over from Tenant Charge Setup with the source Pet Type Recurring Amount, so it
+      // names its pet type: Dog carries the figure ($25 a pet, $50 at most), which is why the charge
+      // form locks Amount and Amount Method on it. The amount is the pet type's, not drifted.
+      Object.assign({ id:14, group:'opt-rec', mits:'PETFEE',     name:'Pet rent',          desc:'Dog rent, per pet',            freq:'Every Month', from:'01/01/2026', to:'', amount:'$25.00',      amtMethod:'Flat', ils:true, attrs:{ petType:'Dog', petKind:'rec' } }, L('Property')),
       Object.assign({ id:15, group:'opt-one', mits:'PETDP',      name:'Pet deposit',       desc:'Pet deposit',                  from:'01/01/2026', to:'', amount:'$300.00',   amtMethod:'Flat', ils:true }, L('Property')),
       // A charge type created at the property that nobody assigned a MITS category to. Deliberately
       // absent from chargeCategoryMap so the Charge Category error state is always demoable.
@@ -2060,7 +2063,7 @@ class Component extends DCLogic {
 
     const src = v('m-source') || 'Flat';
     let amount;
-    if (src === 'Reference') amount = v('m-ref').replace(/^Field:\s*/, '') || 'Market Rent';
+    if (src === 'Reference') amount = v('m-ref') || 'Unit Market Rent';
     else if (src === 'Calculation') amount = 'Calculated';
     else { const a = v('m-amount'); amount = a ? ('$' + a.replace(/^\$/, '')) : '$0.00'; }
     const isOne = /-one$/.test(m.group);
@@ -4492,8 +4495,10 @@ class Component extends DCLogic {
     // it is the level the page reads at. Off, the same listings are one register with a Property
     // column, for when you are looking for a unit rather than reviewing a property.
     const grouped = this.state.ltGroupBy !== false;
-    // Nothing to warn about once every listing already advertises complete pricing.
-    const needsFT = all.some(l => { const st = l.fixed || this.ltStatus(l.prop); return !st.total || !!st.warn; });
+    // The banner goes once every property fee transparency can apply to has activated it — there is
+    // nothing left to set up. Properties it can't apply to (not on an ILS feed, or MH Village only)
+    // never activate, so they can't hold it on screen.
+    const needsFT = this.propNames().some(n => this.ftApplicable(n) && !this.state.publishedProps[n]);
     const banner = this.ftBannerHTML();
     const fopt = (v, t) => `<div data-act="ltPropSet" data-arg="${v}" style="padding:7px 14px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">${t}</div>`;
     const toolbar = `<div style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap">
@@ -4629,6 +4634,12 @@ class Component extends DCLogic {
     </div>`;
   }
   // ---------- Tenant Charge Setup, as it stood before rollout ----------
+  // Where a Reference amount can come from — the charge form's Amount dropdown. The same sources
+  // Tenant Charge Setup offered, plus the UDFs a charge can read a figure from.
+  refSources(){
+    return ['Unit Type Recurring Charge','Unit Recurring Charge','Unit Market Rent','Asset Market Rent',
+      'Unit UDF: Parking Spot #','Unit UDF: Storage Fee','Property UDF: Amenity Fee'];
+  }
   // What System Preferences set up, as [charge type, charge source] pairs.
   tcsSystem(){
     return { rec: [['RC','Flat Amount'],['PETFEE','Pet Type Recurring Amount']],
@@ -5883,7 +5894,7 @@ class Component extends DCLogic {
       // Frequency is a count of months, so it is typed rather than picked.
       allRec ? ['freq', 'Frequency', () => txt('bu-freq'), false] : null,
       ['dates', 'From/To', () => dates, false],
-      ['amtm', 'Amount Method', () => dd('bu-amtm', ['Flat','Reference','Calculation']), false],
+      ['amtm', 'Amount Method', () => dd('bu-amtm', ['Flat','Calculation','Reference']), false],
       ['amt', 'Amount', () => txt('bu-amt','calculate'), false]
     ].filter(Boolean);
     const MARKETING = [];
@@ -5971,7 +5982,7 @@ class Component extends DCLogic {
       const unit = q.unit ? this.unitInfo(q.unit) : null;
       const amountOf = (r) => { const a = this.parseAmt(r.amount); if (a) return a;
         if (r.est != null) return r.est;
-        return /market/i.test(r.amount || '') ? this.parseAmt(unit ? unit.rent : '') : 0; };
+        return /unit market rent/i.test(r.amount || '') ? this.parseAmt(unit ? unit.rent : '') : 0; };
       return this.appliedRows(o.prop || q.prop)
         .filter(r => r.level === 'ORI' && r.mits === o.ctype)
         .map(r => ({ id:'o' + r.id, source:'Property', note:r.mits, amount:amountOf(r) }));
@@ -5980,7 +5991,7 @@ class Component extends DCLogic {
     const rows = this.appliedRows(q.prop).filter(r => !/-one$/.test(r.group));
     const amountOf = (r) => { const a = this.parseAmt(r.amount); if (a) return a;
       if (r.est != null) return r.est;
-      return /market/i.test(r.amount || '') ? this.parseAmt(unit ? unit.rent : '') : 0; };
+      return /unit market rent/i.test(r.amount || '') ? this.parseAmt(unit ? unit.rent : '') : 0; };
     const out = [];
     const rent = rows.filter(r => r.mits === 'RC' && (r.level || 'Property') === 'Property')[0];
     out.push({ id:'prop', source:'Property', note: rent ? rent.mits : 'Market Rent',
@@ -6143,7 +6154,7 @@ class Component extends DCLogic {
     const unit = q.unit ? this.unitInfo(q.unit) : null;
     const base = (r) => { const a = this.parseAmt(r.amount); if (a) return a;
       if (r.est != null) return r.est;
-      return /market/i.test(r.amount || '') ? this.parseAmt(unit ? unit.rent : '') : 0; };
+      return /unit market rent/i.test(r.amount || '') ? this.parseAmt(unit ? unit.rent : '') : 0; };
     // The rent on the quote is the one typed in step one; everything else prices off the charge.
     const amount = (r) => (r.mits === 'RC' && this.rqAmt(q.rent)) ? this.rqAmt(q.rent) : base(r);
     // A charge only reaches this quote if its level points at the unit being quoted. ORI charges are
@@ -6629,7 +6640,7 @@ class Component extends DCLogic {
     const termAdj = this.leaseTermOffsets()[term] || 0;
     const isRent = r => r.mits === 'RC';
     const amtOf = r => { const base = (() => { const a = this.parseAmt(r.amount); if (a) return a; if (r.est != null) return r.est;
-        return /market/i.test(r.amount||'') ? this.parseAmt(unit.rent) : 0; })();
+        return /unit market rent/i.test(r.amount||'') ? this.parseAmt(unit.rent) : 0; })();
       return isRent(r) ? Math.max(0, base + termAdj) : base; };
     // Charges with no requirement chosen yet ('ind') sit with the required ones, so a freshly
     // converted property still previews a price instead of an empty breakdown.
@@ -6893,7 +6904,7 @@ class Component extends DCLogic {
     const info = this.unitInfo(this.state.unit) || {};
     const sum = (list) => {
       let n = 0, mr = false;
-      list.forEach(f => { if (/market rent/i.test(String(f.amount || ''))) { if (scope === 'unit') n += this.parseAmt(info.rent); else mr = true; } else n += this.parseAmt(f.amount); });
+      list.forEach(f => { if (/unit market rent/i.test(String(f.amount || ''))) { if (scope === 'unit') n += this.parseAmt(info.rent); else mr = true; } else n += this.parseAmt(f.amount); });
       return this.money(n) + (mr ? ' + Market Rent' : '');
     };
     const part = (n, label, total) => `<span style="display:inline-flex;align-items:baseline;gap:8px;white-space:nowrap"><span style="font-weight:600">${n} ${label}${n === 1 ? '' : 's'}</span><span>${total}</span></span>`;
@@ -8122,11 +8133,11 @@ class Component extends DCLogic {
     };
     const methodJs = "var t={'Flat':'flat','Reference':'ref','Calculation':'calc'}[_v];document.getElementById('m-source').value=_v;['flat','ref','calc'].forEach(function(k){document.getElementById('m-blk-'+k).style.display=(k===t?'flex':'none')});if(window.__calcNote)window.__calcNote();if(window.__amtNote)window.__amtNote()";
     // The amount pair rides the date row, so General Details is three rows rather than four.
-    const amountFields = `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Amount Method')}${dd('m-method',['Flat','Reference','Calculation'],src,{noSearch:true,js:methodJs})}</div>
+    const amountFields = `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Amount Method')}${dd('m-method',['Flat','Calculation','Reference'],src,{noSearch:true,js:methodJs})}</div>
       <div style="flex:1;min-width:0">
         <input type="hidden" id="m-source" value="${src}">
         <div id="m-blk-flat" style="display:${src==='Flat'?'flex':'none'};flex-direction:column;gap:4px">${lab('Amount')}${iconInput('m-amount',amtFlat,'00.00','')}</div>
-        <div id="m-blk-ref" style="display:${src==='Reference'?'flex':'none'};flex-direction:column;gap:4px">${lab('Amount')}${dd('m-ref',['Market Rent','Unit Market Rent','Field: Market Rent','Unit UDF: Parking Spot #'],(ed && src==='Reference' && ed.amount) || 'Market Rent',{noSearch:true})}</div>
+        <div id="m-blk-ref" style="display:${src==='Reference'?'flex':'none'};flex-direction:column;gap:4px">${lab('Amount')}${dd('m-ref',this.refSources(),(ed && src==='Reference' && ed.amount) || 'Unit Market Rent',{noSearch:true})}</div>
         <div id="m-blk-calc" style="display:${src==='Calculation'?'flex':'none'};flex-direction:column;gap:4px">${lab('Amount')}${iconInput('m-calc','','','edit')}</div>
       </div>`;
     // A charge of nothing, or less than nothing, has no price for a listing site to advertise, so it
