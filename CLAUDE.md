@@ -240,8 +240,7 @@ design canvas *Standardized Charges Tiles*, <https://claude.ai/artifact/3rJtePCj
   on `<where>`, so it can't be changed from this unit.* with **All `<Property>` Charges** — and a
   lone **Close** in the footer (`chargeRoNote`). **Neither shows Exceptions** (`exOn` is false when
   `fromUnit`). The row's checkbox, chevron and kebab stop the click from opening it. The modal sits
-  at z-index 120, over the unit overlay's 100. No Test Feature State seeds a unit-level charge, so
-  the editable case shows only once one is added.
+  at z-index 120, over the unit overlay's 100. Riverview keeps `SF`, 1A's own Storage closet, in every scenario for exactly this.
 - **The property's Charges overlay** (`chargesOverlay`) gained the property scoreboard
   (`recViewPropStrip`) above its tabs, lost the rule under the level tabs, and has the totals footer
   plus **n Situational Charges — When they occur** (`chargesOverlayFoot`). Its register, tabs and
@@ -917,9 +916,11 @@ Requirement, Charge Schedule and Fee Due, so a walkthrough has something to go a
 PETFEE, COVPARK, NSF, LATE — and a property's Charges five to eight rows. Rent, the deposit, the
 **application fee**, Garbage, NSF and Late everywhere; PETFEE and COVPARK where the property rents
 them, so the Pet and Parking detail sections are on screen; Clearcreek runs no deposit. Mid
-Conversion's Windermere drifts **one** charge. REKEY stays Happy Path's alone. The regression check:
-Riverview reads **7/8** in `on` and **6/6** in `mid` and `post`; `mid` reads The Windermere 4/5
-(*Action Required*) and The Estates 6/7; Happy Path stays 5/5.
+Conversion's Windermere drifts **one** charge. REKEY stays Happy Path's alone. **Riverview also keeps
+`SF`, unit 1A's own Storage closet** (2026-10-07, every scenario including Happy Path), so a unit page
+has a unit-level charge to open and edit. The regression check: Riverview reads **8/9** in `on` and
+**7/7** in `mid` and `post`; `mid` reads The Windermere 4/5 (*Action Required*) and The Estates 6/7;
+Happy Path's Riverview reads **6/6**.
 
 **`mktCopy()` is the resident-facing name and sentence per charge type**, read by the finished
 worked example (`listingReadyRows`) **and** by `mktDefAll`, so a charge type's default Marketing
@@ -1123,6 +1124,22 @@ column (`chargeColDefs`' `base:'ft'`) and a **Preview Pricing** button on the to
 only when `ftApplicable(state.property)` — whether a charge is ready to advertise, and what the
 advertised price would look like, are not questions a property that doesn't list online is being
 asked. `chargeColsDefault()` is what honours the gate, beside the existing `base:'ils'` one.
+
+## Tenant Charge Setup
+
+**At rollout, Tenant Charge Setup's charges became property charges on every property** (2026-10-07).
+Each default (RC and PETFEE recurring, DP one-time) was added as a property-level charge with the
+same charge source on the properties that use it. Rent quotes and the Move In and Add Tenant wizards
+now read the property's Charges. Those charges are **ordinary**: nothing marks where they came from.
+Every Test Feature State is at or after rollout, so this is the only face the page has.
+
+`sysPrefsBody()` keeps the page, under a brand info banner, *Your default tenant charges are now
+property charges*, that says what happened. Both sections stay as a read-only record: **Charge Type
+· Charge Source · Now a Property Charge On**, with no kebab, reorder handle, Add link or posting-day
+option. The last column names every property carrying that code at Property level as links to
+`openFeeProfile`. `chargesFrom` records `sysprefs` too, so closing Charges returns here. The
+earlier *Activate Fee Transparency* banner, the *Only properties that do not have Fee Transparency…*
+strip and the all-converted strip are gone.
 
 ## Test feature states
 
