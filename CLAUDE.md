@@ -181,6 +181,11 @@ hand-rolled one matches it — the Charge Marketing section's *Required*,
 `loz()`, and the announcement banner's *NEW FEATURE*. A bold lozenge reads as a second kind of
 emphasis competing with the sentence it sits in; the tint is the emphasis.
 
+**Scoreboard buttons are RMX Split Buttons** (2026-10-07, prospect and tenant): both segments the
+primary fill, a 1px white divider before the 36px caret segment, 36px tall, 4px corners — not a
+darker caret — and the two in one grid column so they share a width. The prospect's name sits on its
+own line, then *Account #* with the Lozenges (Size=32: 32px tall, 16px label), then the contact line.
+
 **Shared chrome is kept identical in both builds**: `.btn-pri` / `.btn-out` set their label in
 Roboto **Regular** (RMX's Button does), every overlay header title is
 `font:400 20px/28px Roboto` — RMX's Overlay Header (`YhvzfcXOniQJ7xlC8ONzS4` `4193:45459`) uses
@@ -216,8 +221,16 @@ design canvas *Standardized Charges Tiles*, <https://claude.ai/artifact/3rJtePCj
   Listing Ready, no kebab, no Add rows. Footer **n Recurring Charges $x · n One-Time Charges $y**
   (`chargeTotals`; Market Rent is the unit's rent on a unit and *+ Market Rent* on the property).
   `chargeScope(scope)` is what both read: a unit's reach (`unitRecurring` / `unitOneTime`), or every
-  charge the property carries; situational NSF / Late never appear. There is no unit-type page in the
-  prototype, so the canvas's unit type tile has nowhere to go.
+  charge the property carries; situational NSF / Late never appear. **Unit Type Details exists now**
+  (2026-10-07, Full Menu › Unit Type Details, `navUnitType`, view `unittype`, `state.unitType`,
+  default *Studio*; `unitTypeBody`): production's scoreboard — the name over its bed/bath line
+  (`utDesc`), **Add Image** and the **Add Recurring Charge** split button stacked under them, Unit
+  Count / Occupants on the right — then Images, the Charges tile at scope `unittype` (the property's
+  charges that reach the type, minus any excepting it, plus the type's own; Market Rent is the
+  type's rent) and General. Its pop-out opens the same Charges overlay at that scope, with the unit
+  type's strip (`unitTypeStrip`); rows open with `modal.fromUnitType` — a unit type's own charge
+  editable **and keeping its Exceptions**, anything else read-only, the lock strip saying *this unit
+  type*.
 - **`chargeRegisterHTML(ns, list, opts)`** is the one register: `[include checkbox] · [chevron] ·
   Charge Type · Comment · Frequency · From · To · Amount · Charge Level · [Listing Ready] · [kebab]`.
   Charge Level is the **name** (`chargeLevelName`: the property, the unit type, the unit, or an ORI's

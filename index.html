@@ -1635,6 +1635,7 @@ class Component extends DCLogic {
       case 'ftGroupToggle': this.setState(s => ({ ftGroup: !s.ftGroup })); break;
       case 'navProperty': this.go('property', arg ? { property: arg, propTab: 'General' } : { propTab: 'General' }); break;
       case 'navUnit': this.go('unit', { unit: arg }); break;
+      case 'navUnitType': this.go('unittype', { unitType: arg || 'Studio' }); break;
       case 'navTenant': {
         this.setState({ txnView: false });
         // A tenant page needs a tenant: opened from the Full Menu there's no unit in hand, and the
@@ -1683,7 +1684,10 @@ class Component extends DCLogic {
       // one written at the property or the unit type is shown read-only, since changing it here would
       // change it for every unit it reaches. Neither shows Exceptions — a unit has none to make.
       case 'unitChgOpen': { const c = this.profileRows().find(x => String(x.id) === String(arg)); if (!c) break;
-        this.setState({ modal: { group: c.group, edit: c, fromUnit: true, ro: String(c.level || 'Property') !== 'Unit' } }); break; }
+        const onUT = this.state.view === 'unittype';
+        const lvl = String(c.level || 'Property');
+        this.setState({ modal: onUT ? { group: c.group, edit: c, fromUnitType: true, ro: !/^unit type$/i.test(lvl) }
+          : { group: c.group, edit: c, fromUnit: true, ro: lvl !== 'Unit' } }); break; }
       case 'rowDetails': { const c = this.profileRows().find(x => String(x.id) === String(arg)); this.setState({ rowMenu: null, modal: c ? { group: c.group, edit: c } : null }); break; }
       // A unit-type charge covers every unit of that type, so deleting one asks first.
       case 'rowDelete': { const row = this.profileRows().find(f => String(f.id) === String(arg));
@@ -1950,7 +1954,7 @@ class Component extends DCLogic {
       case 'ppSitToggle': this.setState(s => ({ pricePreview: Object.assign({}, s.pricePreview, { sitOpen: !s.pricePreview.sitOpen }) })); break;
 
       // ---- recurring charges overlay ----
-      case 'recViewOpen': this.setState({ recView: (arg === 'unit' ? 'unit' : 'property') }); break;
+      case 'recViewOpen': this.setState({ recView: (arg === 'unit' || arg === 'unittype' ? arg : 'property') }); break;
       case 'recViewClose': this.setState({ recView: null }); break;
       case 'chargesClose':
         if (this.state.chargesFrom) { this.go(this.state.chargesFrom, { propTab: 'General', chargesFrom: null }); break; }
@@ -3704,7 +3708,7 @@ class Component extends DCLogic {
         ['Prospect Details (Rent Quotes)', 'navProspect'],
         ['Tenant Details', 'navTenant'],
         ['Unit Details', 'navUnit', '1B'],
-        ['Unit Type Details', ''],
+        ['Unit Type Details', 'navUnitType', 'Studio'],
         ['Charge Types', 'navChargeTypes'],
         ['Pet Types', 'navPetTypes'],
         ['Tenant Charge Setup', 'navSysPrefs']
@@ -7019,7 +7023,7 @@ class Component extends DCLogic {
   // the property's opens its Charges overlay, a unit's the unit's Charges overlay (`recViewHTML`).
   recChargesTile(scope){
     const prop = this.state.property;
-    const pop = scope === 'unit' ? `data-act="recViewOpen" data-arg="unit"` : `data-act="openFeeProfile" data-arg="${String(prop).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}"`;
+    const pop = scope === 'unit' || scope === 'unittype' ? `data-act="recViewOpen" data-arg="${scope}"` : `data-act="openFeeProfile" data-arg="${String(prop).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}"`;
     return `<div class="tile">
       <div class="thead2"><span class="ttl">Charges</span><div style="flex:1"></div>
         <a data-act="addopen" data-arg="req-rec" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Add Charge</a>
@@ -7066,6 +7070,15 @@ class Component extends DCLogic {
   // Situational NSF / Late are never listed here — they land only when something happens.
   chargeScope(scope){
     if (scope === 'unit') return { rec: this.unitRecurring(), one: this.unitOneTime() };
+    // A unit type reads the property's charges that reach it and the ones written for it.
+    if (scope === 'unittype') {
+      const ut = this.state.unitType || 'Studio';
+      const all = this.propertyCharges().filter(f => !f.excluded && !f.propSpecific && !/^sit-/.test(f.group || ''))
+        .filter(f => { const lvl = String(f.level || 'Property');
+          if (lvl === 'Property') return (this.exclOf(f).types || []).indexOf(ut) < 0;
+          return /^unit type$/i.test(lvl) && (!f.target || f.target === ut); });
+      return { rec: all.filter(f => !/-one$/.test(f.group)), one: all.filter(f => /-one$/.test(f.group)) };
+    }
     const all = this.propertyCharges().filter(f => !f.excluded && !f.propSpecific && !/^sit-/.test(f.group || ''));
     return { rec: all.filter(f => !/-one$/.test(f.group)), one: all.filter(f => /-one$/.test(f.group)) };
   }
@@ -7075,7 +7088,8 @@ class Component extends DCLogic {
     const info = this.unitInfo(this.state.unit) || {};
     const sum = (list) => {
       let n = 0, mr = false;
-      list.forEach(f => { if (/unit market rent/i.test(String(f.amount || ''))) { if (scope === 'unit') n += this.parseAmt(info.rent); else mr = true; } else n += this.parseAmt(f.amount); });
+      const utRent = scope === 'unittype' ? this.parseAmt(((this.units().find(u => u.type === (this.state.unitType || 'Studio')) || {}).rent)) : 0;
+      list.forEach(f => { if (/unit market rent/i.test(String(f.amount || ''))) { if (scope === 'unit') n += this.parseAmt(info.rent); else if (scope === 'unittype') n += utRent; else mr = true; } else n += this.parseAmt(f.amount); });
       return this.money(n) + (mr ? ' + Market Rent' : '');
     };
     const part = (n, label, total) => `<span style="display:inline-flex;align-items:baseline;gap:8px;white-space:nowrap"><span style="font-weight:600">${n} ${label}${n === 1 ? '' : 's'}</span><span>${total}</span></span>`;
@@ -7199,11 +7213,11 @@ class Component extends DCLogic {
   }
   recChargesTableHTML(opts){
     opts = opts || {};
-    const scope = opts.scope === 'unit' ? 'unit' : 'property';
+    const scope = opts.scope === 'unit' || opts.scope === 'unittype' ? opts.scope : 'property';
     const { rec, one } = this.chargeScope(scope);
     const list = rec.map(f => ({ f, rec: true })).concat(one.map(f => ({ f, rec: false })));
     const foot = `<div style="display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px 24px;padding:8px 16px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">${this.chargeTotals(scope, rec, one)}</div>`;
-    return this.chargeRegisterHTML('uchg', list, { tiers: [900, 680, 460], open: scope === 'unit' }) + foot;
+    return this.chargeRegisterHTML('uchg', list, { tiers: [900, 680, 460], open: scope !== 'property' }) + foot;
   }
   // "View Recurring Charges" modal opened from the property tile's pop-out icon (Figma 2385-32329).
   // Legacy "View Recurring Charges" overlay (pre-conversion): full charge register + convert callout.
@@ -7242,10 +7256,11 @@ class Component extends DCLogic {
   // button — NSF and late fees are the property's, and the checkboxes are the filter here.
   recViewHTML(){
     if(!this.state.recView) return '';
+    const utScope = this.state.recView === 'unittype';
     const unitScope = this.state.recView === 'unit';
     const info = this.unitInfo(this.state.unit);
     const prop = this.state.property;
-    const scopeKey = unitScope ? 'unit' : 'property';
+    const scopeKey = utScope ? 'unittype' : (unitScope ? 'unit' : 'property');
     const { rec, one } = this.chargeScope(scopeKey);
     const ft = this.ftApplicable(prop);
     const CHECK = `<svg width="16" height="16" viewBox="0 -960 960 960" fill="#fff" aria-hidden="true" style="display:none"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg>`;
@@ -7256,7 +7271,7 @@ class Component extends DCLogic {
       </span>`;
     const filters = `<div style="display:flex;align-items:center;gap:16px">${scope('Past')}${scope('Future')}${scope('Exceptions')}</div>`;
     const card = (id, title, list, addLabel, group) => {
-      const reg = this.chargeRegisterHTML('vchg', list, { chk: true, ready: ft, kebab: true, striped: false, open: unitScope, tiers: [1080, 760, 520] });
+      const reg = this.chargeRegisterHTML('vchg', list, { chk: true, ready: ft, kebab: true, striped: false, open: unitScope || utScope, tiers: [1080, 760, 520] });
       return `<section style="flex:none;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
         <div onclick="var b=this.nextElementSibling,o=b.style.display!=='none';b.style.display=o?'none':'block';this.querySelector('[data-secchev]').style.transform='rotate('+(o?-90:0)+'deg)'" style="display:flex;align-items:center;gap:8px;height:48px;padding:0 12px;cursor:pointer">
           <span data-secchev style="display:inline-flex;transition:transform .15s;color:var(--ac,var(--rmx-brand, #008dd5))">${this.ico('keyboard_arrow_down', 22)}</span>
@@ -7274,12 +7289,12 @@ class Component extends DCLogic {
     return `<div data-act="recViewClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;padding:60px 20px 20px;box-sizing:border-box;z-index:100"><div data-act="noop" style="flex:1;min-width:0;background:var(--rmx-bg-ui-2, #f3f4f8);border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.28);display:flex;flex-direction:column;overflow:hidden">
       <div style="display:flex;align-items:center;gap:12px;height:56px;box-sizing:border-box;padding:0 16px 0 24px;background:#fff;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
         <span style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">Charges</span><div style="flex:1"></div>
-        ${!unitScope ? '' : `<a data-act="openFeeProfile" data-arg="${propEsc}" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap;padding:0 8px">All ${prop} Charges</a>`}
+        ${!(unitScope || utScope) ? '' : `<a data-act="openFeeProfile" data-arg="${propEsc}" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap;padding:0 8px">All ${prop} Charges</a>`}
         ${this.ico('close', 24, 'color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer').replace('<svg ', '<svg data-act="recViewClose" ')}
       </div>
       <div class="rv-noshrink" style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:16px;padding:16px">
         <style>.rv-noshrink > * { flex-shrink:0; }</style>
-        ${unitScope ? '' : this.recViewPropStrip()}
+        ${utScope ? this.unitTypeStrip() : (unitScope ? '' : this.recViewPropStrip())}
         ${!unitScope ? '' : `<div style="display:flex;align-items:stretch;min-height:64px;border-radius:4px;overflow:hidden;box-shadow:2px 2px 12px -5px rgba(76,76,76,0.08),0 4px 15px -5px rgba(76,76,76,0.08),0 -1px 20px -5px rgba(76,76,76,0.02)">
           <div style="width:24px;flex:none;background:var(--rmx-overlay-search, #425a70)"></div>
           <div style="flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:32px;padding:16px 32px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-left:none;border-radius:0 4px 4px 0">
@@ -7368,6 +7383,60 @@ class Component extends DCLogic {
     const udfs = `<div class="card">${cardHead('User Defined Fields','',true)}<div style="display:grid;grid-template-columns:1fr 1fr;background:var(--rmx-bg-subtle, #f5f8fa);border-bottom:1px solid var(--rmx-line, #cedbe7)"><span style="padding:8px 16px;font-size:14px;font-weight:500;color:var(--rmx-text, #666666)">Name</span><span style="padding:8px 16px;font-size:14px;font-weight:500;color:var(--rmx-text, #666666)">Value</span></div><div style="display:grid;grid-template-columns:1fr 1fr"><span class="td" style="border:none;padding-left:16px">Vendor Confirmation</span><span class="td" style="border:none">Yes</span></div></div>`;
     const cards = [ leases, contacts, historyNotes, transactions, serviceIssues, udfs, pets, general, addresses, misc ];
     h += `<div style="padding:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:stretch">${cards.join('')}</div>`;
+    return `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden"><div style="flex:1;min-width:0;overflow-y:auto;display:flex;flex-direction:column"><div style="flex:1;min-width:0;display:flex;flex-direction:column">${h}</div></div>${this.rail()}</div>`;
+  }
+
+  // ================= UNIT TYPE DETAILS (2026-10-07) =================
+  // From Full Menu › Unit Type Details. Production's page, as the user shared it: a scoreboard with
+  // the unit type's name over its bed/bath line, **Add Image** and the **Add Recurring Charge** split
+  // button stacked under them, and Unit Count / Occupants on the right; then Images, the standardized
+  // **Charges** tile (`recChargesTile('unittype')` — the property's charges that reach this unit type
+  // plus its own; rows open, a unit type's own charge editable, the rest read-only) and General.
+  utDesc(t){ const m = String(t || '').match(/^(\d)BR\/(\d)BA$/);
+    return m ? `${m[1]} Bedroom${m[1] === '1' ? '' : 's'} / ${m[2]} Bathroom${m[2] === '1' ? '' : 's'}` : (t === 'Studio' ? 'Studio / 1 Bathroom' : t); }
+  unitTypeStrip(){
+    const ut = this.state.unitType || 'Studio';
+    const d = this.utData().find(t => t.name === ut) || { units:0, occ:0 };
+    const item = (l, v) => `<span style="display:inline-flex;align-items:center;gap:8px;white-space:nowrap"><span style="color:var(--rmx-text, #666666)">${l}</span><span style="font-weight:600;color:var(--rmx-brand-dark, #13314c)">${v}</span></span>`;
+    return `<div style="display:flex;align-items:stretch;min-height:64px;border-radius:4px;overflow:hidden;box-shadow:2px 2px 12px -5px rgba(76,76,76,0.08),0 4px 15px -5px rgba(76,76,76,0.08),0 -1px 20px -5px rgba(76,76,76,0.02)">
+      <div style="width:24px;flex:none;background:var(--rmx-overlay-search, #425a70)"></div>
+      <div style="flex:1;min-width:0;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px 32px;padding:16px 32px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-left:none;border-radius:0 4px 4px 0;font-size:14px">
+        <div style="display:flex;align-items:center;flex-wrap:wrap;gap:12px 32px"><span style="font-size:16px;line-height:24px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${ut}</span><span style="color:var(--rmx-brand-dark, #13314c)">${this.utDesc(ut)}</span><span style="display:inline-flex;align-items:center;gap:8px;color:var(--rmx-brand-dark, #13314c)">${this.ico('home', 20, 'color:var(--ac,var(--rmx-brand, #008dd5))')}${this.state.property}</span></div>
+        <div style="display:flex;gap:32px">${item('Unit Count:', d.units)}${item('Occupants:', d.occ)}</div>
+      </div></div>`;
+  }
+  unitTypeBody(){
+    const ut = this.state.unitType || 'Studio';
+    const d = this.utData().find(t => t.name === ut) || { units:0, occ:0 };
+    const ink = 'var(--rmx-brand-dark, #13314c)';
+    const caret = '<svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M480-360 280-559h400L480-360Z"/></svg>';
+    const btnRow = (inner) => `<span style="display:flex;align-items:stretch;width:100%;height:36px;border-radius:4px;overflow:hidden">${inner}</span>`;
+    const stat = (l, v) => `<span style="font-size:16px;color:${ink};white-space:nowrap;text-align:right">${l}</span><span style="font-size:16px;color:${ink};white-space:nowrap;text-align:right">${v}</span>`;
+    const first = this.units().find(u => u.type === ut) || {};
+    const lab = (t) => `<span class="flabel">${t}</span>`;
+    const fld = (l, v) => `<div style="flex:1;min-width:180px;display:flex;flex-direction:column;gap:4px">${lab(l)}<input class="fld" value="${v}"></div>`;
+    const m = String(ut).match(/^(\d)BR\/(\d)BA$/);
+    let h = '';
+    h += `<div style="padding:16px 16px 0"><div class="tile" style="padding:16px 24px;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px">
+      <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
+        <span style="font-size:18px;font-weight:600;color:${ink}">${ut}</span>
+        <span style="font-size:16px;color:${ink}">${this.utDesc(ut)}</span>
+        <div style="display:grid;grid-template-columns:auto;row-gap:12px;justify-items:stretch">
+          ${btnRow(`<span data-act="todo" data-arg="Add Image" class="btn-pri" style="flex:1;display:inline-flex;align-items:center;justify-content:center;height:36px;min-height:36px;padding:0 16px;border-radius:0;font-size:14px;white-space:nowrap">Add Image</span>`)}
+          ${btnRow(`<span data-act="addopen" data-arg="req-rec" class="btn-pri" style="flex:1;display:inline-flex;align-items:center;justify-content:center;height:36px;min-height:36px;padding:0 16px;border-radius:0;font-size:14px;white-space:nowrap">Add Recurring Charge</span><span data-act="todo" data-arg="Add charge options" aria-label="More options" class="btn-pri" style="flex:none;display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;min-height:36px;padding:0;border-radius:0;border-left:1px solid #fff;cursor:pointer">${caret}</span>`)}
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:auto auto;column-gap:40px;row-gap:16px;align-items:center">${stat('Unit Count:', d.units)}${stat('Occupants:', d.occ)}</div>
+    </div></div>`;
+    const thumbs = ['Kitchen','Living Room','Bedroom'].map(c => `<div style="width:200px;height:140px;flex:none;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;background:repeating-conic-gradient(var(--rmx-bg-subtle, #f5f8fa) 0% 25%, #fff 0% 50%) 50% / 20px 20px;display:flex;align-items:flex-end;padding:8px;box-sizing:border-box;font-size:12px;color:var(--rmx-text, #666666)">${c}</div>`).join('');
+    h += `<div style="padding:16px 16px 0"><div class="tile"><div class="thead2"><span class="ttl">Images</span><div style="flex:1"></div><a data-act="todo" data-arg="Add Image" style="display:inline-flex;align-items:center;gap:4px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">${this.ico('add', 18, 'color:var(--ac,var(--rmx-brand, #008dd5))')}Add Image</a></div>
+      <div style="padding:16px;display:flex;flex-direction:column;gap:10px"><span style="font-size:14px;color:var(--rmx-text, #666666)">Unit Type Image:</span><div style="display:flex;gap:16px;overflow-x:auto">${thumbs}</div></div></div></div>`;
+    h += `<div style="padding:16px 16px 0">${this.recChargesTile('unittype')}</div>`;
+    h += `<div style="padding:16px"><div class="tile"><div class="thead2"><span class="ttl">General</span></div>
+      <div style="padding:16px;display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;gap:14px;flex-wrap:wrap">${fld('Unit Type', ut)}${fld('Description', this.utDesc(ut))}</div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap">${fld('Bedrooms', m ? m[1] : '0')}${fld('Bathrooms', m ? m[2] : '1')}${fld('Square Footage', first.sqft || '')}${fld('Market Rent', String(first.rent || '').replace('$',''))}</div>
+      </div></div></div>`;
     return `<div style="flex:1;min-height:0;display:flex;align-items:stretch;overflow:hidden"><div style="flex:1;min-width:0;overflow-y:auto;display:flex;flex-direction:column"><div style="flex:1;min-width:0;display:flex;flex-direction:column">${h}</div></div>${this.rail()}</div>`;
   }
 
@@ -7958,13 +8027,13 @@ class Component extends DCLogic {
     // Bulk Update Charges hosts the same form in its own chrome, so the standalone overlay stands down.
     if (this.state.bulk) return '';
     const f = this.chargeForm(m);
-    return `<div data-act="addclose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:${this.state.profHist?130:(m.generalOnly?140:(m.fromUnit?120:100))}">
+    return `<div data-act="addclose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:${this.state.profHist?130:(m.generalOnly?140:((m.fromUnit||m.fromUnitType)?120:100))}">
       <div data-act="noop" style="width:1000px;max-width:96vw;max-height:92vh;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 3px 12px rgba(0,0,0,0.2);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;height:48px;box-sizing:border-box;padding:8px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
           <span style="font-size:20px;line-height:28px;color:var(--rmx-brand-dark, #13314c)">${f.title}</span>
           <svg class="ico" width="24" height="24" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="addclose" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
         </div>
-        <div class="${m.ro ? 'cf-ro' : ''}" style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:18px">${m.ro ? this.chargeRoNote(m.edit) : ''}${f.body}</div>
+        <div class="${m.ro ? 'cf-ro' : ''}" style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:18px">${m.ro ? this.chargeRoNote(m.edit, m.fromUnitType ? 'unit type' : 'unit') : ''}${f.body}</div>
         <div style="display:flex;align-items:center;gap:12px;padding:8px 16px;border-top:1px solid var(--rmx-line, #cedbe7);background:var(--rmx-bg-subtle, #f5f8fa);flex:none">
           <span id="m-err" style="display:none;align-items:center;gap:6px;color:var(--rmx-error, #eb343c);font-size:14px"><svg class="ico" width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M503.5-289.48q9.5-9.48 9.5-23.5t-9.48-23.52q-9.48-9.5-23.5-9.5t-23.52 9.48q-9.5 9.48-9.5 23.5t9.48 23.52q9.48 9.5 23.5 9.5t23.52-9.48ZM453-433h60v-253h-60v253Zm27.27 353q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg><span id="m-err-txt"></span></span>
           <div style="flex:1"></div>
@@ -7976,7 +8045,7 @@ class Component extends DCLogic {
   // A property or unit type charge opened from a unit is read-only: every field is the RMX disabled
   // Input Field (#f2f2f2, a #ebf1f5 edge, #b3b3b3 text) and nothing on it can be changed — the sections
   // still open, so it can be read. The strip says where it is changed instead.
-  chargeRoNote(c){
+  chargeRoNote(c, from){
     const lvl = String((c && c.level) || 'Property');
     const where = lvl === 'Unit Type' ? `the ${c.target || ''} unit type`.replace('the  unit', 'the unit') : this.state.property;
     const prop = String(this.state.property).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
@@ -7991,7 +8060,7 @@ class Component extends DCLogic {
     </style>
     <div style="display:flex;align-items:center;gap:10px;flex:none;background:var(--rmx-bg-muted, #f2f2f2);border-radius:4px;padding:10px 14px;font-size:14px;color:var(--rmx-brand-dark, #13314c)">
       ${this.ico('lock', 18, 'color:var(--rmx-text, #666666);flex:none')}
-      <span style="flex:1;min-width:0;line-height:1.45">This charge is set on ${where}, so it can't be changed from this unit.</span>
+      <span style="flex:1;min-width:0;line-height:1.45">This charge is set on ${where}, so it can't be changed from this ${from || 'unit'}.</span>
       <a data-act="openFeeProfile" data-arg="${prop}" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap;pointer-events:auto">All ${this.state.property} Charges</a>
     </div>`;
   }
@@ -9838,6 +9907,9 @@ class Component extends DCLogic {
         <svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="opacity:0.85;cursor:pointer"><path d="M511-258q11-11 11-27t-11-27q-11-11-27-11t-27 11q-11 11-11 27t11 27q11 11 27 11t27-11Zm-62-135h59q0-26 6.5-47.5T555-490q31-26 44-51t13-55q0-53-34.5-85T486-713q-49 0-86.5 24.5T345-621l53 20q11-28 33-43.5t52-15.5q34 0 55 18.5t21 47.5q0 22-13 41.5T508-512q-30 26-44.5 51.5T449-393Zm31 313q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 31.5-156t86-127Q252-817 325-848.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 82-31.5 155T763-197.5q-54 54.5-127 86T480-80Zm0-60q142 0 241-99.5T820-480q0-142-99-241t-241-99q-141 0-240.5 99T140-480q0 141 99.5 240.5T480-140Zm0-340Z"/></svg>
       </div>`;
       out += `<div style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column">${this.registerBody()}</div>`;
+    } else if (s.view === 'unittype') {
+      out += this.ctx('Unit Type', [{ label: s.property, act:'navProperty', arg: s.property }, { label: s.unitType || 'Studio' }], '');
+      out += this.unitTypeBody();
     } else {
       out += this.ctx('Unit', [{ label: s.property, act:'navProperty', arg: s.property }, { label:'Unit ' + s.unit }], '125 of 255');
       out += this.unitBody();
