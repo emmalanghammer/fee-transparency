@@ -3516,11 +3516,15 @@ class Component extends DCLogic {
     const empty = (t, extra, top) => `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:${top?'flex-start':'center'};${top?'padding-top:52px;':''}gap:8px;font-size:14px;text-align:center;color:var(--rmx-text, #666666)">${t}${extra||''}</div>`;
 
     // ---- header card ----
-    const chip = (c, t) => `<span style="display:inline-flex;align-items:center;gap:7px;background:${c.bg};border-radius:4px;padding:4px 11px;font-size:14px;color:${c.fg};white-space:nowrap"><span style="width:7px;height:7px;border-radius:50%;background:${c.dot};flex:none"></span>${t}</span>`;
+    // RMX Lozenge at Size=32, the scoreboard's status chip: 32px tall, a dot, 16px Regular label.
+    const chip = (c, t) => `<span style="display:inline-flex;align-items:center;gap:8px;height:32px;box-sizing:border-box;background:${c.bg};border-radius:4px;padding:0 12px;font-size:16px;color:${c.fg};white-space:nowrap"><span style="width:7px;height:7px;border-radius:50%;background:${c.dot};flex:none"></span>${t}</span>`;
     const meta = (n, t) => `<span style="display:inline-flex;align-items:center;gap:7px;white-space:nowrap">${icon(n)}<span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${t}</span></span>`;
-    const splitBtn = (t) => `<span style="display:inline-flex;align-items:stretch;flex:none">
-      <span data-act="${t === 'Move In' ? 'miOpen' : 'todo'}" data-arg="${t}" class="btn-pri" style="display:inline-flex;align-items:center;height:32px;padding:0 16px;border-radius:4px 0 0 4px;font-size:14px;white-space:nowrap">${t}</span>
-      <span data-act="todo" data-arg="${t}" style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:32px;background:var(--rmx-brand-hover, #0071aa);border-radius:0 4px 4px 0;cursor:pointer"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:#fff"><path d="M480-360 280-559h400L480-360Z"/></svg></span>
+    // RMX Split Button: two Primary segments of the same fill joined by a 1px white divider, the
+    // trailing one the caret; 36px tall, 4px corners. The scoreboard sets both of its buttons in one
+    // grid column so they share a width, as the live app does.
+    const splitBtn = (t) => `<span style="display:flex;align-items:stretch;width:100%;height:36px;border-radius:4px;overflow:hidden">
+      <span data-act="${t === 'Move In' ? 'miOpen' : 'todo'}" data-arg="${t}" class="btn-pri" style="flex:1;display:inline-flex;align-items:center;justify-content:center;height:36px;min-height:36px;padding:0 16px;border-radius:0;font-size:14px;white-space:nowrap">${t}</span>
+      <span data-act="todo" data-arg="${t} options" aria-label="More options" class="btn-pri" style="flex:none;display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;min-height:36px;padding:0;border-radius:0;border-left:1px solid #fff;cursor:pointer"><svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M480-360 280-559h400L480-360Z"/></svg></span>
     </span>`;
     const stat = (l, v) => `<div style="display:flex;align-items:center;justify-content:flex-end;gap:12px">
       <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${l}</span>
@@ -3530,8 +3534,8 @@ class Component extends DCLogic {
       <div style="flex:1;min-width:0;display:flex;align-items:center;gap:18px;padding:14px 18px">
         <span style="width:56px;height:56px;border-radius:50%;background:var(--ac,var(--rmx-brand, #008dd5));color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;flex:none">CA</span>
         <div style="display:flex;flex-direction:column;gap:8px;min-width:0;flex:1">
-          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-            <span style="font-size:18px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${NAME}</span>
+          <span style="font-size:18px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${NAME}</span>
+          <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
             <span style="font-size:14px;font-style:italic;color:var(--rmx-text, #666666)">Account #:&nbsp; 516</span>
             ${chip({bg:'var(--rmx-success-bg, #e2f1da)', fg:'#2f5d43', dot:'var(--rmx-success, #6eb744)'}, 'Prospect')}
             ${chip({bg:'var(--rmx-brand-tint-bg, #ebf1f5)', fg:'var(--rmx-brand-hover, #0071aa)', dot:'var(--ac,var(--rmx-brand, #008dd5))'}, 'Screening Completed')}
@@ -3540,9 +3544,9 @@ class Component extends DCLogic {
             ${meta('home','Riverview Apartments')}${meta('apartment','1B')}${meta('mail','capegian@lcs.com')}${meta('call','513-555-1235')}
           </div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:10px;flex:none">
-          <div style="display:flex;align-items:center;gap:14px">${stat('Reserved Move-In:','04/01/2026')}${splitBtn('Move In')}</div>
-          <div style="display:flex;align-items:center;gap:14px">${stat('Last Contacted:','03/12/2026')}${splitBtn('Add Note')}</div>
+        <div style="display:grid;grid-template-columns:auto auto;align-items:center;column-gap:16px;row-gap:12px;flex:none">
+          ${stat('Reserved Move-In:','04/01/2026')}${splitBtn('Move In')}
+          ${stat('Last Contacted:','03/12/2026')}${splitBtn('Add Note')}
         </div>
       </div>
     </div>`;
@@ -5530,8 +5534,8 @@ class Component extends DCLogic {
       // showing the columns would only ever print a dash under them.
       { key:'from',     label:'From',                  w:'100px', base:true, recOnly:true },
       { key:'to',       label:'To',                    w:'90px',  base:true, recOnly:true },
-      { key:'amount',   label:'Amount',                w:'110px', base:true },
-      { key:'level',    label:'Charge Level',          w:'170px', base:true },
+      { key:'amount',   label:'Amount',                w:'140px', base:true },
+      { key:'level',    label:'Charge Level',          w:'220px', base:true },
       { key:'ready',    label:'Listing Ready',         w:'150px', base:'ft' },
       { key:'method',   label:'Amount Method',         w:'130px' },
       // Off by default, on through Column Setup. It reads the resolved schedule, so a one-time
@@ -7499,9 +7503,12 @@ class Component extends DCLogic {
     // ---- header card ----
     const chip = (t) => `<span style="display:inline-flex;align-items:center;gap:7px;background:var(--rmx-success-bg, #e2f1da);border-radius:4px;padding:4px 11px;font-size:14px;color:#2f5d43;white-space:nowrap"><span style="width:7px;height:7px;border-radius:50%;background:var(--rmx-success, #6eb744);flex:none"></span>${t}</span>`;
     const meta = (n, t, act, arg) => `<span${act?` data-act="${act}"${arg?` data-arg="${arg}"`:''}`:''} style="display:inline-flex;align-items:center;gap:7px;white-space:nowrap${act?';cursor:pointer':''}">${icon(n)}<span style="font-size:14px;color:${act?'var(--ac,var(--rmx-brand, #008dd5))':'var(--rmx-brand-dark, #13314c)'}">${t}</span></span>`;
-    const splitBtn = (t) => `<span style="display:inline-flex;align-items:stretch;flex:none">
-      <span data-act="${t === 'Move In' ? 'miOpen' : 'todo'}" data-arg="${t}" class="btn-pri" style="display:inline-flex;align-items:center;height:32px;padding:0 16px;border-radius:4px 0 0 4px;font-size:14px;white-space:nowrap">${t}</span>
-      <span data-act="todo" data-arg="${t}" style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:32px;background:var(--rmx-brand-hover, #0071aa);border-radius:0 4px 4px 0;cursor:pointer">${this.ico('arrow_drop_down', 18, 'color:#fff')}</span>
+    // RMX Split Button: two Primary segments of the same fill joined by a 1px white divider, the
+    // trailing one the caret; 36px tall, 4px corners. The scoreboard sets both of its buttons in one
+    // grid column so they share a width, as the live app does.
+    const splitBtn = (t) => `<span style="display:flex;align-items:stretch;width:100%;height:36px;border-radius:4px;overflow:hidden">
+      <span data-act="${t === 'Move In' ? 'miOpen' : 'todo'}" data-arg="${t}" class="btn-pri" style="flex:1;display:inline-flex;align-items:center;justify-content:center;height:36px;min-height:36px;padding:0 16px;border-radius:0;font-size:14px;white-space:nowrap">${t}</span>
+      <span data-act="todo" data-arg="${t} options" aria-label="More options" class="btn-pri" style="flex:none;display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;min-height:36px;padding:0;border-radius:0;border-left:1px solid #fff;cursor:pointer"><svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M480-360 280-559h400L480-360Z"/></svg></span>
     </span>`;
     const stat = (l, v) => `<div style="display:flex;align-items:center;justify-content:flex-end;gap:12px">
       <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${l}</span>
@@ -7520,9 +7527,9 @@ class Component extends DCLogic {
             ${meta('home', prop, 'navProperty', prop)}${meta('apartment', unitNo, 'navUnit', unitNo)}${meta('mail', this.tenantEmail())}${meta('call', '513-555-1235')}
           </div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:10px;flex:none">
-          <div style="display:flex;align-items:center;gap:14px">${stat('Balance Due:', money(ledgerAll.length ? ledgerAll[0].bal : 0))}${splitBtn('Add Charge')}</div>
-          <div style="display:flex;align-items:center;gap:14px">${stat('Security Deposit:', money(this.tenantDeposit()))}${splitBtn('Refund Deposit')}</div>
+        <div style="display:grid;grid-template-columns:auto auto;align-items:center;column-gap:16px;row-gap:12px;flex:none">
+          ${stat('Balance Due:', money(ledgerAll.length ? ledgerAll[0].bal : 0))}${splitBtn('Add Charge')}
+          ${stat('Security Deposit:', money(this.tenantDeposit()))}${splitBtn('Refund Deposit')}
         </div>
       </div>
     </div>`;
