@@ -700,7 +700,12 @@ to the pet type's Max Charge Amount (`petCapOf`, shared with the preview's rule)
 Charge Type; Comment; Frequency / From / To on a recurring one; Amount) and **no Charge Marketing**,
 because a tenant's own charge is never advertised. It lands in `rq.extra`, ticked, with a grey
 *Tenant* pill. On every picker row the level pill sits **right after the checkbox**, before the
-charge's name (2026-10-07).
+charge's name (2026-10-07). Its boxes are the **RMX Checkbox** (`rmxCheckbox(on, disabled, attrs)`, RMX
+Components `179:1357`): 20px, 2px corners; checked attention-orange with a 1px stroke and the white
+`check` filling it; unchecked white in a 2px `#b3b3b3` stroke; a charge that can't come off is the
+**Disabled checked** variant (the orange under a 50% white wash, no stroke) — it used to be a grey
+box with a grey tick, and an ORI-brought one a peach of its own. The Move In wizard's checkboxes and
+the unit Charges overlay's include box use the same method.
 
 **The prospect's Move In opens the Move In wizard** (`miHTML`, 2026-10-07, RMX Pages
 `4671:33014` in `5XEzI94nmZsWE7rQQ7OIHP`): the prospect strip's **Move In** button and the

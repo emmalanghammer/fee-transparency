@@ -6412,6 +6412,18 @@ class Component extends DCLogic {
         </div>
       </div></div>`;
   }
+  // RMX Checkbox, State=Default (RMX Components `179:1357`, RMXDS `components/Checkbox`): a 20px box
+  // with `radius-xs` corners. Checked is `icon-attention` with a 1px `border-attention` stroke and the
+  // white Material `check` filling it; unchecked is white inside a 2px `icon-disabled` stroke. Disabled
+  // checked keeps its orange under a 50% white wash with no stroke; disabled unchecked is
+  // `background-input-disabled` inside the grey stroke. `attrs` carries the box's own data-act.
+  rmxCheckbox(on, disabled, attrs){
+    const look = on
+      ? (disabled ? 'background:#fac091;border:none' : 'background:var(--rmx-attention, #f58220);border:1px solid var(--rmx-attention, #f58220)')
+      : (disabled ? 'background:#f2f2f2;border:2px solid #b3b3b3' : 'background:#fff;border:2px solid #b3b3b3');
+    const tick = on ? `<svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="#fff" aria-hidden="true"><path d="M378-246 154-470l43-43 181 181 384-384 43 43-427 427Z"/></svg>` : '';
+    return `<span${attrs || ''} role="checkbox" aria-checked="${on ? 'true' : 'false'}"${disabled ? ' aria-disabled="true"' : ''} style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;flex:none;box-sizing:border-box;border-radius:2px;${look};cursor:${disabled ? 'default' : 'pointer'}">${tick}</span>`;
+  }
   // ---------- Move In wizard (RMX Pages `4671:33014`, 2026-10-07) ----------
   // Opened from the prospect's Move In button (and the Reservation tile's Move In link). One scrolling
   // canvas of tiles beside a navy left nav that jumps between them: Account, Lease, Home, Addresses +
@@ -6476,7 +6488,7 @@ class Component extends DCLogic {
     // Columns wrap rather than squeeze: two across fall to one under ~460px, three under ~620px.
     const fit = { '1fr 1fr':'repeat(auto-fit,minmax(220px,1fr))', '1fr 1fr 1fr':'repeat(auto-fit,minmax(200px,1fr))' };
     const grid = (cols, inner, gap) => `<div style="display:grid;grid-template-columns:${fit[cols] || cols};gap:${gap || '12px 16px'};align-items:start">${inner}</div>`;
-    const cb = (t, on, dis) => `<span style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:${dis ? 'var(--rmx-text-muted, #b3b3b3)' : ink}"><span style="width:20px;height:20px;box-sizing:border-box;border-radius:2px;display:flex;align-items:center;justify-content:center;${on ? 'background:var(--rmx-attention, #f58220);border:2px solid var(--rmx-attention, #f58220)' : 'background:#fff;border:2px solid #b3b3b3'}">${on ? this.ico('check', 14, 'color:#fff') : ''}</span>${t}</span>`;
+    const cb = (t, on, dis) => `<span style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:${dis ? 'var(--rmx-text-muted, #b3b3b3)' : 'var(--rmx-text, #666666)'}">${this.rmxCheckbox(on, dis)}${t}</span>`;
     const rd = (t, on, dis) => `<span style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:${dis ? 'var(--rmx-text-muted, #b3b3b3)' : ink}"><span style="width:20px;height:20px;box-sizing:border-box;border-radius:50%;border:2px solid ${on ? 'var(--ac,var(--rmx-brand, #008dd5))' : '#b3b3b3'};display:flex;align-items:center;justify-content:center">${on ? `<span style="width:10px;height:10px;border-radius:50%;background:var(--ac,var(--rmx-brand, #008dd5))"></span>` : ''}</span>${t}</span>`;
     const units = this.units().map(u => ({ value:u.u, label:u.u + ' - ' + u.type }));
     const unitSel = `<div style="display:flex;flex-direction:column;gap:4px;min-width:0">${lab('Unit')}<div style="display:flex;gap:8px;align-items:center"><div style="flex:1;min-width:0">${this.singleSelect('mi-unit', units, this._miUnit || '', { placeholder:' ', js:"if(window.__miUnit)window.__miUnit()" })}</div>${sqBtn('apartment')}</div></div>`;
@@ -6584,14 +6596,9 @@ class Component extends DCLogic {
     const hc = (t, r) => `<span style="display:flex;align-items:center;${r?'justify-content:flex-end;':''}min-height:30px;padding:4px 12px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span>`;
     const cell = (t, r) => `<span style="display:flex;align-items:center;${r?'justify-content:flex-end;':''}min-height:34px;padding:4px 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t}</span>`;
     const groupLbl = (t) => `<span style="display:block;padding:8px 12px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span>`;
-    const box = (on, lock, id) => {
-      // Grey reads as "this one can't come off"; the tint marks a charge the ORI unit brings with it.
-      const bg = !on ? '#fff' : (lock === 'grey' ? '#dfe6ec' : (lock === 'light' ? '#f9c99a' : 'var(--rmx-attention, #f58220)'));
-      const bd = on ? (lock === 'grey' ? 'var(--rmx-line, #cedbe7)' : bg) : 'var(--rmx-line, #cedbe7)';
-      const tick = on ? `<svg class="ico" width="14" height="14" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:${lock === 'grey' ? 'var(--rmx-text, #666666)' : '#fff'}"><path d="M378-246 154-470l43-43 181 181 384-384 43 43-427 427Z"/></svg>` : '';
-      const act = lock ? '' : ` data-act="rqTog" data-arg="${id}"`;
-      return `<span${act} style="display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;box-sizing:border-box;border:1px solid ${bd};background:${bg};border-radius:2px;cursor:${lock?'default':'pointer'}">${tick}</span>`;
-    };
+    // RMX Checkbox (State=Default). A charge that can't come off — required, or brought by a rentable
+    // item — is the Disabled checked variant rather than a colour of its own.
+    const box = (on, lock, id) => this.rmxCheckbox(on, !!lock, lock ? '' : ` data-act="rqTog" data-arg="${id}"`);
     const recRow = (r) => {
       const on = r.lock ? true : this.rqOn(r);
       return `<span style="display:flex;align-items:center;justify-content:center;min-height:34px">${box(on, r.lock, r.id)}</span>`
@@ -7163,7 +7170,7 @@ class Component extends DCLogic {
     const cell = (k, t, right, color) => `<span class="c-${k}" style="display:flex;align-items:center;height:36px;box-sizing:border-box;padding:0 8px;font-size:14px;color:${color||ink};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${right?'justify-content:flex-end;text-align:right':''}">${t}</span>`;
     const kv = (k, label, v) => `<div class="${ns}-d d-${k}" style="grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:8px;padding:6px 0;font-size:14px;line-height:20px;max-width:560px"><span style="color:var(--rmx-text, #666666)">${label}</span><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${ink}">${v}</span></div>`;
     const ovrPill = `<span style="margin-left:8px;background:#fdeedd;color:var(--rmx-attention, #f58220);border-radius:4px;padding:1px 8px;font-size:14px">Override</span>`;
-    const CHK = `<span onclick="event.stopPropagation();var b=this.firstElementChild,on=b.getAttribute('data-on')!=='1';b.setAttribute('data-on',on?'1':'0');b.style.background=on?'var(--rmx-attention, #f58220)':'#fff';b.style.borderColor=on?'var(--rmx-attention, #f58220)':'#b3b3b3';b.firstElementChild.style.display=on?'block':'none'" role="checkbox" title="Include this charge" style="display:flex;align-items:center;justify-content:center;width:100%;height:36px;cursor:pointer"><span data-on="1" style="width:20px;height:20px;border-radius:2px;box-sizing:border-box;background:var(--rmx-attention, #f58220);border:2px solid var(--rmx-attention, #f58220);display:flex;align-items:center;justify-content:center"><svg class="ico" width="14" height="14" viewBox="0 -960 960 960" fill="#fff" aria-hidden="true" style="display:block"><path d="M378-246 154-470l43-43 181 181 384-384 43 43-427 427Z"/></svg></span></span>`;
+    const CHK = `<span onclick="event.stopPropagation();var b=this.firstElementChild,on=b.getAttribute('aria-checked')!=='true';b.setAttribute('aria-checked',on?'true':'false');b.style.background=on?'var(--rmx-attention, #f58220)':'#fff';b.style.border=on?'1px solid var(--rmx-attention, #f58220)':'2px solid #b3b3b3';b.firstElementChild.style.visibility=on?'visible':'hidden'" title="Include this charge" style="display:flex;align-items:center;justify-content:center;width:100%;height:36px;cursor:pointer">${this.rmxCheckbox(true, false).replace('<svg ', '<svg style="visibility:visible" ')}</span>`;
     const openSet = this._chgRegOpen || (this._chgRegOpen = {});
     if (!window.__chgRegToggle) window.__chgRegToggle = (el) => {
       const row = el.closest('[data-chgrow]'); if (!row) return;
