@@ -1136,6 +1136,18 @@ same charge source on the properties that use it. Rent quotes and the Move In an
 now read the property's Charges. Those charges are **ordinary**: nothing marks where they came from.
 Every Test Feature State is at or after rollout, so this is the only face the page has.
 
+**A property has its own Tenant Charge Setup too**, because a property could override System
+Preferences. It is `tcsPropHTML()`, opened from the property rail's Copy flyout (**Tenant Charge
+Setup**, under Charges and Marketing Setup) as `state.tcsProp`. It is a 640px overlay at z-index 145,
+read-only after rollout, with the same story as the System Preferences page. The info banner says
+*These tenant charges are now property charges*, names the property, and offers **View Charges**
+(`openFeeProfile`, which clears `tcsProp`). Under it, **Override System Preferences** keeps the state
+it had but can't be changed: ticked with the property's own list in navy, or unticked with System
+Preferences' list greyed, as production draws them. Then **Default Recurring Charges** and **Default
+One-Time Charges**, Charge Type · Charge Source, with a lone **Close**. `tcsSystem()` is the one
+System Preferences list, read by both surfaces. `tcsOverrides()` holds the properties that overrode
+it: only **Riverview Apartments**, whose list adds APPFEE.
+
 **FMR (first month's rent) is the worked example of a referenced source.** Its Tenant Charge Setup
 source was **Unit Market Rent**, so it arrived as a required one-time Property charge with
 `amtMethod:'Reference'`, `amount:'Unit Market Rent'` and **no `est`**. Every pricer
