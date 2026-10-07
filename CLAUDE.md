@@ -730,6 +730,10 @@ DOM-only through `window.__miUnit` so the rest of the wizard keeps what's typed.
 registers scroll sideways on a narrow pane. Five Material glyphs were added to the `ico` map for it
 (`cloud_upload`, `content_paste`, `location_on`, `photo_camera`, `phone_iphone`).
 
+**The Pricing Preview's picker rows match the rent quote's** (2026-10-07): the RMX Checkbox, then a
+level pill (`levelLabel` — Property, Unit Type, Unit, Other Rentable Item), then the charge's name,
+which wraps rather than truncating; it had no level pill before.
+
 The rent quote's charge step borrows the Pricing Preview's UI outright — picker left, price card on
 a tinted pane right. Each row wears its **charge level** as a pill, because two charges can share a
 name and differ only in what they attach to. `rqRows`' `applies()` offers only what would actually
