@@ -662,6 +662,17 @@ get started.* over **+ Add Rent Quote**, centred text, sitting near the top of t
 rather than in the middle of however tall the row makes it — `empty(t, extra, top)`. The tile's 4px
 corners and SemiBold title stay on the RMX tokens; production's 6px and bold are its own drift.
 
+**The rent quote's charge step takes pets the way the Pricing Preview does** (2026-10-07): a ticked
+pet charge (`chargeCategoryFor` is *Pet*) shows the preview's − n/max + stepper (`rqQty`, held in
+`rq.qty`), capped at the pet type's Max Allowed (`ppPetMax`), and the line costs amount × pets held
+to the pet type's Max Charge Amount (`petCapOf`, shared with the preview's rule). `rqLineAmt` is what
+`rqSum` and the price card read, so the card shows *Per pet × 2* and the totals move with it.
+**Add Recurring / One-Time Charge on a quote are built** (`rqAddChg` → `rqAddHTML`, z-index 155): a
+**tenant-level** charge for that quote alone — General only (Charge Level reads *Tenant*, read-only;
+Charge Type; Comment; Frequency / From / To on a recurring one; Amount) and **no Charge Marketing**,
+because a tenant's own charge is never advertised. It lands in `rq.extra`, ticked, with a grey
+*Tenant* pill.
+
 The rent quote's charge step borrows the Pricing Preview's UI outright — picker left, price card on
 a tinted pane right. Each row wears its **charge level** as a pill, because two charges can share a
 name and differ only in what they attach to. `rqRows`' `applies()` offers only what would actually

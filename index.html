@@ -1415,7 +1415,7 @@ class Component extends DCLogic {
         }
         this.setState(s => ({ unitSel: null, rq: Object.assign({}, s.rq, { unit: pick }) })); break; }
       case 'rqOpen': this.setState({ rq: this.rqBlank() }); break;
-      case 'rqClose': this.setState({ rq: null }); break;
+      case 'rqClose': this.setState({ rq: null, rqAdd: null }); break;
       case 'rqNext': this.rqCapture(); this.setState(s => ({ rq: Object.assign({}, s.rq, { step:2 }) })); break;
       case 'rqBack': this.setState(s => ({ rq: Object.assign({}, s.rq, { step:1 }) })); break;
       case 'rqAddOri': { this.rqCapture();
@@ -1430,6 +1430,23 @@ class Component extends DCLogic {
         const next = !this.rqOn(row);
         this.setState(s => { const q = Object.assign({}, s.rq);
           const sel = Object.assign({}, q.sel); sel[arg] = next; q.sel = sel; return { rq:q }; }); break; }
+      case 'rqQty': { const [id, d] = String(arg).split(':');
+        const row = this.rqAllRows().filter(r => r.id === id)[0]; if (!row) break;
+        this.setState(s => { const q = Object.assign({}, s.rq); const qty = Object.assign({}, q.qty);
+          const next = Math.max(1, (qty[id] || 1) + parseInt(d, 10));
+          qty[id] = row.max ? Math.min(next, row.max) : next; q.qty = qty; return { rq:q }; }); break; }
+      // Add Recurring / One-Time Charge on a quote: a tenant-level charge for this quote alone, so
+      // it asks for none of the marketing details a property's charge carries.
+      case 'rqAddChg': this.setState({ rqAdd: { one: arg === 'one' } }); break;
+      case 'rqAddClose': this.setState({ rqAdd: null }); break;
+      case 'rqAddSave': { const a = this.state.rqAdd; if (!a) break;
+        const v = (id) => { const e = this.q('#' + id); return e ? String(e.value || '').trim() : ''; };
+        const type = v('rqa-ctype'), amt = this.rqAmt(v('rqa-amount'));
+        if (!type) { this.flash('Choose a charge type'); break; }
+        const row = { id:'t' + Date.now(), level:'Tenant', type, comment:v('rqa-comment'), amount:amt || 0, one:a.one,
+          freq:a.one ? '' : (v('rqa-freq') || '1'), from:a.one ? '' : v('rqa-from'), to:a.one ? '' : v('rqa-to') };
+        this.setState(s => { const q = Object.assign({}, s.rq); q.extra = (q.extra || []).concat([row]);
+          return { rq:q, rqAdd:null }; }); break; }
       case 'rqGrp': { this.setState(s => { const q = Object.assign({}, s.rq);
           const c = Object.assign({}, q.closed); if (c[arg]) delete c[arg]; else c[arg] = true;
           q.closed = c; return { rq:q }; }); break; }
@@ -6051,7 +6068,7 @@ class Component extends DCLogic {
     return { step:1, prop:'Riverview Apartments', unit:'', quoted:'08/20/2026', exp:'09/20/2026',
       moveIn:'', term:'', ctype:'', rent:'500.00', comment:'',
       oris:[],
-      sel:{}, closed:{} };
+      sel:{}, closed:{}, qty:{}, extra:[] };
   }
   // Properties carry a short name; an ORI property is free text here, so fall back to its initials.
   rqShort(name){
@@ -6098,10 +6115,15 @@ class Component extends DCLogic {
     // A charge can only be held on the quote if the charge itself says it is required — every other
     // one, rent included, is the leasing agent's to drop.
     const required = (r) => this.resolvedListing(r).requirement === 'Required';
+    // A pet charge is taken once per pet, as in the Pricing Preview: it carries the most pets the
+    // pet type allows and, where the pet type sets one, the most the resident pays however many.
     const rows = this.appliedRows(q.prop).filter(applies)
       .map(r => ({ id:'c' + r.id, level:r.level || 'Property', type:r.mits, comment:r.desc || '',
         amount:amount(r), one:/-one$/.test(r.group),
-        def:r.group.indexOf('req') === 0, lock:required(r) ? 'grey' : null }));
+        def:r.group.indexOf('req') === 0, lock:required(r) ? 'grey' : null,
+        pet:this.chargeCategoryFor(r.mits) === 'Pet', max:this.ppPetMax(r, q.prop), cap:this.petCapOf(r) }));
+    // Charges added on the quote itself are the tenant's own, so they sit after the property's.
+    (q.extra || []).forEach(x => rows.push(Object.assign({ def:true, lock:null }, x)));
     // A property with no rent charge to read has nothing to price from, so the quote
     // still carries the rent typed in step one rather than pricing at zero. It has no Charge
     // Requirement behind it either, so it stays held the way it always was.
@@ -6142,7 +6164,17 @@ class Component extends DCLogic {
   rqOn(r){ const sel = (this.state.rq || {}).sel || {}; const v = sel[r.id]; return v === undefined ? !!r.def : !!v; }
   rqAllRows(){ const rec = this.rqRecurring();
     return this.rqRows().concat.apply(this.rqRows(), rec.oris.map(g => g.rows)); }
-  rqSum(rows){ return rows.reduce((n, r) => n + ((r.lock || this.rqOn(r)) ? r.amount : 0), 0); }
+  rqSum(rows){ return rows.reduce((n, r) => n + ((r.lock || this.rqOn(r)) ? this.rqLineAmt(r) : 0), 0); }
+  // How many of a pet charge the quote carries (one until someone steps it up), and what that costs:
+  // the amount times the count, held to the pet type's maximum charge when it has one.
+  rqQtyOf(r){ const v = ((this.state.rq || {}).qty || {})[r.id]; return r.pet ? Math.max(1, v || 1) : 1; }
+  rqLineAmt(r){ const t = r.amount * this.rqQtyOf(r); return r.cap ? Math.min(t, r.cap) : t; }
+  // The Max Charge Amount a pet type puts on a per-pet charge — the Pricing Preview's rule.
+  petCapOf(r){
+    const t = this.petTypeByName((r.attrs || {}).petType); if (!t) return 0;
+    const one = /-one$/.test(r.group || '');
+    return (one ? t.onePer : t.recPer) ? (one ? (t.oneMax || 0) : (t.recMax || 0)) : 0;
+  }
   rqCount(rows){ return rows.filter(r => r.lock || this.rqOn(r)).length; }
   // Pull whatever is on screen into state before a re-render throws the inputs away.
   rqCapture(){
@@ -6250,6 +6282,40 @@ class Component extends DCLogic {
            <span style="font-size:12px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">Choose the primary unit before adding a rentable item.</span>`}
     </div>`;
   }
+  // Add Recurring / One-Time Charge from a rent quote (2026-10-07): a tenant-level charge on this
+  // quote. General only — Charge Level reads *Tenant*, then Charge Type, Comment, and for a recurring
+  // charge Frequency / From / To, then Amount — and no Charge Marketing, because a tenant's own charge
+  // is never advertised. Saved onto `rq.extra`, it arrives in the picker ticked, with a Tenant pill.
+  rqAddHTML(){
+    const a = this.state.rqAdd; if (!a) return '';
+    const kind = a.one ? 'One-Time' : 'Recurring';
+    const lab = (t) => `<span style="font-size:14px;color:var(--rmx-text, #666666)">${t}</span>`;
+    const fld = (id, ph, v) => `<input id="${id}" value="${v || ''}" placeholder="${ph || ''}" style="width:100%;box-sizing:border-box;height:36px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:0 10px;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);outline:none">`;
+    const f = (l, inner, span) => `<div style="display:flex;flex-direction:column;gap:4px;min-width:0;${span ? `grid-column:span ${span};` : ''}">${lab(l)}${inner}</div>`;
+    const types = this.chargeTypeListAll().map(t => ({ value:t[0], label:t[0] + (t[1] ? ' - ' + t[1] : '') }));
+    const level = `<div style="display:flex;align-items:center;height:36px;box-sizing:border-box;padding:0 10px;background:var(--rmx-bg-muted, #f2f2f2);border:1px solid var(--rmx-line-soft, #ebf1f5);border-radius:4px;font-size:14px;color:var(--rmx-text-muted, #b3b3b3)">Tenant</div>`;
+    const fields = a.one
+      ? f('Charge Level', level) + f('Charge Type *', this.singleSelect('rqa-ctype', types, '', { placeholder:'\u00a0' })) + f('Comment', fld('rqa-comment'))
+        + f('Amount', fld('rqa-amount', '0.00'))
+      : f('Charge Level', level) + f('Charge Type *', this.singleSelect('rqa-ctype', types, '', { placeholder:'\u00a0' })) + f('Comment', fld('rqa-comment'))
+        + f('Frequency', fld('rqa-freq', '', '1')) + f('From', fld('rqa-from', 'mm/dd/yyyy')) + f('To', fld('rqa-to', 'mm/dd/yyyy'))
+        + f('Amount', fld('rqa-amount', '0.00'));
+    return `<div data-act="rqAddClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:155">
+      <div data-act="noop" style="width:720px;max-width:94vw;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:12px;height:56px;box-sizing:border-box;padding:0 16px 0 24px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
+          <span style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">Add ${kind} Charge</span><div style="flex:1"></div>
+          ${this.ico('close', 24, 'color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer').replace('<svg ', '<svg data-act="rqAddClose" ')}
+        </div>
+        <div style="padding:16px 24px 20px;display:flex;flex-direction:column;gap:8px">
+          <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">General</span>
+          <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:14px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 16px">${fields}</div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:12px;padding:12px 24px;border-top:1px solid var(--rmx-line, #cedbe7);background:var(--rmx-bg-subtle, #f5f8fa)">
+          <button data-act="rqAddSave" class="btn-pri" style="height:36px;min-height:36px;padding:0 28px;border-radius:4px;font-size:14px">Save</button>
+          <button data-act="rqAddClose" class="btn-out" style="height:36px;min-height:36px;padding:0 24px;border-radius:4px;font-size:14px">Cancel</button>
+        </div>
+      </div></div>`;
+  }
   rqStep2(){
     const q = this.state.rq;
     const rec = this.rqRecurring(), one = this.rqOneTime();
@@ -6301,7 +6367,7 @@ class Component extends DCLogic {
     };
     const grpRows = (key, rows, fn) => ((q.closed || {})[key] ? '' : `<div style="display:grid;grid-template-columns:${cols};align-items:center">${rows.map(fn).join('')}</div>`);
     const totalLine = (t) => `<div style="display:flex;justify-content:flex-end;border-top:1px solid var(--rmx-bg-subtle, #f5f8fa);padding:7px 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c)">${t}</div>`;
-    const addLink = (t) => `<span data-act="todo" data-arg="${t}" style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M450-450H200v-60h250v-250h60v250h250v60H510v250h-60v-250Z"/></svg>${t}</span>`;
+    const addLink = (t, kind) => `<span data-act="${kind ? 'rqAddChg' : 'todo'}" data-arg="${kind || t}" style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M450-450H200v-60h250v-250h60v250h250v60H510v250h-60v-250Z"/></svg>${t}</span>`;
     const sectionHead = (t, link) => `<div style="display:flex;align-items:center;gap:12px"><span style="font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span><div style="flex:1"></div>${link}</div>`;
     const none = (t) => `<div style="padding:10px 12px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">${t}</div>`;
     const footStrip = (l, v) => `<div style="display:flex;align-items:center;gap:12px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:8px 12px"><div style="flex:1"></div><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${l}</span><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);min-width:96px;text-align:right">${v}</span></div>`;
@@ -6313,21 +6379,33 @@ class Component extends DCLogic {
     const line = (l, v, strong) => `<div style="display:flex;align-items:baseline;gap:10px;padding:3px 0;font-size:14px;${strong ? 'font-weight:600;' : ''}color:var(--rmx-brand-dark, #13314c)"><span style="flex:1;min-width:0">${l}</span><span style="white-space:nowrap">${v}</span></div>`;
     const grp = (t, rws, suffix, subLabel) => !rws.length ? '' : `<div style="padding:12px 0;border-top:1px solid var(--rmx-bg-subtle, #f5f8fa)">
       <div style="font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3);margin-bottom:4px">${t}</div>
-      ${rws.map(r => line(r.comment || r.type, money(r.amount) + (suffix || ''))).join('')}
-      ${subLabel ? line(subLabel, money(rws.reduce((n, r) => n + r.amount, 0)), true) : ''}</div>`;
+      ${rws.map(r => line((r.comment || r.type) + (r.pet && this.rqQtyOf(r) > 1 ? ` &times; ${this.rqQtyOf(r)}` : '')
+        + (r.cap && r.amount * this.rqQtyOf(r) > r.cap ? ` <span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">(max)</span>` : ''), money(this.rqLineAmt(r)) + (suffix || ''))).join('')}
+      ${subLabel ? line(subLabel, money(rws.reduce((n, r) => n + this.rqLineAmt(r), 0)), true) : ''}</div>`;
 
     // Two charges can share a name and differ only in what they attach to, so every row wears its
     // level — that is the whole answer to "which rent is this?".
     const LVL = { 'Property':'lvl-prop', 'Unit Type':'lvl-ut', 'Unit':'lvl-unit', 'ORI':'lvl-ori' };
+    // The Pricing Preview's pet stepper: − n/max +, only once the pet charge is ticked, with + going
+    // inert at the pet type's Max Allowed. A fixed-width slot on every row keeps the amounts in line.
+    const step = (r, d, icon) => `<span data-act="rqQty" data-arg="${r.id}:${d}" onclick="event.preventDefault()" style="display:flex;align-items:center;justify-content:center;width:22px;height:22px;border:1px solid var(--rmx-line, #cedbe7);border-radius:2px;background:#fff;cursor:pointer" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background='#fff'">${this.ico(icon, 14, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>`;
+    const stepOff = (icon) => `<span style="display:flex;align-items:center;justify-content:center;width:22px;height:22px;border:1px solid var(--rmx-line-soft, #ebf1f5);border-radius:2px;background:var(--rmx-bg-subtle, #f5f8fa);cursor:default">${this.ico(icon, 14, 'color:var(--rmx-text-muted, #b3b3b3)')}</span>`;
+    const stepper = (r, on) => { const n = this.rqQtyOf(r), mx = r.max;
+      const count = `<span style="min-width:20px;text-align:center;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${n}${mx ? `<span style="color:var(--rmx-text-muted, #b3b3b3)">/${mx}</span>` : ''}</span>`;
+      return `<span style="display:inline-flex;align-items:center;justify-content:flex-end;gap:6px;width:80px;flex:none">${(!r.pet || !on) ? '' : `${n <= 1 ? stepOff('remove') : step(r,-1,'remove')}${count}${mx && n >= mx ? stepOff('add') : step(r,1,'add')}`}</span>`; };
+    const tenantPill = `<span class="lvl" style="flex:none;font-size:12px;padding:1px 8px;background:var(--rmx-bg-muted, #f2f2f2);color:var(--rmx-text, #666666)">Tenant</span>`;
     const pickRow = (r, one) => {
       const on = r.lock ? true : this.rqOn(r);
       const act = r.lock ? '' : ` data-act="rqTog" data-arg="${r.id}"`;
-      return `<label${act} style="display:flex;align-items:center;gap:10px;padding:5px 0;cursor:${r.lock ? 'default' : 'pointer'};font-size:14px;color:var(--rmx-brand-dark, #13314c)">
-        ${box(on, r.lock, r.id)}
-        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.comment || r.type}</span>
-        <span class="lvl ${LVL[r.level] || 'lvl-prop'}" style="flex:none;font-size:12px;padding:1px 8px">${this.levelLabel(r.level)}</span>
+      return `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;font-size:14px;color:var(--rmx-brand-dark, #13314c)">
+        <label${act} style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;cursor:${r.lock ? 'default' : 'pointer'}">
+          ${box(on, r.lock, r.id)}
+          <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.comment || r.type}</span>
+          ${r.level === 'Tenant' ? tenantPill : `<span class="lvl ${LVL[r.level] || 'lvl-prop'}" style="flex:none;font-size:12px;padding:1px 8px">${this.levelLabel(r.level)}</span>`}
+        </label>
+        ${stepper(r, on)}
         <span style="flex:none;min-width:116px;text-align:right;font-size:14px;color:var(--rmx-ink-2, #424e5b);white-space:nowrap">${money(r.amount)}${one ? '/one-time' : '/mo'}</span>
-      </label>`;
+      </div>`;
     };
     const subLbl = (t) => `<span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3);margin-top:4px">${t}</span>`;
     const pickGroup = (label, primary, oris, one, link, emptyText) => `<div style="display:flex;flex-direction:column;gap:2px;margin-top:2px">
@@ -6347,8 +6425,8 @@ class Component extends DCLogic {
     return `<div style="margin:-16px;display:flex;flex-wrap:wrap;align-items:stretch">
       <div style="flex:1;min-width:300px;padding:16px 20px;display:flex;flex-direction:column;gap:14px;box-sizing:border-box">
         ${rule('Select Charges')}
-        ${pickGroup('Recurring', rec.primary, rec.oris, false, addLink('Add Recurring Charge'), 'No recurring charges on this property.')}
-        ${pickGroup('One-Time', one.primary, one.oris, true, addLink('Add One-Time Charge'), 'No one-time charges on this property.')}
+        ${pickGroup('Recurring', rec.primary, rec.oris, false, addLink('Add Recurring Charge', 'rec'), 'No recurring charges on this property.')}
+        ${pickGroup('One-Time', one.primary, one.oris, true, addLink('Add One-Time Charge', 'one'), 'No one-time charges on this property.')}
       </div>
       <div style="flex:1;min-width:320px;background:var(--rmx-bg-subtle, #f5f8fa);padding:16px 20px;box-sizing:border-box;display:flex;flex-direction:column;gap:10px">
         <div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
@@ -9533,6 +9611,7 @@ class Component extends DCLogic {
     out += this.bulkUpdHTML();
     out += this.copyFeesHTML();
     out += this.rqHTML();
+    out += this.rqAddHTML();
     out += this.unitSelHTML();
     out += this.amtSelHTML();
     out += this.ftHelpHTML();
