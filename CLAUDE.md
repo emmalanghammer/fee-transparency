@@ -697,7 +697,12 @@ RM house mark faded at the bottom — beside one scrolling canvas of overline Co
 (`miTile`: 36px header, 2px brand rule): Account, Lease, Home, Addresses + Comment, Miscellaneous,
 Payment Rules, Contacts, User Defined Fields, Deposit, **Recurring Charges**, **One-Time Charges**,
 Meter Readings, Tenant Self-Inspection; Move In / Cancel underneath (`miSave` closes and confirms).
-Everything but the charges is furniture. **Picking the Unit fills both charge registers with that
+The wizard **hugs its content**: at most 1510px wide (the frame's own width — nav 220 + 1178 of tiles
++ 56 each side), centred, rather than filling the screen. The two charge tiles carry **+ Add Recurring
+Charge** / **+ Add One-Time Charge** (`miAddChg`), which open the rent quote's tenant-level dialog
+(`rqAddHTML` with `ctx:'mi'`, z-index 160) — no Charge Marketing — and land in `this._miExtra`, read
+*Tenant* in Source and count in the totals. Opening the dialog re-renders, so the picked unit is kept
+in `this._miUnit` (`miKeep`). Everything but the charges is furniture. **Picking the Unit fills both charge registers with that
 unit's charges** (`miChargeTilesHTML` over `unitRecurring` / `unitOneTime`; Source is the charge's
 level, Charge Type *CODE - Description*, Market Rent the unit's rent, totals in the footer),
 DOM-only through `window.__miUnit` so the rest of the wizard keeps what's typed. Columns wrap and the

@@ -1434,8 +1434,8 @@ class Component extends DCLogic {
         this.setState(s => ({ unitSel: null, rq: Object.assign({}, s.rq, { unit: pick }) })); break; }
       case 'rqOpen': this.setState({ rq: this.rqBlank() }); break;
       // The Move In wizard (RMX Pages `4671:33014`).
-      case 'miOpen': this.setState({ mi: { prop: 'Riverview Apartments' } }); break;
-      case 'miClose': this.setState({ mi: null }); break;
+      case 'miOpen': this._miUnit = ''; this._miExtra = []; this.setState({ mi: { prop: 'Riverview Apartments' } }); break;
+      case 'miClose': this._miUnit = ''; this._miExtra = []; this.setState({ mi: null }); break;
       case 'miSave': { const u = (this.q('#mi-unit') || {}).value || '';
         this.setState({ mi: null }); this.flash('Charlie Apegian moved in' + (u ? ' to ' + u : '')); break; }
       case 'rqClose': this.setState({ rq: null, rqAdd: null }); break;
@@ -1461,6 +1461,8 @@ class Component extends DCLogic {
       // Add Recurring / One-Time Charge on a quote: a tenant-level charge for this quote alone, so
       // it asks for none of the marketing details a property's charge carries.
       case 'rqAddChg': this.setState({ rqAdd: { one: arg === 'one' } }); break;
+      // The same tenant-level dialog, opened from the Move In wizard's charge tiles.
+      case 'miAddChg': this.miKeep(); this.setState({ rqAdd: { one: arg === 'one', ctx: 'mi' } }); break;
       case 'rqAddClose': this.setState({ rqAdd: null }); break;
       case 'rqAddSave': { const a = this.state.rqAdd; if (!a) break;
         const v = (id) => { const e = this.q('#' + id); return e ? String(e.value || '').trim() : ''; };
@@ -1468,6 +1470,7 @@ class Component extends DCLogic {
         if (!type) { this.flash('Choose a charge type'); break; }
         const row = { id:'t' + Date.now(), level:'Tenant', type, comment:v('rqa-comment'), amount:amt || 0, one:a.one,
           freq:a.one ? '' : (v('rqa-freq') || '1'), from:a.one ? '' : v('rqa-from'), to:a.one ? '' : v('rqa-to') };
+        if (a.ctx === 'mi') { this._miExtra = (this._miExtra || []).concat([row]); this.setState({ rqAdd: null }); break; }
         this.setState(s => { const q = Object.assign({}, s.rq); q.extra = (q.extra || []).concat([row]);
           return { rq:q, rqAdd:null }; }); break; }
       case 'rqGrp': { this.setState(s => { const q = Object.assign({}, s.rq);
@@ -6385,7 +6388,7 @@ class Component extends DCLogic {
       : f('Charge Level', level) + f('Charge Type *', this.singleSelect('rqa-ctype', types, '', { placeholder:'\u00a0' })) + f('Comment', fld('rqa-comment'))
         + f('Frequency', fld('rqa-freq', '', '1')) + f('From', fld('rqa-from', 'mm/dd/yyyy')) + f('To', fld('rqa-to', 'mm/dd/yyyy'))
         + f('Amount', fld('rqa-amount', '0.00'));
-    return `<div data-act="rqAddClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:155">
+    return `<div data-act="rqAddClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:${a.ctx === 'mi' ? 160 : 155}">
       <div data-act="noop" style="width:720px;max-width:94vw;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;gap:12px;height:56px;box-sizing:border-box;padding:0 16px 0 24px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
           <span style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">Add ${kind} Charge</span><div style="flex:1"></div>
@@ -6409,6 +6412,7 @@ class Component extends DCLogic {
   // charges are live: **picking the Unit fills Recurring and One-Time Charges with that unit's
   // charges** (`unitRecurring` / `unitOneTime` — the property's, its unit type's and its own), DOM-only
   // through `window.__miUnit` so nothing typed elsewhere in the wizard is lost.
+  miKeep(){ const e = this.q('#mi-unit'); if (e) this._miUnit = e.value || ''; }
   miChargeTilesHTML(unit){
     const info = unit ? this.unitInfo(unit) : null;
     const names = {}; this.chargeTypeListAll().forEach(t => { names[t[0]] = t[1]; });
@@ -6423,18 +6427,23 @@ class Component extends DCLogic {
     const blank = `<span style="height:44px;border-bottom:1px solid var(--rmx-line-soft, #ebf1f5)"></span>`;
     const tot = (n) => `<div style="display:flex;justify-content:flex-end;padding:8px 16px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);font-size:12px;color:var(--rmx-text, #666666)">Total: ${dec(n)}</div>`;
     const none = (t) => `<div style="grid-column:1/-1;padding:12px 16px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3);border-bottom:1px solid var(--rmx-line-soft, #ebf1f5)">${t}</div>`;
-    const rec = info ? this.unitRecurring(unit) : [];
-    const one = info ? this.unitOneTime(unit) : [];
+    // Tenant-level charges added here (Add Recurring / One-Time Charge) are the tenant's alone and
+    // carry no Charge Marketing; they sit after the unit's own and read *Tenant* in Source.
+    const ten = (this._miExtra || []).map(x => ({ mits:x.type, desc:x.comment, amount:x.amount, level:'Tenant',
+      freq:x.freq, from:x.one ? '01/01/2026' : (x.from || '01/01/2026'), to:x.to || '', one:x.one }));
+    const rec = (info ? this.unitRecurring(unit) : []).concat(ten.filter(x => !x.one));
+    const one = (info ? this.unitOneTime(unit) : []).concat(ten.filter(x => x.one));
     const src = (f) => this.levelLabel(f.level || 'Property');
     const RC = '40px minmax(90px,1fr) minmax(130px,1.3fr) minmax(110px,1fr) minmax(60px,119px) minmax(96px,120px) minmax(96px,119px) minmax(96px,120px) 40px';
     const OC = 'minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 120px 40px';
     const msg = 'Select a unit to fill its charges.';
+    const add = (t, kind) => `<span data-act="miAddChg" data-arg="${kind}" style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${this.ico('add', 18, 'color:var(--ac,var(--rmx-brand, #008dd5))')}${t}</span>`;
     const recReg = `<div style="display:grid;grid-template-columns:${RC}">${hd('')}${hd('Source')}${hd('Charge Type')}${hd('Comment')}${hd('Freq')}${hd('From Date')}${hd('To Date')}${hd('Amount')}${hd('')}
       ${rec.length ? rec.map(f => blank + cl(src(f)) + cl(ctLabel(f.mits)) + cl(f.desc || '') + cl(this.freqNum(f) || '1') + cl(short(f.from)) + cl(short(f.to)) + cl(dec(amtOf(f))) + keb).join('') : none(info ? 'No recurring charges reach this unit.' : msg)}</div>`;
     const oneReg = `<div style="display:grid;grid-template-columns:${OC}">${hd('Date')}${hd('Charge Type')}${hd('Reference')}${hd('Comment')}${hd('Amount')}${hd('')}
       ${one.length ? one.map(f => cl(short(f.from)) + cl(ctLabel(f.mits)) + cl('') + cl(f.desc || '') + cl(dec(amtOf(f))) + keb).join('') : none(info ? 'No one-time charges reach this unit.' : msg)}</div>`;
-    return this.miTile('Recurring Charges', `<div style="overflow-x:auto"><div style="min-width:760px">${recReg}</div></div>` + tot(rec.reduce((n, f) => n + amtOf(f), 0)), { flush:true, id:'mi-sec-charges' })
-      + this.miTile('One-Time Charges', `<div style="overflow-x:auto"><div style="min-width:640px">${oneReg}</div></div>` + tot(one.reduce((n, f) => n + amtOf(f), 0)), { flush:true });
+    return this.miTile('Recurring Charges', `<div style="overflow-x:auto"><div style="min-width:760px">${recReg}</div></div>` + tot(rec.reduce((n, f) => n + amtOf(f), 0)), { flush:true, id:'mi-sec-charges', right: add('Add Recurring Charge', 'rec') })
+      + this.miTile('One-Time Charges', `<div style="overflow-x:auto"><div style="min-width:640px">${oneReg}</div></div>` + tot(one.reduce((n, f) => n + amtOf(f), 0)), { flush:true, right: add('Add One-Time Charge', 'one') });
   }
   // A Content tile with the overline, as overlay forms use it: a 36px header over a 2px brand rule.
   miTile(title, body, o){
@@ -6462,9 +6471,9 @@ class Component extends DCLogic {
     const cb = (t, on, dis) => `<span style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:${dis ? 'var(--rmx-text-muted, #b3b3b3)' : ink}"><span style="width:20px;height:20px;box-sizing:border-box;border-radius:2px;display:flex;align-items:center;justify-content:center;${on ? 'background:var(--rmx-attention, #f58220);border:2px solid var(--rmx-attention, #f58220)' : 'background:#fff;border:2px solid #b3b3b3'}">${on ? this.ico('check', 14, 'color:#fff') : ''}</span>${t}</span>`;
     const rd = (t, on, dis) => `<span style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:${dis ? 'var(--rmx-text-muted, #b3b3b3)' : ink}"><span style="width:20px;height:20px;box-sizing:border-box;border-radius:50%;border:2px solid ${on ? 'var(--ac,var(--rmx-brand, #008dd5))' : '#b3b3b3'};display:flex;align-items:center;justify-content:center">${on ? `<span style="width:10px;height:10px;border-radius:50%;background:var(--ac,var(--rmx-brand, #008dd5))"></span>` : ''}</span>${t}</span>`;
     const units = this.units().map(u => ({ value:u.u, label:u.u + ' - ' + u.type }));
-    const unitSel = `<div style="display:flex;flex-direction:column;gap:4px;min-width:0">${lab('Unit')}<div style="display:flex;gap:8px;align-items:center"><div style="flex:1;min-width:0">${this.singleSelect('mi-unit', units, '', { placeholder:' ', js:"if(window.__miUnit)window.__miUnit()" })}</div>${sqBtn('apartment')}</div></div>`;
+    const unitSel = `<div style="display:flex;flex-direction:column;gap:4px;min-width:0">${lab('Unit')}<div style="display:flex;gap:8px;align-items:center"><div style="flex:1;min-width:0">${this.singleSelect('mi-unit', units, this._miUnit || '', { placeholder:' ', js:"if(window.__miUnit)window.__miUnit()" })}</div>${sqBtn('apartment')}</div></div>`;
     if (!window.__miUnit) window.__miUnit = () => {
-      const u = (document.getElementById('mi-unit') || {}).value || '';
+      const u = (document.getElementById('mi-unit') || {}).value || ''; this._miUnit = u;
       const host = document.getElementById('mi-charges'); if (host) host.innerHTML = this.miChargeTilesHTML(u);
     };
     const T = (id, title, body, o) => this.miTile(title, body, Object.assign({ id }, o || {}));
@@ -6511,8 +6520,8 @@ class Component extends DCLogic {
     const nav = [['Lease','mi-sec-lease'],['General Information','mi-sec-general'],['Contacts *','mi-sec-contacts'],['User Defined Fields','mi-sec-udf'],['Charges','mi-sec-charges'],['Move-In Reading','mi-sec-meter'],['Tenant Self-Inspection','mi-sec-tsi']];
     const go = "var n=this.parentElement.children;for(var i=0;i<n.length;i++){n[i].style.background='transparent';n[i].style.color='#fff'}this.style.background='#fff';this.style.color='#13314c';var t=document.getElementById(this.getAttribute('data-to'));if(t)t.scrollIntoView({behavior:'smooth',block:'start'})";
     const navItems = nav.map(([t, id], i) => `<span data-to="${id}" onclick="${go}" style="display:flex;align-items:center;height:42px;box-sizing:border-box;padding:0 6px;border-radius:8px 0 0 8px;font-size:14px;cursor:pointer;${i === 0 ? `background:#fff;color:${ink}` : 'background:transparent;color:#fff'}">${t}</span>`).join('');
-    return `<div data-act="miClose" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;padding:60px 20px 20px;box-sizing:border-box;z-index:150">
-      <div data-act="noop" style="flex:1;min-width:0;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+    return `<div data-act="miClose" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;justify-content:center;padding:60px 20px 20px;box-sizing:border-box;z-index:150">
+      <div data-act="noop" style="flex:0 1 1510px;min-width:0;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="flex:1;min-height:0;display:flex">
           <nav aria-label="Move In sections" style="width:220px;flex:none;background:var(--rmx-brand-dark, #13314c);display:flex;flex-direction:column;justify-content:space-between;padding:0 0 32px 16px;box-sizing:border-box">
             <div style="display:flex;flex-direction:column">
@@ -6524,7 +6533,7 @@ class Component extends DCLogic {
           <div style="flex:1;min-width:0;overflow-y:auto;padding:32px clamp(16px,4vw,56px);box-sizing:border-box">
             <div style="max-width:1178px;margin:0 auto;display:flex;flex-direction:column;gap:24px">
               ${account}${lease}${home}${row2}${misc}${pay}${contacts}${udf}${deposit}
-              <div id="mi-charges" style="display:flex;flex-direction:column;gap:24px">${this.miChargeTilesHTML('')}</div>
+              <div id="mi-charges" style="display:flex;flex-direction:column;gap:24px">${this.miChargeTilesHTML(this._miUnit || '')}</div>
               ${meter}${tsi}
             </div>
           </div>
