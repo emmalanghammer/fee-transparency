@@ -699,7 +699,8 @@ to the pet type's Max Charge Amount (`petCapOf`, shared with the preview's rule)
 **tenant-level** charge for that quote alone — General only (Charge Level reads *Tenant*, read-only;
 Charge Type; Comment; Frequency / From / To on a recurring one; Amount) and **no Charge Marketing**,
 because a tenant's own charge is never advertised. It lands in `rq.extra`, ticked, with a grey
-*Tenant* pill.
+*Tenant* pill. On every picker row the level pill sits **right after the checkbox**, before the
+charge's name (2026-10-07).
 
 **The prospect's Move In opens the Move In wizard** (`miHTML`, 2026-10-07, RMX Pages
 `4671:33014` in `5XEzI94nmZsWE7rQQ7OIHP`): the prospect strip's **Move In** button and the
