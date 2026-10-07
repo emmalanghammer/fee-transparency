@@ -657,6 +657,11 @@ listings carry feed errors (`ftErrOnly`). Each tints on hover and stays tinted w
 is showing what it counted; clicking a lit card takes the filter back off. A filter that matches
 nothing says so, with **Show all properties** (`ftFilterClear`) back out.
 
+**The prospect's Rent Quotes tile, empty, matches production** (2026-10-07): *Add a rent quote to
+get started.* over **+ Add Rent Quote**, centred text, sitting near the top of the tile (52px down)
+rather than in the middle of however tall the row makes it — `empty(t, extra, top)`. The tile's 4px
+corners and SemiBold title stay on the RMX tokens; production's 6px and bold are its own drift.
+
 The rent quote's charge step borrows the Pricing Preview's UI outright — picker left, price card on
 a tinted pane right. Each row wears its **charge level** as a pill, because two charges can share a
 name and differ only in what they attach to. `rqRows`' `applies()` offers only what would actually

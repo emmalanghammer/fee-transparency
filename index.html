@@ -3449,7 +3449,9 @@ class Component extends DCLogic {
       <div ${this.colHead(this.colKey(cols))} style="display:grid;grid-template-columns:${gTracks(cols)};border-bottom:1px solid var(--rmx-line, #cedbe7)">${head}</div>
       ${rows}</div></div>`;
     const gRow = (cols, cells, alt) => `<div style="display:grid;grid-template-columns:${gTracks(cols)};align-items:center;${alt?'background:var(--rmx-bg-subtle, #f5f8fa);':''}border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa)">${cells}</div>`;
-    const empty = (t, extra) => `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;font-size:14px;color:var(--rmx-text, #666666)">${t}${extra||''}</div>`;
+    // An empty tile's message is centred text. Rent Quotes sits it near the top of the tile, as
+    // production does, rather than in the middle of however tall the row makes the tile.
+    const empty = (t, extra, top) => `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:${top?'flex-start':'center'};${top?'padding-top:52px;':''}gap:8px;font-size:14px;text-align:center;color:var(--rmx-text, #666666)">${t}${extra||''}</div>`;
 
     // ---- header card ----
     const chip = (c, t) => `<span style="display:inline-flex;align-items:center;gap:7px;background:${c.bg};border-radius:4px;padding:4px 11px;font-size:14px;color:${c.fg};white-space:nowrap"><span style="width:7px;height:7px;border-radius:50%;background:${c.dot};flex:none"></span>${t}</span>`;
@@ -3508,7 +3510,7 @@ class Component extends DCLogic {
       ? grid(qCols, thc('Property') + thc('Unit') + thc('Status') + thc('Amount', true), qList.map(qRow).join(''), 420)
         + '<div style="flex:1"></div>'
       : empty('Add a rent quote to get started.',
-          `<span data-act="rqOpen" style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M450-450H200v-60h250v-250h60v250h250v60H510v250h-60v-250Z"/></svg>Add Rent Quote</span>`);
+          `<span data-act="rqOpen" style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M450-450H200v-60h250v-250h60v250h250v60H510v250h-60v-250Z"/></svg>Add Rent Quote</span>`, true);
     // The label filters only mean something once there is something to filter.
     const quotes = tile('Rent Quotes', `<span data-act="rqOpen" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Add Quote</span>`,
       qBody,
