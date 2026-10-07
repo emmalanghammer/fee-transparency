@@ -232,6 +232,16 @@ design canvas *Standardized Charges Tiles*, <https://claude.ai/artifact/3rJtePCj
   register sits 16px in from the edges, **unstriped** (`striped:false`; the tile keeps its stripes), each row led by an orange **include** checkbox (visual only)
   and ending in Listing Ready and a kebab, with *+ Add … Charge* rows; and the totals footer. No
   Situational section and no filter button. Print is gone from it.
+- **A unit's charges open** (2026-10-07): every row of the unit page's Charges tile and of the
+  unit's Charges overlay is clickable (`chargeRegisterHTML`'s `open` option → `unitChgOpen`), opening
+  the charge form with `modal.fromUnit`. A charge written **at the unit** is editable as usual; one
+  written at the **property or unit type** opens **read-only** (`modal.ro`): every field in the RMX
+  disabled style, nothing clickable but the section chevrons, a grey lock strip — *This charge is set
+  on `<where>`, so it can't be changed from this unit.* with **All `<Property>` Charges** — and a
+  lone **Close** in the footer (`chargeRoNote`). **Neither shows Exceptions** (`exOn` is false when
+  `fromUnit`). The row's checkbox, chevron and kebab stop the click from opening it. The modal sits
+  at z-index 120, over the unit overlay's 100. No Test Feature State seeds a unit-level charge, so
+  the editable case shows only once one is added.
 - **The property's Charges overlay** (`chargesOverlay`) gained the property scoreboard
   (`recViewPropStrip`) above its tabs, lost the rule under the level tabs, and has the totals footer
   plus **n Situational Charges — When they occur** (`chargesOverlayFoot`). Its register, tabs and

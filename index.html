@@ -1651,6 +1651,11 @@ class Component extends DCLogic {
       // ---- row menu ----
       case 'rowMenu': { const r = el.getBoundingClientRect(); this.setState({ rowMenu: { id: arg, x: r.right, y: r.bottom + 4 } }); break; }
       case 'rowMenuClose': this.setState({ rowMenu: null }); break;
+      // A charge opened from a unit (its Charges tile or overlay). A unit's own charge is edited here;
+      // one written at the property or the unit type is shown read-only, since changing it here would
+      // change it for every unit it reaches. Neither shows Exceptions — a unit has none to make.
+      case 'unitChgOpen': { const c = this.profileRows().find(x => String(x.id) === String(arg)); if (!c) break;
+        this.setState({ modal: { group: c.group, edit: c, fromUnit: true, ro: String(c.level || 'Property') !== 'Unit' } }); break; }
       case 'rowDetails': { const c = this.profileRows().find(x => String(x.id) === String(arg)); this.setState({ rowMenu: null, modal: c ? { group: c.group, edit: c } : null }); break; }
       // A unit-type charge covers every unit of that type, so deleting one asks first.
       case 'rowDelete': { const row = this.profileRows().find(f => String(f.id) === String(arg));
@@ -6917,7 +6922,7 @@ class Component extends DCLogic {
     const cell = (k, t, right, color) => `<span class="c-${k}" style="display:flex;align-items:center;height:36px;box-sizing:border-box;padding:0 8px;font-size:14px;color:${color||ink};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${right?'justify-content:flex-end;text-align:right':''}">${t}</span>`;
     const kv = (k, label, v) => `<div class="${ns}-d d-${k}" style="grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:8px;padding:6px 0;font-size:14px;line-height:20px;max-width:560px"><span style="color:var(--rmx-text, #666666)">${label}</span><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${ink}">${v}</span></div>`;
     const ovrPill = `<span style="margin-left:8px;background:#fdeedd;color:var(--rmx-attention, #f58220);border-radius:4px;padding:1px 8px;font-size:14px">Override</span>`;
-    const CHK = `<span onclick="var b=this.firstElementChild,on=b.getAttribute('data-on')!=='1';b.setAttribute('data-on',on?'1':'0');b.style.background=on?'var(--rmx-attention, #f58220)':'#fff';b.style.borderColor=on?'var(--rmx-attention, #f58220)':'#b3b3b3';b.firstElementChild.style.display=on?'block':'none'" role="checkbox" title="Include this charge" style="display:flex;align-items:center;justify-content:center;width:100%;height:36px;cursor:pointer"><span data-on="1" style="width:20px;height:20px;border-radius:2px;box-sizing:border-box;background:var(--rmx-attention, #f58220);border:2px solid var(--rmx-attention, #f58220);display:flex;align-items:center;justify-content:center"><svg class="ico" width="14" height="14" viewBox="0 -960 960 960" fill="#fff" aria-hidden="true" style="display:block"><path d="M378-246 154-470l43-43 181 181 384-384 43 43-427 427Z"/></svg></span></span>`;
+    const CHK = `<span onclick="event.stopPropagation();var b=this.firstElementChild,on=b.getAttribute('data-on')!=='1';b.setAttribute('data-on',on?'1':'0');b.style.background=on?'var(--rmx-attention, #f58220)':'#fff';b.style.borderColor=on?'var(--rmx-attention, #f58220)':'#b3b3b3';b.firstElementChild.style.display=on?'block':'none'" role="checkbox" title="Include this charge" style="display:flex;align-items:center;justify-content:center;width:100%;height:36px;cursor:pointer"><span data-on="1" style="width:20px;height:20px;border-radius:2px;box-sizing:border-box;background:var(--rmx-attention, #f58220);border:2px solid var(--rmx-attention, #f58220);display:flex;align-items:center;justify-content:center"><svg class="ico" width="14" height="14" viewBox="0 -960 960 960" fill="#fff" aria-hidden="true" style="display:block"><path d="M378-246 154-470l43-43 181 181 384-384 43 43-427 427Z"/></svg></span></span>`;
     const openSet = this._chgRegOpen || (this._chgRegOpen = {});
     if (!window.__chgRegToggle) window.__chgRegToggle = (el) => {
       const row = el.closest('[data-chgrow]'); if (!row) return;
@@ -6941,7 +6946,7 @@ class Component extends DCLogic {
       const cells = C.map(c => {
         const k = c[0];
         if (k === 'chk') return `<span class="c-chk">${CHK}</span>`;
-        if (k === 'chev') return `<span class="c-chev" onclick="window.__chgRegToggle(this)" title="Show charge details" style="display:flex;align-items:center;justify-content:center;height:36px;cursor:pointer;color:var(--ac,var(--rmx-brand, #008dd5))"><span data-chgchev style="display:inline-flex;transition:transform .15s;transform:rotate(${open ? '0' : '-90'}deg)">${this.ico('keyboard_arrow_down', 20)}</span></span>`;
+        if (k === 'chev') return `<span class="c-chev" onclick="event.stopPropagation();window.__chgRegToggle(this)" title="Show charge details" style="display:flex;align-items:center;justify-content:center;height:36px;cursor:pointer;color:var(--ac,var(--rmx-brand, #008dd5))"><span data-chgchev style="display:inline-flex;transition:transform .15s;transform:rotate(${open ? '0' : '-90'}deg)">${this.ico('keyboard_arrow_down', 20)}</span></span>`;
         if (k === 'code') return cell(k, esc2(f.mits));
         if (k === 'comment') return cell(k, comment);
         if (k === 'freq') return cell(k, freq);
@@ -6956,7 +6961,8 @@ class Component extends DCLogic {
       const det = kv('comment', 'Comment', comment || '—') + kv('freq', 'Frequency', freq)
         + (isRec ? kv('from', 'From', f.from || '—') + kv('to', 'To', f.to || '—') : '')
         + kv('level', 'Charge Level', lvl) + (o.ready ? kv('ready', 'Listing Ready', this.mitsStatusCell(f)) : '');
-      return `<div data-chgrow="${esc2(key)}" data-rec="${isRec ? '1' : '0'}" style="background:${bg};border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)">
+      const openAttr = o.open ? ` data-act="unitChgOpen" data-arg="${esc2(f.id)}" title="Open this charge" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background='${bg}'"` : '';
+      return `<div data-chgrow="${esc2(key)}" data-rec="${isRec ? '1' : '0'}"${openAttr} style="background:${bg};border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);${o.open ? 'cursor:pointer;' : ''}">
         <div class="${ns}-r">${cells}</div>
         <div data-chgdet class="${ns}-det${open ? ' open' : ''}" style="padding:2px 16px 8px ${o.chk ? 84 : 40}px">${det}</div>
       </div>`;
@@ -6970,7 +6976,7 @@ class Component extends DCLogic {
     const { rec, one } = this.chargeScope(scope);
     const list = rec.map(f => ({ f, rec: true })).concat(one.map(f => ({ f, rec: false })));
     const foot = `<div style="display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px 24px;padding:8px 16px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">${this.chargeTotals(scope, rec, one)}</div>`;
-    return this.chargeRegisterHTML('uchg', list, { tiers: [900, 680, 460] }) + foot;
+    return this.chargeRegisterHTML('uchg', list, { tiers: [900, 680, 460], open: scope === 'unit' }) + foot;
   }
   // "View Recurring Charges" modal opened from the property tile's pop-out icon (Figma 2385-32329).
   // Legacy "View Recurring Charges" overlay (pre-conversion): full charge register + convert callout.
@@ -7023,7 +7029,7 @@ class Component extends DCLogic {
       </span>`;
     const filters = `<div style="display:flex;align-items:center;gap:16px">${scope('Past')}${scope('Future')}${scope('Exceptions')}</div>`;
     const card = (id, title, list, addLabel, group) => {
-      const reg = this.chargeRegisterHTML('vchg', list, { chk: true, ready: ft, kebab: true, striped: false, tiers: [1080, 760, 520] });
+      const reg = this.chargeRegisterHTML('vchg', list, { chk: true, ready: ft, kebab: true, striped: false, open: unitScope, tiers: [1080, 760, 520] });
       return `<section style="flex:none;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
         <div onclick="var b=this.nextElementSibling,o=b.style.display!=='none';b.style.display=o?'none':'block';this.querySelector('[data-secchev]').style.transform='rotate('+(o?-90:0)+'deg)'" style="display:flex;align-items:center;gap:8px;height:48px;padding:0 12px;cursor:pointer">
           <span data-secchev style="display:inline-flex;transition:transform .15s;color:var(--ac,var(--rmx-brand, #008dd5))">${this.ico('keyboard_arrow_down', 22)}</span>
@@ -7722,20 +7728,42 @@ class Component extends DCLogic {
     // Bulk Update Charges hosts the same form in its own chrome, so the standalone overlay stands down.
     if (this.state.bulk) return '';
     const f = this.chargeForm(m);
-    return `<div data-act="addclose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:${this.state.profHist?130:(m.generalOnly?140:100)}">
+    return `<div data-act="addclose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:${this.state.profHist?130:(m.generalOnly?140:(m.fromUnit?120:100))}">
       <div data-act="noop" style="width:1000px;max-width:96vw;max-height:92vh;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 3px 12px rgba(0,0,0,0.2);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;height:48px;box-sizing:border-box;padding:8px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
           <span style="font-size:20px;line-height:28px;color:var(--rmx-brand-dark, #13314c)">${f.title}</span>
           <svg class="ico" width="24" height="24" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="addclose" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
         </div>
-        <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:18px">${f.body}</div>
+        <div class="${m.ro ? 'cf-ro' : ''}" style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:18px">${m.ro ? this.chargeRoNote(m.edit) : ''}${f.body}</div>
         <div style="display:flex;align-items:center;gap:12px;padding:8px 16px;border-top:1px solid var(--rmx-line, #cedbe7);background:var(--rmx-bg-subtle, #f5f8fa);flex:none">
           <span id="m-err" style="display:none;align-items:center;gap:6px;color:var(--rmx-error, #eb343c);font-size:14px"><svg class="ico" width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M503.5-289.48q9.5-9.48 9.5-23.5t-9.48-23.52q-9.48-9.5-23.5-9.5t-23.52 9.48q-9.5 9.48-9.5 23.5t9.48 23.52q9.48 9.5 23.5 9.5t23.52-9.48ZM453-433h60v-253h-60v253Zm27.27 353q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg><span id="m-err-txt"></span></span>
           <div style="flex:1"></div>
-          <button data-act="${m.generalOnly?'txnAddSave':'addsave'}" class="btn-pri" style="height:36px;padding:8px 20px;font-size:14px;border-radius:4px">Save</button>
-          <button data-act="addclose" class="btn-out" style="height:36px;padding:8px 20px;font-size:14px;border-radius:4px;box-sizing:border-box">Cancel</button>
+          ${m.ro ? `<button data-act="addclose" class="btn-out" style="height:36px;padding:8px 20px;font-size:14px;border-radius:4px;box-sizing:border-box">Close</button>` : `<button data-act="${m.generalOnly?'txnAddSave':'addsave'}" class="btn-pri" style="height:36px;padding:8px 20px;font-size:14px;border-radius:4px">Save</button>
+          <button data-act="addclose" class="btn-out" style="height:36px;padding:8px 20px;font-size:14px;border-radius:4px;box-sizing:border-box">Cancel</button>`}
         </div>
       </div></div>${this.catAddHTML()}${this.utConfHTML(!!(m && m.edit))}${this.leaseConfHTML()}`;
+  }
+  // A property or unit type charge opened from a unit is read-only: every field is the RMX disabled
+  // Input Field (#f2f2f2, a #ebf1f5 edge, #b3b3b3 text) and nothing on it can be changed — the sections
+  // still open, so it can be read. The strip says where it is changed instead.
+  chargeRoNote(c){
+    const lvl = String((c && c.level) || 'Property');
+    const where = lvl === 'Unit Type' ? `the ${c.target || ''} unit type`.replace('the  unit', 'the unit') : this.state.property;
+    const prop = String(this.state.property).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+    return `<style>
+      .cf-ro input, .cf-ro textarea { pointer-events:none; color:#b3b3b3 !important; -webkit-text-fill-color:#b3b3b3; }
+      .cf-ro [style*="background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line"],
+      .cf-ro input[style*="background:var(--rmx-bg-subtle"], .cf-ro textarea, .cf-ro .fld { background:#f2f2f2 !important; border-color:#ebf1f5 !important; }
+      .cf-ro div[onclick*="style.display==='block'"] { pointer-events:none; background:#f2f2f2 !important; border-color:#ebf1f5 !important; }
+      .cf-ro div[onclick*="style.display==='block'"] * { color:#b3b3b3 !important; }
+      .cf-ro svg[onclick], .cf-ro [data-act]:not([data-act="openFeeProfile"]), .cf-ro label, .cf-ro [role="switch"], .cf-ro [onclick*="__ils"], .cf-ro [onclick*="m-ils"] { pointer-events:none; }
+      .cf-ro [data-act="tog"], .cf-ro [onclick*="m-ils"] { opacity:.5; }
+    </style>
+    <div style="display:flex;align-items:center;gap:10px;flex:none;background:var(--rmx-bg-muted, #f2f2f2);border-radius:4px;padding:10px 14px;font-size:14px;color:var(--rmx-brand-dark, #13314c)">
+      ${this.ico('lock', 18, 'color:var(--rmx-text, #666666);flex:none')}
+      <span style="flex:1;min-width:0;line-height:1.45">This charge is set on ${where}, so it can't be changed from this unit.</span>
+      <a data-act="openFeeProfile" data-arg="${prop}" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap;pointer-events:auto">All ${this.state.property} Charges</a>
+    </div>`;
   }
   // The charge form itself — General Details, the CRE sections and Marketing Details — shared by the
   // Charge Details overlay and by Bulk Update Charges, which frames it differently.
@@ -8593,7 +8621,7 @@ class Component extends DCLogic {
     const exSaved = this.exclOf(ed);
     // Exceptions are offered while adding a charge too, so the section renders for anything that could
     // end up at the property or unit type level; __lvlChange shows and hides it with the Charge Level.
-    const exOn = ed ? !ed.propSpecific : true;
+    const exOn = (ed ? !ed.propSpecific : true) && !m.fromUnit;
     const exLvl = (ed && ed.level) || app;
     const exField = (label, id, opts, saved, wrapId, hidden) => !opts.length ? '' : `<div${wrapId?` id="${wrapId}"`:''} style="flex:1;min-width:180px;display:${hidden?'none':'flex'};flex-direction:column;gap:4px">
         <span style="font-size:14px;color:var(--rmx-text, #666666)">${label}</span>${this.multiSelect(id, opts, saved, "if(window.__exclSync)window.__exclSync('m-excl')")}
