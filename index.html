@@ -1628,13 +1628,14 @@ class Component extends DCLogic {
         this.setState({ pubModal: { prop: arg } }); break; }
       case 'pubCancel': this.setState({ pubModal: null }); break;
       case 'pubConfirm': { const m = this.state.pubModal; const props = m.props || [m.prop];
-        // Setup closes behind it — the work it walked through is done — and a small success dialog in
-        // the confirmation's own chrome says so, in place of a toast.
+        // Setup closes behind it — the work it walked through is done — and the success Toast
+        // (Figma 3807:53555) says so, then goes on its own.
         this.setState(s => { const pp = Object.assign({}, s.publishedProps);
           props.forEach(p => { pp[p] = true; }); return { pubModal: null, publishedProps: pp, ftSetup: null, ftSel: null, pubDone: { props: props } }; });
+        clearTimeout(this._pubDoneT); this._pubDoneT = setTimeout(() => this.setState({ pubDone: null }), 6000);
         props.forEach(p => this.logChange(p, 'Fee Transparency', 'Fee transparency activated', p));
         break; }
-      case 'pubDoneClose': this.setState({ pubDone: null }); break;
+      case 'pubDoneClose': clearTimeout(this._pubDoneT); this.setState({ pubDone: null }); break;
       case 'ftFilterSet': this.setState({ ftFilter: arg }); break;
       case 'ftGroupToggle': this.setState(s => ({ ftGroup: !s.ftGroup })); break;
       case 'navProperty': this.go('property', arg ? { property: arg, propTab: 'General' } : { propTab: 'General' }); break;
@@ -4180,30 +4181,16 @@ class Component extends DCLogic {
   // ---------- Activate Fee Transparency confirmation (mock 2699-105683) ----------
   // Small numbers read better as words inside a sentence; anything bigger is a figure.
   numWord(n){ return ['zero','one','two','three','four','five','six','seven','eight','nine','ten'][n] || String(n); }
-  // After activating: the confirmation's own chrome, smaller, saying it is done.
+  // After activating: RMX's success Toast (Figma 3807:53555) — green, top centre, 12px under the
+  // header, a filled 32px check and one SemiBold 16/24 line in white. Clicking it dismisses it early.
   pubDoneHTML(){
     const d = this.state.pubDone; if (!d) return '';
     const props = d.props || [];
     const single = props.length === 1;
     const name = single ? props[0] : props.slice(0, -1).join(', ') + ' and ' + props[props.length - 1];
-    const CHECK = `<svg class="ico" width="24" height="24" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-success, #6eb744);flex:none"><path d="m421-298 283-283-46-45-237 237-120-120-45 45 165 166Zm59 218q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 31.5-156t86-127Q252-817 325-848.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 82-31.5 155T763-197.5q-54 54.5-127 86T480-80Z"/></svg>`;
-    return `<div data-act="pubDoneClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:152">
-      <div data-act="noop" style="width:460px;max-width:94vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
-        <div style="display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
-          <span style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">Fee Transparency Activated</span>
-          <div style="flex:1"></div>
-          <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="pubDoneClose" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
-        </div>
-        <div style="padding:18px 20px">
-          <div style="display:flex;align-items:flex-start;gap:12px;padding:14px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px">
-            ${CHECK}
-            <span style="font-size:14px;line-height:21px;color:var(--rmx-brand-dark, #13314c)"><strong style="font-weight:600">${name}</strong> ${single ? 'is' : 'are'} now fee transparent. Listings will show the Total Monthly Price when the feed updates.</span>
-          </div>
-        </div>
-        <div style="display:flex;justify-content:flex-end;gap:10px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:12px 20px;flex:none">
-          <button data-act="pubDoneClose" class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px">OK</button>
-        </div>
-      </div>
+    const CHECK = `<svg width="32" height="32" viewBox="0 -960 960 960" fill="#fff" aria-hidden="true" style="flex:none"><path d="m424-296 282-282-56-56-226 226-114-114-56 56 170 170Zm56 216q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z"/></svg>`;
+    return `<div data-act="pubDoneClose" role="status" style="position:fixed;top:60px;left:16px;right:16px;margin:0 auto;width:fit-content;max-width:calc(100vw - 32px);box-sizing:border-box;display:flex;align-items:center;gap:8px;padding:16px;background:var(--rmx-success, #6eb744);border-radius:4px;box-shadow:0 3px 6px rgba(0,0,0,0.25);z-index:210;cursor:pointer">
+      ${CHECK}<span style="min-width:0;font:600 16px/24px Roboto,sans-serif;color:#fff">${name} ${single ? 'is' : 'are'} now fee transparent. Listings will show all included charges when the feed updates.</span>
     </div>`;
   }
   pubModalHTML(){

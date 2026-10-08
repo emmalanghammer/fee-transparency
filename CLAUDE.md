@@ -66,11 +66,15 @@ one helper is also what the button acts on and what the picker lists, so the thr
 overlay) with everything ready already ticked — you arrived by asking to activate, so the picker is
 for taking one back out, not for building the list from nothing. Next hands the selection to the
 same `pubModal` a single property uses. **Activating closes the Setup overlay** (and the picker)
-and raises `pubDoneHTML`: a 460px dialog in the confirmation's own chrome — *Fee Transparency
-Activated*, a green check over the neutral panel saying *"`<Property>` is now fee transparent.
-Listings will show the Total Monthly Price when the feed updates."*, and **OK** (`pubDoneClose`).
-It replaces the *Fee transparency activated* toast, so there is one acknowledgement, not two.
-`state.pubDone` is `{ props }`, cleared on every scenario switch.
+and raises `pubDoneHTML`: since 2026-10-08 **RMX's success Toast**, Figma `3807:53555` (it was a
+460px *Fee Transparency Activated* dialog with an OK). Top centre, 12px under the header
+(`top:60px`), `--rmx-success` green, 16px padding, 4px corners, `0 3px 6px rgba(0,0,0,.25)`, a
+filled white 32px `check_circle` 8px from one Paragraph/L/SemiBold 16/24 white line: *"`<Property>`
+is now fee transparent. Listings will show all included charges when the feed updates."* (Figma reads
+*"will all included"*, a dropped word.) Several properties are named the confirmation's way. It goes
+on its own after 6s (`this._pubDoneT`), or on a click (`pubDoneClose`). Centred with auto margins,
+not `left:50%`, so it keeps its width on a narrow pane. `state.pubDone` is `{ props }`, cleared on
+every scenario switch.
 
 **The confirmation explains what will happen, it doesn't warn.** Its content is the user's own,
 word for word (2026-09-30): *"**`<Property>`** will start advertising listings with all charges
