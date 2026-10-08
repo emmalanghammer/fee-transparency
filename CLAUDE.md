@@ -580,8 +580,9 @@ user asked for it "connected" on 2026-09-30). The charge form shows it read-only
 **A property's Default Charge Marketing shows it read-only too** (2026-10-08). `ctmEditHTML` draws
 Charge Category the way the charge form does — the type's category in SemiBold navy, ticked or not,
 or the red *You don't have a charge category assigned to this charge type* box with **Add Category**
-— over a grey 12px line: *Charge categories are specific to each charge type, so this can only be
-changed on the charge type.* Add Category raises the same overlay as the charge form's,
+— and its info tooltip adds, after what the field is, *Charge categories are specific to each charge
+type, so this can only be changed on the charge type.* (It was a grey line under the field for a
+day; the user wanted it in the tooltip.) Add Category raises the same overlay as the charge form's,
 `catAddHTML('ctm', code)` (the method takes a prefix now; the charge form's is `'m'`), whose pick
 goes to `this._catAdds`, swaps the Storage / Parking / Pet section live, and is committed to the
 **charge type** by `catAddCommit()` when `ctmSave` (or `ctmApply`) commits. `ctmOpen` and

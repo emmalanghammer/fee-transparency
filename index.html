@@ -3973,12 +3973,13 @@ class Component extends DCLogic {
     const cat = String(this.chargeCategoryFor(code) || '');
     const extras = this.attrDefSections('ctm', att, cat, { locked: !on, pet: true });
     const ERR = `<svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-error, #eb343c);flex:none"><path d="M503.5-289.48q9.5-9.48 9.5-23.5t-9.48-23.52q-9.48-9.5-23.5-9.5t-23.52 9.48q-9.5 9.48-9.5 23.5t9.48 23.52q9.48 9.5 23.5 9.5t23.52-9.48ZM453-433h60v-253h-60v253Zm27.27 353q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg>`;
+    // Why it can't be changed here lives in the field's own tooltip, after what the field is.
+    const catTip = this.fieldHelp('Charge Category', 'The category listings report this charge under. A charge without one can\'t go on a listing. Charge categories are specific to each charge type, so this can only be changed on the charge type.');
     const catBlock = `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
-      <span style="display:inline-flex;align-items:center;gap:6px;min-height:20px;line-height:20px;white-space:nowrap">${lab('Charge Category')}${H.category}</span>
+      <span style="display:inline-flex;align-items:center;gap:6px;min-height:20px;line-height:20px;white-space:nowrap">${lab('Charge Category')}${catTip}</span>
       <input type="hidden" id="ctm-category" value="${esc(cat)}">
       <span id="ctm-cat-disp" style="display:${cat ? 'block' : 'none'};font-size:14px;line-height:20px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${esc(cat)}</span>
       <div id="ctm-cat-err" style="display:${cat ? 'none' : 'flex'};flex-wrap:wrap;align-items:flex-start;column-gap:10px;row-gap:6px;background:#fff;border:1px solid var(--rmx-error, #eb343c);border-radius:4px;padding:8px 12px">${ERR}<span style="flex:1 1 0;min-width:0;font-size:12px;color:var(--rmx-ink-2, #424e5b);line-height:1.4">You don't have a charge category assigned to this charge type.</span><a onclick="document.getElementById('ctm-catadd').style.display='flex'" style="flex-basis:100%;padding-left:28px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap;cursor:pointer">Add Category</a></div>
-      <span style="font-size:12px;line-height:16px;color:var(--rmx-text, #666666)">Charge categories are specific to each charge type, so this can only be changed on the charge type.</span>
     </div>`;
     const body = pair(fld('Name', txt('ctm-name', v('name'))), catBlock)
       + fld('Marketing Description (Optional)', area('ctm-marketing', v('marketing')))
