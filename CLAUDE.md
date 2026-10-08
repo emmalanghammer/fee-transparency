@@ -1063,6 +1063,13 @@ there is none. It used to count first and only mention exclusion once every fiel
 excluded charge could sit there saying *2 needed* forever. That is the same answer `ltChargeIssues`
 gives (it only counts `ils` charges) and the same one the charge form's header gives.
 
+**On Other Rentable Item, Property and the ORI Type take the top row** (2026-10-08). General's first
+row is normally Charge Level · Charge Type · Comment (`#m-gen-r1`). On ORI it is Charge Level ·
+**Property** · **Other Rentable Item Type**, and Charge Type · Comment drop to a second row
+(`#m-gen-r2`, with a spacer so they keep their thirds). The render places the cells by `app`;
+changing the level moves the nodes DOM-only in `__lvlChange`, so nothing typed is lost. `#m-ori-row`
+is gone.
+
 **A one-time charge can be prorated.** `#m-prorate`, *"Prorate overall charge amount based on move
 in date"*, sits under Amount Method and Amount on the one-time form only — a recurring charge is
 billed on its own frequency, so there is no single amount to divide. `saveFee` stores it as

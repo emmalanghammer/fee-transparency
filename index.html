@@ -8181,15 +8181,17 @@ class Component extends DCLogic {
     const levelFields = `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Level *')}${dd('m-app',['Property','Unit Type','Unit'].concat(cre ? [] : [{ value:'ORI', label:'Other Rentable Item' }]),app,{noSearch:true,js:appToggle})}</div>
       ${tgt('ut','Unit Type','Unit Type','m-appt-ut', app==='Unit Type'?(ed&&ed.target||preTgt('Unit Type')):'', '2BR/2BA', this.utData().map(t=>t.name))}
       ${tgt('unit','Unit','Unit','m-appt-unit', app==='Unit'?(ed&&ed.target||preTgt('Unit')):'', '2C', this.units().map(u=>u.u))}`;
-    // What the level row can pull in under it: the unit-type reach warning, and the ORI pair.
+    // An Other Rentable Item charge names its property and item type first, so on ORI they take the
+    // top row beside Charge Level and Charge Type / Comment drop to the row under it. Moving between
+    // the two is DOM-only (`__lvlChange`), since a re-render would wipe the form.
+    const oriCells = cre ? '' : `<div id="m-ori-prop-cell" style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Property *')}${dd('m-appt-ori', this.propNames(), oriProp, { placeholder:'Select a property', js:"if(window.__oriPropPick)window.__oriPropPick(_v);if(window.__ctFilter)window.__ctFilter()" })}</div>
+        <div id="m-ori-type-cell" style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Other Rentable Item Type *')}${oriTypeCtl}</div>`;
+    // What the level row can pull in under it: the unit-type reach warning.
     const chargeApp = `<div id="m-ut-warn" style="display:${app==='Unit Type'?'flex':'none'};gap:10px;align-items:flex-start;background:#fdf3e3;border:1px solid #f6d9ac;border-radius:4px;padding:10px 14px">
         <svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:#e59f2e;flex:none"><path d="m40-120 440-760 440 760H40Zm104-60h672L480-760 144-180Zm361.5-65.68q8.5-8.67 8.5-21.5 0-12.82-8.68-21.32-8.67-8.5-21.5-8.5-12.82 0-21.32 8.68-8.5 8.67-8.5 21.5 0 12.82 8.68 21.32 8.67 8.5 21.5 8.5 12.82 0 21.32-8.68ZM454-348h60v-224h-60v224Zm26-122Z"/></svg>
         <span id="m-ut-warn-txt" style="font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">${this.utWarnText(app === 'Unit Type' ? (ed && ed.target) || preTgt('Unit Type') : '')}</span>
       </div>
-      ${cre ? '' : `<div id="m-ori-row" style="display:${app==='ORI'?'flex':'none'};gap:12px;align-items:flex-start">
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Property *')}${dd('m-appt-ori', this.propNames(), oriProp, { placeholder:'Select a property', js:"if(window.__oriPropPick)window.__oriPropPick(_v);if(window.__ctFilter)window.__ctFilter()" })}</div>
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Other Rentable Item Type *')}${oriTypeCtl}</div>
-      </div>`}`;
+      `;
 
     // ---- Charge Type typeahead; selecting one derives the Charge Category below ----
     const setCat = "var cc=this.getAttribute('data-cat');var d=document.getElementById('m-cat-disp');var e=document.getElementById('m-cat-err');var ph=document.getElementById('m-cat-ph');document.getElementById('m-cat').value=cc||'';ph.style.display='none';if(cc){d.textContent=cc;d.style.display='block';e.style.display='none';}else{d.style.display='none';e.style.display='flex';}if(window.__mktDefaults)window.__mktDefaults(this.getAttribute('data-code'));if(window.__attrCheck)window.__attrCheck();if(window.__mitsRecheck)window.__mitsRecheck();";
@@ -8361,8 +8363,15 @@ class Component extends DCLogic {
       }
       const uw = this.q('#m-excl-units-wrap');
       if (uw) uw.style.display = (v === 'Unit Type' && pe && pe.value === '1') ? 'none' : 'flex';
-      const oriRow = this.q('#m-ori-row');
-      if (oriRow) oriRow.style.display = (v === 'ORI') ? 'flex' : 'none';
+      // ORI puts Property and Other Rentable Item Type beside Charge Level and moves Charge Type and
+      // Comment to the row under it; anything else puts them back. Moving the nodes keeps what's typed.
+      const r1 = this.q('#m-gen-r1'), r2 = this.q('#m-gen-r2'), sp = this.q('#m-gen-r2-sp');
+      const ctc = this.q('#m-ct-cell'), cmc = this.q('#m-cm-cell'), opc = this.q('#m-ori-prop-cell'), otc = this.q('#m-ori-type-cell');
+      if (r1 && r2 && sp && ctc && cmc && opc && otc) {
+        const top = v === 'ORI' ? [opc, otc] : [ctc, cmc], under = v === 'ORI' ? [ctc, cmc] : [opc, otc];
+        top.forEach(n => r1.appendChild(n)); under.forEach(n => r2.insertBefore(n, sp));
+        r2.style.display = v === 'ORI' ? 'flex' : 'none';
+      }
       if (v === 'ORI') {
         const m = this.q('#m-method'), md = this.q('#m-method-disp'), s = this.q('#m-source');
         if (m) m.value = 'Reference';
@@ -8469,10 +8478,16 @@ class Component extends DCLogic {
     // is the figure it is about.
     const proRow = !isOne ? '' : `<div style="display:flex;align-items:center">${this.ctFieldBits()
       .check('m-prorate', !!(ed && ed.prorate), 'Prorate overall charge amount based on move in date')}</div>`;
-    const general = `<div style="display:flex;gap:12px;align-items:flex-start">
+    const ctCells = `<div id="m-ct-cell" style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Type *')}${ctypeField}</div>
+        <div id="m-cm-cell" style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Comment')}<div style="display:flex;align-items:center;gap:4px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><input id="m-comment" value="${esc(ed?ed.desc:'')}" placeholder="Internal only" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)"></div></div>`;
+    const isOri = app === 'ORI';
+    const general = `<div id="m-gen-r1" style="display:flex;gap:12px;align-items:flex-start">
         ${levelFields}
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Type *')}${ctypeField}</div>
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Comment')}<div style="display:flex;align-items:center;gap:4px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><input id="m-comment" value="${esc(ed?ed.desc:'')}" placeholder="Internal only" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)"></div></div>
+        ${isOri ? oriCells : ctCells}
+      </div>
+      <div id="m-gen-r2" style="display:${isOri ? 'flex' : 'none'};gap:12px;align-items:flex-start">
+        ${isOri ? ctCells : oriCells}
+        <div id="m-gen-r2-sp" style="flex:1;min-width:0"></div>
       </div>
       ${chargeApp}
       ${freqRow}
