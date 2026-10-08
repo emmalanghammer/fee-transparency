@@ -129,7 +129,9 @@ A register is **Unit · Unit Type · Base Rent · Total Monthly Price · Availab
 Charges · Errors**, one row per advertised unit (`listingsData()` in C is unit-level, with bed/bath and per-provider state).
 **Total Monthly Price reads `-` until the property has actually converted** (`publishedProps`): a
 property that hasn't still advertises rent alone, so it has no total to show — finishing its
-charges is not the same as publishing them.
+charges is not the same as publishing them. Where fee transparency can't apply (`ftApplicable` is
+false, e.g. Clearcreek on MH Village) it reads **N/A** instead (2026-10-08), since that property
+never will have one.
 
 **Marketing Setup carries the Listings banner, scoped to its property.** First thing on the page,
 **above** the property strip, `ftBannerHTML(P.name)` — the same banner Listings draws — whose **View Setup**
@@ -297,8 +299,9 @@ property's listings read as one block rather than a scroll.
 **Listing Ready Charges is a column, beside Errors**, matching Figma `3573:779`: a status dot and
 the fraction, nothing else — **green once whole, red while any charge is short**. Every listing of
 a property wears its property's count, since that is what it is. A property fee transparency cannot
-apply to (`ftApplicable` is false: not on an ILS feed, or on MH Village) reads `—`, because the
-question isn't asked of it. **The group header no longer carries it** — the same number in two
+apply to (`ftApplicable` is false: not on an ILS feed, or on MH Village) reads **N/A**, because the
+question isn't asked of it (it read `—` until 2026-10-08; `—` is left for an applicable property
+whose listings carry no charges). **The group header no longer carries it** — the same number in two
 places on one screen is one place too many, so the header is the chevron and the property name.
 
 **The cell opens the property's Charges** (`openFeeProfile`, 2026-10-01): the fraction is the way

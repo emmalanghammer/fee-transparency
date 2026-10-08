@@ -4581,7 +4581,9 @@ class Component extends DCLogic {
     const chargeCell = (prop) => {
       const ch = this.ftCharges(prop);
       const onList = ch.ready + ch.incomplete;
-      if (!this.ftApplicable(prop) || !onList) return cell('\u2014');
+      // A property fee transparency can't apply to isn't short of anything: the question isn't asked.
+      if (!this.ftApplicable(prop)) return cell('N/A');
+      if (!onList) return cell('\u2014');
       const whole = ch.incomplete === 0;
       const dot = whole ? 'var(--rmx-success, #6eb744)' : 'var(--rmx-error, #eb343c)';
       // It opens the property's Charges, where those charges are — the count is the way in.
@@ -4618,7 +4620,7 @@ class Component extends DCLogic {
         const is = this.ltIssues(l);
         // Only a converted property advertises a total; everything else still lists rent alone,
         // so there is no total monthly price to show yet.
-        const total = this.state.publishedProps[l.prop] ? money(l.base + this.ltMonthlyFees(l.prop)) : '-';
+        const total = this.state.publishedProps[l.prop] ? money(l.base + this.ltMonthlyFees(l.prop)) : this.ftApplicable(l.prop) ? '-' : 'N/A';
 
         return `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background='#fff'">
           ${cell(l.unit || '—', 'padding-left:17px')}
@@ -4652,7 +4654,7 @@ class Component extends DCLogic {
       </div>`;
       const body = rows.map(({ l, i }) => {
         const is = this.ltIssues(l);
-        const total = this.state.publishedProps[l.prop] ? money(l.base + this.ltMonthlyFees(l.prop)) : '-';
+        const total = this.state.publishedProps[l.prop] ? money(l.base + this.ltMonthlyFees(l.prop)) : this.ftApplicable(l.prop) ? '-' : 'N/A';
         return `<div style="display:grid;grid-template-columns:${fcols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background='#fff'">
           ${cell(esc(l.prop), 'padding-left:17px')}
           ${cell(l.unit || '\u2014')}
