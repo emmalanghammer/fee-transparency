@@ -75,12 +75,6 @@ window.__resources = {
     /* Orange checkboxes render a white checkmark (native accent-color can't set the tick color). */
     .btn-out { background:#fff; color:var(--ac,var(--rmx-brand, #008dd5)); border:1px solid var(--ac,var(--rmx-brand, #008dd5)); border-radius:4px; padding:6px 14px; font:400 13px Roboto,sans-serif; cursor:pointer; }
     .btn-pri { background:var(--ac,var(--rmx-brand, #008dd5)); color:#fff; border:none; border-radius:4px; padding:6px 14px; font:400 13px Roboto,sans-serif; cursor:pointer; }
-    /* An expand-on-focus text box: one line in the row, ellipsized by the label laid over it, and on
-       focus it grows down over whatever is below to show everything, so the form never gets taller. */
-    .md-x:not(:focus) { color:transparent !important; -webkit-text-fill-color:transparent !important; }
-    .md-x:focus { z-index:20; box-shadow:0 6px 20px rgba(0,0,0,0.18); border-color:var(--ac,var(--rmx-brand, #008dd5)); outline:none; }
-    .md-x:focus + .md-ell { display:none; }
-    .cf-ro .md-ell { color:#b3b3b3; }
     .fld { padding:7px 10px; border:1px solid var(--rmx-line, #cedbe7); background:var(--rmx-bg-subtle, #f5f8fa); border-radius:4px; font:400 14px Roboto,sans-serif; color:var(--rmx-brand-dark, #13314c); width:100%; box-sizing:border-box; }
     /* What someone typed is content, so it reads navy; what they haven't typed stays muted. */
     input, textarea { color:var(--rmx-brand-dark, #13314c); }
@@ -2974,14 +2968,6 @@ class Component extends DCLogic {
   // test setup across, not just ?test=. The scenario rides in the query string: written on every
   // change below, read back once here. Guarded, because a hot reload calls this again.
   componentDidMount(){
-    // The expand-on-focus box (`.md-x`): open, it grows to fit its text; closed, it goes back to one
-    // line and the ellipsized label over it is brought up to date.
-    window.__mdFit = (el, open) => {
-      if (!el) return;
-      el.style.height = '36px';
-      if (open) el.style.height = Math.max(36, el.scrollHeight + 2) + 'px';
-      else { el.scrollTop = 0; const lab = el.nextElementSibling; if (lab) lab.textContent = el.value; }
-    };
     if (this._scenRead) return;
     this._scenRead = true;
     // The charge types come with their default charge marketing already set — `state.mktDef` can't
@@ -8229,7 +8215,7 @@ class Component extends DCLogic {
       }
       now.name = D.name || '';
       const mk = this.q('#m-marketing');
-      if (mk && mine(mk.value, 'marketing')) { mk.value = D.marketing || ''; window.__mdFit(mk, 0); }
+      if (mk && mine(mk.value, 'marketing')) { mk.value = D.marketing || ''; }
       now.marketing = D.marketing || '';
       [['m-req', 'requirement', D.requirement], ['m-sched', 'schedule', D.schedule],
        ['m-due', 'feeDue', D.feeDue]].forEach(([id, key, val]) => {
@@ -8746,7 +8732,7 @@ class Component extends DCLogic {
           <div id="m-name-rent" style="display:${role0 === 'rent' ? 'block' : 'none'}">${this.singleSelect('m-name-rent-sel', nameOpts.rent, rentSel, { noSearch:true, js:nameJs })}</div>
           <div id="m-name-dep" style="display:${role0 === 'deposit' ? 'block' : 'none'}">${this.singleSelect('m-name-dep-sel', nameOpts.deposit, depSel, { noSearch:true, js:nameJs })}</div>
         </div>
-        <div style="flex:2;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Marketing Description (Optional)', '', 'marketing')}<div style="position:relative;height:36px"><textarea id="m-marketing" class="fld md-x" onfocus="window.__mdFit(this,1)" onblur="window.__mdFit(this,0)" oninput="if(window.__mktDiff)window.__mktDiff();window.__mdFit(this,1)" style="position:absolute;top:0;left:0;width:100%;height:36px;resize:none;overflow:hidden;box-sizing:border-box;padding:7px 12px;font:400 14px/20px Roboto,sans-serif">${(ed&&ed.listing&&ed.listing.marketing)||(ed?(INH.marketing||''):'')}</textarea><span class="md-ell" style="position:absolute;top:1px;left:1px;right:1px;padding:7px 11px;font:400 14px/20px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none">${(ed&&ed.listing&&ed.listing.marketing)||(ed?(INH.marketing||''):'')}</span></div></div>
+        <div style="flex:2;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Marketing Description (Optional)', '', 'marketing')}<textarea id="m-marketing" class="fld" oninput="if(window.__mktDiff)window.__mktDiff()" style="height:36px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${(ed&&ed.listing&&ed.listing.marketing)||(ed?(INH.marketing||''):'')}</textarea></div>
       </div>
       ${leaseSection}
       <!-- Name and Marketing Description share the first row, a third and two thirds. Category leads

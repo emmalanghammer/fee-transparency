@@ -1173,13 +1173,10 @@ create, because copying the defaults down would make every new charge an overrid
 Refundability** on a one-time charge, or **Charge Category · Charge Requirement · Charge Schedule**
 on a recurring one. Category used to close the first row.
 
-**Marketing Description on the charge form expands on focus** (2026-10-07). It keeps its two thirds
-of the first row at 36px, because the form is kept short on purpose. At rest, the ellipsized `.md-ell` label laid over the box shows one line. Focused, `.md-x`
-grows to fit its text (`window.__mdFit`, defined in `componentDidMount`), floating over the row below
-with the dropdown panel's shadow and a brand border, so nothing below moves. Blurring collapses it
-and refreshes the label. `__mktDefaults` calls `__mdFit(mk, 0)` when it writes the box. Under
-`modal.ro` the label is muted grey. The charge type tile and the property dialog are unchanged: there
-the field already has its own full-width row and a taller box.
+**Marketing Description on the charge form is a plain 36px field** (2026-10-08). From 2026-10-07 it
+expanded on focus — floating over the row below with a shadow, an ellipsized `.md-ell` label laid
+over it at rest — and the user asked for it to look normal again. `.md-x`, `.md-ell` and
+`window.__mdFit` are gone; it is the `.fld` textarea it was before, now two thirds of the row.
 
 **A pet type that carries the figure says so in General.** When one does, Amount and Amount Method
 grey out — which says they can't be edited but not why, and the pet type that explains it sits
