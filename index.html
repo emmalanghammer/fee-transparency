@@ -8740,12 +8740,14 @@ class Component extends DCLogic {
           <div id="m-name-rent" style="display:${role0 === 'rent' ? 'block' : 'none'}">${this.singleSelect('m-name-rent-sel', nameOpts.rent, rentSel, { noSearch:true, js:nameJs })}</div>
           <div id="m-name-dep" style="display:${role0 === 'deposit' ? 'block' : 'none'}">${this.singleSelect('m-name-dep-sel', nameOpts.deposit, depSel, { noSearch:true, js:nameJs })}</div>
         </div>
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Marketing Description (Optional)', '', 'marketing')}<div style="position:relative;height:36px"><textarea id="m-marketing" class="fld md-x" onfocus="window.__mdFit(this,1)" onblur="window.__mdFit(this,0)" oninput="if(window.__mktDiff)window.__mktDiff();window.__mdFit(this,1)" style="position:absolute;top:0;left:0;width:100%;height:36px;resize:none;overflow:hidden;box-sizing:border-box;padding:7px 12px;font:400 14px/20px Roboto,sans-serif">${(ed&&ed.listing&&ed.listing.marketing)||(ed?(INH.marketing||''):'')}</textarea><span class="md-ell" style="position:absolute;top:1px;left:1px;right:1px;padding:7px 11px;font:400 14px/20px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none">${(ed&&ed.listing&&ed.listing.marketing)||(ed?(INH.marketing||''):'')}</span></div></div>
-        ${catBlock}
+        <div style="flex:2;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Marketing Description (Optional)', '', 'marketing')}<div style="position:relative;height:36px"><textarea id="m-marketing" class="fld md-x" onfocus="window.__mdFit(this,1)" onblur="window.__mdFit(this,0)" oninput="if(window.__mktDiff)window.__mktDiff();window.__mdFit(this,1)" style="position:absolute;top:0;left:0;width:100%;height:36px;resize:none;overflow:hidden;box-sizing:border-box;padding:7px 12px;font:400 14px/20px Roboto,sans-serif">${(ed&&ed.listing&&ed.listing.marketing)||(ed?(INH.marketing||''):'')}</textarea><span class="md-ell" style="position:absolute;top:1px;left:1px;right:1px;padding:7px 11px;font:400 14px/20px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none">${(ed&&ed.listing&&ed.listing.marketing)||(ed?(INH.marketing||''):'')}</span></div></div>
       </div>
       ${leaseSection}
-      <!-- All four to a row. A one-time charge has no schedule, so it runs three across. -->
+      <!-- Name and Marketing Description share the first row, a third and two thirds. Category leads
+           the second: a one-time charge runs four across (Fee Due, Refundability), a recurring one
+           three (Charge Schedule). -->
       <div style="display:flex;gap:12px;align-items:flex-start">
+        ${catBlock}
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Requirement', help.requirement, 'req')}${dd('m-req',spec?['Situational']:['Required','Optional','Situational'],spec?'Situational':req,{noSearch:true,blank:!spec,placeholder:' ',js:"document.getElementById('m-sitdesc-wrap').style.display=(_v==='Situational'?'flex':'none');if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>
         <!-- A recurring charge is collected across the term by definition, so it carries During Term
              without asking. Only a one-time charge has a question to answer here. -->

@@ -1160,9 +1160,13 @@ makes Option C safe — without it, opening a charge and pressing Save would fre
 onto it. The property specific branch (NSF, Late) does the same. `mktDefFill` still never runs on
 create, because copying the defaults down would make every new charge an override of them.
 
-**Marketing Description on the charge form expands on focus** (2026-10-07). It keeps its third of
-the Name / Marketing Description / Charge Category row at 36px, because the form is kept short on
-purpose. At rest, the ellipsized `.md-ell` label laid over the box shows one line. Focused, `.md-x`
+**The charge form's Charge Marketing runs two rows** (2026-10-08): **Name** (a third) and
+**Marketing Description** (two thirds), then **Charge Category · Charge Requirement · Fee Due ·
+Refundability** on a one-time charge, or **Charge Category · Charge Requirement · Charge Schedule**
+on a recurring one. Category used to close the first row.
+
+**Marketing Description on the charge form expands on focus** (2026-10-07). It keeps its two thirds
+of the first row at 36px, because the form is kept short on purpose. At rest, the ellipsized `.md-ell` label laid over the box shows one line. Focused, `.md-x`
 grows to fit its text (`window.__mdFit`, defined in `componentDidMount`), floating over the row below
 with the dropdown panel's shadow and a brand border, so nothing below moves. Blurring collapses it
 and refreshes the label. `__mktDefaults` calls `__mdFit(mk, 0)` when it writes the box. Under
