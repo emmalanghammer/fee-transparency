@@ -4401,8 +4401,10 @@ class Component extends DCLogic {
   // order, so the lozenge and what opens under it cannot disagree.
   ltFeedState(l){
     const is = this.ltIssues(l);
-    const secs = [is.charges.length, is.rm.length, is.prov.length].filter(Boolean).length;
-    const more = Math.max(0, secs - 1);
+    // The worst status leads, and +1 says only that a second *status* applies too: Action Required
+    // (charges short — the listing isn't sent) over Missing Information (Rent Manager or provider
+    // fields — it went out incomplete). Rent Manager and the provider together are one status, not two.
+    const more = (is.charges.length && (is.rm.length || is.prov.length)) ? 1 : 0;
     if (is.charges.length)
       return { key:'action', label:'Action Required', ico:'error',
         fg:'var(--rmx-error, #eb343c)', bg:'#fdecee', more };

@@ -329,8 +329,10 @@ Listing Ready Charges column still reports how far along the charges are — tha
 error.
 
 `ltFeedState(l)` decides it and `ltFeedLoz(l)` draws it: RMX's Lozenge at 24px with 8px sides, a
-16px icon 8px from 14/16 label text. A **`+n`** in grey follows when other sections carry something
-too, so the cell names the worst without pretending it is the only one. The overlay behind it is
+16px icon 8px from 14/16 label text. A grey **`+1`** follows **only when a second status applies** — Action
+Required leading, Missing Information also true (2026-10-08). Rent Manager and provider issues
+together are one status, Missing Information, so they no longer count as `+1`; the worst status is
+always the one named. The overlay behind it is
 the same three sections in the same order, so the lozenge and what opens under it cannot disagree.
 `ltIssues` still returns `rm`, `prov` and `charges(ltChargeIssues(prop), only when `ftApplicable`);
 `ltChargeIssues` takes a **property**, not a listing.
