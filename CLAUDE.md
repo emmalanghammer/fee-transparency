@@ -259,7 +259,12 @@ design canvas *Standardized Charges Tiles*, <https://claude.ai/artifact/3rJtePCj
   `fromUnit`). The row's checkbox, chevron and kebab stop the click from opening it. Its **View all charges on this property** link,
   like the overlay header's (renamed from *All `<Property>` Charges* on 2026-10-08), closes everything it sits in — `openFeeProfile` clears `modal` and
   `rowMenu` as well as `recView` — and opens the property's Charges over the property page;
-  closing that returns to the unit or unit type (`chargesFrom` records `unittype` too). The modal sits
+  closing that returns to the unit or unit type (`chargesFrom` records `unittype` too).
+- **A charge added on a unit's or a unit type's page starts there** (2026-10-08): `addopen` reads the
+  view and sets `modal.preset` — Charge Level **Unit** on that unit, or **Unit Type** on that type
+  (with its reach warning) — plus `fromUnit` / `fromUnitType`, so the form also carries **View all
+  charges on this property**. The level stays changeable. Everywhere else a new charge starts at
+  Property, as before. The modal sits
   at z-index 120, over the unit overlay's 100. Riverview keeps `SF`, 1A's own Storage closet, in every scenario for exactly this.
 - **The property's Charges overlay** (`chargesOverlay`) gained the property scoreboard
   (`recViewPropStrip`) above its tabs, lost the rule under the level tabs, and has the totals footer
