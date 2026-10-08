@@ -603,6 +603,9 @@ class Component extends DCLogic {
       }
       out[code] = d;
     });
+    // Storage carries no default charge marketing whatsoever — not even a name or a category — so
+    // its Default Charge Marketing tile opens empty and a charge added on it raises Add Category.
+    if (out.SF) out.SF = { name:'', category:'', marketing:'', requirement:'', schedule:'', feeDue:'', refundable:'' };
     return out;
   }
   mktDefSeed(code){
@@ -821,8 +824,7 @@ class Component extends DCLogic {
       // Five charge types across the whole portfolio: rent, a recurring fee, a deposit, and the two
       // situational ones. `NSF` and `LATE` are here only so the **Situational Charges** section is on
       // screen — they cost nothing else, since every property runs them and they arrive complete.
-      // SF is unit 1A's own storage closet, so a unit page has a charge it can edit (2026-10-07).
-      'Riverview Apartments': ['RC','GARBAG','DP','FMR','SF','NSF','LATE'],
+      'Riverview Apartments': ['RC','GARBAG','DP','FMR','NSF','LATE'],
       'The Berkshires':       ['RC','DP','FMR','NSF','LATE'],
       'The Windermere':       ['RC','GARBAG','FMR','NSF','LATE'],
       // Oakwood is the finished example, so it carries all three priced charges.
@@ -837,8 +839,7 @@ class Component extends DCLogic {
   portfolioCharges(){
     const core = ['RC','DP','FMR','APPFEE','GARBAG','NSF','LATE'];
     return {
-      // SF is unit 1A's own storage closet, so a unit page has a charge it can edit (2026-10-07).
-      'Riverview Apartments':    core.concat(['PETFEE','COVPARK','SF']),
+      'Riverview Apartments':    core.concat(['PETFEE','COVPARK']),
       'The Berkshires':          core.slice(),
       'The Windermere':          core.concat(['COVPARK']),
       'Oakwood Manor':           core.slice(),
@@ -1069,6 +1070,9 @@ class Component extends DCLogic {
     // shows Add Charge Category, without touching any property's readiness. REKEY is the one
     // company-wide, active type the category map leaves out.
     if (this.walkCharges()) use.REKEY = 1;
+    // SF (Storage) is on the list in every scenario with no charges on it and no default charge
+    // marketing at all (2026-10-08), so a charge type starting from nothing is there to look at.
+    use.SF = 1;
     return this.chargeTypeListAll().filter(([code]) => use[code]);
   }
   chargeTypeListAll(){

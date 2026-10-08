@@ -271,7 +271,7 @@ design canvas *Standardized Charges Tiles*, <https://claude.ai/artifact/3rJtePCj
   (with its reach warning) — plus `fromUnit` / `fromUnitType`, so the form also carries **View all
   charges on this property**. The level stays changeable. Everywhere else a new charge starts at
   Property, as before. The modal sits
-  at z-index 120, over the unit overlay's 100. Riverview keeps `SF`, 1A's own Storage closet, in every scenario for exactly this.
+  at z-index 120, over the unit overlay's 100. (Riverview kept `SF`, 1A's own Storage closet, for exactly this until 2026-10-08; no scenario now has a unit-level charge.)
 - **The property's Charges overlay** (`chargesOverlay`) gained the property scoreboard
   (`recViewPropStrip`) above its tabs, lost the rule under the level tabs, and has the totals footer
   (`chargesOverlayFoot`) — the two totals only; its *n Situational Charges — When they occur* came
@@ -1001,11 +1001,15 @@ Requirement, Charge Schedule and Fee Due, so a walkthrough has something to go a
 PETFEE, COVPARK, NSF, LATE — and a property's Charges six to ten rows. Rent, the deposit, **first
 month's rent**, the **application fee**, Garbage, NSF and Late everywhere; PETFEE and COVPARK where the property rents
 them, so the Pet and Parking detail sections are on screen; Clearcreek runs no deposit. Mid
-Conversion's Windermere drifts **one** charge. REKEY stays Happy Path's alone. **Riverview also keeps
-`SF`, unit 1A's own Storage closet** (2026-10-07, every scenario including Happy Path), so a unit page
-has a unit-level charge to open and edit. The regression check: Riverview reads **9/10** in `on` and
-**8/8** in `mid` and `post`; `mid` reads The Windermere 5/6 (*Action Required*) and The Estates 7/8;
-Happy Path's Riverview reads **7/7**. (FMR added one to each on 2026-10-07.)
+Conversion's Windermere drifts **one** charge. REKEY stays Happy Path's alone.
+
+**No charge uses the Storage charge type (`SF`), and it has no default charge marketing**
+(2026-10-08). Riverview's unit 1A Storage closet came out of both keep lists, `chargeTypeList` adds
+`SF` in every scenario anyway so the type is still in Charge Types, and `mktDefAll` sets its
+`mktDef` entry wholly blank — name and category included — so its Default Charge Marketing tile
+opens empty and a charge added on it raises Add Category. The regression check: Riverview reads
+**8/9** in `on` and **7/7** in `mid` and `post`; `mid` reads The Windermere 5/6 (*Action Required*)
+and The Estates 7/8; Happy Path's Riverview reads **6/6**.
 
 **`mktCopy()` is the resident-facing name and sentence per charge type**, read by the finished
 worked example (`listingReadyRows`) **and** by `mktDefAll`, so a charge type's default Marketing
