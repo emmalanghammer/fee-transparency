@@ -9618,8 +9618,8 @@ class Component extends DCLogic {
     const preview = `<button data-act="todo" data-arg="Preview" class="btn-pri" style="height:34px;min-height:34px;padding:0 18px;border-radius:4px;font-size:14px;flex:none">Preview</button>`;
     const mkProp = this.state.property;
     // Before a property activates, Listing Details is the tile as it ships today: the compliance
-    // note, the price it derives, and Deposit Fee(s) beside Lease Terms. Activated, the price and
-    // deposit come from the charges, so those give way to the leaner tile below.
+    // note, the price it derives, and Deposit Fee(s) beside Lease Terms. Activated, the compliance
+    // note goes and Unit Images gains its Preview; Price and Deposit Fee(s) stay (2026-10-08).
     const excl = `<label style="display:inline-flex;align-items:center;gap:9px;cursor:pointer"><input type="checkbox" style="accent-color:var(--rmx-attention, #f58220);width:15px;height:15px;margin:0"><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Exclude Unit-specific information</span></label>`;
     const preFT = !this.state.publishedProps[P.name];
     const listingInner = preFT ? `
@@ -9634,7 +9634,8 @@ class Component extends DCLogic {
       ${field('Unit Images', { t:'2 Selected' })}
       ${field('Availability Date', { t:'' })}` : `
       ${excl}
-      ${field('Lease Terms', { t:'' })}
+      <div style="display:flex;flex-direction:column;gap:4px">${lab('Price')}<span style="font-size:14px;line-height:20px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Price is derived from the floor plan for properties set to Multi Family feed type.</span></div>
+      <div style="display:flex;gap:16px"><div style="flex:1;min-width:0">${field('Deposit Fee(s)', { t:'' })}</div><div style="flex:1;min-width:0">${field('Lease Terms', { t:'' })}</div></div>
       <div style="display:flex;flex-direction:column;gap:4px">${lab('Property Images')}<div style="display:flex;gap:10px;align-items:center"><div style="flex:1;min-width:0">${ddPh({ t:'Property Image' })}</div>${preview}</div></div>
       <div style="display:flex;flex-direction:column;gap:4px">${lab('Unit Images')}<div style="display:flex;gap:10px;align-items:center"><div style="flex:1;min-width:0">${ddPh({ t:'' })}</div>${preview}</div></div>
       ${field('Availability Date', { t:'' })}`;
