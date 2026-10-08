@@ -448,7 +448,8 @@ published on 2026-10-01 at the user's request from `index.html` plus its 18 supp
 (`support.js`, `favicon.svg`, `vendor/*`, the two `ds/…` files and the 11 `assets/` it loads). It is
 a snapshot: republishing `index.html` from a session that published it, or passing that URL as
 `url`, updates it — only when the user asks. **Republished as Version 2 on 2026-10-07** at the user's request, from `b2f6f15`, with
-the same 18 supporting files.
+the same 18 supporting files. **Version 3 on 2026-10-08**, from `3c510e3` (the activation toast), `index.html` only — the
+supporting files were unchanged and an update keeps what it isn't sent.
 
 **Do not republish the old artifact.** <https://claude.ai/artifact/JCtc82KKhtuQJ1eEDfiQdj> is
 frozen at Version 29, which matches `main`. It is the shareable record of that snapshot, so
