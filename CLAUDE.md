@@ -453,7 +453,8 @@ a snapshot: republishing `index.html` from a session that published it, or passi
 `url`, updates it — only when the user asks. **Republished as Version 2 on 2026-10-07** at the user's request, from `b2f6f15`, with
 the same 18 supporting files. **Version 3 on 2026-10-08**, from `3c510e3` (the activation toast), `index.html` only — the
 supporting files were unchanged and an update keeps what it isn't sent. **Version 4 the same day**, from `ae7cb23`
-(the two-row Charge Marketing), the same way.
+(the two-row Charge Marketing), the same way. **Version 5**, from `c59f5b8` (Storage with no charges or
+defaults, N/A on Clearcreek, the plain Marketing Description), the same way.
 
 **Do not republish the old artifact.** <https://claude.ai/artifact/JCtc82KKhtuQJ1eEDfiQdj> is
 frozen at Version 29, which matches `main`. It is the shareable record of that snapshot, so
