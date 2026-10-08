@@ -255,7 +255,10 @@ design canvas *Standardized Charges Tiles*, <https://claude.ai/artifact/3rJtePCj
   disabled style, nothing clickable but the section chevrons, a grey lock strip — *This charge is set
   on `<where>`, so it can't be changed from this unit.* with **All `<Property>` Charges** — and a
   lone **Close** in the footer (`chargeRoNote`). **Neither shows Exceptions** (`exOn` is false when
-  `fromUnit`). The row's checkbox, chevron and kebab stop the click from opening it. The modal sits
+  `fromUnit`). The row's checkbox, chevron and kebab stop the click from opening it. Its **All `<Property>` Charges** link,
+  like the overlay header's, closes everything it sits in — `openFeeProfile` clears `modal` and
+  `rowMenu` as well as `recView` — and opens the property's Charges over the property page;
+  closing that returns to the unit or unit type (`chargesFrom` records `unittype` too). The modal sits
   at z-index 120, over the unit overlay's 100. Riverview keeps `SF`, 1A's own Storage closet, in every scenario for exactly this.
 - **The property's Charges overlay** (`chargesOverlay`) gained the property scoreboard
   (`recViewPropStrip`) above its tabs, lost the rule under the level tabs, and has the totals footer

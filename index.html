@@ -1668,12 +1668,13 @@ class Component extends DCLogic {
       case 'openFeeProfile': {
         // Reached from the Errors breakdown as well as the property page, so the dialog it was
         // opened from has to close behind it.
-        this.setState({ recView: null, mktSetup: false, mktAdv: false, ltErr: null, ftSetup: null, tcsProp: null });
+        // The read-only charge form opened from a unit or unit type links here too, so it closes as well.
+        this.setState({ recView: null, mktSetup: false, mktAdv: false, ltErr: null, ftSetup: null, tcsProp: null, modal: null, rowMenu: null });
         // Opened from Listings (the count, Setup's View Charges, the Errors breakdown) or from a unit's
         // View Recurring Charges, it closes back there rather than stranding you on the property page
         // it sits over.
         this.go('property', { property: arg || this.state.property, propTab: 'Charges',
-          chargesFrom: (this.state.view === 'feetrans' || this.state.view === 'unit' || this.state.view === 'sysprefs') ? this.state.view : null });
+          chargesFrom: (this.state.view === 'feetrans' || this.state.view === 'unit' || this.state.view === 'unittype' || this.state.view === 'sysprefs') ? this.state.view : null });
         break;
       }
 
