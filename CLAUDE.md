@@ -1066,7 +1066,8 @@ gives (it only counts `ils` charges) and the same one the charge form's header g
 **On Other Rentable Item, Property and the ORI Type take the top row** (2026-10-08). General's first
 row is normally Charge Level · Charge Type · Comment (`#m-gen-r1`). On ORI it is Charge Level ·
 **Property** · **Other Rentable Item Type**, and Charge Type · Comment drop to a second row
-(`#m-gen-r2`, with a spacer so they keep their thirds). The render places the cells by `app`;
+(`#m-gen-r2`): Charge Type held to exactly the third under Charge Level
+(`flex:0 0 calc((100% - 24px) / 3)`) and Comment filling the other two thirds. The render places the cells by `app`;
 changing the level moves the nodes DOM-only in `__lvlChange`, so nothing typed is lost. `#m-ori-row`
 is gone.
 

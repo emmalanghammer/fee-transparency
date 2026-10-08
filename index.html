@@ -8365,12 +8365,15 @@ class Component extends DCLogic {
       if (uw) uw.style.display = (v === 'Unit Type' && pe && pe.value === '1') ? 'none' : 'flex';
       // ORI puts Property and Other Rentable Item Type beside Charge Level and moves Charge Type and
       // Comment to the row under it; anything else puts them back. Moving the nodes keeps what's typed.
-      const r1 = this.q('#m-gen-r1'), r2 = this.q('#m-gen-r2'), sp = this.q('#m-gen-r2-sp');
+      const r1 = this.q('#m-gen-r1'), r2 = this.q('#m-gen-r2');
       const ctc = this.q('#m-ct-cell'), cmc = this.q('#m-cm-cell'), opc = this.q('#m-ori-prop-cell'), otc = this.q('#m-ori-type-cell');
-      if (r1 && r2 && sp && ctc && cmc && opc && otc) {
+      if (r1 && r2 && ctc && cmc && opc && otc) {
         const top = v === 'ORI' ? [opc, otc] : [ctc, cmc], under = v === 'ORI' ? [ctc, cmc] : [opc, otc];
-        top.forEach(n => r1.appendChild(n)); under.forEach(n => r2.insertBefore(n, sp));
+        top.forEach(n => r1.appendChild(n)); under.forEach(n => r2.appendChild(n));
         r2.style.display = v === 'ORI' ? 'flex' : 'none';
+        // Under it, Charge Type keeps exactly the third it sits under and Comment takes the rest; back
+        // on top they share the row in thirds with Charge Level again.
+        ctc.style.flex = v === 'ORI' ? '0 0 calc((100% - 24px) / 3)' : '1';
       }
       if (v === 'ORI') {
         const m = this.q('#m-method'), md = this.q('#m-method-disp'), s = this.q('#m-source');
@@ -8478,7 +8481,7 @@ class Component extends DCLogic {
     // is the figure it is about.
     const proRow = !isOne ? '' : `<div style="display:flex;align-items:center">${this.ctFieldBits()
       .check('m-prorate', !!(ed && ed.prorate), 'Prorate overall charge amount based on move in date')}</div>`;
-    const ctCells = `<div id="m-ct-cell" style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Type *')}${ctypeField}</div>
+    const ctCells = `<div id="m-ct-cell" style="flex:${app === 'ORI' ? '0 0 calc((100% - 24px) / 3)' : '1'};min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Type *')}${ctypeField}</div>
         <div id="m-cm-cell" style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Comment')}<div style="display:flex;align-items:center;gap:4px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;height:36px;box-sizing:border-box;padding:0 8px"><input id="m-comment" value="${esc(ed?ed.desc:'')}" placeholder="Internal only" style="flex:1;min-width:0;border:none;background:transparent;outline:none;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)"></div></div>`;
     const isOri = app === 'ORI';
     const general = `<div id="m-gen-r1" style="display:flex;gap:12px;align-items:flex-start">
@@ -8487,7 +8490,6 @@ class Component extends DCLogic {
       </div>
       <div id="m-gen-r2" style="display:${isOri ? 'flex' : 'none'};gap:12px;align-items:flex-start">
         ${isOri ? ctCells : oriCells}
-        <div id="m-gen-r2-sp" style="flex:1;min-width:0"></div>
       </div>
       ${chargeApp}
       ${freqRow}
