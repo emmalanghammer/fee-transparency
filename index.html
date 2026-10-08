@@ -521,9 +521,9 @@ class Component extends DCLogic {
     return {
       leaseRole: this.leaseRoleOf(r),
       name: pick('name'),
-      // A charge can't set its own category — it is the charge type's (or the property's override of
-      // it), so changing it there moves every charge of the type.
-      category: P.category || T.category || this.chargeCategoryFor(r.mits),
+      // Neither a charge nor a property can set a category — it is the charge type's alone, so
+      // changing it there moves every charge of the type, everywhere.
+      category: this.chargeCategoryFor(r.mits),
       requirement: pick('requirement'),
       feeDue: pick('feeDue'),
       // A one-time charge has no schedule to choose, so it reads One-Time wherever a schedule is
@@ -623,7 +623,10 @@ class Component extends DCLogic {
   // default because a charge can refuse one without refusing the other — see `noInherit`.
   ctmOwn(prop, code){
     const own = ((this.state.propDef || {})[prop || this.state.property] || {})[String(code || '').toUpperCase()];
-    return (own && own.on) ? own : null;
+    if (!(own && own.on)) return null;
+    // An override saved before Charge Category became the charge type's alone may still carry one;
+    // it applies to nothing.
+    const out = Object.assign({}, own); delete out.category; return out;
   }
   ctmFor(prop, code){
     const c = String(code || '').toUpperCase();
@@ -648,7 +651,8 @@ class Component extends DCLogic {
   // The marketing fields a property's override covers — one list, read by the dialog, by `ctmSave`
   // and by the count in the Default Charge Marketing register, so none of the three can be counting
   // a different set.
-  ctmFields(){ return ['name','category','marketing','requirement','schedule','feeDue','refundable']; }
+  // Charge Category is not one of them: it belongs to the charge type and is only set there.
+  ctmFields(){ return ['name','marketing','requirement','schedule','feeDue','refundable']; }
   // How many of them this property has actually moved off the charge type. Derived, never stored:
   // the override is saved whole, so the entry existing says nothing about how much of it differs.
   ctmOverrideCount(prop, code){
@@ -1537,7 +1541,7 @@ class Component extends DCLogic {
         : { sec: {}, props: {} } }); break;
       // A property's override of one charge type. The dialog holds a draft so ticking the box
       // doesn't commit anything until Save.
-      case 'ctmOpen': { const prop = this.state.property;
+      case 'ctmOpen': { const prop = this.state.property; this._catAdds = {};
         const code = String(arg || '').toUpperCase();
         const own = ((this.state.propDef || {})[prop] || {})[code];
         // `on` is the Override Charge Type Defaults box. The values are seeded from whatever the
@@ -1551,7 +1555,7 @@ class Component extends DCLogic {
         if (e.on) { Object.assign(vals, this.ctmReadForm());
           const a = this.ctmReadAttrs(); if (a) vals.attrs = a; else delete vals.attrs; }
         this.setState({ ctmEdit: Object.assign({}, e, { on: !e.on, vals: vals }) }); break; }
-      case 'ctmCancel': this.setState({ ctmEdit: null }); break;
+      case 'ctmCancel': this._catAdds = {}; this.setState({ ctmEdit: null }); break;
       case 'ctmSave': { const e = this.state.ctmEdit; if (!e) break;
         const base = this.mktDefFor(e.code) || {};
         const K = this.ctmFields();
@@ -1572,12 +1576,12 @@ class Component extends DCLogic {
         if (moved && users) { this.setState(s2 => ({
           ctmEdit: Object.assign({}, s2.ctmEdit, { vals: vals }),
           ctmAsk: { prop: e.prop, code: e.code, vals: vals, on: e.on, users: users }, ctmMode: 'inherit' })); break; }
-        this.ctmCommit(e.prop, e.code, vals, e.on, null);
+        this.ctmCommit(e.prop, e.code, vals, e.on, null); this.catAddCommit();
         break; }
       case 'ctmMode': this.setState({ ctmMode: arg || 'inherit' }); break;
       case 'ctmAskCancel': this.setState({ ctmAsk: null }); break;
       case 'ctmApply': { const a2 = this.state.ctmAsk; if (!a2) break;
-        this.ctmCommit(a2.prop, a2.code, a2.vals, a2.on, arg || 'inherit');
+        this.ctmCommit(a2.prop, a2.code, a2.vals, a2.on, arg || 'inherit'); this.catAddCommit();
         break; }
       case 'ftSetupClose': this.setState({ ftSetup: null }); break;
       case 'ftSetupSec': this.setState(s2 => { const f2 = s2.ftSetup, o = Object.assign({}, f2.sec || {});
@@ -3963,10 +3967,20 @@ class Component extends DCLogic {
     // Every section is drawn and the category picks which shows, so changing Charge Category here
     // swaps it live.
     const att = on ? ((e.vals || {}).attrs || base.attrs || {}) : (base.attrs || {});
-    const cat = String(v('category') || this.chargeCategoryFor(code) || '');
+    // Charge Category is the charge type's and nobody else's, so it reads the way it does on a charge:
+    // static, in either state of the box, with the red Add Category box when the type has none. What
+    // is added there goes to the charge type, on Save.
+    const cat = String(this.chargeCategoryFor(code) || '');
     const extras = this.attrDefSections('ctm', att, cat, { locked: !on, pet: true });
-    const catDd = on ? this.singleSelect('ctm-category', this.chargeCategoryOptions(), v('category'), { noSearch:true, blank:true, placeholder:' ', js:"if(window.__attrDefShow)window.__attrDefShow('ctm',_v)" }) : off(v('category'), true);
-    const body = pair(fld('Name', txt('ctm-name', v('name'))), fld('Charge Category', catDd, H.category))
+    const ERR = `<svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-error, #eb343c);flex:none"><path d="M503.5-289.48q9.5-9.48 9.5-23.5t-9.48-23.52q-9.48-9.5-23.5-9.5t-23.52 9.48q-9.5 9.48-9.5 23.5t9.48 23.52q9.48 9.5 23.5 9.5t23.52-9.48ZM453-433h60v-253h-60v253Zm27.27 353q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg>`;
+    const catBlock = `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
+      <span style="display:inline-flex;align-items:center;gap:6px;min-height:20px;line-height:20px;white-space:nowrap">${lab('Charge Category')}${H.category}</span>
+      <input type="hidden" id="ctm-category" value="${esc(cat)}">
+      <span id="ctm-cat-disp" style="display:${cat ? 'block' : 'none'};font-size:14px;line-height:20px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${esc(cat)}</span>
+      <div id="ctm-cat-err" style="display:${cat ? 'none' : 'flex'};flex-wrap:wrap;align-items:flex-start;column-gap:10px;row-gap:6px;background:#fff;border:1px solid var(--rmx-error, #eb343c);border-radius:4px;padding:8px 12px">${ERR}<span style="flex:1 1 0;min-width:0;font-size:12px;color:var(--rmx-ink-2, #424e5b);line-height:1.4">You don't have a charge category assigned to this charge type.</span><a onclick="document.getElementById('ctm-catadd').style.display='flex'" style="flex-basis:100%;padding-left:28px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap;cursor:pointer">Add Category</a></div>
+      <span style="font-size:12px;line-height:16px;color:var(--rmx-text, #666666)">Charge categories are specific to each charge type, so this can only be changed on the charge type.</span>
+    </div>`;
+    const body = pair(fld('Name', txt('ctm-name', v('name'))), catBlock)
       + fld('Marketing Description (Optional)', area('ctm-marketing', v('marketing')))
       + pair(fld('Charge Requirement', dd('ctm-requirement', REQ, v('requirement')), H.requirement), fld(this.schedOnly(), dd('ctm-schedule', SCHED, v('schedule'))))
       + pair(fld(this.dueOnly(), dd('ctm-feeDue', DUE, v('feeDue'))), fld(this.refundOnly(), dd('ctm-refundable', REF, v('refundable'))))
@@ -4000,7 +4014,7 @@ class Component extends DCLogic {
           <button data-act="ctmSave" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Save</button>
           <button data-act="ctmCancel" class="btn-out" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Cancel</button>
         </div>
-      </div>
+      </div>${this.catAddHTML('ctm', code)}
     </div>`;
   }
   // ---------- Fee Transparency Setup overlay (Figma 3562:42475) ----------
@@ -9176,7 +9190,11 @@ class Component extends DCLogic {
         </div>
       </div></div>`;
   }
-  catAddHTML(){
+  // `pre` is 'm' on the charge form, which reads the charge type off its typeahead; 'ctm' on a
+  // property's Default Charge Marketing, which knows its charge type (`code`) already.
+  catAddHTML(pre, code){
+    pre = pre || 'm';
+    const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
     // Reads the charge type live, so it reflects whatever the typeahead currently holds.
     window.__catAddOpen = () => {
       const code = ((this.q('#m-ctype') || {}).value || '').toUpperCase();
@@ -9193,7 +9211,7 @@ class Component extends DCLogic {
     const opts = this.chargeCategoryOptions();
     // Applies the choice to the field behind, records it against the charge type, then re-checks the
     // MITS fields so the listings toggle unlocks if this was the last thing missing.
-    const add = "var s=document.getElementById('m-catadd-sel');var cc=s.value;if(!cc)return;"
+    const addM = "var s=document.getElementById('m-catadd-sel');var cc=s.value;if(!cc)return;"
       + "var code=(document.getElementById('m-ctype').value||'').toUpperCase();"
       + "document.getElementById('m-cat').value=cc;"
       + "var d=document.getElementById('m-cat-disp');d.textContent=cc;d.style.display='block';"
@@ -9206,8 +9224,18 @@ class Component extends DCLogic {
       // rather than waiting for the form to be saved and reopened.
       + "if(window.__attrCheck)window.__attrCheck();"
       + "if(window.__mitsRecheck)window.__mitsRecheck();";
-    const close = "document.getElementById('m-catadd').style.display='none'";
-    return `<div id="m-catadd" data-act="noop" style="display:none;position:fixed;inset:0;background:rgba(19,49,76,0.5);align-items:center;justify-content:center;z-index:200">
+    // On a property's Default Charge Marketing the pick is shown in place of the red box, and swaps
+    // the Storage / Parking / Pet section the same way the charge type's own category would.
+    const addCtm = "var s=document.getElementById('ctm-catadd-sel');var cc=s.value;if(!cc)return;"
+      + "document.getElementById('ctm-category').value=cc;"
+      + "var d=document.getElementById('ctm-cat-disp');d.textContent=cc;d.style.display='block';"
+      + "document.getElementById('ctm-cat-err').style.display='none';"
+      + "document.getElementById('ctm-catadd').style.display='none';"
+      + "if(window.__catAssign)window.__catAssign('" + esc(code) + "',cc);"
+      + "if(window.__attrDefShow)window.__attrDefShow('ctm',cc);";
+    const add = pre === 'm' ? addM : addCtm;
+    const close = "document.getElementById('" + pre + "-catadd').style.display='none'";
+    return `<div id="${pre}-catadd" data-act="noop" style="display:none;position:fixed;inset:0;background:rgba(19,49,76,0.5);align-items:center;justify-content:center;z-index:200">
       <div style="width:500px;max-width:94vw;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 3px 12px rgba(0,0,0,0.2);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
           <span style="font-size:20px;color:var(--rmx-brand-dark, #13314c)">Add Charge Category</span>
@@ -9216,11 +9244,11 @@ class Component extends DCLogic {
         <div style="padding:16px;display:flex;flex-direction:column;gap:14px">
           <div style="display:flex;flex-direction:column;gap:6px">
             <span style="font-size:14px;color:var(--rmx-text, #666666)">Charge Type</span>
-            <span id="m-catadd-ct" style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">—</span>
+            <span id="${pre}-catadd-ct" style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${esc(code) || '—'}</span>
           </div>
           <div style="display:flex;flex-direction:column;gap:4px">
             <span style="font-size:14px;color:var(--rmx-text, #666666)">Charge Category</span>
-            ${this.singleSelect('m-catadd-sel', opts, '', { noSearch:true, placeholder:'Select a charge category' })}
+            ${this.singleSelect(pre + '-catadd-sel', opts, '', { noSearch:true, placeholder:'Select a charge category' })}
           </div>
           <span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3);line-height:1.45">The category added will display for all charges using this charge type.</span>
         </div>

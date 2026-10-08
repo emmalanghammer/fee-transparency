@@ -572,10 +572,21 @@ Information tile no longer carries it — it is set in Default Charge Marketing.
 reads `state.mktDef` over the built-in map and the register**, so the tile's value is the charge
 type's category everywhere, and a type whose defaults say none has none. `chargeCategoryMap(true)` is
 the map *before* anyone set anything, which is what `mktDefAll` seeds from, so a scenario reset can't
-inherit the last scenario's edits. **A charge never keeps a category of its own**: `resolvedListing`
-reads the property's override, else the charge type, else the map, and `saveFee` stores `''` on
-every charge, so changing a charge type's category moves every charge of it (the user asked for it
-"connected" on 2026-09-30). The charge form shows it read-only for the same reason.
+inherit the last scenario's edits. **Neither a charge nor a property keeps a category of its own**:
+`resolvedListing` reads `chargeCategoryFor(code)` and nothing else, and `saveFee` stores `''` on
+every charge, so changing a charge type's category moves every charge of it, at every property (the
+user asked for it "connected" on 2026-09-30). The charge form shows it read-only for the same reason.
+
+**A property's Default Charge Marketing shows it read-only too** (2026-10-08). `ctmEditHTML` draws
+Charge Category the way the charge form does — the type's category in SemiBold navy, ticked or not,
+or the red *You don't have a charge category assigned to this charge type* box with **Add Category**
+— over a grey 12px line: *Charge categories are specific to each charge type, so this can only be
+changed on the charge type.* Add Category raises the same overlay as the charge form's,
+`catAddHTML('ctm', code)` (the method takes a prefix now; the charge form's is `'m'`), whose pick
+goes to `this._catAdds`, swaps the Storage / Parking / Pet section live, and is committed to the
+**charge type** by `catAddCommit()` when `ctmSave` (or `ctmApply`) commits. `ctmOpen` and
+`ctmCancel` discard an uncommitted pick. `ctmFields()` no longer lists `category`, and `ctmOwn`
+strips one from an override saved before this, so it applies to nothing.
 
 **Add Charge Category is back in reach.** A charge on a type with no category shows the red *You
 don't have a charge category assigned to this charge type* box with **Add Category**, which opens
@@ -819,8 +830,8 @@ across re-renders, since a `setState` would wipe whatever is typed on the page.
 it back on 2026-09-30): the Charge Types register's own green filled check when the Override Charge
 Type Defaults box is ticked for that type at this property (`ctmOverridden`), and blank otherwise —
 an override remembered but unticked applies to nothing, so it shows nothing. `ctmOverrideCount` is
-no longer read by anything. `ctmFields()` is still the one list of the seven, read by the dialog and
-by `ctmSave`.
+no longer read by anything. `ctmFields()` is still the one list of the six (Charge Category left it on 2026-10-08), read by the
+dialog and by `ctmSave`.
 
 **The three surfaces that edit a charge's marketing carry the same field tooltips.** `mktHelp()`
 builds one map — **Charge Category, Charge Requirement, Charge Schedule, Fee Due** — read by the charge form, Charge Type
