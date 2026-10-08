@@ -252,11 +252,12 @@ design canvas *Standardized Charges Tiles*, <https://claude.ai/artifact/3rJtePCj
   unit's Charges overlay is clickable (`chargeRegisterHTML`'s `open` option → `unitChgOpen`), opening
   the charge form with `modal.fromUnit`. A charge written **at the unit** is editable as usual; one
   written at the **property or unit type** opens **read-only** (`modal.ro`): every field in the RMX
-  disabled style, nothing clickable but the section chevrons, a grey lock strip — *This charge is set
-  on `<where>`, so it can't be changed from this unit.* with **All `<Property>` Charges** — and a
-  lone **Close** in the footer (`chargeRoNote`). **Neither shows Exceptions** (`exOn` is false when
-  `fromUnit`). The row's checkbox, chevron and kebab stop the click from opening it. Its **All `<Property>` Charges** link,
-  like the overlay header's, closes everything it sits in — `openFeeProfile` clears `modal` and
+  disabled style, nothing clickable but the section chevrons, and a lone **Close** in the footer
+  (`chargeRoNote` now carries only the read-only styling; its grey lock strip came off on
+  2026-10-08). Any charge form opened from a unit or unit type carries **View all charges on this
+  property** as an action link left of the close X (`openFeeProfile`). **Neither shows Exceptions** (`exOn` is false when
+  `fromUnit`). The row's checkbox, chevron and kebab stop the click from opening it. Its **View all charges on this property** link,
+  like the overlay header's (renamed from *All `<Property>` Charges* on 2026-10-08), closes everything it sits in — `openFeeProfile` clears `modal` and
   `rowMenu` as well as `recView` — and opens the property's Charges over the property page;
   closing that returns to the unit or unit type (`chargesFrom` records `unittype` too). The modal sits
   at z-index 120, over the unit overlay's 100. Riverview keeps `SF`, 1A's own Storage closet, in every scenario for exactly this.
