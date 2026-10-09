@@ -288,7 +288,10 @@ and is left showing only the comment. Its pop-out (`mrOpen`) raises **View Marke
 (`marketRentHTML`, `state.mrView`, z-index 100): the 56px header, the unit's scoreboard, a *Find a
 market rent* search that filters the rows DOM-only and updates *n of 5 items*, **Add Market Rent**
 (`todo`), then the full-page register **Comment · From Date · Amount · kebab** (`todo`) with the count
-underneath. `marketRentRows()` makes the history up from the unit's own rent, so the top row always
+underneath. Its header is RMX **Header Style=Register** (2026-10-09, at the user's request): 28px,
+`--rmx-register-header` #737373, white Label/S/Medium 12.6px at 0.09em, a 0.5px white rule between
+columns; rows are white with the `#ebf1f5` hairline and hover wash, and the count is 12px
+`--rmx-text-muted`. `marketRentRows()` makes the history up from the unit's own rent, so the top row always
 matches the scoreboard's Market Rent; the oldest reads *Updated in Import*. The unit scoreboard strip
 is now its own method, `unitStrip()`, read by this overlay and the unit's Charges overlay.
 

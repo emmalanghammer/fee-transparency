@@ -7494,7 +7494,9 @@ class Component extends DCLogic {
     const cols = 'minmax(0,1fr) 160px 140px 44px';
     const KEBAB = this.ico('more_vert', 20, 'color:var(--ac,var(--rmx-brand, #008dd5))');
     const filter = "var q=this.value.toLowerCase(),n=0,rs=document.querySelectorAll('[data-mrv]');rs.forEach(function(r){var on=r.textContent.toLowerCase().indexOf(q)>=0;r.style.display=on?'grid':'none';if(on)n++});document.getElementById('mrv-count').textContent=n+' of '+rs.length+' items'";
-    const hc = (t, right) => `<span style="display:flex;align-items:center;${right ? 'justify-content:flex-end;' : ''}height:32px;box-sizing:border-box;padding:0 8px;font:500 12.6px Roboto,sans-serif;letter-spacing:1.134px;color:${ink};white-space:nowrap">${t}</span>`;
+    // RMX Header Style=Register — the full-page register header: 28px, Container/tertiary-dark grey,
+    // white Label/S/Medium (12.6px, 9% tracking), a half-pixel white rule between columns.
+    const hc = (t, right, last) => `<span style="display:flex;align-items:center;${right ? 'justify-content:flex-end;' : ''}height:28px;box-sizing:border-box;padding:4px 8px;font:500 12.6px/20px Roboto,sans-serif;letter-spacing:0.09em;color:#fff;white-space:nowrap;${last ? '' : 'border-right:.5px solid #fff;'}">${t}</span>`;
     const c = (t, right) => `<span style="display:flex;align-items:center;${right ? 'justify-content:flex-end;' : ''}height:36px;box-sizing:border-box;padding:0 8px;font-size:14px;color:${ink};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>`;
     return `<div data-act="mrClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;padding:60px 20px 20px;box-sizing:border-box;z-index:100"><div data-act="noop" style="flex:1;min-width:0;background:var(--rmx-bg-ui-2, #f3f4f8);border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.28);display:flex;flex-direction:column;overflow:hidden">
       <div style="display:flex;align-items:center;gap:12px;height:56px;box-sizing:border-box;padding:0 16px 0 24px;background:#fff;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
@@ -7508,10 +7510,11 @@ class Component extends DCLogic {
           <button data-act="todo" data-arg="Add Market Rent" class="btn-pri" style="display:inline-flex;align-items:center;gap:6px;height:36px;min-height:36px;padding:0 16px 0 12px;border-radius:4px;font-size:14px;white-space:nowrap">${this.ico('add_circle', 20, 'color:#fff')}Add Market Rent</button>
         </div>
         <div style="flex:1;min-height:0;display:flex;flex-direction:column;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
-          <div style="display:grid;grid-template-columns:${cols};background:var(--rmx-bg-muted, #f2f2f2);border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">${hc('Comment')}${hc('From Date')}${hc('Amount', true)}<span></span></div>
-          <div style="flex:1;min-height:0;overflow-y:auto">${rows.map(r => `<div data-mrv style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)">${c(r[0])}${c(r[1])}${c(r[2], true)}<span data-act="todo" data-arg="Market rent options" style="display:flex;align-items:center;justify-content:center;height:36px;cursor:pointer">${KEBAB}</span></div>`).join('')}</div>
+          <div style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373);flex:none">${hc('Comment')}${hc('From Date')}${hc('Amount', true)}${hc('', false, true)}</div>
+          <style>.mrv-row:hover { background:var(--rmx-brand-tint-bg, #ebf1f5); }</style>
+          <div style="flex:1;min-height:0;overflow-y:auto">${rows.map(r => `<div data-mrv class="mrv-row" style="display:grid;grid-template-columns:${cols};align-items:center;background:#fff;border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)">${c(r[0])}${c(r[1])}${c(r[2], true)}<span data-act="todo" data-arg="Market rent options" style="display:flex;align-items:center;justify-content:center;height:36px;cursor:pointer">${KEBAB}</span></div>`).join('')}</div>
         </div>
-        <div id="mrv-count" style="flex:none;text-align:right;font-size:12px;color:var(--rmx-text, #666666)">${rows.length} of ${rows.length} items</div>
+        <div id="mrv-count" style="flex:none;text-align:right;font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">${rows.length} of ${rows.length} items</div>
       </div>
     </div></div>`;
   }
