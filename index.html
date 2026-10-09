@@ -8444,13 +8444,12 @@ class Component extends DCLogic {
       const lvl = ((this.q('#m-app') || {}).value) || 'Property';
       const other = this.roleAt(role, lvl, tgtNow(lvl), ed ? ed.id : null);
       if (!other) return;
-      const L = this.leaseRoleLabel(role), l = L.toLowerCase();
-      const nm = other.mits + (other.desc ? ' (' + other.desc + ')' : '');
-      const where = lvl === 'Property' ? 'the property level' : 'this ' + (lvl === 'ORI' ? 'rentable item' : lvl.toLowerCase());
+      // The user's wording (2026-10-09): what is already set, the one-per-level rule, what continuing
+      // does to the other charge, then the question on its own line.
+      const L = this.leaseRoleLabel(role);
       const t = this.q('#m-leaseconf-txt');
-      if (t) t.innerHTML = `<strong style="color:var(--rmx-brand-dark, #13314c)">${nm}</strong> is already the ${l} at ${where}. Only one charge per charge level can be the ${l}, so continuing makes this charge the ${l} and ${nm} an additional charge.`;
-      const ti = this.q('#m-leaseconf-title'); if (ti) ti.textContent = 'Change the ' + l + ' charge?';
-      const bt = this.q('#m-leaseconf-ok'); if (bt) bt.textContent = 'Make this the ' + l;
+      if (t) t.innerHTML = `There is already a charge set for the ${L} on ${this.state.property}. ${L} can only be applied to one charge on each charge level per property. Setting this charge as ${L} will change the existing ${L} charge to an additional charge${role === 'rent' ? ' on top of rent' : ''}.<br><br>Are you sure you would like to update this charge as the ${L}?`;
+      const ti = this.q('#m-leaseconf-title'); if (ti) ti.textContent = 'Existing ' + L;
       this._leasePend = other.id;
       const w = this.q('#m-leaseconf'); if (w) w.style.display = 'flex';
     };
@@ -9302,7 +9301,7 @@ class Component extends DCLogic {
     return `<div id="m-leaseconf" style="display:none;position:fixed;inset:0;background:rgba(19,49,76,0.45);align-items:center;justify-content:center;z-index:200">
       <div onclick="event.stopPropagation()" style="width:520px;max-width:92vw;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;gap:12px;padding:13px 20px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
-          <span id="m-leaseconf-title" style="font-size:20px;color:var(--rmx-brand-dark, #13314c)">Change the base rent charge?</span><div style="flex:1"></div>
+          <span id="m-leaseconf-title" style="font-size:20px;color:var(--rmx-brand-dark, #13314c)">Existing Base Rent</span><div style="flex:1"></div>
           ${this.ico('close', 20, 'color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer').replace('<svg ', '<svg onclick="if(window.__leaseConf)window.__leaseConf(false)" ')}
         </div>
         <div style="display:flex;align-items:flex-start;gap:12px;padding:20px 24px 22px">
@@ -9310,7 +9309,7 @@ class Component extends DCLogic {
           <span id="m-leaseconf-txt" style="flex:1;min-width:0;font-size:14px;color:var(--rmx-text, #666666);line-height:1.55"></span>
         </div>
         <div style="display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:14px 20px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7)">
-          <button id="m-leaseconf-ok" onclick="if(window.__leaseConf)window.__leaseConf(true)" class="btn-pri" style="height:38px;min-height:38px;padding:0 22px;border-radius:4px;font-size:14px">Make this the base rent</button>
+          <button id="m-leaseconf-ok" onclick="if(window.__leaseConf)window.__leaseConf(true)" class="btn-pri" style="height:38px;min-height:38px;padding:0 22px;border-radius:4px;font-size:14px">Update Charge</button>
           <button onclick="if(window.__leaseConf)window.__leaseConf(false)" style="height:38px;min-height:38px;padding:0 22px;border-radius:4px;font:400 14px Roboto,sans-serif;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Cancel</button>
         </div>
       </div></div>`;

@@ -1271,8 +1271,13 @@ under that name; what it was called is kept on the charge, so answering Addition
 back. Changing the charge type re-asks through `window.__roleCheck` (from `__attrCheck`), reset to
 Additional Charge when the kind changes. **One per charge level**, and per target below the property
 (each unit type or unit can carry its own): `roleAt(kind, level, target, exceptId)`; choosing it where
-another charge already holds it raises the existing confirm (`#m-leaseconf`, now worded for either
-role), and Save moves the role off the other charge (`_leaseTake`). Stored as `listing.leaseRole`
+another charge already holds it raises the confirm (`#m-leaseconf`), and Save moves the role off the
+other charge (`_leaseTake`). The confirm is the user's own copy (2026-10-09): header **Existing Base
+Rent** (or *Existing Security Deposit*); *"There is already a charge set for the Base Rent on
+`<Property>`. Base Rent can only be applied to one charge on each charge level per property. Setting
+this charge as Base Rent will change the existing Base Rent charge to an additional charge on top of
+rent."* (the deposit's version ends at *additional charge*), then *"Are you sure you would like to
+update this charge as the Base Rent?"* on its own line; footer **Update Charge** / **Cancel**. Stored as `listing.leaseRole`
 ('rent' / 'deposit' / '' for additional); a charge never asked reads the property-level **RC** as Base
 Rent and **DP** as Security Deposit (`leaseRoleOf`), and anything off the property's lists reads
 none. The old Name dropdowns for the two roles (`m-name-rent`, `m-name-dep`, `nameOpts`) are gone.
