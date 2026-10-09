@@ -1237,6 +1237,13 @@ asked. `chargeColsDefault()` is what honours the gate, beside the existing `base
 
 ## Tenant Charge Setup
 
+**Rent Charge Types on the property's General tab is a real checklist** (2026-10-09). It was a static
+*4 Selected* placeholder; it is now `multiSelect('pg-rent-ct', …)` over `chargeTypeList()`, each row
+*CODE - Description*, so a property says which of its charge types count as rent. It starts on RC
+and FMR (any of `RC|FMR|LMR|RENT` present), and what is ticked is kept per property in
+`this._rentCT` through `window.__rentCT` — off state, so a re-render elsewhere doesn't undo it. Nothing
+else reads it yet.
+
 **At rollout, Tenant Charge Setup's charges became property charges on every property** (2026-10-07).
 Each default (RC and PETFEE recurring, DP and FMR one-time) was added as a property-level charge with the
 same charge source on the properties that use it. Rent quotes and the Move In and Add Tenant wizards
