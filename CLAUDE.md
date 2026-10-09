@@ -280,6 +280,18 @@ design canvas *Standardized Charges Tiles*, <https://claude.ai/artifact/3rJtePCj
   off on 2026-10-07. Its register, tabs and
   filter are otherwise as they were.
 
+**The unit page has production's Current Market Rent tile** (2026-10-09, `marketRentTile()`), in the
+tile grid between Service Issues and User Defined Fields. **Comment · From Date · Amount**, newest
+first, striped; on a narrow tile (container ≤ 420px) **Comment** is what drops into the row's chevron
+dropdown, since the date and the figure are what the tile is for — production drops the other way
+and is left showing only the comment. Its pop-out (`mrOpen`) raises **View Market Rent**
+(`marketRentHTML`, `state.mrView`, z-index 100): the 56px header, the unit's scoreboard, a *Find a
+market rent* search that filters the rows DOM-only and updates *n of 5 items*, **Add Market Rent**
+(`todo`), then the full-page register **Comment · From Date · Amount · kebab** (`todo`) with the count
+underneath. `marketRentRows()` makes the history up from the unit's own rent, so the top row always
+matches the scoreboard's Market Rent; the oldest reads *Updated in Import*. The unit scoreboard strip
+is now its own method, `unitStrip()`, read by this overlay and the unit's Charges overlay.
+
 `infoTip`'s panel is RMX's **Tooltip** (RMX Components `2944:203796`): 312px wide, 16px padding,
 1px `#cedbe7`, 4px radius, drop shadow `0 3px 6px rgba(0,0,0,0.10)`, Roboto Regular 14/20, left
 aligned. Its trigger is Material Icon / Medium / Brand — the squared `info_outline` at 20px, not the
