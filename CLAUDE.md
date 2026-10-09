@@ -1277,7 +1277,7 @@ Rent** (or *Existing Security Deposit*); *"There is already a charge set for the
 `<Property>`. Base Rent can only be applied to one charge on each charge level per property. Setting
 this charge as Base Rent will change the existing Base Rent charge to an additional charge on top of
 rent."* (the deposit's version ends at *additional charge*), then *"Are you sure you would like to
-update this charge as the Base Rent?"* on its own line; footer **Update Charge** / **Cancel**. Stored as `listing.leaseRole`
+update this charge as the Base Rent?"* on its own line; footer **Update Charge** / **Cancel**. No warning icon — the user took it off. Stored as `listing.leaseRole`
 ('rent' / 'deposit' / '' for additional); a charge never asked reads the property-level **RC** as Base
 Rent and **DP** as Security Deposit (`leaseRoleOf`), and anything off the property's lists reads
 none. The old Name dropdowns for the two roles (`m-name-rent`, `m-name-dep`, `nameOpts`) are gone.
