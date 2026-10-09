@@ -1256,8 +1256,26 @@ asked. `chargeColsDefault()` is what honours the gate, beside the existing `base
 *4 Selected* placeholder; it is now `multiSelect('pg-rent-ct', …)` over `chargeTypeList()`, each row
 *CODE - Description*, so a property says which of its charge types count as rent. It starts on RC
 and FMR (any of `RC|FMR|LMR|RENT` present), and what is ticked is kept per property in
-`this._rentCT` through `window.__rentCT` — off state, so a re-render elsewhere doesn't undo it. Nothing
-else reads it yet.
+`this._rentCT` through `window.__rentCT` — off state, so a re-render elsewhere doesn't undo it.
+**Security Deposit Charge Types** sits beside it, the same checklist (`pg-dep-ct`, `this._depCT`,
+`window.__depCT`), starting on DP. `rentTypesFor(prop)` / `depTypesFor(prop)` read them.
+
+**A charge on one of those types is asked whether it is the Base Rent / Security Deposit or an
+additional charge** (2026-10-09, Figma `3832:62257`). `leaseRoleKind(code, prop)` says which question
+applies ('rent', 'deposit' or none). The charge form's Charge Marketing opens with a bordered card
+(`#m-role-wrap`, `roleCard`) above the fields card: *"`<CODE>` is a rent charge type on this property.
+How should listings treat this charge?"* (or *security deposit charge type*) over **Base Rent** /
+**Additional Charge** (or **Security Deposit** / **Additional Charge**) radios. Answered, Name is
+locked to the role (`#m-name-lock`, the disabled field), and `resolvedListing` advertises the charge
+under that name; what it was called is kept on the charge, so answering Additional Charge brings it
+back. Changing the charge type re-asks through `window.__roleCheck` (from `__attrCheck`), reset to
+Additional Charge when the kind changes. **One per charge level**, and per target below the property
+(each unit type or unit can carry its own): `roleAt(kind, level, target, exceptId)`; choosing it where
+another charge already holds it raises the existing confirm (`#m-leaseconf`, now worded for either
+role), and Save moves the role off the other charge (`_leaseTake`). Stored as `listing.leaseRole`
+('rent' / 'deposit' / '' for additional); a charge never asked reads the property-level **RC** as Base
+Rent and **DP** as Security Deposit (`leaseRoleOf`), and anything off the property's lists reads
+none. The old Name dropdowns for the two roles (`m-name-rent`, `m-name-dep`, `nameOpts`) are gone.
 
 **At rollout, Tenant Charge Setup's charges became property charges on every property** (2026-10-07).
 Each default (RC and PETFEE recurring, DP and FMR one-time) was added as a property-level charge with the
