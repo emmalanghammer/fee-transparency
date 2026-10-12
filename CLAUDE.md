@@ -1381,7 +1381,8 @@ figure, else its `est`). `roleState` is `set` when every group is marked, `none`
   reset when the dialog opens). **Activating marks them** (`pubConfirm`): in each group the picked charge
   takes the role and every other candidate there becomes an additional charge (`leaseRole: ''`). A
   property with no candidate for either can't activate: the box says so in red and Activate is disabled.
-- **Listing Details before activation** keeps today's fields, with one note under Deposit Fee(s) in
+- **Listing Details before activation** keeps today's fields, with one note above Price (moved there from
+  under Deposit Fee(s) on 2026-10-12) in
   RMX's outlined Callout (`roleNoteHTML` / `roleNoteText`): an info glyph and *Fee transparency needs a
   Base Rent and a Security Deposit charge. Neither is marked yet. Mark them on the charges, or confirm our
   suggestions when you activate.* with **Go to Charges** (or which one is still missing); once both are
