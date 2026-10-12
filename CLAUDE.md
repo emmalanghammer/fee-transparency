@@ -1331,13 +1331,15 @@ and FMR (any of `RC|FMR|LMR|RENT` present), and what is ticked is kept per prope
 `window.__rentCT` compares the new ticks with `rentTypesFor(prop)` before saving them: if a code
 being unticked has a charge whose `leaseRoleOf` is `rent` (stored, or the default property-level RC),
 nothing is saved, `state.rentCTBlock` raises **`rentCTBlockHTML`** — an RMX PopUp (`4193:45458`) at
-z-index 160: *Can’t Remove Charge Type*, the PopUp's 48px Brand `warning-filled` icon beside the user's
-copy, *"This charge type can’t be removed from Rent Charge Types because a charge using it is the Base
-Rent charge for this property. To remove it, first assign Base Rent to a charge with a different charge
-type."*, content padded 24/8/16/16, `dropshadow-lg`, and a lone **OK** — and the re-render puts the tick
+z-index 160: *Can’t Remove Charge Type*, the PopUp's 48px Brand `warning-filled` icon, content padded
+24/8/16/16, `dropshadow-lg`. Its copy is UX-copy option A (2026-10-12, replacing the user's first
+draft): main text *"A charge using **RC – Rent** is set as the Base Rent."* (the charge type named, code
+– description), additional text in grey *"To remove this charge type, first set a charge with a
+different charge type as the Base Rent."*, and **Go to Charges** (`rentCTBlockGo`, the property's
+Charges) · **Close**. Either way the re-render puts the tick
 back. Unticking a type that holds no Base Rent (FMR) still just works. **Security Deposit Charge Types
 has the same guard** (`window.__depCT`, `rentCTBlock.kind: 'deposit'`), the copy reading *Security
-Deposit Charge Types* and *Security Deposit* in place of *Rent Charge Types* and *Base Rent*.
+Deposit* in place of *Base Rent*.
 
 **A charge on one of those types is asked whether it is the Base Rent / Security Deposit or an
 additional charge** (2026-10-09, Figma `3832:62257`). `leaseRoleKind(code, prop, isOne)` says which

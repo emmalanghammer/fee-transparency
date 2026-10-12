@@ -1611,6 +1611,8 @@ class Component extends DCLogic {
         this.setState({ fpEdit: null, fpData: Object.assign({}, this.state.fpData, { [prop]: list }) });
         this.flash(e.id ? 'Floor plan saved' : 'Floor plan added'); break; }
       case 'rentCTBlockClose': this.setState({ rentCTBlock: null }); break;
+      case 'rentCTBlockGo': { const b = this.state.rentCTBlock; this.setState({ rentCTBlock: null });
+        this.go('property', { property: (b && b.prop) || this.state.property, propTab: 'Charges', chargesFrom: null }); break; }
       case 'fpDelAsk': this.setState({ fpMenu: null, fpDel: { id: arg } }); break;
       case 'fpDelCancel': this.setState({ fpDel: null }); break;
       case 'fpDelete': { const d = this.state.fpDel; if (!d) break; const prop = this.state.property;
@@ -4276,7 +4278,11 @@ class Component extends DCLogic {
   rentCTBlockHTML(){
     const b = this.state.rentCTBlock; if (!b) return '';
     const dep = b.kind === 'deposit';
-    const list = dep ? 'Security Deposit Charge Types' : 'Rent Charge Types', role = dep ? 'Security Deposit' : 'Base Rent';
+    const role = dep ? 'Security Deposit' : 'Base Rent';
+    // UX-copy option A (2026-10-12): name the charge type, the consequence as the main text and the fix
+    // as the additional text, as the PopUp lays them out; the primary action goes where it's fixed.
+    const desc = {}; this.chargeTypeListAll().forEach(t => { desc[t[0]] = t[1]; });
+    const names = (b.codes || []).map(c => c + ' – ' + (desc[c] || c)).join(' and ');
     return `<div data-act="rentCTBlockClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:160">
       <div data-act="noop" role="alertdialog" aria-labelledby="rctb-h" aria-describedby="rctb-d" style="width:460px;max-width:94vw;background:#fff;border-radius:4px;box-shadow:1px 2px 12px 1px rgba(76,76,76,.14), 0 10px 10px -5px rgba(76,76,76,.15);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;height:48px;box-sizing:border-box;padding:8px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
@@ -4285,10 +4291,14 @@ class Component extends DCLogic {
         </div>
         <div style="display:flex;align-items:flex-start;gap:16px;min-height:124px;box-sizing:border-box;padding:24px 8px 16px 16px">
           <svg width="48" height="48" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5));flex:none"><path d="M40-120 480-880l440 760H40Zm440-120q17 0 28.5-11.5T520-280q0-17-11.5-28.5T480-320q-17 0-28.5 11.5T440-280q0 17 11.5 28.5T480-240Zm-40-120h80v-200h-80v200Z"/></svg>
-          <span id="rctb-d" style="flex:1;min-width:0;padding-right:8px;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">This charge type can’t be removed from ${list} because a charge using it is the ${role} charge for this property. To remove it, first assign ${role} to a charge with a different charge type.</span>
+          <span style="flex:1;min-width:0;padding-right:8px;display:flex;flex-direction:column;gap:8px;font-size:14px;line-height:20px">
+            <span id="rctb-d" style="color:var(--rmx-brand-dark, #13314c)">A charge using <strong style="font-weight:600">${names}</strong> is set as the ${role}.</span>
+            <span style="color:var(--rmx-text, #666666)">To remove this charge type, first set a charge with a different charge type as the ${role}.</span>
+          </span>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:16px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:8px 16px">
-          <button data-act="rentCTBlockClose" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">OK</button>
+          <button data-act="rentCTBlockGo" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Go to Charges</button>
+          <button data-act="rentCTBlockClose" class="btn-out" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Close</button>
         </div>
       </div>
     </div>`;
