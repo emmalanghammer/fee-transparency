@@ -4729,22 +4729,25 @@ class Component extends DCLogic {
     const INFO = `<svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5));flex:none;margin-top:2px"><path d="M453-280h60v-240h-60v240Zm50.5-323.2q9.5-9.2 9.5-22.8 0-14.45-9.48-24.22-9.48-9.78-23.5-9.78t-23.52 9.78Q447-640.45 447-626q0 13.6 9.48 22.8 9.48 9.2 23.5 9.2t23.52-9.2ZM480.27-80q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg>`;
     const b = t => `<strong style="font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</strong>`;
     const li = t => `<li style="padding-left:2px">${t}</li>`;
-    const title = prop ? 'Edit these charges in the property&#39;s Charges' : 'Edit tenant charges in each property&#39;s Charges';
+    const title = prop ? 'These charges are now edited on the property' : 'Tenant charges are now edited on each property';
     const lead = prop
-      ? `With the fee transparency update, the charges set up here became property-level charges on ${b(prop)}.`
-      : `With the fee transparency update, every charge set up here became a property-level charge on the properties that use it.`;
+      ? `With the fee transparency update, the charges set up here became property-level charges on ${b(prop)}. This setup is now read-only.`
+      : `With the fee transparency update, these charges became property-level charges and this page is read-only.`;
+    // System Preferences only: the properties that overrode this setup started from their own list,
+    // so their charges may not match the tables below.
+    const ovr = prop ? [] : this.propertiesData().map(p => p.name).filter(n => this.tcsOverrides()[n]);
     return `<div style="display:flex;align-items:flex-start;gap:12px;background:rgba(232,246,250,0.5);border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;padding:16px;max-width:880px;box-sizing:border-box;flex:none">
       ${INFO}
       <div style="display:flex;flex-direction:column;gap:8px;flex:1;min-width:0">
         <span style="font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title}</span>
         <span style="font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">${lead}</span>
         <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">
-          ${li(`${b('Change a charge on the property, not here.')} Rent quotes, the Move In wizard and the Add Tenant wizard add charges from ${prop ? 'its' : 'each property&#39;s'} Charges now, and this setup is kept read-only for reference.`)}
-          ${li(`${b('The Charge Source is now the charge&#39;s Amount.')} A source like Unit Market Rent became a ${b('Reference')} amount, a Flat Amount became a flat amount, and a pet type amount still comes from the pet type.`)}
+          ${li(`${b(prop ? 'Change these charges in the property&#39;s Charges.' : 'Change charges in the property&#39;s Charges.')} Rent quotes and the Move In and Add Tenant wizards add charges from there.`)}
+          ${li(`${b('The Charge Source became the charge&#39;s Amount.')} Unit Market Rent is now a Reference amount; flat and pet type amounts are unchanged.`)}
         </ul>
         ${prop
           ? `<button data-act="openFeeProfile" data-arg="${esc(prop)}" class="btn-pri" style="align-self:flex-start;margin-top:4px;height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Go to ${prop} Charges</button>`
-          : `<span style="font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">Select a property in the tables below to open its charges.</span>`}
+          : ovr.length ? `<span style="font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">The following properties had tenant charge setup overridden and their default charges may differ: ${ovr.map(n => b(n)).join(', ')}</span>` : ''}
       </div>
     </div>`;
   }
@@ -4828,24 +4831,17 @@ class Component extends DCLogic {
     // the property's Charges, and this page only says where each one went. The tables are the record
     // of what was here: read-only, with no kebab, reorder handle or Add link.
     const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
-    const props = this.propertiesData().map(p => p.name);
-    const movedTo = (code) => props.filter(n => this.profileRows(n).some(r => r.mits === code && r.level === 'Property'));
-    const spCols = this.colTracks('tcsmoved2', 'minmax(0,0.6fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.5fr)');
+    const spCols = this.colTracks('tcsmoved3', 'minmax(0,0.6fr) minmax(0,1fr) minmax(0,1fr)');
     const head = (t) => `<span style="padding:14px 16px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span>`;
     const chargeTable = (rows) => `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden;max-width:880px">
-      <div ${this.colHead('tcsmoved2')} style="display:grid;grid-template-columns:${spCols};background:#fff;border-bottom:1px solid var(--rmx-line, #cedbe7)">
-        ${head('Charge Type')}${head('Charge Source')}${head('Amount on the Charge')}${head('Property Charge On')}
+      <div ${this.colHead('tcsmoved3')} style="display:grid;grid-template-columns:${spCols};background:#fff;border-bottom:1px solid var(--rmx-line, #cedbe7)">
+        ${head('Charge Type')}${head('Charge Source')}${head('Amount on the Charge')}
       </div>
       ${rows.map(([code, source], i) => {
-        const on = movedTo(code);
-        const links = on.length
-          ? on.map(n => `<a data-act="openFeeProfile" data-arg="${esc(n)}" title="View ${esc(n)}'s charges" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">${n}</a>`).join(', ')
-          : `<span style="font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No properties</span>`;
         return `<div style="display:grid;grid-template-columns:${spCols};align-items:start;background:${i % 2 ? 'var(--rmx-bg-subtle, #f5f8fa)' : '#fff'}">
         <span style="padding:12px 16px;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">${code}</span>
         <span style="padding:12px 16px;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">${source}</span>
         <span style="padding:12px 16px;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">${this.tcsAmountOf(source)}</span>
-        <span style="padding:12px 16px;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">${links}</span>
       </div>`; }).join('')}
     </div>`;
     const movedBanner = this.tcsBanner();

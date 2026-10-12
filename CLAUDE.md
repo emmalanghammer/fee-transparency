@@ -1354,18 +1354,23 @@ it: only **Riverview Apartments**, whose list adds APPFEE.
 
 **Both Tenant Charge Setups share one note, `tcsBanner(prop)`** (2026-10-07). It answers two
 questions, in order: where to edit these charges now, and what happened to their Charge Source. The
-title is *Edit tenant charges in each property's Charges* on System Preferences, and *Edit these
-charges in the property's Charges* on a property. A lead sentence follows, then two bold-led
+title is *Tenant charges are now edited on each property* on System Preferences, and *These
+charges are now edited on the property* on a property (UX-copy review, 2026-10-12). The lead
+sentence says where the charges went and that the setup is now read-only, then two bold-led
 bullets:
-- **Change a charge on the property, not here.** The wizards read the property's Charges, and this
-  setup is read-only.
-- **The Charge Source is now the charge's Amount.** Unit Market Rent became a Reference amount, Flat
-  stayed flat, and a pet type amount still comes from the pet type.
+- **Change charges in the property's Charges.** (*Change these charges…* on a property.) Rent
+  quotes and the Move In and Add Tenant wizards add charges from there.
+- **The Charge Source became the charge's Amount.** Unit Market Rent is now a Reference amount; flat
+  and pet type amounts are unchanged.
+
+System Preferences closes on the user's own line, *"The following properties had tenant charge
+setup overridden and their default charges may differ:"* followed by the properties in
+`tcsOverrides()`, comma-separated in SemiBold navy, not links — and on nothing when none did.
 
 The property's note ends in a primary **Go to `<Property>` Charges** button. System Preferences
 points to the property links in its tables instead. Both tables gained **Amount on the Charge**
 (`tcsAmountOf(src)`: *Flat*, *From the pet type*, or *Reference: `<source>`*), so the source and
-what it became sit side by side. System Preferences' last column is now **Property Charge On**.
+what it became sit side by side. System Preferences has no property column (2026-10-12): every property carries these charges, so the banner names only the ones that overrode the setup.
 
 **FMR (first month's rent) is the worked example of a referenced source.** Its Tenant Charge Setup
 source was **Unit Market Rent**, so it arrived as a required one-time Property charge with
@@ -1378,9 +1383,7 @@ Market Rent* and opens on the charge's own reference. Its Fee Due seeds to **Mov
 (`mktDefSeed`).
 
 `sysPrefsBody()` keeps the page, under `tcsBanner()` (below), that says what happened. Both sections stay as a read-only record: **Charge Type
-· Charge Source · Amount on the Charge · Property Charge On**, with no kebab, reorder handle, Add link or posting-day
-option. The last column names every property carrying that code at Property level as links to
-`openFeeProfile`. `chargesFrom` records `sysprefs` too, so closing Charges returns here. The
+· Charge Source · Amount on the Charge**, with no kebab, reorder handle, Add link or posting-day option. `chargesFrom` records `sysprefs` too, so closing Charges returns here. The
 earlier *Activate Fee Transparency* banner, the *Only properties that do not have Fee Transparency…*
 strip and the all-converted strip are gone.
 
