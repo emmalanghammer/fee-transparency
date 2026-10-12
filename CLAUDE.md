@@ -1279,7 +1279,10 @@ and FMR (any of `RC|FMR|LMR|RENT` present), and what is ticked is kept per prope
 
 **A charge on one of those types is asked whether it is the Base Rent / Security Deposit or an
 additional charge** (2026-10-09, Figma `3832:62257`). `leaseRoleKind(code, prop)` says which question
-applies ('rent', 'deposit' or none). The charge form's Charge Marketing opens with a bordered card
+applies ('rent', 'deposit' or none). **Only on a property fee transparency applies to** (`ftApplicable`, 2026-10-12):
+the question is how listings treat the charge, so a property that isn't marketed online (Oakwood
+Manor) or lists only on MH Village (Clearcreek) never shows the card, its Name stays the charge's own,
+and a save there keeps whatever role the charge already held. The charge form's Charge Marketing opens with a bordered card
 (`#m-role-wrap`, `roleCard`) above the fields card: *"`<CODE>` is a rent charge type on this property.
 How should listings treat this charge?"* (or *security deposit charge type*) over **Base Rent** /
 **Additional Charge** (or **Security Deposit** / **Additional Charge**) radios. Answered, Name is

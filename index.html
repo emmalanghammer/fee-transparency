@@ -2154,7 +2154,7 @@ class Component extends DCLogic {
         const cat = this.chargeCategoryFor(code);
         // A Base Rent / Security Deposit charge shows its role as its Name; what it was called before
         // is kept, so answering Additional Charge later brings it back.
-        const roleNow = this.leaseRoleVal();
+        const roleNow = this.ftApplicable(this.state.property) ? this.leaseRoleVal() : '';
         const nameIn = roleNow ? ((m.edit && m.edit.listing && m.edit.listing.name) || D.name || '') : name;
         // The form opens holding what the charge inherits, so a field that is empty now was emptied
         // on purpose — recorded as `cleared`, so it stays empty rather than inheriting again.
@@ -2170,7 +2170,9 @@ class Component extends DCLogic {
           feeDue: own(v('m-due'), D.feeDue),
           schedule: isOne ? '' : own(v('m-sched'), D.schedule),
           refundable: refNow === refLbl ? undefined : this.refundVal(),
-          leaseRole: this.leaseRoleKind(code) ? roleNow : undefined,
+          // Not asked on a property that isn't marketed, so whatever the charge held is kept.
+          leaseRole: !this.leaseRoleKind(code) ? undefined
+            : this.ftApplicable(this.state.property) ? roleNow : (m.edit && m.edit.listing ? m.edit.listing.leaseRole : undefined),
           // Editing a charge by hand is not an answer about inheritance, so an *Only new charges*
           // refusal at either rung survives the save that would otherwise rebuild `listing` without it.
           noInherit: (m.edit && m.edit.listing && m.edit.listing.noInherit) || undefined,
@@ -8426,7 +8428,7 @@ class Component extends DCLogic {
     // property, worded for which, and reset to Additional Charge when the kind changes.
     window.__roleCheck = () => {
       const code = String(((this.q('#m-ctype') || {}).value) || '').toUpperCase();
-      const kind = this.leaseRoleKind(code);
+      const kind = this.ftApplicable(this.state.property) ? this.leaseRoleKind(code) : '';
       const w = this.q('#m-role-wrap'); if (!w) return;
       const was = w.getAttribute('data-kind') || '';
       w.style.display = kind ? 'flex' : 'none';
@@ -8889,8 +8891,11 @@ class Component extends DCLogic {
     // rest. A charge on one of the property's rent or security deposit charge types is asked which it
     // is (Figma 3832:62257); answered, its Name is the role, locked.
     const code0 = String((ed && ed.mits) || '').toUpperCase();
-    const kind0 = this.leaseRoleKind(code0);
-    const role0 = ed ? this.leaseRoleOf(Object.assign({ _prop: this.state.property }, ed)) : '';
+    // Only asked where the property lists online on a provider that takes complete pricing — the
+    // question is how listings treat the charge, so a property that isn't marketed never sees it.
+    const roleOn = this.ftApplicable(this.state.property);
+    const kind0 = roleOn ? this.leaseRoleKind(code0) : '';
+    const role0 = (ed && roleOn) ? this.leaseRoleOf(Object.assign({ _prop: this.state.property }, ed)) : '';
     const nm0 = (ed && ed.listing && ed.listing.name) || (ed ? (INH.name || '') : '');
     const nameNow = role0 ? this.leaseRoleLabel(role0) : nm0;
     const roleCard = `<div id="m-role-wrap" data-kind="${kind0}" style="display:${kind0 ? 'flex' : 'none'};flex-direction:column;gap:12px;padding:14px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px">
