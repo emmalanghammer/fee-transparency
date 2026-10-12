@@ -218,6 +218,7 @@ class Component extends DCLogic {
     fpEdit: null,         // { prop, id } — the New / Edit Floor Plan dialog (id null = new)
     fpMenu: null,         // { id, x, y } — a floor plan row's kebab menu
     fpDel: null,          // { id } — Delete Floor Plan confirmation
+    rentCTBlock: null,    // { prop, codes } — a Rent Charge Type that can't be removed, it holds the Base Rent
     ctmAsk: null,         // { prop, code, vals } — how far a property's override should reach
     ctmMode: 'inherit',
  // Listings page: hide listings without errors
@@ -1609,6 +1610,7 @@ class Component extends DCLogic {
         const i = list.findIndex(f => f.id === e.id); if (i >= 0) list[i] = rec; else list.push(rec);
         this.setState({ fpEdit: null, fpData: Object.assign({}, this.state.fpData, { [prop]: list }) });
         this.flash(e.id ? 'Floor plan saved' : 'Floor plan added'); break; }
+      case 'rentCTBlockClose': this.setState({ rentCTBlock: null }); break;
       case 'fpDelAsk': this.setState({ fpMenu: null, fpDel: { id: arg } }); break;
       case 'fpDelCancel': this.setState({ fpDel: null }); break;
       case 'fpDelete': { const d = this.state.fpDel; if (!d) break; const prop = this.state.property;
@@ -4268,6 +4270,23 @@ class Component extends DCLogic {
       </div>
     </div>`;
   }
+  // RMX PopUp: a Rent Charge Type that can't come off the list because a charge on it is the Base Rent.
+  // One button, since there is nothing to confirm — only something to do first.
+  rentCTBlockHTML(){
+    const b = this.state.rentCTBlock; if (!b) return '';
+    return `<div data-act="rentCTBlockClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:160">
+      <div data-act="noop" role="alertdialog" aria-labelledby="rctb-h" style="width:460px;max-width:94vw;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;height:48px;box-sizing:border-box;padding:8px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
+          <span id="rctb-h" style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">Can’t Remove Charge Type</span>
+          <span data-act="rentCTBlockClose" style="display:flex;cursor:pointer">${this.ico('close', 24, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
+        </div>
+        <div style="padding:16px;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">This charge type can’t be removed from Rent Charge Types because a charge using it is the Base Rent charge for this property. To remove it, first assign Base Rent to a charge with a different charge type.</div>
+        <div style="display:flex;justify-content:flex-end;gap:16px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:8px 16px">
+          <button data-act="rentCTBlockClose" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">OK</button>
+        </div>
+      </div>
+    </div>`;
+  }
   fpMenuHTML(){
     const m = this.state.fpMenu; if (!m) return '';
     const left = Math.max(8, m.x - 180);
@@ -5747,7 +5766,14 @@ class Component extends DCLogic {
     const rentOpts = this.chargeTypeList().map(([code, desc]) => ({ value: code, label: code + ' - ' + desc }));
     const rentSel = this.rentTypesFor(p);
     window.__rentCT = (prop) => { const l = document.getElementById('pg-rent-ct-list'); if (!l) return;
-      this._rentCT = Object.assign({}, this._rentCT, { [prop]: Array.prototype.map.call(l.querySelectorAll('input:checked'), x => x.value) }); };
+      const now = Array.prototype.map.call(l.querySelectorAll('input:checked'), x => x.value);
+      // A charge type can't leave the list while a charge on it is the Base Rent (2026-10-12): it would
+      // quietly stop being one. Read against the list as it stood, the box goes back on and a popup
+      // says why and what to do first.
+      const held = this.rentTypesFor(prop).filter(c => now.indexOf(c) < 0
+        && this.profileRows(prop).some(r => String(r.mits || '').toUpperCase() === c && this.leaseRoleOf(r) === 'rent'));
+      if (held.length) { this.setState({ rentCTBlock: { prop, codes: held } }); return; }
+      this._rentCT = Object.assign({}, this._rentCT, { [prop]: now }); };
     // Security Deposit Charge Types, the same way: which charge types are the deposit (DP to start).
     window.__depCT = (prop) => { const l = document.getElementById('pg-dep-ct-list'); if (!l) return;
       this._depCT = Object.assign({}, this._depCT, { [prop]: Array.prototype.map.call(l.querySelectorAll('input:checked'), x => x.value) }); };
@@ -10570,6 +10596,7 @@ class Component extends DCLogic {
     out += this.fpEditHTML();
     out += this.fpMenuHTML();
     out += this.fpDelHTML();
+    out += this.rentCTBlockHTML();
     out += this.ctmAskHTML();
     out += this.mktDefAskHTML();
     out += this.mktAdvHTML();

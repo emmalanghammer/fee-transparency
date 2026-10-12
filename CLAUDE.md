@@ -1327,6 +1327,16 @@ and FMR (any of `RC|FMR|LMR|RENT` present), and what is ticked is kept per prope
 **Security Deposit Charge Types** sits beside it, the same checklist (`pg-dep-ct`, `this._depCT`,
 `window.__depCT`), starting on DP. `rentTypesFor(prop)` / `depTypesFor(prop)` read them.
 
+**A rent charge type holding the Base Rent can't come off the list** (2026-10-12, the user's spec).
+`window.__rentCT` compares the new ticks with `rentTypesFor(prop)` before saving them: if a code
+being unticked has a charge whose `leaseRoleOf` is `rent` (stored, or the default property-level RC),
+nothing is saved, `state.rentCTBlock` raises **`rentCTBlockHTML`** — an RMX PopUp at z-index 160,
+*Can’t Remove Charge Type* over the user's copy, *"This charge type can’t be removed from Rent Charge
+Types because a charge using it is the Base Rent charge for this property. To remove it, first assign
+Base Rent to a charge with a different charge type."*, and a lone **OK** — and the re-render puts the
+tick back. Unticking a type that holds no Base Rent (FMR) still just works. Security Deposit Charge
+Types has no such guard yet.
+
 **A charge on one of those types is asked whether it is the Base Rent / Security Deposit or an
 additional charge** (2026-10-09, Figma `3832:62257`). `leaseRoleKind(code, prop, isOne)` says which
 question applies ('rent', 'deposit' or none). **Base Rent is only offered on a recurring charge and
