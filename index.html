@@ -207,6 +207,7 @@ class Component extends DCLogic {
     ],
     petType: null, // index being edited in Pet Type Details, or 'new'
     spNav: 'Tenant Charge Setup', // System Preferences left-nav selection
+    sdTypes: ['DP'],      // System Preferences › Security Deposit › General: the company's security deposit charge types
     spBanner: true, // System Preferences Fee Transparency banner not yet dismissed
     tcsProp: null,  // the property whose Tenant Charge Setup overlay is open
     ltErrOnly: false,
@@ -478,7 +479,9 @@ class Component extends DCLogic {
   // checklists on its General tab (2026-10-09). Unset, rent is RC / FMR and the deposit DP.
   rentTypesFor(prop){ const s = (this._rentCT || {})[prop || this.state.property]; if (s) return s;
     return this.chargeTypeList().map(t => t[0]).filter(c => /^(RC|FMR|LMR|RENT)$/.test(c)); }
-  depTypesFor(prop){ const s = (this._depCT || {})[prop || this.state.property]; if (s) return s;
+  // Security deposit charge types are company-wide, as in production: System Preferences › Security
+  // Deposit › General (2026-10-12). `prop` is kept so callers read the same as `rentTypesFor`.
+  depTypesFor(prop){ const s = this.state.sdTypes; if (s) return s;
     return this.chargeTypeList().map(t => t[0]).filter(c => /^(DP|SD|SECDEP|DEP)$/.test(c)); }
   // 'rent' when the charge type is one of the property's rent charge types, 'deposit' for a security
   // deposit charge type, else ''. Only those charges are asked the question — and the Base Rent is
@@ -1611,8 +1614,17 @@ class Component extends DCLogic {
         this.setState({ fpEdit: null, fpData: Object.assign({}, this.state.fpData, { [prop]: list }) });
         this.flash(e.id ? 'Floor plan saved' : 'Floor plan added'); break; }
       case 'rentCTBlockClose': this.setState({ rentCTBlock: null }); break;
+      // System Preferences › Security Deposit › General. A type can't come off while any property's
+      // Security Deposit is a charge on it — the same popup the Rent Charge Types list raises, naming
+      // where it is held.
+      case 'sdAdd': { const h = this.q('#sd-add'); const v = h && h.value; if (!v) break;
+        if ((this.state.sdTypes || []).indexOf(v) < 0) this.setState({ sdTypes: (this.state.sdTypes || []).concat([v]) }); break; }
+      case 'sdRemove': { const code = String(arg || '');
+        const held = this.propNames().filter(p => this.profileRows(p).some(r => String(r.mits || '').toUpperCase() === code && this.leaseRoleOf(r) === 'deposit'));
+        if (held.length) { this.setState({ rentCTBlock: { prop: held[0], props: held, codes: [code], kind: 'deposit', system: true } }); break; }
+        this.setState({ sdTypes: (this.state.sdTypes || []).filter(c => c !== code) }); break; }
       case 'rentCTBlockGo': { const b = this.state.rentCTBlock; this.setState({ rentCTBlock: null });
-        this.go('property', { property: (b && b.prop) || this.state.property, propTab: 'Charges', chargesFrom: null }); break; }
+        this.go('property', { property: (b && b.prop) || this.state.property, propTab: 'Charges', chargesFrom: b && b.system ? 'sysprefs' : null }); break; }
       case 'fpDelAsk': this.setState({ fpMenu: null, fpDel: { id: arg } }); break;
       case 'fpDelCancel': this.setState({ fpDel: null }); break;
       case 'fpDelete': { const d = this.state.fpDel; if (!d) break; const prop = this.state.property;
@@ -2538,6 +2550,8 @@ class Component extends DCLogic {
       'inventory_2':'M180-80q-24.75 0-42.37-17.63Q120-115.25 120-140v-483q-17-6-28.5-21.39T80-680v-140q0-24.75 17.63-42.38Q115.25-880 140-880h680q24.75 0 42.38 17.62Q880-844.75 880-820v140q0 20.22-11.5 35.61T840-623v483q0 24.75-17.62 42.37Q804.75-80 780-80H180Zm0-540v480h600v-480H180Zm-40-60h680v-140H140v140Zm220 260h240v-60H360v60Zm120 40Z',
       'keyboard_arrow_down':'M480-344 240-584l43-43 197 197 197-197 43 43-240 240Z',
       'keyboard_arrow_right':'M530-481 332-679l43-43 241 241-241 241-43-43 198-198Z',
+      'keyboard_double_arrow_up':'M480-704 296-520l-56-56 240-240 240 240-56 56-184-184Zm0 240L296-280l-56-56 240-240 240 240-56 56-184-184Z',
+      'keyboard_double_arrow_down':'M480-256 296-440l-56 56 240 240 240-240-56-56-184 184Zm0-240L296-680l-56 56 240 240 240-240-56-56-184 184Z',
       'keyboard_arrow_up':'M480-554 283-357l-43-43 240-240 240 240-43 43-197-197Z',
       'keyboard_double_arrow_left':'M453-241 213-481l240-240 42 42-198 198 198 198-42 42Zm253 0L466-481l240-240 42 42-198 198 198 198-42 42Z',
       'label':'M140-160q-24.75 0-42.37-17.63Q80-195.25 80-220v-520q0-24.75 17.63-42.38Q115.25-800 140-800h471q14.25 0 27 6.37 12.75 6.38 21 17.63l222 296-221 296q-8.25 11.25-21 17.62-12.75 6.38-27 6.38H140Zm0-60h471l195-260-195-260H140v520Zm236-260Z',
@@ -3083,7 +3097,7 @@ class Component extends DCLogic {
       recView: null, mrView: false, rowMenu: null, pubModal: null, pubDone: null, ftSel: null, mktDef: this.mktDefAll(),
       mktSetup: false, mktAdv: false, mktTab: 'General', petType: null, spBanner: true, tcsProp: null, ftHelp: false,
       lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false, ltGroupBy: true, ftSetup: null, propDef: {}, ctmEdit: null, ctmAsk: null, ctmMode: 'inherit', mcTab: 'Overview',
-      fpData: {}, fpEdit: null, fpMenu: null, fpDel: null,
+      fpData: {}, fpEdit: null, fpMenu: null, fpDel: null, sdTypes: ['DP'],
       mcProp: null, mktDefDraft: null, mktDefAsk: false, mktDefMode: 'inherit', mpExp: null
     });
     try {
@@ -4283,6 +4297,9 @@ class Component extends DCLogic {
     // as the additional text, as the PopUp lays them out; the primary action goes where it's fixed.
     const desc = {}; this.chargeTypeListAll().forEach(t => { desc[t[0]] = t[1]; });
     const names = (b.codes || []).map(c => c + ' – ' + (desc[c] || c)).join(' and ');
+    // From System Preferences the list is company-wide, so the popup says where the role is held.
+    const held = b.props || [];
+    const where = !b.system ? '' : held.length === 1 ? ' at ' + held[0] : ' at ' + held.length + ' properties';
     return `<div data-act="rentCTBlockClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:160">
       <div data-act="noop" role="alertdialog" aria-labelledby="rctb-h" aria-describedby="rctb-d" style="width:460px;max-width:94vw;background:#fff;border-radius:4px;box-shadow:1px 2px 12px 1px rgba(76,76,76,.14), 0 10px 10px -5px rgba(76,76,76,.15);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;height:48px;box-sizing:border-box;padding:8px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
@@ -4292,7 +4309,7 @@ class Component extends DCLogic {
         <div style="display:flex;align-items:flex-start;gap:16px;min-height:124px;box-sizing:border-box;padding:24px 8px 16px 16px">
           <svg width="48" height="48" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5));flex:none"><path d="M40-120 480-880l440 760H40Zm440-120q17 0 28.5-11.5T520-280q0-17-11.5-28.5T480-320q-17 0-28.5 11.5T440-280q0 17 11.5 28.5T480-240Zm-40-120h80v-200h-80v200Z"/></svg>
           <span style="flex:1;min-width:0;padding-right:8px;display:flex;flex-direction:column;gap:8px;font-size:14px;line-height:20px">
-            <span id="rctb-d" style="color:var(--rmx-brand-dark, #13314c)">A charge using <strong style="font-weight:600">${names}</strong> is set as the ${role}.</span>
+            <span id="rctb-d" style="color:var(--rmx-brand-dark, #13314c)">A charge using <strong style="font-weight:600">${names}</strong> is set as the ${role}${where}.</span>
             <span style="color:var(--rmx-text, #666666)">To remove this charge type, first set a charge with a different charge type as the ${role}.</span>
           </span>
         </div>
@@ -5277,7 +5294,38 @@ class Component extends DCLogic {
       </div>`; }).join('')}
     </div>`;
     const movedBanner = this.tcsBanner();
-    const body = sel !== 'Tenant Charge Setup'
+    // Security Deposit › General, as production draws it: the description, a charge type search with
+    // its + button, then the list — a red remove cross on each row — beside the reorder buttons.
+    const sdBody = () => {
+      const names = {}; this.chargeTypeListAll().forEach(t => { names[t[0]] = t[1]; });
+      const list = this.state.sdTypes || [];
+      const opts = this.chargeTypeList().filter(t => list.indexOf(t[0]) < 0).map(t => ({ value: t[0], label: t[0] + ' - ' + t[1] }));
+      const sq = (icon, act, arg, label, faded) => `<button type="button" ${act ? `data-act="${act}"${arg ? ` data-arg="${arg}"` : ''}` : ''} aria-label="${label}" style="display:flex;align-items:center;justify-content:center;width:44px;height:38px;border:0;border-radius:4px;background:var(--ac,var(--rmx-brand, #008dd5));opacity:${faded ? .45 : 1};color:#fff;cursor:pointer">${icon}</button>`;
+      const rows = list.map(c => `<div style="display:flex;align-items:center;gap:16px;padding:10px 20px;font-size:16px;color:var(--rmx-brand-dark, #13314c)">
+          <button type="button" data-act="sdRemove" data-arg="${esc(c)}" aria-label="Remove ${esc(c)}" style="display:flex;border:0;background:none;padding:0;cursor:pointer">${this.ico('close', 22, 'color:var(--rmx-error, #eb343c)')}</button>
+          <span>${esc(c)} - ${esc(names[c] || c)}</span></div>`).join('');
+      return sect('General', `
+        <span style="font-size:15px;line-height:22px;color:var(--rmx-text, #666666)">Choose the charge type(s) you would like to use for your security deposits. This will be used for creating and refunding deposits.</span>
+        <div style="display:flex;gap:20px;align-items:flex-start">
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
+            <span style="font-size:15px;color:var(--rmx-text, #666666)">Charge Type</span>
+            ${this.singleSelect('sd-add', opts, '', { placeholder: 'Search charge types', blank: false })}
+            <div style="margin-top:4px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;background:var(--rmx-bg-subtle, #f5f8fa);min-height:320px">
+              <div style="padding:16px 20px;font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c);background:#fff;border-bottom:1px solid var(--rmx-line, #cedbe7);border-radius:4px 4px 0 0">Security Deposit Charge Type(s)</div>
+              ${rows || `<div style="padding:16px 20px;font-size:14px;color:var(--rmx-text, #666666)">No security deposit charge types.</div>`}
+            </div>
+          </div>
+          <div style="flex:none;display:flex;flex-direction:column;gap:10px;padding-top:28px">
+            ${sq(this.ico('add', 22), 'sdAdd', '', 'Add charge type')}
+            <div style="height:150px"></div>
+            ${sq(this.ico('keyboard_arrow_up', 22), 'todo', 'Move up', 'Move up', true)}
+            ${sq(this.ico('keyboard_double_arrow_up', 22), 'todo', 'Move to top', 'Move to top', true)}
+            ${sq(this.ico('keyboard_arrow_down', 22), 'todo', 'Move down', 'Move down', true)}
+            ${sq(this.ico('keyboard_double_arrow_down', 22), 'todo', 'Move to bottom', 'Move to bottom', true)}
+          </div>
+        </div>`);
+    };
+    const body = sel === 'Security Deposit General' ? sdBody() : sel !== 'Tenant Charge Setup'
       ? `<div style="padding:40px 4px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">${sel} preferences</div>`
       : `${movedBanner}
       ${sect('Default Recurring Charges', chargeTable(this.tcsSystem().rec))}
@@ -5790,20 +5838,11 @@ class Component extends DCLogic {
         && this.profileRows(prop).some(r => String(r.mits || '').toUpperCase() === c && this.leaseRoleOf(r) === 'rent'));
       if (held.length) { this.setState({ rentCTBlock: { prop, codes: held, kind: 'rent' } }); return; }
       this._rentCT = Object.assign({}, this._rentCT, { [prop]: now }); };
-    // Security Deposit Charge Types, the same way: which charge types are the deposit (DP to start).
-    window.__depCT = (prop) => { const l = document.getElementById('pg-dep-ct-list'); if (!l) return;
-      const now = Array.prototype.map.call(l.querySelectorAll('input:checked'), x => x.value);
-      // The same guard as Rent Charge Types, for the charge that is the Security Deposit.
-      const held = this.depTypesFor(prop).filter(c => now.indexOf(c) < 0
-        && this.profileRows(prop).some(r => String(r.mits || '').toUpperCase() === c && this.leaseRoleOf(r) === 'deposit'));
-      if (held.length) { this.setState({ rentCTBlock: { prop, codes: held, kind: 'deposit' } }); return; }
-      this._depCT = Object.assign({}, this._depCT, { [prop]: now }); };
-    const depCT = `<div style="display:flex;flex-direction:column;gap:4px;min-width:0">${lab('Security Deposit Charge Types')}${this.multiSelect('pg-dep-ct', rentOpts, this.depTypesFor(p), "if(window.__depCT)window.__depCT(" + JSON.stringify(p).replace(/"/g, '&quot;') + ")")}</div>`;
     const rentCT = `<div style="display:flex;flex-direction:column;gap:4px;min-width:0">${lab('Rent Charge Types')}${this.multiSelect('pg-rent-ct', rentOpts, rentSel, "if(window.__rentCT)window.__rentCT(" + JSON.stringify(p).replace(/"/g, '&quot;') + ")")}</div>`;
     const other = tile('Other Information','',
       `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         ${input('Property Tax ID','')}${select('Default Bank','1000 Fifth Third - Operating Bank Account For All Properties')}
-        ${rentCT}${depCT}
+        ${rentCT}<div></div>
         ${select('Bank Settings','5 Selected')}
         ${input('Billing Name 1','PMC')}${select('Assign Service Issues','&lt;System Default&gt;')}
         ${input('Billing Name 2','')}${input('Posting Day','20')}
@@ -8876,7 +8915,7 @@ class Component extends DCLogic {
       w.style.display = kind ? 'flex' : 'none';
       w.setAttribute('data-kind', kind);
       const q = this.q('#m-role-q');
-      if (q) q.textContent = kind ? code + ' is a ' + (kind === 'rent' ? 'rent' : 'security deposit') + ' charge type on this property. How should listings treat this charge?' : '';
+      if (q) q.textContent = kind ? code + ' is a ' + (kind === 'rent' ? 'rent charge type on this property' : 'security deposit charge type') + '. How should listings treat this charge?' : '';
       const yes = this.q('#m-role-yes'), yl = this.q('#m-role-yes-l'), no = this.q('#m-role-no');
       if (yes) yes.value = kind;
       if (yl) yl.textContent = this.leaseRoleLabel(kind);
@@ -9341,7 +9380,7 @@ class Component extends DCLogic {
     const nm0 = (ed && ed.listing && ed.listing.name) || (ed ? (INH.name || '') : '');
     const nameNow = role0 ? this.leaseRoleLabel(role0) : nm0;
     const roleCard = `<div id="m-role-wrap" data-kind="${kind0}" style="display:${kind0 ? 'flex' : 'none'};flex-direction:column;gap:12px;padding:14px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px">
-        <span id="m-role-q" style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">${kind0 ? code0 + ' is a ' + (kind0 === 'rent' ? 'rent' : 'security deposit') + ' charge type on this property. How should listings treat this charge?' : ''}</span>
+        <span id="m-role-q" style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">${kind0 ? code0 + ' is a ' + (kind0 === 'rent' ? 'rent charge type on this property' : 'security deposit charge type') + '. How should listings treat this charge?' : ''}</span>
         <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">
           <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;white-space:nowrap"><input type="radio" id="m-role-yes" name="m-lease-role" value="${kind0}"${role0 ? ' checked' : ''} onclick="if(window.__leaseRole)window.__leaseRole(this)" style="accent-color:var(--ac,var(--rmx-brand, #008dd5));width:18px;height:18px;margin:0;flex:none"><span id="m-role-yes-l" style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${this.leaseRoleLabel(kind0)}</span></label>
           <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;white-space:nowrap"><input type="radio" id="m-role-no" name="m-lease-role" value=""${role0 ? '' : ' checked'} onclick="if(window.__leaseRole)window.__leaseRole(this)" style="accent-color:var(--ac,var(--rmx-brand, #008dd5));width:18px;height:18px;margin:0;flex:none"><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">Additional Charge</span></label>
@@ -10514,7 +10553,7 @@ class Component extends DCLogic {
     } else if (s.view === 'sysprefs') {
       out += `<div style="height:44px;background:var(--ac,var(--rmx-brand, #008dd5));display:flex;align-items:center;padding:0 16px;gap:14px;color:#fff;flex:none">
         <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="navRegister" style="cursor:pointer"><path d="M453-241 213-481l240-240 42 42-198 198 198 198-42 42Zm253 0L466-481l240-240 42 42-198 198 198 198-42 42Z"/></svg>
-        <span style="font-size:18px;line-height:24px">System Preferences:&nbsp; <span>General Options - ${s.spNav}</span></span>
+        <span style="font-size:18px;line-height:24px">System Preferences:&nbsp; <span>${s.spNav === 'Security Deposit General' ? 'Security Deposit - General' : 'General Options - ' + s.spNav}</span></span>
         <div style="flex:1"></div>
         <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="opacity:0.9;cursor:pointer"><path d="M511-258q11-11 11-27t-11-27q-11-11-27-11t-27 11q-11 11-11 27t11 27q11 11 27 11t27-11Zm-62-135h59q0-26 6.5-47.5T555-490q31-26 44-51t13-55q0-53-34.5-85T486-713q-49 0-86.5 24.5T345-621l53 20q11-28 33-43.5t52-15.5q34 0 55 18.5t21 47.5q0 22-13 41.5T508-512q-30 26-44.5 51.5T449-393Zm31 313q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 31.5-156t86-127Q252-817 325-848.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 82-31.5 155T763-197.5q-54 54.5-127 86T480-80Zm0-60q142 0 241-99.5T820-480q0-142-99-241t-241-99q-141 0-240.5 99T140-480q0 141 99.5 240.5T480-140Zm0-340Z"/></svg>
       </div>`;

@@ -1324,8 +1324,17 @@ asked. `chargeColsDefault()` is what honours the gate, beside the existing `base
 *CODE - Description*, so a property says which of its charge types count as rent. It starts on RC
 and FMR (any of `RC|FMR|LMR|RENT` present), and what is ticked is kept per property in
 `this._rentCT` through `window.__rentCT` — off state, so a re-render elsewhere doesn't undo it.
-**Security Deposit Charge Types** sits beside it, the same checklist (`pg-dep-ct`, `this._depCT`,
-`window.__depCT`), starting on DP. `rentTypesFor(prop)` / `depTypesFor(prop)` read them.
+**Security Deposit Charge Types are company-wide**, as production has them (2026-10-12, from the
+user's screenshot): **System Preferences › Security Deposit › General** (`spNav` *Security Deposit
+General*, header *System Preferences: Security Deposit - General*) — *Choose the charge type(s) you would
+like to use for your security deposits. This will be used for creating and refunding deposits.*, a
+**Charge Type** search (`singleSelect('sd-add')`) with a **+** (`sdAdd`), the **Security Deposit Charge
+Type(s)** list with a red remove cross per row (`sdRemove`), and the reorder buttons beside it (`todo`).
+`state.sdTypes` holds it, `['DP']` to start (production also lists a pet deposit; no scenario's charge
+types include PETDP, and adding it would make every activation dialog ask). The property's General tab
+no longer carries the checklist. `rentTypesFor(prop)` / `depTypesFor(prop)` read them — the second
+ignores the property now. The charge form's role card says *"DP is a security deposit charge type."*
+(no *on this property*, which the rent wording keeps).
 
 **A rent charge type holding the Base Rent can't come off the list** (2026-10-12, the user's spec).
 `window.__rentCT` compares the new ticks with `rentTypesFor(prop)` before saving them: if a code
@@ -1338,8 +1347,10 @@ draft): main text *"A charge using **RC – Rent** is set as the Base Rent."* (t
 different charge type as the Base Rent."*, and **Go to Charges** (`rentCTBlockGo`, the property's
 Charges) · **Close**. Either way the re-render puts the tick
 back. Unticking a type that holds no Base Rent (FMR) still just works. **Security Deposit Charge Types
-has the same guard** (`window.__depCT`, `rentCTBlock.kind: 'deposit'`), the copy reading *Security
-Deposit* in place of *Base Rent*.
+has the same guard**, now on System Preferences' list (`sdRemove`, `rentCTBlock.kind: 'deposit'`,
+`system: true`): it checks every property, the copy reads *Security Deposit* in place of *Base Rent* and
+adds where it's held — *"…is set as the Security Deposit at Riverview Apartments."* or *"…at 4
+properties."* — and Go to Charges opens the first of them, closing back to System Preferences.
 
 **A charge on one of those types is asked whether it is the Base Rent / Security Deposit or an
 additional charge** (2026-10-09, Figma `3832:62257`). `leaseRoleKind(code, prop, isOne)` says which
