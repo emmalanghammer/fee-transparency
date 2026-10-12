@@ -155,11 +155,11 @@ activates it is the tile as it ships today, to the user's mock: an amber-bordere
 `warning` triangle — *"To comply with federal fee transparency requirements, ensure all required
 monthly fees are included in the price or clearly disclosed in the description."* and a **Learn More**
 (`todo`) — then Exclude Unit-specific information, **Price** over the bold *"Price is derived from the
-floor plan for properties set to Multi Family feed type."*, **Deposit Fee(s)** beside **Lease Terms**,
+floor plan for properties set to Multi Family feed type."*, **Deposit Fee(s)** over **Lease Terms** (stacked since 2026-10-12; they sat side by side),
 Property Images + Preview, Unit Images as a full-width *2 Selected* with no Preview, and Availability
 Date. **After** activation the compliance note goes and Unit Images gains its Preview, but **Price
 and Deposit Fee(s) stay** (the user asked on 2026-10-08; they used to drop out, on the reasoning that
-the charges supply both): Exclude, Price, Deposit Fee(s) beside Lease Terms, Property Images +
+the charges supply both): Exclude, Price, Deposit Fee(s) over Lease Terms, Property Images +
 Preview, Unit Images + Preview, Availability Date. `preFT` is
 `!publishedProps[P.name]`. **Features' Pets field follows the same line**: a plain dropdown, as it
 ships, before activation; after it, the note *"Pet details can be added on any charges with a PET
