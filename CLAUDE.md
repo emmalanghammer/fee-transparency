@@ -310,6 +310,13 @@ unlabelled Property/Tenant column. The rent quote and Pricing Preview pickers ca
 since the row already names the charge. The `.lvl` / `.lvl-*` classes, `LVL`, `PVL` and `tenantPill`
 are gone.
 
+**Charge Level is always the first column** (2026-10-12): **Charge Level · Charge Type · Comment ·
+Frequency · From · To · Amount · Listing Ready** by default. In the property Charges register it is
+first in `chargeColDefs` (Column Setup can still move it); in the shared `chargeRegisterHTML` it sits
+right after the chevron and **never drops into the row dropdown** at any width (tier 9), so where a
+charge is written is read first even on a narrow tile; and the two copy-charges tables (Add Property ›
+Copy From, Copy Charges from Property) lead with it after their select box.
+
 `infoTip`'s panel is RMX's **Tooltip** (RMX Components `2944:203796`): 312px wide, 16px padding,
 1px `#cedbe7`, 4px radius, drop shadow `0 3px 6px rgba(0,0,0,0.10)`, Roboto Regular 14/20, left
 aligned. Its trigger is Material Icon / Medium / Brand — the squared `info_outline` at 20px, not the

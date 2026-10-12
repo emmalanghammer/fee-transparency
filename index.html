@@ -5610,6 +5610,8 @@ class Component extends DCLogic {
   // in state; each key's cell renderer is built in profileTable, where the row is in scope.
   chargeColDefs(){
     return [
+      // Charge Level leads (2026-10-12): where a charge is written comes before what it is.
+      { key:'level',    label:'Charge Level',          w:'220px', base:true },
       { key:'ctype',    label:'Charge Type',           w:'120px', base:true },
       { key:'comment',  label:'Comment',                          base:true },
       { key:'freq',     label:'Frequency',             w:'110px', base:true, recOnly:true },
@@ -5618,7 +5620,6 @@ class Component extends DCLogic {
       { key:'from',     label:'From',                  w:'100px', base:true, recOnly:true },
       { key:'to',       label:'To',                    w:'90px',  base:true, recOnly:true },
       { key:'amount',   label:'Amount',                w:'140px', base:true },
-      { key:'level',    label:'Charge Level',          w:'220px', base:true },
       { key:'ready',    label:'Listing Ready',         w:'150px', base:'ft' },
       { key:'method',   label:'Amount Method',         w:'130px' },
       // Off by default, on through Column Setup. It reads the resolved schedule, so a one-time
@@ -5826,7 +5827,7 @@ class Component extends DCLogic {
         from: (i) => cell(r.from||'—', pad(i)),
         to: (i) => cell(r.to||'-', pad(i)),
         amount: (i) => cell(String(r.amount||'').replace(/^\$/,''), 'justify-content:flex-end;text-align:right'),
-        level: (i) => `<span style="display:flex;align-items:center;min-height:44px;padding:8px 12px;min-width:0;overflow:hidden">${this.chargeLevelPill(r)}</span>`,
+        level: (i) => `<span style="display:flex;align-items:center;min-height:44px;padding:8px 12px;min-width:0;overflow:hidden;${pad(i)}">${this.chargeLevelPill(r)}</span>`,
         ready: (i) => `<span style="display:flex;align-items:center;min-height:44px;padding:8px 12px">${this.mitsStatusCell(r)}</span>`,
         category: (i) => cell(L.category || '—', pad(i)),
         req: (i) => cell(L.requirement || '—', pad(i)),
@@ -7208,13 +7209,14 @@ class Component extends DCLogic {
     const C = [];
     if (o.chk) C.push(['chk', '', ['44px','44px','44px','44px'], 9]);
     C.push(['chev', '', ['0','32px','32px','32px'], 9]);
+    // Charge Level leads and stays: where a charge is written is read first, at every width.
+    C.push(['level', 'Charge Level', ['minmax(170px,1fr)','minmax(150px,1fr)','minmax(120px,1fr)','minmax(96px,1fr)'], 9]);
     C.push(['code', 'Charge Type', ['110px','110px','minmax(90px,1fr)','minmax(90px,1fr)'], 9]);
     C.push(['comment', 'Comment', ['minmax(140px,1.4fr)','minmax(120px,1.4fr)','0','0'], 2]);
     C.push(['freq', 'Frequency', ['96px','92px','92px','0'], 3]);
     C.push(['from', 'From', ['104px','0','0','0'], 1]);
     C.push(['to', 'To', ['96px','0','0','0'], 1]);
     C.push(['amount', 'Amount', ['120px','116px','116px','110px'], 9, true]);
-    C.push(['level', 'Charge Level', ['minmax(120px,1fr)','minmax(110px,1fr)','0','0'], 2]);
     if (o.ready) C.push(['ready', 'Listing Ready', ['140px','140px','140px','0'], 3]);
     if (o.kebab) C.push(['kebab', '', ['44px','44px','44px','44px'], 9]);
     const tracks = (t) => C.filter(c => !(t >= c[3])).map(c => c[2][t]).join(' ');
@@ -7287,7 +7289,7 @@ class Component extends DCLogic {
       }).join('');
       const det = kv('comment', 'Comment', comment || '—') + kv('freq', 'Frequency', freq)
         + (isRec ? kv('from', 'From', f.from || '—') + kv('to', 'To', f.to || '—') : '')
-        + kv('level', 'Charge Level', lvl) + (o.ready ? kv('ready', 'Listing Ready', this.mitsStatusCell(f)) : '');
+        + (o.ready ? kv('ready', 'Listing Ready', this.mitsStatusCell(f)) : '');
       const openAttr = o.open ? ` data-act="unitChgOpen" data-arg="${esc2(f.id)}" title="Open this charge" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background='${bg}'"` : '';
       return `<div data-chgrow="${esc2(key)}" data-rec="${isRec ? '1' : '0'}"${openAttr} style="background:${bg};border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);${o.open ? 'cursor:pointer;' : ''}">
         <div class="${ns}-r">${cells}</div>
@@ -8106,8 +8108,8 @@ class Component extends DCLogic {
     const srcRows = isCopy ? this.copyableRows(a.copyFrom) : [];
     const chargeTable = (label, rows, rec) => {
       const colK = 'addprop-' + (rec ? 'rec' : 'one');
-      const cols = this.colTracks(colK, rec ? '38px 110px minmax(140px,1fr) 80px 90px 50px 100px 90px' : '38px 110px minmax(140px,1fr) 100px 90px');
-      const heads = rec ? ['','Charge Type','Comment','Frequency','From','To','Amount','Charge Level'] : ['','Charge Type','Comment','Amount','Charge Level'];
+      const cols = this.colTracks(colK, rec ? '38px 190px 110px minmax(140px,1fr) 80px 90px 50px 100px' : '38px 190px 110px minmax(140px,1fr) 100px');
+      const heads = rec ? ['','Charge Level','Charge Type','Comment','Frequency','From','To','Amount'] : ['','Charge Level','Charge Type','Comment','Amount'];
       const allOn = rows.length && rows.every(r => a.sel[r.id]);
       const hc = (t,i) => i === 0
         ? `<span data-act="addPropAll" data-arg="${rec?'rec':'one'}" title="${allOn?'Clear all':'Select all'}" style="display:flex;align-items:center;justify-content:center;padding:6px 8px;cursor:pointer">${chk(!!allOn,'')}</span>`
@@ -8118,9 +8120,9 @@ class Component extends DCLogic {
         <div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7);background:#fff">${heads.map(hc).join('')}</div>
         ${rows.map(r=>`<div data-act="addPropToggle" data-arg="${r.id}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);cursor:pointer;background:#fff">
           <span style="display:flex;align-items:center;justify-content:center;min-height:34px">${chk(!!a.sel[r.id],'')}</span>
+          <span style="display:flex;align-items:center;min-height:34px;padding:5px 8px;min-width:0;overflow:hidden">${this.chargeLevelPill(r, a.copyFrom)}</span>
           ${cell(r.mits)}${cell(r.desc||r.name)}${rec?(cell(this.freqNum(r)||'1')+cell(r.from||'—')+cell(r.to||'-')):''}
-          ${cell(String(r.amount||'').replace(/^\$/,''),'justify-content:flex-end;text-align:right')}
-          <span style="display:flex;align-items:center;min-height:34px;padding:5px 8px;min-width:0;overflow:hidden">${this.chargeLevelPill(r, a.copyFrom)}</span></div>`).join('')}
+          ${cell(String(r.amount||'').replace(/^\$/,''),'justify-content:flex-end;text-align:right')}</div>`).join('')}
         </div>`;
     };
     const copyBlock = !isCopy ? '' : `<div style="display:flex;flex-direction:column;gap:6px;padding-left:24px">
@@ -9194,10 +9196,10 @@ class Component extends DCLogic {
     const dupTip = this.infoTip(`<span style="display:block;white-space:normal">A duplicate is a charge matching one this profile already has; same charge type, frequency, and name, at the same level (property, unit type, or unit). For example, if both profiles have a recurring property Rent charge, that's a duplicate.</span>`);
     const table = (label, list, isRec) => {
       const colK = 'copy-' + (isRec ? 'rec' : 'one');
-      const cols = this.colTracks(colK, isRec ? '44px 120px minmax(150px,1fr) 90px 100px 90px 110px 110px'
-                         : '44px 120px minmax(150px,1fr) 110px 110px');
-      const heads = isRec ? ['','Charge Type','Comment','Frequency','From','To','Amount','Charge Level']
-                          : ['','Charge Type','Comment','Amount','Charge Level'];
+      const cols = this.colTracks(colK, isRec ? '44px 200px 120px minmax(150px,1fr) 90px 100px 90px 110px'
+                         : '44px 200px 120px minmax(150px,1fr) 110px');
+      const heads = isRec ? ['','Charge Level','Charge Type','Comment','Frequency','From','To','Amount']
+                          : ['','Charge Level','Charge Type','Comment','Amount'];
       const allOn = list.length && list.every(r => c.sel[r.id]);
       const headBox = `<span data-act="copyAll" data-arg="${isRec?'rec':'one'}" title="${allOn?'Clear all':'Select all'}" style="display:flex;align-items:center;justify-content:center;cursor:pointer">${box(!!allOn)}</span>`;
       const hc = (t,i) => i === 0 ? headBox : `<span style="display:flex;align-items:center;padding:8px 10px${i===1?' 8px 14px':''};font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;${/Amount/.test(t)?'justify-content:flex-end;':''}">${t}</span>`;
@@ -9207,10 +9209,10 @@ class Component extends DCLogic {
         <div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7)">${heads.map(hc).join('')}</div>
         ${list.length ? list.map(r=>`<div data-act="copyToggle" data-arg="${r.id}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);cursor:pointer">
           <span style="display:flex;align-items:center;justify-content:center;min-height:38px">${box(!!c.sel[r.id])}</span>
-          ${cell(r.mits,'padding-left:14px')}${cell(r.desc||r.name)}
+          <span style="display:flex;align-items:center;min-height:38px;padding:6px 10px 6px 14px;min-width:0;overflow:hidden">${this.chargeLevelPill(r, c.from)}</span>
+          ${cell(r.mits)}${cell(r.desc||r.name)}
           ${isRec?cell(this.freqNum(r)||'—')+cell(r.from||'—')+cell(r.to||'-'):''}
-          ${cell(String(r.amount||'').replace(/^\$/,''),'justify-content:flex-end;text-align:right')}
-          <span style="display:flex;align-items:center;min-height:38px;padding:6px 10px;min-width:0;overflow:hidden">${this.chargeLevelPill(r, c.from)}</span></div>`).join('')
+          ${cell(String(r.amount||'').replace(/^\$/,''),'justify-content:flex-end;text-align:right')}</div>`).join('')
           : `<div style="padding:14px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">None on that property.</div>`}
         </div></div></div>`;
     };
