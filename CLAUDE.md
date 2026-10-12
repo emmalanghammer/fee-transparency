@@ -317,6 +317,13 @@ right after the chevron and **never drops into the row dropdown** at any width (
 charge is written is read first even on a narrow tile; and the two copy-charges tables (Add Property ›
 Copy From, Copy Charges from Property) lead with it after their select box.
 
+**Adding a charge, by name** (2026-10-12). The Charges tile's header carries two action links, **Add
+Recurring** (`addopen req-rec`) and **Add One-Time** (`addopen req-one`), where it had one *Add
+Charge*. The property Charges overlay's split button reads **Add Recurring Charge Type** (the user's
+wording) and still opens a recurring charge; its caret keeps Add Recurring Charge / Add One-Time Charge
+/ Add CRE Recurring Charge. Its **Filters** panel (`pfFilterHTML`) leads with the **Past / Future /
+Exceptions** checkboxes, above Type.
+
 `infoTip`'s panel is RMX's **Tooltip** (RMX Components `2944:203796`): 312px wide, 16px padding,
 1px `#cedbe7`, 4px radius, drop shadow `0 3px 6px rgba(0,0,0,0.10)`, Roboto Regular 14/20, left
 aligned. Its trigger is Material Icon / Medium / Brand — the squared `info_outline` at 20px, not the
