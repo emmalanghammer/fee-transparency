@@ -1298,7 +1298,10 @@ and this charge becomes the Base Rent when you save."* — the charge holding th
 icon. Stored as `listing.leaseRole`
 ('rent' / 'deposit' / '' for additional); a charge never asked reads the property-level **RC** as Base
 Rent and **DP** as Security Deposit (`leaseRoleOf`), and anything off the property's lists reads
-none. The old Name dropdowns for the two roles (`m-name-rent`, `m-name-dep`, `nameOpts`) are gone.
+none. The old Name dropdowns for the two roles (`m-name-rent`, `m-name-dep`, `nameOpts`) are gone. The
+Pricing Preview names those two charges **Base Rent** and **Security Deposit** outright, in its picker
+and its price card (`ppName`), rather than wearing a role tag beside their own name (2026-10-12; the
+`roleTag` lozenges are gone).
 
 **At rollout, Tenant Charge Setup's charges became property charges on every property** (2026-10-07).
 Each default (RC and PETFEE recurring, DP and FMR one-time) was added as a property-level charge with the
