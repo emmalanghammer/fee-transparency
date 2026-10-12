@@ -319,8 +319,8 @@ Copy From, Copy Charges from Property) lead with it after their select box.
 
 **Adding a charge, by name** (2026-10-12). The Charges tile's header carries two action links, **Add
 Recurring** (`addopen req-rec`) and **Add One-Time** (`addopen req-one`), where it had one *Add
-Charge*. The property Charges overlay's split button reads **Add Recurring Charge Type** (the user's
-wording) and still opens a recurring charge; its caret keeps Add Recurring Charge / Add One-Time Charge
+Charge*. The property Charges overlay's split button reads **Add Recurring Charge** (briefly *Add
+Recurring Charge Type*, a slip the user corrected) and opens a recurring charge; its caret keeps Add Recurring Charge / Add One-Time Charge
 / Add CRE Recurring Charge. Its **Filters** panel (`pfFilterHTML`) leads with the **Past / Future /
 Exceptions** checkboxes, above Type.
 
