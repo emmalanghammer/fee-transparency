@@ -102,8 +102,9 @@ which, and which is the one thing to read twice.
 State is `ftSetup: { sec:{what,def}, props:{<name>:true} }` — null when closed. The overlay renders
 at `z-index:150`, under `pubModalHTML`'s 152, so the confirmation lands on top of it.
 
-**A group's header sits on the page background; only the register is a card.** The header is
-`padding:16px 20px`: a 24px `--rmx-brand-dark` chevron 8px from the property name at 14/600 on the
+**A group's header sits on the page background; only the register is a card.** The header has **no
+padding** and sits **8px above its table** (the group is a column with an 8px gap; 2026-10-12 — it was
+`padding:16px 20px`); groups stay 16px apart. The header is a 24px `--rmx-brand-dark` chevron 8px from the property name at 14/600 on the
 left — and they are **two controls, not one**. The chevron collapses the group; the **name goes to
 the property** (`navProperty`) and turns brand blue on hover, like every other link to a record.
 They used to be one span, which meant the only thing on the header that reads like a property was
