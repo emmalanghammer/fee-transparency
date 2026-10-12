@@ -476,10 +476,12 @@ class Component extends DCLogic {
   depTypesFor(prop){ const s = (this._depCT || {})[prop || this.state.property]; if (s) return s;
     return this.chargeTypeList().map(t => t[0]).filter(c => /^(DP|SD|SECDEP|DEP)$/.test(c)); }
   // 'rent' when the charge type is one of the property's rent charge types, 'deposit' for a security
-  // deposit charge type, else ''. Only those charges are asked the question.
-  leaseRoleKind(code, prop){ const c = String(code || '').toUpperCase(); if (!c) return '';
-    if (this.rentTypesFor(prop).indexOf(c) >= 0) return 'rent';
-    if (this.depTypesFor(prop).indexOf(c) >= 0) return 'deposit';
+  // deposit charge type, else ''. Only those charges are asked the question — and the Base Rent is
+  // only ever a recurring charge, the Security Deposit only ever a one-time one (2026-10-12), so a
+  // one-time rent charge (FMR) or a recurring deposit charge isn't asked at all.
+  leaseRoleKind(code, prop, isOne){ const c = String(code || '').toUpperCase(); if (!c) return '';
+    if (!isOne && this.rentTypesFor(prop).indexOf(c) >= 0) return 'rent';
+    if (isOne && this.depTypesFor(prop).indexOf(c) >= 0) return 'deposit';
     return ''; }
   // A charge on a rent charge type is the Base Rent or an additional charge; on a deposit charge
   // type, the Security Deposit or an additional charge. What the charge stored wins; one that has
@@ -487,7 +489,7 @@ class Component extends DCLogic {
   // opens with its rent and deposit already named.
   leaseRoleOf(r){
     if (!r) return '';
-    const kind = this.leaseRoleKind(r.mits, r._prop);
+    const kind = this.leaseRoleKind(r.mits, r._prop, /-one$/.test(String(r.group || '')));
     if (!kind) return '';
     const L = r.listing || {};
     if (L.leaseRole != null) return L.leaseRole === kind ? kind : '';
@@ -2171,7 +2173,7 @@ class Component extends DCLogic {
           schedule: isOne ? '' : own(v('m-sched'), D.schedule),
           refundable: refNow === refLbl ? undefined : this.refundVal(),
           // Not asked on a property that isn't marketed, so whatever the charge held is kept.
-          leaseRole: !this.leaseRoleKind(code) ? undefined
+          leaseRole: !this.leaseRoleKind(code, this.state.property, isOne) ? undefined
             : this.ftApplicable(this.state.property) ? roleNow : (m.edit && m.edit.listing ? m.edit.listing.leaseRole : undefined),
           // Editing a charge by hand is not an answer about inheritance, so an *Only new charges*
           // refusal at either rung survives the save that would otherwise rebuild `listing` without it.
@@ -8427,7 +8429,7 @@ class Component extends DCLogic {
     // property, worded for which, and reset to Additional Charge when the kind changes.
     window.__roleCheck = () => {
       const code = String(((this.q('#m-ctype') || {}).value) || '').toUpperCase();
-      const kind = this.ftApplicable(this.state.property) ? this.leaseRoleKind(code) : '';
+      const kind = this.ftApplicable(this.state.property) ? this.leaseRoleKind(code, this.state.property, isOne) : '';
       const w = this.q('#m-role-wrap'); if (!w) return;
       const was = w.getAttribute('data-kind') || '';
       w.style.display = kind ? 'flex' : 'none';
@@ -8893,7 +8895,7 @@ class Component extends DCLogic {
     // Only asked where the property lists online on a provider that takes complete pricing — the
     // question is how listings treat the charge, so a property that isn't marketed never sees it.
     const roleOn = this.ftApplicable(this.state.property);
-    const kind0 = roleOn ? this.leaseRoleKind(code0) : '';
+    const kind0 = roleOn ? this.leaseRoleKind(code0, this.state.property, isOne) : '';
     const role0 = (ed && roleOn) ? this.leaseRoleOf(Object.assign({ _prop: this.state.property }, ed)) : '';
     const nm0 = (ed && ed.listing && ed.listing.name) || (ed ? (INH.name || '') : '');
     const nameNow = role0 ? this.leaseRoleLabel(role0) : nm0;

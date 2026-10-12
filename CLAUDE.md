@@ -1293,8 +1293,10 @@ and FMR (any of `RC|FMR|LMR|RENT` present), and what is ticked is kept per prope
 `window.__depCT`), starting on DP. `rentTypesFor(prop)` / `depTypesFor(prop)` read them.
 
 **A charge on one of those types is asked whether it is the Base Rent / Security Deposit or an
-additional charge** (2026-10-09, Figma `3832:62257`). `leaseRoleKind(code, prop)` says which question
-applies ('rent', 'deposit' or none). **Only on a property fee transparency applies to** (`ftApplicable`, 2026-10-12):
+additional charge** (2026-10-09, Figma `3832:62257`). `leaseRoleKind(code, prop, isOne)` says which
+question applies ('rent', 'deposit' or none). **Base Rent is only offered on a recurring charge and
+Security Deposit only on a one-time one** (2026-10-12): a one-time charge on a rent type (FMR) or a
+recurring charge on a deposit type isn't asked, and never reads as either role. **Only on a property fee transparency applies to** (`ftApplicable`, 2026-10-12):
 the question is how listings treat the charge, so a property that isn't marketed online (Oakwood
 Manor) or lists only on MH Village (Clearcreek) never shows the card, its Name stays the charge's own,
 and a save there keeps whatever role the charge already held. The charge form's Charge Marketing opens with a bordered card
