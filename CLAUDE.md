@@ -1360,6 +1360,47 @@ Pricing Preview names those two charges **Base Rent** and **Security Deposit** o
 and its price card (`ppName`), rather than wearing a role tag beside their own name (2026-10-12; the
 `roleTag` lozenges are gone).
 
+**Activation marks the Base Rent and Security Deposit; nothing before it has to** (2026-10-12, from the
+design canvas *Base Rent & Deposit Before Activation*, <https://claude.ai/artifact/UbehZPTfMtpcgQ2nX4LvHS>,
+built to RMX). Listings need to know which charge the Total Monthly Price starts from, and which is the
+deposit. `roleGroups(prop, kind)` gathers every candidate — a recurring charge on a rent charge type, a
+one-time one on a deposit charge type (`leaseRoleKind`) — by **where it is written**: the property, each
+unit type, each unit, because the most specific applies to its units. A group's answer is the charge
+marked on it (`listing.leaseRole === kind`), else **our suggestion, the highest charge** (`roleAmt`: the
+figure, else its `est`). `roleState` is `set` when every group is marked, `none` when nothing can be it.
+
+- **One control everywhere, `roleBoxHTML(prop, kind, o)`**: a bordered box, a 36px `--rmx-bg-subtle`
+  header naming *Base Rent* / *Security Deposit*, over rows of `chargeLevelCell` (tag + name) and the
+  charge with its amount. One charge: the header is a plain label over that row. Several: the header is
+  a button, *Base Rent · 3 charges* with a brand chevron, that opens the full list (`window.__roleBox`,
+  open state kept in `this._roleOpen` per box, since any click re-renders). Rows wrap rather than
+  squeeze, so it holds in a third-width tile.
+- **The activation confirmation asks** (`pubModalHTML`), under *What this means for your listings*:
+  *Which charges are the Base Rent and Security Deposit?* with the two boxes in `edit` mode. A level with
+  more than one candidate is a dropdown, pre-picked (marked, else highest), with *n rent charges here. We
+  picked the highest; the other stays an additional charge.*, and the header carries a Caution lozenge
+  *1 to choose* and opens on its own. Picks are kept off state (`this._rolePick`, `window.__rolePick`,
+  reset when the dialog opens). **Activating marks them** (`pubConfirm`): in each group the picked charge
+  takes the role and every other candidate there becomes an additional charge (`leaseRole: ''`). A
+  property with no candidate for either can't activate: the box says so in red and Activate is disabled.
+- **Listing Details before activation** keeps today's fields, with one note under Deposit Fee(s) in
+  RMX's outlined Callout (`roleNoteHTML` / `roleNoteText`): an info glyph and *Fee transparency needs a
+  Base Rent and a Security Deposit charge. Neither is marked yet. Mark them on the charges, or confirm our
+  suggestions when you activate.* with **Go to Charges** (or which one is still missing); once both are
+  marked, a green check — *Base Rent and Security Deposit are marked on your charges. Listings switch to
+  them when you activate fee transparency.* — over the two boxes. **After activation** Price and Deposit
+  Fee(s) *are* the two boxes, with **Change in Charges** (`openFeeProfile`).
+- **Edit Floor Plan** follows the same line: before activation Price is the mapping dropdown with a 12px
+  line under it — *…comes from the Base Rent charge. No charge is marked as the Base Rent yet.* **Go to
+  Charges**, or, marked, a green check naming it; after, Price is `roleBoxHTML(…, { unitType })` — that
+  unit type's own Base Rent, else the property's — over *Listings show a Total Monthly Price of $x – $y
+  for these units* (`roleTotalRange`: the Base Rent per unit plus `ltMonthlyFees`). A hidden `#fp-price`
+  keeps the mapping. `openFeeProfile` clears `fpEdit`, so Go to Charges closes the dialog.
+- **The Berkshires is the several-charges example** (`propCharges` adds ids 30–33): a second property RC
+  (*Short-term premium*, $150), its own RC on 2BR/2BA ($1,600) and 3BR/2BA ($2,050), and its own DP on
+  3BR/2BA ($750). So its counts read four charges more than before; Riverview's baselines are unchanged.
+  Every glyph used is in the `ico` map (`info`, not `info_outline`, which isn't).
+
 **At rollout, Tenant Charge Setup's charges became property charges on every property** (2026-10-07).
 Each default (RC and PETFEE recurring, DP and FMR one-time) was added as a property-level charge with the
 same charge source on the properties that use it. Rent quotes and the Move In and Add Tenant wizards
