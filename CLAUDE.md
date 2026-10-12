@@ -1368,7 +1368,7 @@ setup overridden and their default charges may differ:"* followed by the propert
 `tcsOverrides()`, comma-separated in SemiBold navy, not links — and on nothing when none did.
 
 The property's note ends in a primary **Go to `<Property>` Charges** button. System Preferences
-points to the property links in its tables instead. Both tables gained **Amount on the Charge**
+points to the property links in its tables instead. Both tables gained **Amount** (*Amount on the Charge* until 2026-10-12)
 (`tcsAmountOf(src)`: *Flat*, *From the pet type*, or *Reference: `<source>`*), so the source and
 what it became sit side by side. System Preferences has no property column (2026-10-12): every property carries these charges, so the banner names only the ones that overrode the setup.
 
@@ -1383,7 +1383,7 @@ Market Rent* and opens on the charge's own reference. Its Fee Due seeds to **Mov
 (`mktDefSeed`).
 
 `sysPrefsBody()` keeps the page, under `tcsBanner()` (below), that says what happened. Both sections stay as a read-only record: **Charge Type
-· Charge Source · Amount on the Charge**, with no kebab, reorder handle, Add link or posting-day option. `chargesFrom` records `sysprefs` too, so closing Charges returns here. The
+· Charge Source · Amount**, with no kebab, reorder handle, Add link or posting-day option. `chargesFrom` records `sysprefs` too, so closing Charges returns here. The
 earlier *Activate Fee Transparency* banner, the *Only properties that do not have Fee Transparency…*
 strip and the all-converted strip are gone.
 
