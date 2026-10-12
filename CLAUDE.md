@@ -295,6 +295,21 @@ columns; rows are white with the `#ebf1f5` hairline and hover wash, and the coun
 matches the scoreboard's Market Rent; the oldest reads *Updated in Import*. The unit scoreboard strip
 is now its own method, `unitStrip()`, read by this overlay and the unit's Charges overlay.
 
+**Where a charge comes from is one Charge Level tag + name everywhere** (2026-10-12).
+`chargeLevelTag(level)` is a fixed 28×20 tile, 4px corners, 12px Roboto Medium, the letter centred,
+so the width never changes and whatever follows lines up: **P** Property (`#cce8f7` / brand dark),
+**UT** Unit Type (`#ede8fa` / `#5b3fb3`), **U** Unit (`#d1f0ec` / `#1d6b62`), **T** Tenant
+(`--rmx-bg-muted` / `--rmx-text`), with a `title` (*Property charge* …). **ORI has no library letter
+yet** and borrows Unit Type's colours. Never red, green or orange — those are status.
+`chargeLevelCell(level, name)` is the tag, 8px, then the name of what the charge is written on in
+ordinary 14px register text (`data-lvl-name`, truncating). It is in the shared charges register's
+Charge Level column (the unit/unit type tile and Charges overlays), on the property Charges register
+and the copy flows (`chargeLevelPill` now returns it), and as the **first column of Tenant Details ›
+Recurring Charges** (*P Riverview Apartments*, *T Tenant*), which lost its 10px colour bar and the
+unlabelled Property/Tenant column. The rent quote and Pricing Preview pickers carry the **tag only**,
+since the row already names the charge. The `.lvl` / `.lvl-*` classes, `LVL`, `PVL` and `tenantPill`
+are gone.
+
 `infoTip`'s panel is RMX's **Tooltip** (RMX Components `2944:203796`): 312px wide, 16px padding,
 1px `#cedbe7`, 4px radius, drop shadow `0 3px 6px rgba(0,0,0,0.10)`, Roboto Regular 14/20, left
 aligned. Its trigger is Material Icon / Medium / Brand — the squared `info_outline` at 20px, not the

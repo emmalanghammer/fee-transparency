@@ -93,11 +93,6 @@ window.__resources = {
     .tipw .tip { display:none; position:absolute; left:26px; top:-6px; width:312px; background:#fff; border:1px solid var(--rmx-line, #cedbe7); border-radius:4px; box-shadow:0 3px 6px rgba(0,0,0,0.10); padding:16px; font:400 14px/20px Roboto,sans-serif; color:var(--rmx-brand-dark, #13314c); text-align:left; z-index:20; }
     .tipw:hover .tip { display:block; }
     @keyframes spin { to { transform:rotate(360deg); } }
-    .lvl { display:inline-block; max-width:100%; overflow:hidden; text-overflow:ellipsis; border-radius:4px; padding:2px 10px; font-size:14px; white-space:nowrap; }
-    .lvl-prop { background:var(--rmx-brand-tint-bg, #ebf1f5); color:var(--rmx-brand-hover, #0071aa); }
-    .lvl-ut { background:#fdeaf2; color:#b3306b; }
-    .lvl-unit { background:var(--rmx-success-bg, #e2f1da); color:var(--rmx-success, #6eb744); }
-    .lvl-ori { background:#f0e8fb; color:#6a4aa8; }
     /* Level selector: label left, count right-aligned in a fixed-width card; selected is an
        accented outline on white rather than a fill. */
     /* Command Launch gives up width first when the nav bar runs out of room: it shrinks, then drops to
@@ -5459,18 +5454,35 @@ class Component extends DCLogic {
   // it is what every level test and colour map keys off — so nothing that renders a level may
   // print it raw.
   levelLabel(v){ return v === 'ORI' ? 'Other Rentable Item' : (v || 'Property'); }
-  // Charge Level pill — Property / a unit-type name / Unit N / Other Rentable Item.
-  // Every level names what it applies to: the unit, the unit type, the rentable-item type — and, at
-  // property level, the property itself. prop is the property the row belongs to, which is the one on
-  // screen everywhere except the copy flows.
+  // The Charge Level tag (2026-10-12): one fixed 28×20 tile per level — P, UT, U, T, and ORI for an
+  // Other Rentable Item, which has no library letter yet and borrows Unit Type's colours. The width
+  // never changes with the letter, so whatever follows lines up. Never red, green or orange: those
+  // are status colours.
+  chargeLevelTag(level){
+    const T = {
+      'Property':  ['P',   '#cce8f7', 'var(--rmx-brand-dark, #13314c)', 'Property charge'],
+      'Unit Type': ['UT',  '#ede8fa', '#5b3fb3', 'Unit type charge'],
+      'Unit':      ['U',   '#d1f0ec', '#1d6b62', 'Unit charge'],
+      'Tenant':    ['T',   'var(--rmx-bg-muted, #f2f2f2)', 'var(--rmx-text, #666666)', 'Tenant charge'],
+      'ORI':       ['ORI', '#ede8fa', '#5b3fb3', 'Other rentable item charge']
+    }[String(level || 'Property')] || ['P', '#cce8f7', 'var(--rmx-brand-dark, #13314c)', 'Property charge'];
+    return `<span title="${T[3]}" style="display:inline-flex;align-items:center;justify-content:center;flex:none;width:28px;height:20px;box-sizing:border-box;border-radius:4px;background:${T[1]};color:${T[2]};font:500 12px/20px Roboto,sans-serif">${T[0]}</span>`;
+  }
+  // The Charge Level cell: the tag, 8px, then the name of what the charge is written on in ordinary
+  // 14px register text. The name truncates; the tag never does.
+  chargeLevelCell(level, name){
+    const n = String(name == null ? '' : name);
+    return `<span style="display:inline-flex;align-items:center;gap:8px;min-width:0;max-width:100%">${this.chargeLevelTag(level)}<span data-lvl-name style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px" title="${n.replace(/"/g,'&quot;')}">${n}</span></span>`;
+  }
+  // The tag and name for a row on any of the property's registers. prop is the property the row
+  // belongs to, which is the one on screen everywhere except the copy flows.
   chargeLevelPill(r, prop){
-    const cls = { 'Property':'lvl-prop', 'Unit Type':'lvl-ut', 'Unit':'lvl-unit', 'ORI':'lvl-ori' }[r.level] || 'lvl-prop';
-    const label = r.level === 'Unit Type' ? (r.target || 'Unit Type')
+    const name = r.level === 'Unit Type' ? (r.target || 'Unit Type')
       : r.level === 'Unit' ? (r.target || 'Unit')
-      // An ORI charge names its rentable-item type, e.g. Covered Parking.
       : r.level === 'ORI' ? (r.oriType || 'Other Rentable Item')
+      : r.level === 'Tenant' ? 'Tenant'
       : (prop === undefined ? this.state.property : prop) || 'Property';
-    return `<span class="lvl ${cls}" title="${(''+label).replace(/"/g,'&quot;')}">${label}</span>`;
+    return this.chargeLevelCell(r.level || 'Property', name);
   }
   // Marketing/MITS status for one charge. Hovering lists the exact fields still required, so the
   // work required is visible from the list without opening every charge.
@@ -6693,7 +6705,6 @@ class Component extends DCLogic {
 
     // Two charges can share a name and differ only in what they attach to, so every row wears its
     // level — that is the whole answer to "which rent is this?".
-    const LVL = { 'Property':'lvl-prop', 'Unit Type':'lvl-ut', 'Unit':'lvl-unit', 'ORI':'lvl-ori' };
     // The Pricing Preview's pet stepper: − n/max +, only once the pet charge is ticked, with + going
     // inert at the pet type's Max Allowed. A fixed-width slot on every row keeps the amounts in line.
     const step = (r, d, icon) => `<span data-act="rqQty" data-arg="${r.id}:${d}" onclick="event.preventDefault()" style="display:flex;align-items:center;justify-content:center;width:22px;height:22px;border:1px solid var(--rmx-line, #cedbe7);border-radius:2px;background:#fff;cursor:pointer" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background='#fff'">${this.ico(icon, 14, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>`;
@@ -6702,14 +6713,13 @@ class Component extends DCLogic {
       const count = `<span style="min-width:20px;text-align:center;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${n}${mx ? `<span style="color:var(--rmx-text-muted, #b3b3b3)">/${mx}</span>` : ''}</span>`;
       if (!r.pet || !on) return '';
       return `<span style="display:inline-flex;align-items:center;justify-content:flex-end;gap:6px;flex:none">${n <= 1 ? stepOff('remove') : step(r,-1,'remove')}${count}${mx && n >= mx ? stepOff('add') : step(r,1,'add')}</span>`; };
-    const tenantPill = `<span class="lvl" style="flex:none;font-size:12px;padding:1px 8px;background:var(--rmx-bg-muted, #f2f2f2);color:var(--rmx-text, #666666)">Tenant</span>`;
     const pickRow = (r, one) => {
       const on = r.lock ? true : this.rqOn(r);
       const act = r.lock ? '' : ` data-act="rqTog" data-arg="${r.id}"`;
       return `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;font-size:14px;color:var(--rmx-brand-dark, #13314c)">
         <label${act} style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;cursor:${r.lock ? 'default' : 'pointer'}">
           ${box(on, r.lock, r.id)}
-          ${r.level === 'Tenant' ? tenantPill : `<span class="lvl ${LVL[r.level] || 'lvl-prop'}" style="flex:none;font-size:12px;padding:1px 8px">${this.levelLabel(r.level)}</span>`}
+          ${this.chargeLevelTag(r.level)}
           <span style="flex:1;min-width:0;line-height:20px;overflow-wrap:anywhere">${r.comment || r.type}</span>
         </label>
         ${stepper(r, on)}
@@ -6949,8 +6959,7 @@ class Component extends DCLogic {
       return `<span style="display:inline-flex;align-items:center;justify-content:flex-end;gap:6px;width:80px;flex:none">${(!isPet(r) || !p.opt[r.id]) ? '' : `${step(r,-1,'remove')}${count}${mx && n >= mx ? stepOff('add') : step(r,1,'add')}`}</span>`; };
     // As the rent quote's picker: the RMX Checkbox, then the charge's level pill, then its name (which
     // wraps rather than truncating), the pet stepper and the amount.
-    const PVL = { 'Property':'lvl-prop', 'Unit Type':'lvl-ut', 'Unit':'lvl-unit', 'ORI':'lvl-ori' };
-    const optCb = r => `<label data-act="ppOpt" data-arg="${r.id}" style="display:flex;align-items:center;gap:10px;padding:5px 0;cursor:pointer;font-size:14px;color:var(--rmx-brand-dark, #13314c)">${this.rmxCheckbox(!!p.opt[r.id], false)}<span class="lvl ${PVL[r.level] || 'lvl-prop'}" style="flex:none;font-size:12px;padding:1px 8px">${this.levelLabel(r.level)}</span><span style="flex:1;min-width:0;line-height:20px;overflow-wrap:anywhere">${r.name}${roleTag(r)}</span>${stepper(r)}<span style="width:112px;flex:none;text-align:right;font-size:14px;color:var(--rmx-ink-2, #424e5b);white-space:nowrap">${money(lineAmt(r))}${/-one$/.test(r.group)?'/one-time':'/mo'}</span></label>`;
+    const optCb = r => `<label data-act="ppOpt" data-arg="${r.id}" style="display:flex;align-items:center;gap:10px;padding:5px 0;cursor:pointer;font-size:14px;color:var(--rmx-brand-dark, #13314c)">${this.rmxCheckbox(!!p.opt[r.id], false)}${this.chargeLevelTag(r.level)}<span style="flex:1;min-width:0;line-height:20px;overflow-wrap:anywhere">${r.name}${roleTag(r)}</span>${stepper(r)}<span style="width:112px;flex:none;text-align:right;font-size:14px;color:var(--rmx-ink-2, #424e5b);white-space:nowrap">${money(lineAmt(r))}${/-one$/.test(r.group)?'/one-time':'/mo'}</span></label>`;
     // Every charge, split the way the Charges tab splits them. Required charges arrive ticked (see
     // ppSeedOpt), so the breakdown opens on the price a prospect would be quoted.
     const pickSection = (t, rws) => rws.length ? `<div style="display:flex;flex-direction:column;gap:2px;margin-top:2px">
@@ -7258,7 +7267,7 @@ class Component extends DCLogic {
       const freq = isRec ? (this.freqNum(f) || '1') : 'One-time';
       const comment = esc2(f.desc || f.name || '') + (over ? ovrPill : '');
       const amt = String(f.amount || '').replace(/^\$/, '');
-      const lvl = esc2(this.chargeLevelName(f));
+      const lvl = this.chargeLevelCell(f.level || 'Property', esc2(this.chargeLevelName(f)));
       const bg = (o.striped !== false && i % 2 === 0) ? 'var(--rmx-bg-subtle, #f5f8fa)' : '#fff';
       const cells = C.map(c => {
         const k = c[0];
@@ -7836,11 +7845,11 @@ class Component extends DCLogic {
     // Same charges as the ledger above: the property's recurring charges, then rent, which is
     // charged on the tenant. Frequency is the number of periods, as the mock has it, and a charge
     // with no end date leaves To Date empty.
-    const barOf = (lvl) => lvl === 'Tenant' ? 'var(--rmx-text-muted, #b3b3b3)' : 'var(--ac,var(--rmx-brand, #008dd5))';
-    const rKey = 'tnt-rec', rCols = '32px 94px minmax(110px,1fr) minmax(150px,1fr) 84px 96px 96px 124px';
+    // Charge Level leads, as the tag and the name of what the charge is written on (2026-10-12): the
+    // colour bar and the unlabelled Property / Tenant column it replaced said the same thing twice.
+    const rKey = 'tnt-rec', rCols = 'minmax(220px,1.5fr) 96px minmax(130px,1fr) 84px 96px 96px 110px';
     const rRow = (lvl, code, comment, amt, i) => mRow(rKey, rCols,
-      `<span style="display:flex;justify-content:center;height:36px;box-sizing:border-box"><span style="width:10px;background:${barOf(lvl)}"></span></span>`
-      + mc(lvl) + mc(code) + mc(comment, false, 'var(--rmx-text, #666666)') + mc('1', true) + mc('01/01/2026') + mc('') + mc(amt, true), i % 2 === 1);
+      mc(this.chargeLevelCell(lvl, lvl === 'Tenant' ? 'Tenant' : prop)) + mc(code) + mc(comment, false, 'var(--rmx-text, #666666)') + mc('1', true) + mc('01/01/2026') + mc('') + mc(amt, true), i % 2 === 1);
     const recLines = recRows.map((f, i) => rRow('Property', f.mits, f.desc || '', money(this.tenantAmt(f)), i))
       .concat([rRow('Tenant', 'RC', 'Rent', money(this.tenantRent()), recRows.length)]).join('');
     // The footer quotes the total the way the mock does — dollars, and cents only when there are any.
@@ -7855,7 +7864,7 @@ class Component extends DCLogic {
       : '';
     const recurring = tile('Recurring Charges', link('Add Charge') + link('Add CRE') + openIcon('Recurring Charges'),
       tntManaged + `<div style="overflow-x:auto"><div style="display:flex;flex-direction:column;min-width:780px">
-        ${mHead(rKey, rCols, mh('') + mh('') + mh('Charge Type') + mh('Comment') + mh('Frequency', true) + mh('From Date') + mh('To Date') + mh('Amount', true))}
+        ${mHead(rKey, rCols, mh('Charge Level') + mh('Charge Type') + mh('Comment') + mh('Frequency', true) + mh('From Date') + mh('To Date') + mh('Amount', true))}
         ${recLines}
       </div></div><div style="flex:1"></div>`
       + foot(`${recRows.length + 1} of ${recRows.length + 1} Recurring Charges<span style="font-weight:600">$${loose(recTotal)}</span>`),
