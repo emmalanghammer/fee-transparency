@@ -880,11 +880,44 @@ glyph at 20px on its own `0 0 20 20` box, so it can't live in the Material `ico`
 `-960 960` ones and is inlined as `EDIT_FILLED` beside the register.
 
 **Floor Plans shows only what fits, and the rest drops down** (2026-10-02, to the user's mock).
-Its columns are a brand chevron · **Name · Unit Type · Unit Count** · a `todo` kebab, headers in
-Label/S/Medium tracked; the chevron opens the row onto grey-labelled **Beds, Baths, Price, Images**
-(Price is the unit type's rent range, `990.00 - 995.00`). **+ Add Item** sits beside the title, not
-on the right. The toggle is DOM-only (`window.__fpToggle`) with `this._fpOpen` remembering open rows
+Its columns are a brand chevron · **Name · Unit Type · Unit Count** · a kebab, headers in
+Label/S/Medium tracked; the chevron opens the row onto grey-labelled **Beds, Baths, Square Feet,
+Price, Available, Images**. **+ Add Item** sits beside the title, not on the right. The toggle is
+DOM-only (`window.__fpToggle`) with `this._fpOpen` (keyed by floor plan id) remembering open rows
 across re-renders, since a `setState` would wipe whatever is typed on the page.
+
+**Floor plans are real** (2026-10-12, after researching Rent Manager: RM12's Marketing tab has a
+Floor Plans section whose + opens *New Floor Plan Details* and whose row opens *Edit Floor Plan*,
+with an Images tab; Express's feed needs at least one floor plan; the MITS Floorplan a feed sends is
+name, unit count / available, bedrooms, bathrooms, square feet min–max, market rent min–max,
+deposit and images, and RM keeps Bedrooms / Bathrooms / SquareFootage and market rent on the unit).
+- **The model.** A floor plan is `{ id, name, type, units:[unit], beds, baths, deposit, desc,
+  images:[caption] }`. `state.fpData[prop]` exists only once someone saves (cleared on every
+  scenario switch); until then `fpList(prop)` seeds one per unit type — *The Alcove* (Studio),
+  *The Birch*, *The Cedar*, *The Dogwood* (`fpSeedNames`) — holding that type's units. **A unit is
+  on one floor plan at most.** **Square feet, price and available are never typed**: `fpStats(units)`
+  adds them up from the units, read by the tile and the dialog alike, which is what Listing
+  Details' *"Price is derived from the floor plan"* means.
+- **The row opens it** (`fpOpen`); the chevron and the kebab stop the click. The kebab (`fpMenu`,
+  `fpMenuHTML`, z-index 155) offers **Edit** and **Delete**; Delete asks first (`fpDelHTML`, *Delete
+  Floor Plan*, z-index 160) and says what it costs — the plan's units go back to no floor plan.
+- **Under the register, units on no floor plan are named** in amber: *"Units 1B, 3A aren't on a
+  floor plan, so listings can't show a price for them."* An empty tile reads *No floor plans yet.*
+- **`fpEditHTML`** (z-index 150, over Marketing Setup's 145) — *New Floor Plan* / *Edit Floor Plan*,
+  760×640, three tabs that only show and hide, so nothing typed is lost moving between them:
+  **General** — a summary band (Units · Available · Square Feet · Market Rent, live) over an italic
+  line saying where those come from, then Name \* · Unit Type \*, Bedrooms · Bathrooms · Deposit
+  (Optional), Marketing Description (Optional). **Units** (n) — every unit at the property as a
+  register with RMX checkboxes: Unit · Unit Type · Sq Ft · Market Rent · Status · Floor Plan; one on
+  another plan is the disabled checkbox, greyed, naming that plan. **Images** (n) — caption tiles (the
+  floor plan drawing first) with a remove button and **Add Images**, which drops in a tile (the
+  upload is simulated; captions and count are kept).
+- **Picking a Unit Type** (`window.__fpType`) ticks that type's free units and fills Bedrooms /
+  Bathrooms only where they are empty or still hold the last type's values (`this._fpAuto`).
+- **Save** (`fpSave`) reads the DOM. A missing name or unit type, or a name the property already
+  uses, is shown **on the form** (`window.__fpInvalid`: a red note on General and red borders), not
+  in a toast — a toast re-renders and would wipe the dialog. Success flashes *Floor plan added* /
+  *saved* / *deleted*.
 
 **Property Override is a tick** (it was *Field Overrides*, an `n/7` fraction, and the user changed
 it back on 2026-09-30): the Charge Types register's own green filled check when the Override Charge
