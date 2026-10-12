@@ -882,40 +882,44 @@ glyph at 20px on its own `0 0 20 20` box, so it can't live in the Material `ico`
 **Floor Plans shows only what fits, and the rest drops down** (2026-10-02, to the user's mock).
 Its columns are a brand chevron · **Name · Unit Type · Unit Count** · a kebab, headers in
 Label/S/Medium tracked; the chevron opens the row onto grey-labelled **Beds, Baths, Square Feet,
-Price, Available, Images**. **+ Add Item** sits beside the title, not on the right. The toggle is
+Price, Available, Images**. Name is the floor plan's own; Unit Type is what it covers. **+ Add Item** sits beside the title, not on the right. The toggle is
 DOM-only (`window.__fpToggle`) with `this._fpOpen` (keyed by floor plan id) remembering open rows
 across re-renders, since a `setState` would wipe whatever is typed on the page.
 
-**Floor plans are real** (2026-10-12, after researching Rent Manager: RM12's Marketing tab has a
-Floor Plans section whose + opens *New Floor Plan Details* and whose row opens *Edit Floor Plan*,
-with an Images tab; Express's feed needs at least one floor plan; the MITS Floorplan a feed sends is
-name, unit count / available, bedrooms, bathrooms, square feet min–max, market rent min–max,
-deposit and images, and RM keeps Bedrooms / Bathrooms / SquareFootage and market rent on the unit).
-- **The model.** A floor plan is `{ id, name, type, units:[unit], beds, baths, deposit, desc,
-  images:[caption] }`. `state.fpData[prop]` exists only once someone saves (cleared on every
-  scenario switch); until then `fpList(prop)` seeds one per unit type — *The Alcove* (Studio),
-  *The Birch*, *The Cedar*, *The Dogwood* (`fpSeedNames`) — holding that type's units. **A unit is
-  on one floor plan at most.** **Square feet, price and available are never typed**: `fpStats(units)`
-  adds them up from the units, read by the tile and the dialog alike, which is what Listing
-  Details' *"Price is derived from the floor plan"* means.
+**Floor plans are real, and the dialog is production's Edit Floor Plan** (2026-10-12, rebuilt from the
+user's screenshots of production the same day — a first, tabbed version built from research alone came
+off). RM12's Marketing tab has a Floor Plans section whose + opens *New Floor Plan Details*; Express's
+feed needs at least one floor plan.
+- **The model.** A floor plan is `{ id, name, type, price, bedSrc, bathSrc, desc, images:[variant] }`.
+  **The unit type decides its units** — they are never ticked one by one — and a unit type carries one
+  floor plan at most. `fpList(prop)` adds `units`, `beds` and `baths` from the unit type every time it
+  is read, so they are never stored. `state.fpData[prop]` exists only once someone saves (cleared on
+  every scenario switch); until then one plan per unit type, **named as the unit type**, as production
+  does. **Price, Bedrooms and Bathrooms are field mappings, not figures** (`fpSources()`): *Unit Field:
+  Market Rent* / *Unit Type Field: Bedrooms* / *Unit Type Field: Bathrooms* by default. The tile's
+  dropdown still reads Square Feet, Price and Available off the units (`fpStats`).
 - **The row opens it** (`fpOpen`); the chevron and the kebab stop the click. The kebab (`fpMenu`,
   `fpMenuHTML`, z-index 155) offers **Edit** and **Delete**; Delete asks first (`fpDelHTML`, *Delete
-  Floor Plan*, z-index 160) and says what it costs — the plan's units go back to no floor plan.
-- **Under the register, units on no floor plan are named** in amber: *"Units 1B, 3A aren't on a
+  Floor Plan*, z-index 160) and says the plan's units will be left on no floor plan.
+- **Under the register, units on no floor plan are named** in amber: *"Units 1A, 5A aren't on a
   floor plan, so listings can't show a price for them."* An empty tile reads *No floor plans yet.*
-- **`fpEditHTML`** (z-index 150, over Marketing Setup's 145) — *New Floor Plan* / *Edit Floor Plan*,
-  760×640, three tabs that only show and hide, so nothing typed is lost moving between them:
-  **General** — a summary band (Units · Available · Square Feet · Market Rent, live) over an italic
-  line saying where those come from, then Name \* · Unit Type \*, Bedrooms · Bathrooms · Deposit
-  (Optional), Marketing Description (Optional). **Units** (n) — every unit at the property as a
-  register with RMX checkboxes: Unit · Unit Type · Sq Ft · Market Rent · Status · Floor Plan; one on
-  another plan is the disabled checkbox, greyed, naming that plan. **Images** (n) — caption tiles (the
-  floor plan drawing first) with a remove button and **Add Images**, which drops in a tile (the
-  upload is simulated; captions and count are kept).
-- **Picking a Unit Type** (`window.__fpType`) ticks that type's free units and fills Bedrooms /
-  Bathrooms only where they are empty or still hold the last type's values (`this._fpAuto`).
+- **`fpEditHTML`** (z-index 150, over Marketing Setup's 145), 1100px × 92vh: header **Edit Floor
+  Plan: `<name>`** (*New Floor Plan* when adding), one scrolling body of two bordered cards, and a
+  footer whose left side carries production's red line *"Listings may not post for certain providers
+  if the number of bedrooms and bathrooms for units do not match the floor plan."* beside Save /
+  Cancel. **General**: Floor Plan Name; **Unit Type** — on an existing plan the RMX disabled field
+  with the edit-filled pencil beside it, which swaps in the dropdown (a new plan opens on the
+  dropdown, offering only unit types without a plan, and picking one fills the name until someone
+  types their own, `window.__fpType`); **Price**; then, **before activation only**, the same amber
+  compliance note Listing Details carries (*To comply with federal fee transparency requirements…*
+  **Learn More**), under the field it is about; Bedrooms; Bathrooms; Marketing Description.
+  **Images**: the title with **Delete · Details · SORT ▾ · ADD ▾** beside it, the selected image
+  large, and a grey thumbnail strip with arrows, the selected thumb in a 2px brand frame. Delete and
+  ADD (*Upload Image* / *From Unit Type Images*) work on the strip in place (`__fpImgSel`,
+  `__fpImgDel`, `__fpImgAdd`); Details and SORT are `todo`. **The images are drawn**
+  (`fpImgSvg(v, w, h)`, four flat interiors), since an artifact can't load photos.
 - **Save** (`fpSave`) reads the DOM. A missing name or unit type, or a name the property already
-  uses, is shown **on the form** (`window.__fpInvalid`: a red note on General and red borders), not
+  uses, is shown **on the form** (`window.__fpInvalid`: a red note atop General and red borders), not
   in a toast — a toast re-renders and would wipe the dialog. Success flashes *Floor plan added* /
   *saved* / *deleted*.
 

@@ -1587,25 +1587,23 @@ class Component extends DCLogic {
       case 'fpSave': { const e = this.state.fpEdit; if (!e) break;
         const val = id => { const x = this.q('#' + id); return x ? String(x.value || '').trim() : ''; };
         const name = val('fp-name'), type = val('fp-type'), prop = e.prop;
-        const list = this.fpList(prop).map(f => Object.assign({}, f));
+        const list = (this.state.fpData || {})[prop] ? this.state.fpData[prop].slice() : this.fpList(prop).map(f => {
+          const o = Object.assign({}, f); delete o.units; delete o.beds; delete o.baths; return o; });
         // A failed save says so on the form, not in a toast: a toast re-renders, and that would wipe
         // everything typed into the dialog.
         const dup = name && list.some(f => f.id !== e.id && f.name.toLowerCase() === name.toLowerCase());
         if (!name || !type || dup) { window.__fpInvalid && window.__fpInvalid({ name: !name || dup, type: !type,
-          msg: dup ? prop + ' already has a floor plan named ' + name + '.' : 'Enter a name and choose a unit type to save this floor plan.' }); break; }
-        const units = Array.prototype.filter.call(this.rootEl.querySelectorAll('[data-fpu]'), r => {
-          const b = r.querySelector('[role=checkbox]'); return b && b.getAttribute('aria-checked') === 'true' && !b.getAttribute('aria-disabled'); })
-          .map(r => r.getAttribute('data-fpu'));
-        const images = Array.prototype.map.call(this.rootEl.querySelectorAll('[data-fpcap]'), i => String(i.value || '').trim());
-        const rec = { id: e.id || ('fp' + Date.now()), name, type, units, beds: val('fp-beds'), baths: val('fp-baths'),
-          deposit: val('fp-dep'), desc: val('fp-desc'), images };
+          msg: dup ? prop + ' already has a floor plan named ' + name + '.' : 'Enter a floor plan name and choose a unit type to save this floor plan.' }); break; }
+        const images = Array.prototype.map.call(this.rootEl.querySelectorAll('#fp-thumbs [data-fpimg]'), t => +t.getAttribute('data-fpimg'));
+        const rec = { id: e.id || ('fp' + Date.now()), name, type, price: val('fp-price'), bedSrc: val('fp-beds'), bathSrc: val('fp-baths'),
+          desc: val('fp-desc'), images };
         const i = list.findIndex(f => f.id === e.id); if (i >= 0) list[i] = rec; else list.push(rec);
         this.setState({ fpEdit: null, fpData: Object.assign({}, this.state.fpData, { [prop]: list }) });
         this.flash(e.id ? 'Floor plan saved' : 'Floor plan added'); break; }
       case 'fpDelAsk': this.setState({ fpMenu: null, fpDel: { id: arg } }); break;
       case 'fpDelCancel': this.setState({ fpDel: null }); break;
       case 'fpDelete': { const d = this.state.fpDel; if (!d) break; const prop = this.state.property;
-        const list = this.fpList(prop).filter(f => f.id !== d.id);
+        const list = ((this.state.fpData || {})[prop] || this.fpList(prop)).filter(f => f.id !== d.id);
         this.setState({ fpDel: null, fpData: Object.assign({}, this.state.fpData, { [prop]: list }) });
         this.flash('Floor plan deleted'); break; }
       case 'ctmSave': { const e = this.state.ctmEdit; if (!e) break;
@@ -4073,26 +4071,28 @@ class Component extends DCLogic {
     </div>`;
   }
   // ---------- Floor plans (Marketing Setup) ----------
-  // A floor plan is what a Multi Family feed advertises a price under — MITS's Floorplan element: a
-  // marketing name over a unit type, the units it covers, beds and baths, and the square feet and
-  // rent range those units add up to (Rent Manager keeps Bedrooms / Bathrooms / SquareFootage and the
-  // market rent on the unit). A unit sits on one floor plan at most. `state.fpData[prop]` exists only
-  // once someone edits; until then `fpList` reads one plan per unit type, named the way a leasing
-  // office would name them.
-  fpSeedNames(){ return { 'Studio':'The Alcove', '1BR/1BA':'The Birch', '2BR/2BA':'The Cedar', '3BR/2BA':'The Dogwood' }; }
+  // Production's Edit Floor Plan (2026-10-12, from the user's screenshots). A floor plan is one unit
+  // type's listing: its name (the unit type's own, to start), the unit type it covers — which is what
+  // decides its units, so units are never picked one by one — where its Price, Bedrooms and Bathrooms
+  // come from (a field mapping, not a typed figure), a Marketing Description and its images.
+  // `state.fpData[prop]` exists only once someone saves; until then `fpList` reads one per unit type.
   fpBedsBaths(type){ const m = String(type || '').match(/^(\d)BR\/(\d)BA$/);
     return m ? { beds: m[1], baths: m[2] } : (/studio/i.test(type || '') ? { beds:'0', baths:'1' } : { beds:'', baths:'' }); }
+  fpSources(){ return {
+    price: ['Unit Field: Market Rent', 'Unit Type Field: Market Rent', 'Unit User Defined Field: Advertised Rent'],
+    beds:  ['Unit Type Field: Bedrooms', 'Unit Field: Bedrooms'],
+    baths: ['Unit Type Field: Bathrooms', 'Unit Field: Bathrooms'] }; }
   fpList(prop){
     const p = prop || this.state.property;
-    const own = (this.state.fpData || {})[p]; if (own) return own;
-    const N = this.fpSeedNames(), CAP = ['Floor plan','Living room','Kitchen'];
-    return this.utData().map((t, i) => Object.assign({ id: 'fp' + (i + 1), name: N[t.name] || t.name, type: t.name,
-      units: this.units().filter(u => u.type === t.name).map(u => u.u), desc: '', deposit: '',
-      images: CAP.slice(0, (i % 3) + 1) }, this.fpBedsBaths(t.name)));
+    const S = this.fpSources();
+    const own = (this.state.fpData || {})[p] || this.utData().map((t, i) => ({ id: 'fp' + (i + 1), name: t.name, type: t.name,
+      price: S.price[0], bedSrc: S.beds[0], bathSrc: S.baths[0], desc: '', images: [i % 4, (i + 1) % 4].slice(0, (i % 2) + 1) }));
+    // The units, beds and baths are read off the unit type every time, never stored on the plan.
+    return own.map(f => Object.assign({}, f, this.fpBedsBaths(f.type),
+      { units: this.units().filter(u => u.type === f.type).map(u => u.u) }));
   }
   fpNum(v){ const n = parseFloat(String(v == null ? '' : v).replace(/[^0-9.]/g, '')); return isNaN(n) ? null : n; }
-  // What a set of units adds up to — read by the tile's dropdown and the dialog's summary, so the
-  // two can't disagree about a floor plan's price.
+  // What a set of units adds up to — the tile's dropdown reads it.
   fpStats(ids){
     const U = this.units().filter(u => ids.indexOf(u.u) >= 0);
     const range = (a, f) => { const v = a.filter(n => n != null); if (!v.length) return '—';
@@ -4102,141 +4102,132 @@ class Component extends DCLogic {
       sqft: range(U.map(u => this.fpNum(u.sqft)), n => n.toLocaleString('en-US')),
       rent: range(U.map(u => this.fpNum(u.rent)), money) };
   }
-  // The New / Edit Floor Plan dialog — Rent Manager's Floor Plan Details pop-up, in three tabs:
-  // General, Units, Images. All three are rendered and the tabs only show and hide them, so moving
-  // between tabs keeps everything typed; Save reads the lot off the DOM.
+  // A floor plan's images are drawn rather than loaded — the artifact can't fetch photos — as four
+  // flat interiors that read as listing photography at a glance. `v` picks the room.
+  fpImgSvg(v, w, h){
+    const P = [
+      { wall:'#ece6dc', floor:'#c9a27a', sofa:'#c0392b', accent:'#2f6f8f' },
+      { wall:'#e3e9ee', floor:'#b8916b', sofa:'#4f6d7a', accent:'#d9a441' },
+      { wall:'#f1ece4', floor:'#a7835f', sofa:'#7a8b6f', accent:'#b5523b' },
+      { wall:'#e8e4ef', floor:'#c3a383', sofa:'#5b4b8a', accent:'#3c8d7d' }][v % 4];
+    return `<svg width="${w}" height="${h}" viewBox="0 0 300 200" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="display:block">
+      <rect width="300" height="200" fill="${P.wall}"/><rect y="138" width="300" height="62" fill="${P.floor}"/>
+      <rect x="170" y="22" width="96" height="92" fill="#fff" stroke="#d8d2c8" stroke-width="4"/><rect x="174" y="26" width="88" height="84" fill="#cfe4f2"/>
+      <path d="M218 26v84M174 68h88" stroke="#fff" stroke-width="4"/><rect x="160" y="16" width="14" height="104" fill="${P.accent}" opacity=".85"/>
+      <rect x="20" y="30" width="34" height="44" fill="#fff" stroke="#bfb6a8" stroke-width="3"/><rect x="66" y="40" width="26" height="34" fill="#fff" stroke="#bfb6a8" stroke-width="3"/>
+      <rect x="150" y="112" width="120" height="44" rx="8" fill="${P.sofa}"/><rect x="144" y="122" width="16" height="38" rx="6" fill="${P.sofa}" opacity=".85"/><rect x="262" y="122" width="16" height="38" rx="6" fill="${P.sofa}" opacity=".85"/>
+      <rect x="22" y="116" width="96" height="8" rx="3" fill="#e9e2d6"/><path d="M30 124l-6 46M110 124l6 46" stroke="#e9e2d6" stroke-width="4"/>
+      <circle cx="56" cy="110" r="7" fill="${P.accent}"/><circle cx="80" cy="111" r="5" fill="#f2b84b"/>
+      <ellipse cx="208" cy="170" rx="34" ry="7" fill="#2b2b2b" opacity=".75"/>
+    </svg>`;
+  }
+  // The New / Edit Floor Plan dialog, to production: one scrolling body of two cards — General, then
+  // Images — over a footer carrying the providers' warning beside Save / Cancel. Everything is read
+  // off the DOM at Save, so nothing in it re-renders while it is open.
   fpEditHTML(){
     const e = this.state.fpEdit; if (!e) return '';
-    const prop = e.prop, all = this.fpList(prop);
-    const fp = all.find(f => f.id === e.id) || { id:null, name:'', type:'', units:[], beds:'', baths:'', desc:'', deposit:'', images:[] };
-    const F = this.ctFieldBits(), esc = F.esc, lab = F.lab;
+    const prop = e.prop, all = this.fpList(prop), S = this.fpSources();
+    const fp = all.find(f => f.id === e.id) || { id:null, name:'', type:'', price:S.price[0], bedSrc:S.beds[0], bathSrc:S.baths[0], desc:'', images:[] };
+    const F = this.ctFieldBits(), esc = F.esc;
     const html = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;');
-    const owner = {}; all.forEach(f => { if (f.id !== fp.id) f.units.forEach(u => { owner[u] = f.name; }); });
-    const st = this.fpStats(fp.units);
-    this._fpAuto = this.fpBedsBaths(fp.type);
-    const fld = (label, ctl, req, id) => `<div${id ? ` id="${id}"` : ''} style="display:flex;flex-direction:column;gap:4px;flex:1 1 200px;min-width:0">${lab(label, req)}${ctl}</div>`;
-    const stat = (id, l, v) => `<div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666);white-space:nowrap">${l}</span><span id="${id}" style="font-size:14px;line-height:20px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${v}</span></div>`;
-    const ERR = `<svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-error, #eb343c);flex:none"><path d="M503.5-289.48q9.5-9.48 9.5-23.5t-9.48-23.52q-9.48-9.5-23.5-9.5t-23.52 9.48q-9.5 9.48-9.5 23.5t9.48 23.52q9.48 9.5 23.5 9.5t23.52-9.48ZM453-433h60v-253h-60v253Zm27.27 353q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg>`;
-    const general = `
-      <div id="fp-err" style="display:none;align-items:flex-start;gap:10px;padding:10px 12px;background:#fff;border:1px solid var(--rmx-error, #eb343c);border-radius:4px">${ERR}<span id="fp-err-t" style="flex:1;min-width:0;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)"></span></div>
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <div style="display:flex;flex-wrap:wrap;gap:12px 32px;padding:12px 16px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px">
-          ${stat('fp-s-units', 'Units', st.units)}${stat('fp-s-avail', 'Available', st.avail)}${stat('fp-s-sqft', 'Square Feet', st.sqft)}${stat('fp-s-rent', 'Market Rent', st.rent)}
+    const lab = t => `<span style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">${t}</span>`;
+    const fld = (label, ctl, id) => `<div${id ? ` id="${id}"` : ''} style="display:flex;flex-direction:column;gap:4px;min-width:0">${lab(label)}${ctl}</div>`;
+    const dd = (id, opts, val) => this.singleSelect(id, opts, val, { noSearch:true });
+    const preFT = !this.state.publishedProps[prop];
+    // A unit type already carrying a floor plan isn't offered to another one.
+    const taken = {}; all.forEach(f => { if (f.id !== fp.id) taken[f.type] = f.name; });
+    const typeOpts = this.utData().map(t => t.name).filter(t => !taken[t]);
+    const EDIT = `<svg class="ico" width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M2.49896 14.376V17.501H5.62396L14.8406 8.28437L11.7156 5.15938L2.49896 14.376Z"/><path d="M17.2573 4.69271L15.3073 2.74271C14.9823 2.41771 14.4573 2.41771 14.1323 2.74271L12.6073 4.26771L15.7323 7.39271L17.2573 5.86771C17.5823 5.54271 17.5823 5.01771 17.2573 4.69271Z"/></svg>`;
+    // Unit Type: on an existing plan it is the RMX disabled field with the edit pencil beside it, as
+    // production draws it; the pencil swaps in the dropdown. A new plan opens on the dropdown.
+    const typeLocked = `<div id="fp-type-ro" style="display:${fp.id ? 'flex' : 'none'};align-items:center;gap:12px">
+        <div style="flex:1;min-width:0;display:flex;align-items:center;box-sizing:border-box;height:36px;padding:0 10px;background:#f9f9f9;border:1px solid #ebf1f5;border-radius:4px;font-size:14px;color:var(--rmx-text-muted, #b3b3b3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${html(fp.type)}</div>
+        <span onclick="document.getElementById('fp-type-ro').style.display='none';document.getElementById('fp-type-rw').style.display='block'" title="Change unit type" style="display:flex;flex:none;cursor:pointer;color:var(--ac,var(--rmx-brand, #008dd5))">${EDIT}</span>
+      </div>
+      <div id="fp-type-rw" style="display:${fp.id ? 'none' : 'block'}">${typeOpts.length
+        ? this.singleSelect('fp-type', typeOpts.map(t => ({ value: t, label: t + ' — ' + this.utDesc(t) })), fp.type, { noSearch:true, placeholder:'Select a unit type', js:"window.__fpType&&window.__fpType(_v)" })
+        : `<input type="hidden" id="fp-type" value="${esc(fp.type)}"><span style="font-size:14px;color:var(--rmx-text, #666666)">Every unit type already has a floor plan.</span>`}</div>`;
+    const WARN = `<svg class="ico" width="24" height="24" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-notice, #f5a623);flex:none"><path d="m40-120 440-760 440 760H40Zm104-60h672L480-760 144-180Zm361.5-65.68q8.5-8.67 8.5-21.5 0-12.82-8.68-21.32-8.67-8.5-21.5-8.5-12.82 0-21.32 8.68-8.5 8.67-8.5 21.5 0 12.82 8.68 21.32 8.67 8.5 21.5 8.5 12.82 0 21.32-8.68ZM454-348h60v-224h-60v224Zm26-122Z"/></svg>`;
+    // The same compliance note Listing Details carries before activation, under Price — the field it
+    // is about. Once the property is fee transparent, listings carry every charge and it goes.
+    const ftNote = preFT ? `<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:#fff;border:1px solid var(--rmx-notice, #f5a623);border-radius:4px;font-size:14px;line-height:20px;color:var(--rmx-ink-2, #424e5b)">${WARN}<span style="flex:1;min-width:0">To comply with federal fee transparency requirements, ensure all required monthly fees are included in the price or clearly disclosed in the description. <a data-act="todo" data-arg="Learn More" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Learn More</a></span></div>` : '';
+    const ERR = `<svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-error, #eb343c);flex:none"><path d="M453-433h60v-253h-60v253Zm27 147q14 0 23.5-9.5T513-319q0-14-9.5-23.5T480-352q-14 0-23.5 9.5T447-319q0 14 9.5 23.5T480-286Zm0 206q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z"/></svg>`;
+    const card = (head, inner) => `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;background:#fff;display:flex;flex-direction:column;flex:none">
+        <div style="display:flex;align-items:center;gap:16px;min-height:44px;box-sizing:border-box;padding:8px 12px;border-bottom:1px solid var(--rmx-line, #cedbe7)">${head}</div>${inner}</div>`;
+    const general = card(`<span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">General</span>`, `
+      <div style="padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px">
+        <div id="fp-err" style="display:none;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid var(--rmx-error, #eb343c);border-radius:4px">${ERR}<span id="fp-err-t" style="flex:1;min-width:0;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)"></span></div>
+        ${fld('Floor Plan Name', F.txt('fp-name', fp.name), 'fp-name-f')}
+        ${fld('Unit Type', typeLocked, 'fp-type-f')}
+        ${fld('Price', dd('fp-price', S.price, fp.price))}
+        ${ftNote}
+        ${fld('Bedrooms', dd('fp-beds', S.beds, fp.bedSrc))}
+        ${fld('Bathrooms', dd('fp-baths', S.baths, fp.bathSrc))}
+        ${fld('Marketing Description', `<textarea id="fp-desc" style="box-sizing:border-box;width:100%;height:100px;padding:8px 12px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;font:400 14px/20px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);resize:vertical;outline:none">${html(fp.desc)}</textarea>`)}
+      </div>`);
+
+    // Images: Delete · Details · SORT ▾ · ADD ▾ beside the title, the selected image large, and a
+    // thumbnail strip under it with arrows. Delete and ADD work on the strip in place; Details and
+    // SORT are furniture. Save reads the strip.
+    const link = (t, js, act) => `<a ${act ? `data-act="todo" data-arg="${t}"` : `onclick="${js}"`} style="display:inline-flex;align-items:center;gap:2px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${t}</a>`;
+    const caret = `<svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M480-360 280-559h400L480-360Z"/></svg>`;
+    const thumb = (v, on) => `<span data-fpimg="${v}" onclick="window.__fpImgSel(this)" style="flex:none;display:block;width:140px;height:92px;box-sizing:border-box;padding:${on ? 3 : 0}px;border:${on ? '2px solid var(--ac,var(--rmx-brand, #008dd5))' : '0'};cursor:pointer;background:#fff">${this.fpImgSvg(v, '100%', '100%')}</span>`;
+    this._fpThumb = thumb;
+    const imgs = fp.images || [];
+    const images = card(`<span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Images</span>
+        ${link('Delete', 'window.__fpImgDel()')}${link('Details', '', true)}
+        <a data-act="todo" data-arg="Sort images" style="display:inline-flex;align-items:center;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">SORT${caret}</a>
+        <span style="position:relative;display:inline-flex">
+          <a onclick="var m=document.getElementById('fp-addm');m.style.display=m.style.display==='block'?'none':'block'" style="display:inline-flex;align-items:center;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">ADD${caret}</a>
+          <div id="fp-addm" style="display:none;position:absolute;top:28px;left:0;width:200px;background:#fff;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);z-index:5;overflow:hidden">
+            <div onclick="window.__fpImgAdd()" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''" style="padding:9px 14px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer">Upload Image</div>
+            <div onclick="window.__fpImgAdd()" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''" style="padding:9px 14px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer">From Unit Type Images</div>
+          </div>
+        </span>`, `
+      <div style="padding:20px 10px 10px;display:flex;flex-direction:column;gap:10px">
+        <div id="fp-img-main" style="display:flex;align-items:center;justify-content:center;min-height:240px">${imgs.length ? this.fpImgSvg(imgs[0], 360, 240) : ''}</div>
+        <div id="fp-img-empty" style="display:${imgs.length ? 'none' : 'flex'};align-items:center;justify-content:center;height:60px;margin-top:-240px;font-size:14px;color:var(--rmx-text, #666666)">No images yet. Use ADD to upload one.</div>
+        <div style="display:flex;align-items:center;gap:16px;background:#e8e8e8;padding:12px 16px">
+          <span onclick="document.getElementById('fp-thumbs').scrollBy({left:-300,behavior:'smooth'})" style="display:flex;flex:none;cursor:pointer;color:var(--ac,var(--rmx-brand, #008dd5))">${this.ico('keyboard_arrow_down', 24, 'transform:rotate(90deg)')}</span>
+          <div id="fp-thumbs" style="flex:1;min-width:0;display:flex;gap:20px;overflow-x:auto;min-height:92px;align-items:center">${imgs.map((v, i) => thumb(v, i === 0)).join('')}</div>
+          <span onclick="document.getElementById('fp-thumbs').scrollBy({left:300,behavior:'smooth'})" style="display:flex;flex:none;cursor:pointer;color:var(--ac,var(--rmx-brand, #008dd5))">${this.ico('keyboard_arrow_down', 24, 'transform:rotate(-90deg)')}</span>
         </div>
-        <span style="font-size:12px;line-height:16px;font-style:italic;color:var(--rmx-text, #666666)">Square feet and market rent come from the units on this floor plan, and listings advertise the range they cover.</span>
-      </div>
-      <div style="display:flex;gap:12px 16px;flex-wrap:wrap">
-        ${fld('Name', F.txt('fp-name', fp.name, 'e.g. The Birch'), true, 'fp-name-f')}
-        ${fld('Unit Type', this.singleSelect('fp-type', this.utData().map(t => ({ value: t.name, label: t.name + ' — ' + this.utDesc(t.name) })), fp.type, { noSearch:true, placeholder:'Select a unit type', js:'window.__fpType&&window.__fpType(_v)' }), true, 'fp-type-f')}
-      </div>
-      <div style="display:flex;gap:12px 16px;flex-wrap:wrap">
-        ${fld('Bedrooms', F.txt('fp-beds', fp.beds))}
-        ${fld('Bathrooms', F.txt('fp-baths', fp.baths))}
-        ${fld('Deposit (Optional)', F.txt('fp-dep', fp.deposit, '0.00'))}
-      </div>
-      ${fld('Marketing Description (Optional)', `<textarea id="fp-desc" placeholder="What makes this layout worth touring" style="box-sizing:border-box;width:100%;height:76px;padding:8px 12px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;font:400 14px/20px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);resize:vertical;outline:none">${html(fp.desc)}</textarea>`)}`;
+      </div>`);
 
-    // Units: every unit at the property. One already on another floor plan is the RMX disabled
-    // checkbox and names that plan, since a unit can only advertise under one.
-    const UCOLS = 'display:grid;grid-template-columns:44px minmax(52px,.6fr) minmax(76px,.9fr) minmax(80px,.8fr) minmax(96px,.9fr) minmax(80px,.8fr) minmax(110px,1.2fr);align-items:center';
-    const UC = 'min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 8px';
-    const uHead = t => `<span style="${UC};font:500 12.6px Roboto,sans-serif;letter-spacing:1.134px;color:var(--rmx-brand-dark, #13314c)">${t}</span>`;
-    const status = u => /vacant/i.test(u.tenant) ? 'Vacant' : (/notice/i.test(u.tenant) ? 'On Notice' : 'Occupied');
-    const uRows = this.units().map((u, i) => {
-      const other = owner[u.u], on = !other && fp.units.indexOf(u.u) >= 0;
-      return `<div data-fpu="${esc(u.u)}" data-type="${esc(u.type)}" style="${UCOLS};min-height:36px;border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);${i % 2 ? 'background:#f7fafc;' : ''}font-size:14px;color:${other ? 'var(--rmx-text-muted, #b3b3b3)' : 'var(--rmx-brand-dark, #13314c)'}">
-        <span style="display:flex;align-items:center;justify-content:center">${this.rmxCheckbox(on, !!other, other ? ` title="Already on ${esc(other)}"` : ` onclick="window.__fpUnit(this)"`)}</span>
-        <span style="${UC}">${html(u.u)}</span><span style="${UC}">${html(u.type)}</span><span style="${UC}">${html(u.sqft)}</span><span style="${UC}">${html(u.rent)}</span><span style="${UC}">${status(u)}</span>
-        <span data-fpown style="${UC}">${other ? html(other) : (on ? 'This floor plan' : '—')}</span>
-      </div>`;
-    }).join('');
-    const unitsPanel = `<span style="font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">Choose the units this floor plan advertises. A unit can be on one floor plan at a time, so units on another are greyed out.</span>
-      <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow-x:auto">
-        <div style="min-width:600px">
-          <div style="${UCOLS};min-height:32px;border-bottom:1px solid var(--rmx-line, #cedbe7)"><span></span>${uHead('Unit')}${uHead('Unit Type')}${uHead('Sq Ft')}${uHead('Market Rent')}${uHead('Status')}${uHead('Floor Plan')}</div>
-          ${uRows}
-        </div>
-      </div>`;
-
-    // Images: what a listing shows beside the floor plan's price. Uploading is simulated — Add Images
-    // drops in a tile — but the captions and the count are real and are what Save keeps.
-    const PLAN = `<svg width="120" height="84" viewBox="0 0 120 84" fill="none" stroke="#8fa9c0" stroke-width="2" aria-hidden="true"><rect x="4" y="4" width="112" height="76"/><path d="M60 4v28M60 48v32M4 44h36M80 44h36M80 44V30"/><path d="M40 44a12 12 0 0 1 12-12" stroke-dasharray="2 3"/></svg>`;
-    const imgTile = (cap, i) => `<div data-fpimg style="position:relative;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden;background:#fff;display:flex;flex-direction:column">
-        <div style="height:110px;background:var(--rmx-bg-subtle, #f5f8fa);display:flex;align-items:center;justify-content:center">${i === 0 && /floor plan/i.test(cap) ? PLAN : this.ico('photo_camera', 36, 'color:#8fa9c0')}</div>
-        <input data-fpcap value="${esc(cap)}" placeholder="Add a caption" style="box-sizing:border-box;width:100%;height:36px;border:none;border-top:1px solid var(--rmx-line, #cedbe7);padding:0 10px;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);outline:none;background:#fff">
-        <span onclick="this.closest('[data-fpimg]').remove();window.__fpImgCount()" title="Remove image" style="position:absolute;top:6px;right:6px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:#fff;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.2);cursor:pointer">${this.ico('delete', 18, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
-      </div>`;
-    this._fpImgTile = imgTile;
-    const imagesPanel = `<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-        <span style="flex:1 1 240px;min-width:0;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">Listings show these beside the floor plan's price. Put the floor plan drawing first.</span>
-        <button onclick="window.__fpImgAdd()" class="btn-out" style="display:inline-flex;align-items:center;gap:8px;height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">${this.ico('cloud_upload', 20)}Add Images</button>
-      </div>
-      <div id="fp-imgs" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px">${fp.images.map(imgTile).join('')}</div>
-      <div id="fp-imgs-empty" style="display:${fp.images.length ? 'none' : 'flex'};align-items:center;justify-content:center;height:120px;border:2px dashed var(--rmx-line, #cedbe7);border-radius:4px;font-size:14px;color:var(--rmx-text, #666666)">No images yet.</div>`;
-
-    const tab = (k, l, n) => `<span data-fptab="${k}" onclick="window.__fpTab('${k}')" style="display:inline-flex;align-items:center;gap:6px;height:40px;box-sizing:border-box;padding:0 16px;cursor:pointer;font-size:14px;white-space:nowrap;border-bottom:2px solid ${k === 'general' ? 'var(--ac,var(--rmx-brand, #008dd5))' : 'transparent'};color:${k === 'general' ? 'var(--ac,var(--rmx-brand, #008dd5))' : 'var(--rmx-text, #666666)'}">${l}${n != null ? ` <span id="fp-n-${k}">(${n})</span>` : ''}</span>`;
-    const panel = (k, inner) => `<div data-fppanel="${k}" style="display:${k === 'general' ? 'flex' : 'none'};flex-direction:column;gap:16px">${inner}</div>`;
-
-    // DOM-only behaviour. Re-rendering would throw away the form, so ticking a unit, picking a unit
-    // type, adding an image and a failed save all work on the nodes in place.
     const self = this;
-    const box = (on) => self.rmxCheckbox(on, false, ` onclick="window.__fpUnit(this)"`);
-    const picked = () => Array.prototype.filter.call(self.rootEl.querySelectorAll('[data-fpu]'), r => {
-      const b = r.querySelector('[role=checkbox]'); return b && b.getAttribute('aria-checked') === 'true' && !b.getAttribute('aria-disabled'); }).map(r => r.getAttribute('data-fpu'));
-    window.__fpRecalc = () => {
-      const s = self.fpStats(picked());
-      [['units','units'],['avail','avail'],['sqft','sqft'],['rent','rent']].forEach(([id, k]) => { const x = self.q('#fp-s-' + id); if (x) x.textContent = s[k]; });
-      const n = self.q('#fp-n-units'); if (n) n.textContent = '(' + s.units + ')';
+    window.__fpType = (v) => { const n = self.q('#fp-name');
+      // A new plan takes its unit type's name, as production's do, until someone types their own.
+      if (n && (!n.value || n.value === self._fpAutoName)) { n.value = v; self._fpAutoName = v; }
+      const tf = self.q('#fp-type-rw'); if (tf) tf.querySelectorAll('[id$="-disp"]').forEach(d => { d.parentNode.style.borderColor = ''; }); };
+    this._fpAutoName = fp.id ? null : '';
+    const strip = () => self.q('#fp-thumbs');
+    window.__fpImgSel = (el) => {
+      Array.prototype.forEach.call(strip().children, t => { const on = t === el;
+        t.style.padding = on ? '3px' : '0'; t.style.border = on ? '2px solid var(--ac,var(--rmx-brand, #008dd5))' : '0'; });
+      self.q('#fp-img-main').innerHTML = el ? self.fpImgSvg(+el.getAttribute('data-fpimg'), 360, 240) : '';
+      self.q('#fp-img-empty').style.display = strip().children.length ? 'none' : 'flex';
     };
-    window.__fpSet = (row, on) => {
-      const b = row.querySelector('[role=checkbox]'); if (!b || b.getAttribute('aria-disabled')) return;
-      b.outerHTML = box(on);
-      const own = row.querySelector('[data-fpown]'); if (own) own.textContent = on ? 'This floor plan' : '—';
-    };
-    window.__fpUnit = (el) => { if (el.getAttribute('aria-disabled')) return;
-      window.__fpSet(el.closest('[data-fpu]'), el.getAttribute('aria-checked') !== 'true'); window.__fpRecalc(); };
-    // Picking a unit type ticks that type's free units and fills Bedrooms / Bathrooms — only where
-    // they are empty or still hold what the last unit type put there, so a typed value survives.
-    window.__fpType = (v) => {
-      const prev = self._fpAuto || {}, nx = self.fpBedsBaths(v);
-      ['beds','baths'].forEach(k => { const f = self.q('#fp-' + k); if (f && (!f.value || f.value === prev[k])) f.value = nx[k]; });
-      self._fpAuto = nx;
-      Array.prototype.forEach.call(self.rootEl.querySelectorAll('[data-fpu]'), r => window.__fpSet(r, r.getAttribute('data-type') === v));
-      window.__fpRecalc();
-      const tf = self.q('#fp-type-f'); if (tf) tf.querySelectorAll('[id$="-disp"]').forEach(d => { d.parentNode.style.borderColor = ''; });
-    };
-    window.__fpTab = (k) => {
-      self.rootEl.querySelectorAll('[data-fppanel]').forEach(p => { p.style.display = p.getAttribute('data-fppanel') === k ? 'flex' : 'none'; });
-      self.rootEl.querySelectorAll('[data-fptab]').forEach(t => { const on = t.getAttribute('data-fptab') === k;
-        t.style.borderBottomColor = on ? 'var(--ac,var(--rmx-brand, #008dd5))' : 'transparent';
-        t.style.color = on ? 'var(--ac,var(--rmx-brand, #008dd5))' : 'var(--rmx-text, #666666)'; });
-    };
-    window.__fpImgCount = () => {
-      const n = self.rootEl.querySelectorAll('[data-fpimg]').length;
-      const c = self.q('#fp-n-images'); if (c) c.textContent = '(' + n + ')';
-      const em = self.q('#fp-imgs-empty'); if (em) em.style.display = n ? 'none' : 'flex';
-    };
-    window.__fpImgAdd = () => { const g = self.q('#fp-imgs'); if (!g) return;
-      g.insertAdjacentHTML('beforeend', self._fpImgTile('', g.children.length + 1)); window.__fpImgCount();
-      const caps = g.querySelectorAll('[data-fpcap]'); if (caps.length) caps[caps.length - 1].focus(); };
+    window.__fpImgDel = () => { const st = strip(); const sel = Array.prototype.find.call(st.children, t => t.style.padding === '3px');
+      if (!sel) return; const next = sel.nextElementSibling || sel.previousElementSibling; sel.remove(); window.__fpImgSel(next || null); };
+    window.__fpImgAdd = () => { const st = strip(); self.q('#fp-addm').style.display = 'none';
+      st.insertAdjacentHTML('beforeend', self._fpThumb((st.children.length + 2) % 4, false));
+      window.__fpImgSel(st.lastElementChild); st.scrollLeft = st.scrollWidth; };
     window.__fpInvalid = (o) => {
-      window.__fpTab('general');
       const err = self.q('#fp-err'), t = self.q('#fp-err-t'); if (err) err.style.display = 'flex'; if (t) t.textContent = o.msg;
       const n = self.q('#fp-name'); if (n) n.style.borderColor = o.name ? 'var(--rmx-error, #eb343c)' : '';
-      const tf = self.q('#fp-type-f'); if (tf) tf.querySelectorAll('[id$="-disp"]').forEach(d => { d.parentNode.style.borderColor = o.type ? 'var(--rmx-error, #eb343c)' : ''; });
+      const tf = self.q('#fp-type-rw'); if (tf) tf.querySelectorAll('[id$="-disp"]').forEach(d => { d.parentNode.style.borderColor = o.type ? 'var(--rmx-error, #eb343c)' : ''; });
+      const b = self.q('#fp-body'); if (b) b.scrollTop = 0;
     };
 
     return `<div data-act="fpCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:150">
-      <div data-act="noop" style="width:760px;max-width:94vw;height:640px;max-height:92vh;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;height:48px;box-sizing:border-box;padding:8px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
-          <span style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${fp.id ? 'Edit Floor Plan' : 'New Floor Plan'}</span>
+      <div data-act="noop" style="width:1100px;max-width:96vw;height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;height:56px;box-sizing:border-box;padding:8px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
+          <span style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${fp.id ? 'Edit Floor Plan: ' + html(fp.name) : 'New Floor Plan'}</span>
           <span data-act="fpCancel" style="display:flex;cursor:pointer">${this.ico('close', 24, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
         </div>
-        <div style="display:flex;padding:0 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none;overflow-x:auto">${tab('general', 'General')}${tab('units', 'Units', fp.units.length)}${tab('images', 'Images', fp.images.length)}</div>
-        <div style="flex:1;min-height:0;overflow-y:auto;padding:16px">
-          ${panel('general', general)}${panel('units', unitsPanel)}${panel('images', imagesPanel)}
-        </div>
-        <div style="display:flex;justify-content:flex-end;align-items:center;gap:16px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:8px 16px;flex:none">
+        <div id="fp-body" style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:16px">${general}${images}</div>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:8px 16px;flex:none">
+          <span style="flex:1 1 280px;min-width:0;font-size:14px;line-height:20px;color:var(--rmx-error, #eb343c)">Listings may not post for certain providers if the number of bedrooms and bathrooms for units do not match the floor plan.</span>
           <button data-act="fpSave" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Save</button>
           <button data-act="fpCancel" class="btn-out" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Cancel</button>
         </div>
