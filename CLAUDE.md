@@ -1381,20 +1381,23 @@ figure, else its `est`). `roleState` is `set` when every group is marked, `none`
   reset when the dialog opens). **Activating marks them** (`pubConfirm`): in each group the picked charge
   takes the role and every other candidate there becomes an additional charge (`leaseRole: ''`). A
   property with no candidate for either can't activate: the box says so in red and Activate is disabled.
-- **Listing Details before activation** keeps today's fields, with one note above Price (moved there from
-  under Deposit Fee(s) on 2026-10-12) in
-  RMX's outlined Callout (`roleNoteHTML` / `roleNoteText`): an info glyph and *Fee transparency needs a
-  Base Rent and a Security Deposit charge. Neither is marked yet. Mark them on the charges, or confirm our
-  suggestions when you activate.* with **Go to Charges** (or which one is still missing); once both are
-  marked, a green check — *Base Rent and Security Deposit are marked on your charges. Listings switch to
-  them when you activate fee transparency.* — over the two boxes. **After activation** Price and Deposit
-  Fee(s) *are* the two boxes, with **Change in Charges** (`openFeeProfile`).
+- **Listing Details before activation** keeps today's fields, with one note above Price in RMX's
+  outlined Callout (`roleNoteHTML` / `roleNoteText`). Its copy is UX-copy option A (2026-10-12): what
+  listings will do, then the optional way to do it now — the activation dialog fills these in anyway,
+  so nothing reads as a requirement, and it says **set**, not *marked*, because setting is what the
+  charge form asks. Neither set: *"Once fee transparency is active, listings start from your Base Rent
+  and Security Deposit charges. **Set them in Charges**, or confirm them when you activate."* One set:
+  *"Base Rent is set. **Set a Security Deposit in Charges**, or confirm one when you activate."* (and the
+  reverse). Both set: a green check, *"Once fee transparency is active, listings start from these
+  charges."*, over the two boxes. The links are `openFeeProfile`. **After activation** Price and Deposit
+  Fee(s) *are* the two boxes, with **Change in Charges**.
 - **Edit Floor Plan** follows the same line: before activation Price is the mapping dropdown with a 12px
-  line under it — *…comes from the Base Rent charge. No charge is marked as the Base Rent yet.* **Go to
-  Charges**, or, marked, a green check naming it; after, Price is `roleBoxHTML(…, { unitType })` — that
+  line under it — *"Once fee transparency is active, listings use the Base Rent charge instead."* **Set
+  Base Rent in Charges**, or, set, a green check: *"…listings use **RC – Rent** instead."* (*instead* is
+  what says the dropdown still matters today). After, Price is `roleBoxHTML(…, { unitType })` — that
   unit type's own Base Rent, else the property's — over *Listings show a Total Monthly Price of $x – $y
   for these units* (`roleTotalRange`: the Base Rent per unit plus `ltMonthlyFees`). A hidden `#fp-price`
-  keeps the mapping. `openFeeProfile` clears `fpEdit`, so Go to Charges closes the dialog.
+  keeps the mapping. `openFeeProfile` clears `fpEdit`, so the link closes the dialog.
 - **The Berkshires is the several-charges example** (`propCharges` adds ids 30–33): a second property RC
   (*Short-term premium*, $150), its own RC on 2BR/2BA ($1,600) and 3BR/2BA ($2,050), and its own DP on
   3BR/2BA ($750). So its counts read four charges more than before; Riverview's baselines are unchanged.

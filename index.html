@@ -4183,8 +4183,8 @@ class Component extends DCLogic {
     const total = ftOn && !preFT && fp.type ? this.roleTotalRange(prop, fp.type) : '';
     const priceBlock = !ftOn ? fld('Price', dd('fp-price', S.price, fp.price))
       : preFT ? fld('Price', dd('fp-price', S.price, fp.price) + (brGroup && brGroup.marked
-          ? small(this.ico('check_circle', 16, 'color:var(--rmx-success, #6eb744);flex:none'), `Once fee transparency is active, this price comes from the Base Rent, <strong style="font-weight:600">${html(this.roleChargeLabel(brGroup.chosen))}</strong>.`)
-          : small(this.ico('info', 16, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none'), `Once fee transparency is active, this price comes from the Base Rent charge. No charge is marked as the Base Rent yet. <a data-act="openFeeProfile" data-arg="${esc(prop)}" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Go to Charges</a>`)))
+          ? small(this.ico('check_circle', 16, 'color:var(--rmx-success, #6eb744);flex:none'), `Once fee transparency is active, listings use <strong style="font-weight:600">${html(this.roleChargeLabel(brGroup.chosen))}</strong> instead.`)
+          : small(this.ico('info', 16, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none'), `Once fee transparency is active, listings use the Base Rent charge instead. <a data-act="openFeeProfile" data-arg="${esc(prop)}" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Set Base Rent in Charges</a>`)))
       : fld('Price', `<input type="hidden" id="fp-price" value="${esc(fp.price)}">${this.roleBoxHTML(prop, 'rent', fp.type ? { unitType: fp.type } : {})}${total ? small('', 'Listings show a Total Monthly Price of ' + total + ' for these units.') : ''}`);
     const ERR = `<svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-error, #eb343c);flex:none"><path d="M453-433h60v-253h-60v253Zm27 147q14 0 23.5-9.5T513-319q0-14-9.5-23.5T480-352q-14 0-23.5 9.5T447-319q0 14 9.5 23.5T480-286Zm0 206q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z"/></svg>`;
     const card = (head, inner) => `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;background:#fff;display:flex;flex-direction:column;flex:none">
@@ -4393,17 +4393,21 @@ class Component extends DCLogic {
   }
   // Before activation, where the two stand, in RMX's outlined Callout: a check once every level is
   // marked on a charge, else what's missing and the way to the charges.
-  roleNoteHTML(prop, text, link){
+  roleNoteHTML(prop, text){
     const set = text === true;
     const icon = set ? this.ico('check_circle', 20, 'color:var(--rmx-success, #6eb744);flex:none') : this.ico('info', 20, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none');
-    return `<div style="display:flex;align-items:flex-start;gap:8px;padding:10px 12px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;background:#fff;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">${icon}<span style="flex:1;min-width:0">${set ? 'Base Rent and Security Deposit are marked on your charges. Listings switch to them when you activate fee transparency.' : text}${link ? ` <a data-act="openFeeProfile" data-arg="${String(prop).replace(/"/g,'&quot;')}" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Go to Charges</a>` : ''}</span></div>`;
+    return `<div style="display:flex;align-items:flex-start;gap:8px;padding:10px 12px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;background:#fff;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">${icon}<span style="flex:1;min-width:0">${set ? 'Once fee transparency is active, listings start from these charges.' : text}</span></div>`;
   }
+  // UX-copy option A (2026-10-12): what listings will do, then the optional way to do it now — the
+  // activation dialog fills these in anyway, so nothing here reads as a requirement. "Set", not
+  // "marked": it is what the charge form asks the user to do.
   roleNoteText(prop){
     const r = this.roleState(prop, 'rent') === 'set', d = this.roleState(prop, 'deposit') === 'set';
     if (r && d) return true;
-    const tail = 'Mark them on the charges, or confirm our suggestions when you activate.';
-    if (!r && !d) return 'Fee transparency needs a Base Rent and a Security Deposit charge. Neither is marked yet. ' + tail;
-    return (r ? 'Base Rent is marked, but the Security Deposit isn’t yet. ' : 'Security Deposit is marked, but the Base Rent isn’t yet. ') + tail;
+    const link = (t) => `<a data-act="openFeeProfile" data-arg="${String(prop).replace(/"/g,'&quot;')}" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">${t}</a>`;
+    if (!r && !d) return `Once fee transparency is active, listings start from your Base Rent and Security Deposit charges. ${link('Set them in Charges')}, or confirm them when you activate.`;
+    return r ? `Base Rent is set. ${link('Set a Security Deposit in Charges')}, or confirm one when you activate.`
+      : `Security Deposit is set. ${link('Set a Base Rent in Charges')}, or confirm one when you activate.`;
   }
   // What an advertised unit of this type totals: its Base Rent plus the required monthly charges.
   roleTotalRange(prop, unitType){
@@ -10182,7 +10186,7 @@ class Component extends DCLogic {
     const roleText = ftOn && preFT ? this.roleNoteText(P.name) : null;
     const roleNote = !ftOn ? '' : roleText === true
       ? `${this.roleNoteHTML(P.name, true)}${this.roleBoxHTML(P.name, 'rent')}${this.roleBoxHTML(P.name, 'deposit')}`
-      : this.roleNoteHTML(P.name, roleText, true);
+      : this.roleNoteHTML(P.name, roleText);
     const listingInner = preFT ? `
       ${excl}
       ${roleNote}
