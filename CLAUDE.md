@@ -151,13 +151,12 @@ is the way in, and the row belongs to the overlay. `ftPropRow(r, open, opts)` is
 method, drawn only by `ftSetupHTML`.
 
 **Listing Details has two faces, and activation is the line** (2026-09-30). **Before** a property
-activates it is the tile as it ships today, to the user's mock: an amber-bordered note with a
-`warning` triangle — *"To comply with federal fee transparency requirements, ensure all required
-monthly fees are included in the price or clearly disclosed in the description."* and a **Learn More**
-(`todo`) — then Exclude Unit-specific information, **Price** over the bold *"Price is derived from the
+activates it is the tile as it ships today, to the user's mock — minus the amber *"To comply with
+federal fee transparency requirements…"* note, which the user removed on 2026-10-12 from here and from
+Edit Floor Plan — Exclude Unit-specific information, **Price** over the bold *"Price is derived from the
 floor plan for properties set to Multi Family feed type."*, **Deposit Fee(s)** over **Lease Terms** (stacked since 2026-10-12; they sat side by side),
 Property Images + Preview, Unit Images as a full-width *2 Selected* with no Preview, and Availability
-Date. **After** activation the compliance note goes and Unit Images gains its Preview, but **Price
+Date. **After** activation Unit Images gains its Preview, but **Price
 and Deposit Fee(s) stay** (the user asked on 2026-10-08; they used to drop out, on the reasoning that
 the charges supply both): Exclude, Price, Deposit Fee(s) over Lease Terms, Property Images +
 Preview, Unit Images + Preview, Availability Date. `preFT` is
@@ -910,9 +909,8 @@ feed needs at least one floor plan.
   Cancel. **General**: Floor Plan Name; **Unit Type** — on an existing plan the RMX disabled field
   with the edit-filled pencil beside it, which swaps in the dropdown (a new plan opens on the
   dropdown, offering only unit types without a plan, and picking one fills the name until someone
-  types their own, `window.__fpType`); **Price**; then, **before activation only**, the same amber
-  compliance note Listing Details carries (*To comply with federal fee transparency requirements…*
-  **Learn More**), under the field it is about; Bedrooms; Bathrooms; Marketing Description.
+  types their own, `window.__fpType`); **Price**; Bedrooms; Bathrooms; Marketing Description. (The
+  amber compliance note production shows under Price was removed at the user's request, 2026-10-12.)
   **Images**: the title with **Delete · Details · SORT ▾ · ADD ▾** beside it, the selected image
   large, and a grey thumbnail strip with arrows, the selected thumb in a 2px brand frame. Delete and
   ADD (*Upload Image* / *From Unit Type Images*) work on the strip in place (`__fpImgSel`,
