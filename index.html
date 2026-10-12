@@ -4270,17 +4270,23 @@ class Component extends DCLogic {
       </div>
     </div>`;
   }
-  // RMX PopUp: a Rent Charge Type that can't come off the list because a charge on it is the Base Rent.
-  // One button, since there is nothing to confirm — only something to do first.
+  // RMX PopUp (RMX Components `4193:45458`): a Rent or Security Deposit Charge Type that can't come off
+  // its list because a charge on it holds the role. The PopUp's 48px Brand `warning-filled` icon beside
+  // the text, content padded 24/8/16/16, `dropshadow-lg`; one button, since there is nothing to confirm.
   rentCTBlockHTML(){
     const b = this.state.rentCTBlock; if (!b) return '';
+    const dep = b.kind === 'deposit';
+    const list = dep ? 'Security Deposit Charge Types' : 'Rent Charge Types', role = dep ? 'Security Deposit' : 'Base Rent';
     return `<div data-act="rentCTBlockClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:160">
-      <div data-act="noop" role="alertdialog" aria-labelledby="rctb-h" style="width:460px;max-width:94vw;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+      <div data-act="noop" role="alertdialog" aria-labelledby="rctb-h" aria-describedby="rctb-d" style="width:460px;max-width:94vw;background:#fff;border-radius:4px;box-shadow:1px 2px 12px 1px rgba(76,76,76,.14), 0 10px 10px -5px rgba(76,76,76,.15);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;height:48px;box-sizing:border-box;padding:8px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
           <span id="rctb-h" style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">Can’t Remove Charge Type</span>
           <span data-act="rentCTBlockClose" style="display:flex;cursor:pointer">${this.ico('close', 24, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
         </div>
-        <div style="padding:16px;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">This charge type can’t be removed from Rent Charge Types because a charge using it is the Base Rent charge for this property. To remove it, first assign Base Rent to a charge with a different charge type.</div>
+        <div style="display:flex;align-items:flex-start;gap:16px;min-height:124px;box-sizing:border-box;padding:24px 8px 16px 16px">
+          <svg width="48" height="48" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5));flex:none"><path d="M40-120 480-880l440 760H40Zm440-120q17 0 28.5-11.5T520-280q0-17-11.5-28.5T480-320q-17 0-28.5 11.5T440-280q0 17 11.5 28.5T480-240Zm-40-120h80v-200h-80v200Z"/></svg>
+          <span id="rctb-d" style="flex:1;min-width:0;padding-right:8px;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">This charge type can’t be removed from ${list} because a charge using it is the ${role} charge for this property. To remove it, first assign ${role} to a charge with a different charge type.</span>
+        </div>
         <div style="display:flex;justify-content:flex-end;gap:16px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:8px 16px">
           <button data-act="rentCTBlockClose" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">OK</button>
         </div>
@@ -5772,11 +5778,16 @@ class Component extends DCLogic {
       // says why and what to do first.
       const held = this.rentTypesFor(prop).filter(c => now.indexOf(c) < 0
         && this.profileRows(prop).some(r => String(r.mits || '').toUpperCase() === c && this.leaseRoleOf(r) === 'rent'));
-      if (held.length) { this.setState({ rentCTBlock: { prop, codes: held } }); return; }
+      if (held.length) { this.setState({ rentCTBlock: { prop, codes: held, kind: 'rent' } }); return; }
       this._rentCT = Object.assign({}, this._rentCT, { [prop]: now }); };
     // Security Deposit Charge Types, the same way: which charge types are the deposit (DP to start).
     window.__depCT = (prop) => { const l = document.getElementById('pg-dep-ct-list'); if (!l) return;
-      this._depCT = Object.assign({}, this._depCT, { [prop]: Array.prototype.map.call(l.querySelectorAll('input:checked'), x => x.value) }); };
+      const now = Array.prototype.map.call(l.querySelectorAll('input:checked'), x => x.value);
+      // The same guard as Rent Charge Types, for the charge that is the Security Deposit.
+      const held = this.depTypesFor(prop).filter(c => now.indexOf(c) < 0
+        && this.profileRows(prop).some(r => String(r.mits || '').toUpperCase() === c && this.leaseRoleOf(r) === 'deposit'));
+      if (held.length) { this.setState({ rentCTBlock: { prop, codes: held, kind: 'deposit' } }); return; }
+      this._depCT = Object.assign({}, this._depCT, { [prop]: now }); };
     const depCT = `<div style="display:flex;flex-direction:column;gap:4px;min-width:0">${lab('Security Deposit Charge Types')}${this.multiSelect('pg-dep-ct', rentOpts, this.depTypesFor(p), "if(window.__depCT)window.__depCT(" + JSON.stringify(p).replace(/"/g, '&quot;') + ")")}</div>`;
     const rentCT = `<div style="display:flex;flex-direction:column;gap:4px;min-width:0">${lab('Rent Charge Types')}${this.multiSelect('pg-rent-ct', rentOpts, rentSel, "if(window.__rentCT)window.__rentCT(" + JSON.stringify(p).replace(/"/g, '&quot;') + ")")}</div>`;
     const other = tile('Other Information','',
