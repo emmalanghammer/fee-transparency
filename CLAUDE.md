@@ -1338,7 +1338,7 @@ ignores the property now. The charge form's role card says *"DP is a security de
 
 **A rent charge type holding the Base Rent can't come off the list** (2026-10-12, the user's spec).
 `window.__rentCT` compares the new ticks with `rentTypesFor(prop)` before saving them: if a code
-being unticked has a charge whose `leaseRoleOf` is `rent` (stored, or the default property-level RC),
+being unticked has a charge whose `leaseRoleOf` is `rent` (only ever a stored answer now),
 nothing is saved, `state.rentCTBlock` raises **`rentCTBlockHTML`** — an RMX PopUp (`4193:45458`) at
 z-index 160: *Can’t Remove Charge Type*, the PopUp's 48px Brand `warning-filled` icon, content padded
 24/8/16/16, `dropshadow-lg`. Its copy is UX-copy option A (2026-10-12, replacing the user's first
@@ -1376,9 +1376,13 @@ charge per charge level can be the Base Rent. If you continue, RC – Rent becom
 and this charge becomes the Base Rent when you save."* — the charge holding the role named as
 *CODE – charge type description*, in SemiBold; footer **Replace Base Rent** / **Cancel**. No warning
 icon. Stored as `listing.leaseRole`
-('rent' / 'deposit' / '' for additional); a charge never asked reads the property-level **RC** as Base
-Rent and **DP** as Security Deposit (`leaseRoleOf`), and anything off the property's lists reads
-none. The old Name dropdowns for the two roles (`m-name-rent`, `m-name-dep`, `nameOpts`) are gone. The
+('rent' / 'deposit' / '' for additional). **At rollout every candidate is an additional charge**
+(2026-10-13): `leaseRoleOf` reads the stored answer and nothing else — it used to read an un-asked
+property-level RC as the Base Rent and DP as the Security Deposit. So in On Rollout nothing is set until
+someone sets it or activates. A property a scenario opens **already activated** carries what activation
+would have written: `scenarioApply`'s setState callback runs `roleSeedActivated()`, which marks each
+level's suggestion and makes the other candidates additional (Happy Path's Berkshires reads RC rent, the
+$150 RC additional, both unit types' RC rent, DP and the 3BR/2BA DP deposit; Riverview reads none). The old Name dropdowns for the two roles (`m-name-rent`, `m-name-dep`, `nameOpts`) are gone. The
 Pricing Preview names those two charges **Base Rent** and **Security Deposit** outright, in its picker
 and its price card (`ppName`), rather than wearing a role tag beside their own name (2026-10-12; the
 `roleTag` lozenges are gone).
@@ -1412,8 +1416,8 @@ figure, else its `est`). `roleState` is `set` when every group is marked, `none`
   navy text — with a sentence and then, **collapsed by default** behind a brand *View charges (n)* /
   *Hide charges (n)* toggle with a chevron (`window.__roleCallout`, open state in `this._roleOpen`, so a
   property with several isn't a wall of rows), under an `#ebf1f5` hairline, **every charge already set** as the
-  Base Rent or Security Deposit: a 12px SemiBold grey *Base Rent* / *Security Deposit* label over rows of
-  `chargeLevelCell` (tag + name), the charge and its amount. Nothing set, no list. The copy is UX-copy
+  Base Rent or Security Deposit as rows of `chargeLevelCell` (tag + name), the charge and its amount — no
+  role label above them (removed 2026-10-13); the charge names it. Nothing set, no list. The copy is UX-copy
   option A, *set* not *marked*. **Listing Details** (above Price): neither set — *"Once fee transparency is
   active, listings start from your Base Rent and Security Deposit charges. **Set them in Charges**, or
   confirm them when you activate."*; one set — *"Base Rent is set. **Set a Security Deposit in Charges**,

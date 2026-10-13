@@ -499,10 +499,11 @@ class Component extends DCLogic {
     if (!r) return '';
     const kind = this.leaseRoleKind(r.mits, r._prop, /-one$/.test(String(r.group || '')));
     if (!kind) return '';
+    // At rollout every charge that could be either starts as an additional charge (2026-10-13): nothing
+    // is the Base Rent or Security Deposit until someone sets it, or activates. Properties a scenario
+    // opens already activated have theirs written by `roleSeedActivated`.
     const L = r.listing || {};
-    if (L.leaseRole != null) return L.leaseRole === kind ? kind : '';
-    const c = String(r.mits || '').toUpperCase();
-    return String(r.level || 'Property') === 'Property' && ((kind === 'rent' && c === 'RC') || (kind === 'deposit' && c === 'DP')) ? kind : '';
+    return L.leaseRole === kind ? kind : '';
   }
   leaseRoleLabel(k){ return k === 'rent' ? 'Base Rent' : k === 'deposit' ? 'Security Deposit' : ''; }
   // The charge form's answer: the role card's checked radio, or '' (an additional charge).
@@ -3099,7 +3100,7 @@ class Component extends DCLogic {
       lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false, ltGroupBy: true, ftSetup: null, propDef: {}, ctmEdit: null, ctmAsk: null, ctmMode: 'inherit', mcTab: 'Overview',
       fpData: {}, fpEdit: null, fpMenu: null, fpDel: null, sdTypes: ['DP'],
       mcProp: null, mktDefDraft: null, mktDefAsk: false, mktDefMode: 'inherit', mpExp: null
-    });
+    }, () => this.roleSeedActivated());
     try {
       const q = new URLSearchParams(location.search);
       q.set('scen', key);
@@ -4482,7 +4483,6 @@ class Component extends DCLogic {
     const toggle = !set.length ? '' : `<button type="button" onclick="window.__roleCallout(this)" aria-expanded="${open}" style="display:flex;align-items:center;gap:2px;margin-top:6px;padding:0;border:0;background:none;font:400 14px/20px Roboto,sans-serif;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><span data-rolelbl data-what="${what}">${open ? 'Hide' : 'View'} ${what}</span><span data-rolechev style="display:flex;transition:transform .15s;transform:rotate(${open ? 180 : 0}deg)">${this.ico('keyboard_arrow_down', 20)}</span></button>`;
     const list = !set.length ? '' : toggle + `<div data-rolelist style="display:${open ? 'flex' : 'none'};flex-direction:column;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--rmx-brand-tint-bg, #ebf1f5)">${set.map(x => `
       <div style="display:flex;flex-direction:column;gap:4px">
-        <span style="font-size:12px;line-height:16px;font-weight:600;color:var(--rmx-text, #666666)">${this.leaseRoleLabel(x.k)}</span>
         ${x.gs.map(g => `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px">
           <span style="flex:0 1 auto;min-width:0">${this.chargeLevelCell(g.level, esc(g.name))}</span>
           <span style="flex:1 1 140px;min-width:0;display:flex;flex-wrap:wrap;justify-content:space-between;gap:0 8px"><span style="min-width:0;overflow-wrap:anywhere">${esc(this.roleChargeLabel(g.chosen))}</span><span style="min-width:0">${esc(this.roleAmtLabel(g.chosen))}</span></span>
@@ -4490,6 +4490,23 @@ class Component extends DCLogic {
       </div>`).join('')}</div>`;
     const icon = all ? this.ico('check_circle', 20, 'color:var(--rmx-success, #6eb744);flex:none') : this.ico('info', 20, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none');
     return `<div data-rolecallout="${esc(ckey)}" style="display:flex;align-items:flex-start;gap:8px;padding:10px 12px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;background:#fff;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">${icon}<div style="flex:1;min-width:0">${text}${list}</div></div>`;
+  }
+  // A property a scenario opens as already fee transparent went through activation, so it carries what
+  // activation would have written: in each charge level's group the suggestion takes the role and every
+  // other candidate is an additional charge. Groups someone already set are left alone.
+  roleSeedActivated(){
+    const fees = {};
+    Object.keys(this.state.publishedProps || {}).filter(p => this.state.publishedProps[p]).forEach(p => {
+      const set = {};
+      ['rent', 'deposit'].forEach(kind => this.roleGroups(p, kind).forEach(g => {
+        if (g.marked) return;
+        g.rows.forEach(r => { set[String(r.id)] = String(r.id) === String(g.chosen.id) ? kind : ''; });
+      }));
+      if (!Object.keys(set).length) return;
+      fees[p] = this.profileRows(p).map(r => String(r.id) in set
+        ? Object.assign({}, r, { listing: Object.assign({}, r.listing, { leaseRole: set[String(r.id)] }) }) : r);
+    });
+    if (Object.keys(fees).length) this.setState(s => ({ profileFees: Object.assign({}, s.profileFees, fees) }));
   }
   // What an advertised unit of this type totals: its Base Rent plus the required monthly charges.
   roleTotalRange(prop, unitType){
