@@ -1430,49 +1430,53 @@ canvas *Confirm Base Rent & Deposit*).
   disabled. `pubConfirm` keeps whatever has been confirmed and writes `g.chosen` (our suggestion)
   everywhere else; declined groups aren't returned, so their units keep reading the property's.
 - **Fee Transparency Setup** (`ftPropRow`) has a sub-row between Listing Ready Charges and Set Property
-  Defaults, gone once the property is fee transparent (`roleSetupState`): a brand `auto_awesome` (added to
-  the `ico` map) and *"Base Rent & Security Deposit: suggested from your charges"* (the last four words grey)
-  with **Review**; every group confirmed, a green `check_circle` and *"…: confirmed"* with **Review**; no
-  candidate, a red `error` and *"…: no rent or deposit charge"* with **View Charges** (`openFeeProfile`).
-- **The Review overlay** (`roleReviewHTML`, `state.roleReview = { prop }`, `roleReviewOpen` /
-  `roleReviewClose` / `roleReviewSave`, z-index 155 — over Setup, Marketing Setup and Edit Floor Plan):
-  *Base Rent & Security Deposit: `<Property>`*. *"Confirm or change each suggestion."* with *n to confirm*
-  and **Confirm All** on the right, or a green check and *All confirmed*. Three bordered sections, header
-  only — *Property charges*, *Unit type charges*, *Unit charges* — one row per `roleGroups(…, { all: true })`
-  group, both roles: Charge Level cell · the role in SemiBold · the charge (`roleRowText`:
-  `roleChargeLabel(r, true)` · `roleAmtLabel`) · actions. No helper text, reasons or warnings. The unit
-  section reads *"No unit charges."* when empty, then **+ Add a Unit Charge**: an inline Unit · Charge
-  (Base Rent / Security Deposit) · Amount form with Add / Cancel and inline errors (*"Choose a unit."*,
-  *"Enter an amount."*, *"Unit `<x>` already has its own Base Rent."*); each added charge is a row with a
-  green *New charge* lozenge and a ✕ (`this._roleNew`, re-drawn in place). Footer: Save (disabled while
-  any row is unanswered) and Cancel, its left side *"Adds n unit charge(s) to Charges."* only when some
-  were added. Save applies the answers and creates each new charge at Unit level (RC or DP, `req-rec` /
-  `req-one`, Flat, from today) carrying its role, then flashes *Base Rent and Security Deposit saved*.
-- **One row renderer, `roleRowHTML(surface, prop, kind, g, o)`**, for the overlay (a grid row) and the two
-  boxes (`o.stacked`). Three states drawn together and flipped DOM-only by `window.__roleRow` — Marketing
-  Setup and Edit Floor Plan lose typed values on a re-render: **Suggested** (a brand *Suggested* lozenge —
-  after the charge in the overlay, beside the role when stacked — then two 32px buttons, a filled brand
-  square with a white `check` and an outlined one with a brand `close`, each with an `aria-label`);
-  **Confirmed** (the charge, a green `check_circle`, **Change**); **Changing** (after ✕ or Change: a
-  *Choose a charge* `singleSelect` of the group's candidates, plus *Use the property’s* below the property;
-  picking confirms). Answers live off state in `this._roleDraft[surface]` (`review`, `listing`, `fp`) and
-  `roleAnswer` reads them back over what's stored (`marked` → that charge, `declined` → *Uses the
-  property’s*). `roleApplyRows(prop, answers)` is the one writer: the picked charge takes the role and the
-  rest of its group become additional; *Use the property’s* marks every charge in the group
-  `listing.roleDeclined = kind`. **`roleGroups(prop, kind, { all: true })` still returns declined groups**
-  (for the overlay); without `all` they're dropped, so their units fall back to the property's charge and
-  aren't suggested again. Each group also carries `suggested` — still the highest current charge.
-  **When each surface commits:** the overlay on Save; Edit Floor Plan inside `fpSave` (`fpAdd`, `fpOpen` and
-  `fpCancel` discard its draft); Listing Details the moment ✓ or a pick lands (`roleCommit`). A scenario
-  switch resets every draft.
-- **Listing Details before activation** (`roleBoxPanelHTML(prop, 'listing')`, above Price): a bordered box,
-  *Base Rent & Security Deposit* left and **Review All** right, then the property's Base Rent and Security
-  Deposit rows stacked for a third-width tile — the role (and *Suggested*) on the first line, the P tag,
-  the charge and the buttons below, wrapping under the text when the tile is narrow. The fields stay below.
-  `roleCalloutHTML` is gone.
-- **Edit Floor Plan before activation** puts the same box under the Price dropdown (`roleBoxPanelHTML(prop,
-  'fp', { unitType })`): each role's row is that unit type's own group with its actions, else the
-  property's charge, read-only, with the P tag.
+  Defaults, gone once the property is fee transparent (`roleSetupState`): while anything is unanswered a
+  navy `info` and *"Confirm all units have base rent and security deposit selected"* with **Review**
+  (Figma `3930:1701`, 2026-10-13; it read *suggested from your charges* with an `auto_awesome` before);
+  every group confirmed, a green `check_circle` and *"Base Rent & Security Deposit: confirmed"* with
+  **Review**; no candidate, a red `error` and *"…: no rent or deposit charge"* with **View Charges**.
+- **The Review overlay** (`roleReviewHTML`, `state.roleReview = { prop }`, z-index 155) matches Figma
+  `3931:167844` / `3931:168155` (section `3944:73163`, 2026-10-13): *Base Rent & Security Deposit:
+  `<Property>`*, then on the grey body a grey line — *"Every unit needs one Base Rent and one Security
+  Deposit to list. The property’s applies to every unit unless its unit type or the unit has its own."* —
+  and **one section per role**, Base Rent then Security Deposit. A section's header is the role at
+  16/600, a coverage lozenge *n of N units* (green `#e2f1da` when whole, `#feedd2` when not), what's missing
+  in navy (*"Studio units missing security deposit"*: a whole unit type by name, stragglers as *Unit 1A*)
+  and **+ Add Base Rent** / **+ Add Security Deposit** on the right. Rows are 52px with `#cedbe7` rules:
+  Charge Level cell (260) · coverage (190, grey, *Used by n units*) · the charge as **`roleShort`** —
+  *RC Rent: Unit Market Rent*, *DP Security Deposit: $600.00* — and the actions. The property's row is white,
+  unit type and unit rows `#fbfcfd`. With no property-level charge a `#fffaf3` row says *No property level
+  base rent* / *…security deposit* in grey italic, and for rent adds a brand Callout, *"Cover every unit
+  with one charge using Unit Market Rent."* `roleCoverage(prop, kind)` works it out — a unit reads its own,
+  else its unit type's, else the property's — counting unsaved answers (a declined group covers nothing)
+  and added charges, and `window.__roleCov` repaints the counts, lozenges and missing text DOM-only.
+  **Add** opens an inline *Unit type or unit* · **Charge** · *Amount* form (2026-10-13, the user's spec):
+  Charge offers only the charge types that role reads (`roleNewTypes`) — the property's rent charge types
+  it runs recurring (FMR, one-time only, is left out) for the Base Rent, the security deposit charge types
+  for the Security Deposit — as *CODE - Description*, preselected when there is one. Errors *Choose a unit
+  type or unit.*, *Choose a charge.*, *Enter an amount.*, *`<x>` already has its own Base Rent.*; an added
+  charge is a row (*CODE Description: $amount*) with a green *New charge* lozenge and a close. Footer: Save
+  (disabled while any row is unanswered) · Cancel, its left side *"Adds n charge(s) to Charges."* when some
+  were added. Save creates them at their Unit Type or Unit on the chosen charge type.
+  The *n to confirm* / **Confirm All** line and the *Unit charges* section are gone.
+- **One row renderer, `roleRowHTML(surface, prop, kind, g, o)`**, for the overlay and the two boxes
+  (`o.stacked`). **Suggested**: the charge, then a brand `check` and a grey `close` as plain 24px icon
+  buttons 16px apart, each with an `aria-label` (the *Suggested* lozenge and the 32px squares are gone);
+  **Confirmed**: the charge and **Change**; **Changing** (after the close or Change): a *Choose a charge*
+  `singleSelect` of the group's candidates, plus *Use the property’s* below the property — picking
+  confirms. States flip DOM-only (`window.__roleRow`); answers live in `this._roleDraft[surface]` and
+  `roleAnswer` reads them back. `roleApplyRows(prop, answers)` is the one writer; *Use the property’s*
+  marks the group `listing.roleDeclined = kind`, and `roleGroups(prop, kind, { all: true })` is the only call
+  that still returns declined groups. **When each surface commits:** the overlay on Save; Edit Floor Plan
+  inside `fpSave`; Listing Details the moment the check or a pick lands. A scenario switch resets drafts.
+- **Listing Details and Edit Floor Plan carry a simplified version** (`roleBoxPanelHTML`, made simpler
+  and explanatory at the user's request on 2026-10-13): a bordered box, *Base Rent & Security Deposit*
+  over the why — *"Listings start the Total Monthly Price from the Base Rent and show the Security Deposit
+  separately. Confirm the suggested charges before activating."* in grey — then one read-only line per
+  role: the role in SemiBold with a brand *Suggested* lozenge until it's answered, over *CODE – Description,
+  amount* (or *No rent / deposit charge*). No tags, no ✓ / ✕ / Change on the box; one outlined **Review**
+  button opens the overlay, where the answers are given. Listing Details puts it above Price; Edit Floor
+  Plan under the Price dropdown, naming that unit type's own charge, else the property's.
 - **The Berkshires is the several-charges example** (`propCharges` adds ids 30–33): a second property RC
   (*Short-term premium*, $150), its own RC on 2BR/2BA ($1,600) and 3BR/2BA ($2,050), and its own DP on
   3BR/2BA ($750). So its counts read four charges more than before; Riverview's baselines are unchanged.
