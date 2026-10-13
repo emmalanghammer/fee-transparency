@@ -1409,7 +1409,9 @@ figure, else its `est`). `roleState` is `set` when every group is marked, `none`
 - **Before activation, Listing Details and Edit Floor Plan carry the same callout**, `roleCalloutHTML(prop,
   o)` (2026-10-13; they were two different treatments): RMX's outlined Callout — 1px `--rmx-line`, 4px,
   10/12 padding, a 20px brand `info` glyph (a green `check_circle` once everything it covers is set), 14/20
-  navy text — with a sentence and then, under an `#ebf1f5` hairline, **every charge already set** as the
+  navy text — with a sentence and then, **collapsed by default** behind a brand *View charges (n)* /
+  *Hide charges (n)* toggle with a chevron (`window.__roleCallout`, open state in `this._roleOpen`, so a
+  property with several isn't a wall of rows), under an `#ebf1f5` hairline, **every charge already set** as the
   Base Rent or Security Deposit: a 12px SemiBold grey *Base Rent* / *Security Deposit* label over rows of
   `chargeLevelCell` (tag + name), the charge and its amount. Nothing set, no list. The copy is UX-copy
   option A, *set* not *marked*. **Listing Details** (above Price): neither set — *"Once fee transparency is

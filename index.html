@@ -4465,16 +4465,31 @@ class Component extends DCLogic {
       : r ? `Base Rent is set. ${link('Set a Security Deposit in Charges')}, or confirm one when you activate.`
       : `Security Deposit is set. ${link('Set a Base Rent in Charges')}, or confirm one when you activate.`;
     const set = kinds.map(k => ({ k, gs: G[k].filter(g => g.marked) })).filter(x => x.gs.length);
-    const list = !set.length ? '' : `<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--rmx-brand-tint-bg, #ebf1f5)">${set.map(x => `
+    // Collapsed by default (2026-10-13), so a property with several doesn't open on a wall of rows: a
+    // brand toggle with the count, open state kept per callout in `this._roleOpen` (any click re-renders).
+    const n = set.reduce((t, x) => t + x.gs.length, 0);
+    const ckey = 'callout|' + prop + '|' + (fp ? o.unitType : '');
+    const open = !!(this._roleOpen || {})[ckey];
+    if (!window.__roleCallout) window.__roleCallout = (btn) => {
+      const box = btn.closest('[data-rolecallout]'), body = box && box.querySelector('[data-rolelist]'); if (!body) return;
+      const on = body.style.display === 'none'; body.style.display = on ? 'flex' : 'none';
+      btn.setAttribute('aria-expanded', on);
+      const c = btn.querySelector('[data-rolechev]'); if (c) c.style.transform = 'rotate(' + (on ? 180 : 0) + 'deg)';
+      const l = btn.querySelector('[data-rolelbl]'); if (l) l.textContent = (on ? 'Hide' : 'View') + ' ' + l.getAttribute('data-what');
+      (this._roleOpen || (this._roleOpen = {}))[box.getAttribute('data-rolecallout')] = on;
+    };
+    const what = n === 1 ? 'charge' : 'charges (' + n + ')';
+    const toggle = !set.length ? '' : `<button type="button" onclick="window.__roleCallout(this)" aria-expanded="${open}" style="display:flex;align-items:center;gap:2px;margin-top:6px;padding:0;border:0;background:none;font:400 14px/20px Roboto,sans-serif;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><span data-rolelbl data-what="${what}">${open ? 'Hide' : 'View'} ${what}</span><span data-rolechev style="display:flex;transition:transform .15s;transform:rotate(${open ? 180 : 0}deg)">${this.ico('keyboard_arrow_down', 20)}</span></button>`;
+    const list = !set.length ? '' : toggle + `<div data-rolelist style="display:${open ? 'flex' : 'none'};flex-direction:column;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--rmx-brand-tint-bg, #ebf1f5)">${set.map(x => `
       <div style="display:flex;flex-direction:column;gap:4px">
         <span style="font-size:12px;line-height:16px;font-weight:600;color:var(--rmx-text, #666666)">${this.leaseRoleLabel(x.k)}</span>
         ${x.gs.map(g => `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px">
           <span style="flex:0 1 auto;min-width:0">${this.chargeLevelCell(g.level, esc(g.name))}</span>
-          <span style="flex:1 1 140px;min-width:0;display:flex;justify-content:space-between;gap:8px"><span style="min-width:0">${esc(this.roleChargeLabel(g.chosen))}</span><span style="flex:none">${esc(this.roleAmtLabel(g.chosen))}</span></span>
+          <span style="flex:1 1 140px;min-width:0;display:flex;flex-wrap:wrap;justify-content:space-between;gap:0 8px"><span style="min-width:0;overflow-wrap:anywhere">${esc(this.roleChargeLabel(g.chosen))}</span><span style="min-width:0">${esc(this.roleAmtLabel(g.chosen))}</span></span>
         </div>`).join('')}
       </div>`).join('')}</div>`;
     const icon = all ? this.ico('check_circle', 20, 'color:var(--rmx-success, #6eb744);flex:none') : this.ico('info', 20, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none');
-    return `<div style="display:flex;align-items:flex-start;gap:8px;padding:10px 12px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;background:#fff;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">${icon}<div style="flex:1;min-width:0">${text}${list}</div></div>`;
+    return `<div data-rolecallout="${esc(ckey)}" style="display:flex;align-items:flex-start;gap:8px;padding:10px 12px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;background:#fff;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">${icon}<div style="flex:1;min-width:0">${text}${list}</div></div>`;
   }
   // What an advertised unit of this type totals: its Base Rent plus the required monthly charges.
   roleTotalRange(prop, unitType){
