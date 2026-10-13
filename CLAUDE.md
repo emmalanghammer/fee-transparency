@@ -1332,7 +1332,7 @@ like to use for your security deposits. This will be used for creating and refun
 Type(s)** list with a red remove cross per row (`sdRemove`), and the reorder buttons beside it (`todo`).
 `state.sdTypes` holds it, `['DP']` to start (production also lists a pet deposit; no scenario's charge
 types include PETDP, and adding it would make every activation dialog ask). The property's General tab
-no longer carries the checklist. `rentTypesFor(prop)` / `depTypesFor(prop)` read them — the second
+no longer carries the checklist, so Rent Charge Types spans the whole row of Other Information. `rentTypesFor(prop)` / `depTypesFor(prop)` read them — the second
 ignores the property now. The charge form's role card says *"DP is a security deposit charge type."*
 (no *on this property*, which the rent wording keeps).
 
