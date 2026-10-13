@@ -1450,15 +1450,18 @@ canvas *Confirm Base Rent & Deposit*).
   with one charge using Unit Market Rent."* `roleCoverage(prop, kind)` works it out — a unit reads its own,
   else its unit type's, else the property's — counting unsaved answers (a declined group covers nothing)
   and added charges, and `window.__roleCov` repaints the counts, lozenges and missing text DOM-only.
-  **Add** opens an inline *Unit type or unit* · **Charge** · *Amount* form (2026-10-13, the user's spec):
-  Charge offers only the charge types that role reads (`roleNewTypes`) — the property's rent charge types
-  it runs recurring (FMR, one-time only, is left out) for the Base Rent, the security deposit charge types
-  for the Security Deposit — as *CODE - Description*, preselected when there is one. Errors *Choose a unit
-  type or unit.*, *Choose a charge.*, *Enter an amount.*, *`<x>` already has its own Base Rent.*; an added
-  charge is a row (*CODE Description: $amount*) with a green *New charge* lozenge and a close. Footer: Save
-  (disabled while any row is unanswered) · Cancel, its left side *"Adds n charge(s) to Charges."* when some
-  were added. Save creates them at their Unit Type or Unit on the chosen charge type.
-  The *n to confirm* / **Confirm All** line and the *Unit charges* section are gone.
+  **Add picks an existing charge; it never creates one** (2026-10-13, the user's correction). It opens an
+  inline *Unit type or unit* · *Charge* form: choosing where fills Charge (DOM-only, `window.__roleNewTarget`)
+  with the charges of that role that already reach it — the property's, the unit type's, and for a unit its
+  own (`roleReachable`) — labelled *RC Rent: $150.00 · The Berkshires*. Errors *Choose a unit type or unit.*,
+  *Choose a charge.*, *`<x>` already has its own Base Rent.* An addition is a row with a green *Added*
+  lozenge and a close (`this._roleNew`). Save writes it onto the charge: `leaseRole` where the charge is
+  written at that level, otherwise **`listing.roleFor['<kind>|<level>|<target>'] = true`** — the charge
+  answers that unit type or unit from above. `roleGroups` puts such a charge in that group too and treats
+  it as the group's answer (`g.assigned`), so coverage, Change and activation all read it; `roleApplyRows`
+  sets or clears `roleFor` for charges in a group they aren't written in; `roleHolds(r, kind)` is what the
+  Rent / Security Deposit Charge Types guards test, so an assignment holds the type too. Footer: Save
+  (disabled while any row is unanswered) · Cancel. The *n to confirm* / **Confirm All** line and the *Unit charges* section are gone.
 - **One row renderer, `roleRowHTML(surface, prop, kind, g, o)`**, for the overlay and the two boxes
   (`o.stacked`). **Suggested**: the charge, then a brand `check` and a grey `close` as plain 24px icon
   buttons 16px apart, each with an `aria-label` (the *Suggested* lozenge and the 32px squares are gone);

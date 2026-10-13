@@ -478,15 +478,6 @@ class Component extends DCLogic {
   // never been told carry the obvious answer: a rent charge is the rent, a deposit is the deposit.
   // Which charge types count as rent, and which as the security deposit, at a property — the two
   // checklists on its General tab (2026-10-09). Unset, rent is RC / FMR and the deposit DP.
-  // The charge types a charge added as the Base Rent / Security Deposit can be on (the Review overlay's
-  // Add form): the property's rent charge types the property runs recurring (or not at all), or the
-  // security deposit charge types.
-  roleNewTypes(prop, kind){
-    if (kind === 'deposit') return this.depTypesFor(prop).slice();
-    const rows = this.profileRows(prop);
-    return this.rentTypesFor(prop).filter(c => { const of = rows.filter(r => r.mits === c);
-      return !of.length || of.some(r => !/-one$/.test(r.group || '')); });
-  }
   rentTypesFor(prop){ const s = (this._rentCT || {})[prop || this.state.property]; if (s) return s;
     return this.chargeTypeList().map(t => t[0]).filter(c => /^(RC|FMR|LMR|RENT)$/.test(c)); }
   // Security deposit charge types are company-wide, as in production: System Preferences › Security
@@ -1641,16 +1632,16 @@ class Component extends DCLogic {
         if (left) break;
         const prop = rv.prop;
         const rows = this.roleApplyRows(prop, (this._roleDraft || {}).review || {});
-        // Each added charge is a real charge at its Unit Type or Unit, RC for a Base Rent and DP for a
-        // Security Deposit, carrying its role.
-        let id = this.state.nextFeeId;
-        const t = new Date(), today = String(t.getMonth() + 1).padStart(2, '0') + '/' + String(t.getDate()).padStart(2, '0') + '/' + t.getFullYear();
-        (this._roleNew || []).forEach(n => { const rent = n.kind === 'rent';
-          rows.push({ id: id++, group: rent ? 'req-rec' : 'req-one', mits: n.code, name: this.chargeTypeDesc(n.code) || (rent ? 'Rent' : 'Security deposit'),
-            desc: (n.level === 'Unit' ? 'Unit ' + n.target : n.target) + (rent ? ' rent' : ' deposit'), freq: rent ? 'Every Month' : undefined, from: today, to: '',
-            amount: this.money(n.amount), amtMethod: 'Flat', ils: true, level: n.level, target: n.target, listing: { leaseRole: n.kind } }); });
+        // Each Add sets an existing charge as that unit type's or unit's Base Rent / Security Deposit: its
+        // own role where it's written there, else a `roleFor` entry for the level it answers from above.
+        const added = rows.map(r => r);
+        (this._roleNew || []).forEach(n => { const i = added.findIndex(r => String(r.id) === String(n.id)); if (i < 0) return;
+          const r = added[i], L = Object.assign({}, r.listing);
+          if (String(r.level || 'Property') === n.level && String(r.target || '') === n.target) L.leaseRole = n.kind;
+          else L.roleFor = Object.assign({}, L.roleFor, { [n.kind + '|' + n.level + '|' + n.target]: true });
+          added[i] = Object.assign({}, r, { listing: L }); });
         if (this._roleDraft) this._roleDraft.review = {}; this._roleNew = [];
-        this.setState(s => ({ roleReview: null, nextFeeId: id, profileFees: Object.assign({}, s.profileFees, { [prop]: rows }) }));
+        this.setState(s => ({ roleReview: null, profileFees: Object.assign({}, s.profileFees, { [prop]: added }) }));
         this.flash('Base Rent and Security Deposit saved'); break; }
       // System Preferences › Security Deposit › General. A type can't come off while any property's
       // Security Deposit is a charge on it — the same popup the Rent Charge Types list raises, naming
@@ -1658,7 +1649,7 @@ class Component extends DCLogic {
       case 'sdAdd': { const h = this.q('#sd-add'); const v = h && h.value; if (!v) break;
         if ((this.state.sdTypes || []).indexOf(v) < 0) this.setState({ sdTypes: (this.state.sdTypes || []).concat([v]) }); break; }
       case 'sdRemove': { const code = String(arg || '');
-        const held = this.propNames().filter(p => this.profileRows(p).some(r => String(r.mits || '').toUpperCase() === code && this.leaseRoleOf(r) === 'deposit'));
+        const held = this.propNames().filter(p => this.profileRows(p).some(r => String(r.mits || '').toUpperCase() === code && this.roleHolds(r, 'deposit')));
         if (held.length) { this.setState({ rentCTBlock: { prop: held[0], props: held, codes: [code], kind: 'deposit', system: true } }); break; }
         this.setState({ sdTypes: (this.state.sdTypes || []).filter(c => c !== code) }); break; }
       case 'rentCTBlockGo': { const b = this.state.rentCTBlock; this.setState({ rentCTBlock: null });
@@ -4424,10 +4415,22 @@ class Component extends DCLogic {
       const k = level + '|' + (level === 'Property' ? '' : (r.target || ''));
       (G[k] || (G[k] = { level, target: level === 'Property' ? '' : (r.target || ''), rows: [] })).rows.push(r);
     });
+    // A charge can also be the Base Rent / Security Deposit of a unit type or unit it reaches without
+    // being written there (2026-10-13: the Review overlay's Add picks an existing charge). It is stored
+    // on the charge as `listing.roleFor['<kind>|<level>|<target>']`, joins that group and answers it.
+    this.appliedRows(prop).forEach(r => {
+      if (r.propSpecific || !this.chargeCurrent(r)) return;
+      if (this.leaseRoleKind(r.mits, prop, /-one$/.test(String(r.group || ''))) !== kind) return;
+      const F = (r.listing || {}).roleFor || {};
+      Object.keys(F).forEach(key => { if (!F[key]) return; const [kk, level, target] = key.split('|'); if (kk !== kind || !(level in lv)) return;
+        const g = G[level + '|' + target] || (G[level + '|' + target] = { level, target, rows: [] });
+        if (g.rows.indexOf(r) < 0) g.rows.push(r); g.assigned = r; });
+    });
+    const written = (r, g) => String(r.level || 'Property') === g.level && (g.level === 'Property' || String(r.target || '') === String(g.target || ''));
     return Object.keys(G).map(k => G[k])
       .sort((a, b) => (lv[a.level] - lv[b.level]) || String(a.target).localeCompare(String(b.target)))
       .map(g => {
-        const marked = g.rows.filter(r => (r.listing || {}).leaseRole === kind)[0];
+        const marked = g.assigned || g.rows.filter(r => written(r, g) && (r.listing || {}).leaseRole === kind)[0];
         // The suggestion keeps the rule it always had: the highest current charge in the group.
         const suggested = g.rows.slice().sort((a, b) => this.roleAmt(b) - this.roleAmt(a))[0];
         // "Use the property's" marks every charge in a unit type's or unit's group `roleDeclined`: that
@@ -4529,17 +4532,38 @@ class Component extends DCLogic {
   // What answers do to the charges: the picked charge takes the role and the rest of its group become
   // additional; "Use the property's" makes the whole group additional and marks it declined.
   roleApplyRows(prop, answers, rows){
-    const set = {};
+    // Per charge: its own role (`leaseRole`, for the group it's written in) and any unit type or unit it
+    // answers from above (`roleFor`). A charge can sit in several groups, so the changes accumulate.
+    const ops = {};
+    const op = r => ops[String(r.id)] || (ops[String(r.id)] = { role: {}, declined: {}, forSet: {} });
+    const written = (r, g) => String(r.level || 'Property') === g.level && (g.level === 'Property' || String(r.target || '') === String(g.target || ''));
     ['rent', 'deposit'].forEach(kind => this.roleGroups(prop, kind, { all: true }).forEach(g => {
-      const a = (answers || {})[this.roleKey(kind, g)]; if (!a) return;
-      g.rows.forEach(r => { set[String(r.id)] = { kind, role: !a.declined && String(r.id) === String(a.id) ? kind : '', declined: !!a.declined }; });
+      const key = this.roleKey(kind, g), a = (answers || {})[key]; if (!a) return;
+      g.rows.forEach(r => { const o = op(r), pick = !a.declined && String(r.id) === String(a.id);
+        if (written(r, g)) { o.role[kind] = pick ? kind : ''; o.declined[kind] = !!a.declined; }
+        else o.forSet[key] = pick; });
     }));
     return (rows || this.profileRows(prop)).map(r => {
-      const c = set[String(r.id)]; if (!c) return r;
-      const L = Object.assign({}, r.listing, { leaseRole: c.role });
-      if (c.declined) L.roleDeclined = c.kind; else if (L.roleDeclined === c.kind) delete L.roleDeclined;
+      const o = ops[String(r.id)]; if (!o) return r;
+      const L = Object.assign({}, r.listing);
+      Object.keys(o.role).forEach(k => { L.leaseRole = o.role[k]; if (o.declined[k]) L.roleDeclined = k; else if (L.roleDeclined === k) delete L.roleDeclined; });
+      const keys = Object.keys(o.forSet);
+      if (keys.length) { const f = Object.assign({}, L.roleFor); keys.forEach(k => { if (o.forSet[k]) f[k] = true; else delete f[k]; }); L.roleFor = f; }
       return Object.assign({}, r, { listing: L });
     });
+  }
+  // A charge holds a role if it is that role where it's written, or answers it for a unit type or unit.
+  roleHolds(r, kind){ if (this.leaseRoleOf(r) === kind) return true;
+    const F = (r && r.listing && r.listing.roleFor) || {}; return Object.keys(F).some(k => F[k] && k.indexOf(kind + '|') === 0); }
+  // The existing charges that reach a unit type or unit and could be its Base Rent / Security Deposit:
+  // candidates of that kind written at the property, at the unit type (a unit's own type), or at the unit.
+  roleReachable(prop, kind, level, target){
+    const type = level === 'Unit' ? ((this.units().find(u => u.u === target) || {}).type || '') : target;
+    return this.appliedRows(prop).filter(r => !r.propSpecific && this.chargeCurrent(r)
+      && this.leaseRoleKind(r.mits, prop, /-one$/.test(String(r.group || ''))) === kind)
+      .filter(r => { const l = String(r.level || 'Property');
+        return l === 'Property' || (l === 'Unit Type' && r.target === type) || (level === 'Unit' && l === 'Unit' && r.target === target); })
+      .sort((a, b) => this.roleAmt(b) - this.roleAmt(a));
   }
   roleCommit(prop, answers){
     const rows = this.roleApplyRows(prop, answers);
@@ -4662,14 +4686,17 @@ class Component extends DCLogic {
     </div>`;
   }
   // Charges added in the overlay, drawn in their own role's section until Save writes them.
-  roleNewRowsHTML(kind){
+  roleNewRowsHTML(kind, prop){
     const INK = 'color:var(--rmx-brand-dark, #13314c)';
-    return (this._roleNew || []).map((n, i) => n.kind !== kind ? '' : `<div style="display:flex;align-items:center;gap:12px;min-height:52px;box-sizing:border-box;padding:8px 16px;border-top:1px solid var(--rmx-line, #cedbe7);background:#fbfcfd;font-size:14px;line-height:20px;${INK}">
-      <span style="flex:0 1 260px;min-width:120px;overflow:hidden">${this.chargeLevelCell(n.level, n.target)}</span>
+    const rows = this.profileRows(prop || (this.state.roleReview || {}).prop);
+    return (this._roleNew || []).map((n, i) => { if (n.kind !== kind) return '';
+      const r = rows.find(x => String(x.id) === String(n.id));
+      return `<div style="display:flex;align-items:center;gap:12px;min-height:52px;box-sizing:border-box;padding:8px 16px;border-top:1px solid var(--rmx-line, #cedbe7);background:#fbfcfd;font-size:14px;line-height:20px;${INK}">
+      <span style="flex:0 1 260px;min-width:120px;overflow:hidden">${this.chargeLevelCell(n.level, n.level === 'Unit' ? n.target : n.target)}</span>
       <span data-cov="new|${kind}|${i}" style="flex:0 1 190px;min-width:90px;color:var(--rmx-text, #666666)"></span>
-      <div style="flex:1;min-width:0;display:flex;align-items:center;gap:16px"><span style="flex:1;min-width:0">${n.code} ${this.chargeTypeDesc(n.code) || ''}: ${this.money(n.amount)}</span>
-        <span style="display:inline-flex;align-items:center;height:24px;padding:0 8px;border-radius:4px;background:var(--rmx-success-bg, #e2f1da);font:400 14px/16px Roboto,sans-serif;${INK};white-space:nowrap">New charge</span>
-        <button type="button" aria-label="Remove new charge" onclick="window.__roleNewRemove(${i})" style="display:flex;width:24px;height:24px;padding:0;border:0;background:none;cursor:pointer;color:var(--rmx-text, #666666)">${this.ico('close', 24)}</button></div></div>`).join('');
+      <div style="flex:1;min-width:0;display:flex;align-items:center;gap:16px"><span style="flex:1;min-width:0">${this.roleShort(r)}</span>
+        <span style="display:inline-flex;align-items:center;height:24px;padding:0 8px;border-radius:4px;background:var(--rmx-success-bg, #e2f1da);font:400 14px/16px Roboto,sans-serif;${INK};white-space:nowrap">Added</span>
+        <button type="button" aria-label="Remove" onclick="window.__roleNewRemove(${i})" style="display:flex;width:24px;height:24px;padding:0;border:0;background:none;cursor:pointer;color:var(--rmx-text, #666666)">${this.ico('close', 24)}</button></div></div>`; }).join('');
   }
   // The Review overlay, to Figma 3931:167844 / 3931:168155: one section per role, the property's charge
   // first and the unit type and unit charges stacked under it, each section headed by how many units
@@ -4697,7 +4724,6 @@ class Component extends DCLogic {
       // The charge to add is one on a charge type this role reads: a rent charge type for the Base Rent
       // (recurring, so a type the property only runs one-time, like FMR, is left out), a security
       // deposit charge type for the Security Deposit.
-      const optsCt = this.roleNewTypes(prop, kind).map(c => ({ value: c, label: c + ' - ' + (this.chargeTypeDesc(c) || c) }));
       return `<section data-rsec="${kind}" style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;background:#fff;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;flex-wrap:wrap">
           <span style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-width:0">
@@ -4707,11 +4733,10 @@ class Component extends DCLogic {
           <a onclick="window.__roleNewForm('${kind}', true)" data-radd="${kind}" style="display:inline-flex;align-items:center;gap:4px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${this.ico('add', 20)}Add ${L}</a>
         </div>
         ${missingProp}${gs.map(g => this.roleRowHTML('review', prop, kind, g)).join('')}
-        <div data-rnew="${kind}">${this.roleNewRowsHTML(kind)}</div>
+        <div data-rnew="${kind}">${this.roleNewRowsHTML(kind, prop)}</div>
         <div data-rform="${kind}" style="display:none;flex-wrap:wrap;gap:12px;align-items:flex-end;padding:12px 16px;border-top:1px solid var(--rmx-line, #cedbe7)">
-          <div style="flex:1 1 200px;min-width:0;display:flex;flex-direction:column;gap:4px">${F.lab('Unit type or unit')}${this.singleSelect('rnew-at-' + kind, optsAdd, '', { placeholder: 'Select' })}</div>
-          <div style="flex:1 1 200px;min-width:0;display:flex;flex-direction:column;gap:4px">${F.lab('Charge')}${this.singleSelect('rnew-ct-' + kind, optsCt, optsCt.length === 1 ? optsCt[0].value : '', { placeholder: 'Select' })}</div>
-          <div style="flex:1 1 140px;min-width:0;display:flex;flex-direction:column;gap:4px">${F.lab('Amount')}${F.txt('rnew-amt-' + kind, '', '0.00')}</div>
+          <div style="flex:1 1 200px;min-width:0;display:flex;flex-direction:column;gap:4px">${F.lab('Unit type or unit')}${this.singleSelect('rnew-at-' + kind, optsAdd, '', { placeholder: 'Select', js: "window.__roleNewTarget('" + kind + "',_v)" })}</div>
+          <div style="flex:2 1 280px;min-width:0;display:flex;flex-direction:column;gap:4px">${F.lab('Charge')}<div data-rct>${this.singleSelect('rnew-ch-' + kind, [], '', { noSearch: true, placeholder: 'Choose a unit type or unit first' })}</div></div>
           <button type="button" class="btn-pri" onclick="window.__roleNewAdd('${kind}')" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Add</button>
           <button type="button" class="btn-out" onclick="window.__roleNewForm('${kind}', false)" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Cancel</button>
           <span data-rerr style="display:none;flex-basis:100%;font-size:12px;line-height:16px;color:var(--rmx-error, #eb343c)"></span>
@@ -4734,8 +4759,7 @@ class Component extends DCLogic {
       const ov = document.querySelector('[data-rreview]'); if (!ov) return;
       let n = 0; ov.querySelectorAll('[data-rrow]').forEach(r => { const c = r.querySelector('[data-rs="conf"]'); if (!c || c.style.display === 'none') n++; });
       const sv = ov.querySelector('#rr-save'); if (sv) { sv.disabled = !!n; sv.style.opacity = n ? '.5' : '1'; sv.style.cursor = n ? 'default' : 'pointer'; }
-      const k = (this._roleNew || []).length, ft = ov.querySelector('[data-rfoot]');
-      if (ft) ft.textContent = k ? 'Adds ' + k + ' charge' + (k === 1 ? '' : 's') + ' to Charges.' : '';
+
     };
     window.__roleNewForm = (kind, on) => {
       const sec = document.querySelector('[data-rreview] [data-rsec="' + kind + '"]'); if (!sec) return;
@@ -4743,32 +4767,36 @@ class Component extends DCLogic {
       sec.querySelector('[data-radd]').style.visibility = on ? 'hidden' : 'visible';
       const e = sec.querySelector('[data-rerr]'); if (e) e.style.display = 'none';
     };
+    // Picking where fills Charge with the charges that already reach it — the property's, the unit
+    // type's, and (for a unit) its own — DOM-only, so nothing else in the overlay redraws.
+    window.__roleNewTarget = (kind, v) => {
+      const sec = document.querySelector('[data-rreview] [data-rsec="' + kind + '"]'); if (!sec) return;
+      const [level, target] = String(v || '').split('|');
+      const opts = level ? this.roleReachable(prop, kind, level, target).map(r => ({ value: String(r.id), label: this.roleShort(r) + ' · ' + this.chargeLevelName(r) })) : [];
+      sec.querySelector('[data-rct]').innerHTML = this.singleSelect('rnew-ch-' + kind, opts, opts.length === 1 ? opts[0].value : '', { noSearch: true, placeholder: opts.length ? 'Select a charge' : 'No charges reach it' });
+    };
     window.__roleNewAdd = (kind) => {
       const sec = document.querySelector('[data-rreview] [data-rsec="' + kind + '"]'); if (!sec) return;
       const at = (document.getElementById('rnew-at-' + kind) || {}).value || '';
-      const code = (document.getElementById('rnew-ct-' + kind) || {}).value || '';
-      const amt = this.parseAmt((document.getElementById('rnew-amt-' + kind) || {}).value || '');
+      const id = (document.getElementById('rnew-ch-' + kind) || {}).value || '';
       const err = (t) => { const e = sec.querySelector('[data-rerr]'); e.textContent = t; e.style.display = 'block'; };
       if (!at) return err('Choose a unit type or unit.');
-      if (!code) return err('Choose a charge.');
-      if (!amt) return err('Enter an amount.');
+      if (!id) return err('Choose a charge.');
       const [level, target] = at.split('|');
       const has = this.roleGroups(prop, kind, { all: true }).some(g => g.level === level && g.target === target)
         || (this._roleNew || []).some(n => n.kind === kind && n.level === level && n.target === target);
       if (has) return err((level === 'Unit' ? 'Unit ' + target : target) + ' already has its own ' + this.leaseRoleLabel(kind) + '.');
-      (this._roleNew || (this._roleNew = [])).push({ kind, level, target, code, amount: amt });
-      sec.querySelector('[data-rnew]').innerHTML = this.roleNewRowsHTML(kind);
-      const a = document.getElementById('rnew-amt-' + kind); if (a) a.value = '';
+      (this._roleNew || (this._roleNew = [])).push({ kind, level, target, id });
+      sec.querySelector('[data-rnew]').innerHTML = this.roleNewRowsHTML(kind, prop);
       window.__roleNewForm(kind, false); window.__roleCov(); window.__roleCount();
     };
     window.__roleNewRemove = (i) => {
       const n = (this._roleNew || [])[i]; if (!n) return;
       this._roleNew.splice(i, 1);
-      ['rent', 'deposit'].forEach(kind => { const box = document.querySelector('[data-rreview] [data-rnew="' + kind + '"]'); if (box) box.innerHTML = this.roleNewRowsHTML(kind); });
+      ['rent', 'deposit'].forEach(kind => { const box = document.querySelector('[data-rreview] [data-rnew="' + kind + '"]'); if (box) box.innerHTML = this.roleNewRowsHTML(kind, prop); });
       window.__roleCov(); window.__roleCount();
     };
     setTimeout(() => window.__roleCov && window.__roleCov(), 0);
-    const nNew = (this._roleNew || []).length;
     return `<div data-act="roleReviewClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:155">
       <div data-act="noop" data-rreview style="width:1000px;max-width:96vw;max-height:92vh;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;height:48px;box-sizing:border-box;padding:8px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
@@ -4780,7 +4808,7 @@ class Component extends DCLogic {
           ${section('rent')}${section('deposit')}
         </div>
         <div style="display:flex;align-items:center;gap:16px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:8px 16px;flex:none">
-          <span data-rfoot style="flex:1;min-width:0;font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">${nNew ? 'Adds ' + nNew + ' charge' + (nNew === 1 ? '' : 's') + ' to Charges.' : ''}</span>
+          <span style="flex:1"></span>
           <button id="rr-save" data-act="roleReviewSave" class="btn-pri"${pendingN ? ' disabled' : ''} style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px${pendingN ? ';opacity:.5;cursor:default' : ''}">Save</button>
           <button data-act="roleReviewClose" class="btn-out" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Cancel</button>
         </div>
@@ -6182,7 +6210,7 @@ class Component extends DCLogic {
       // quietly stop being one. Read against the list as it stood, the box goes back on and a popup
       // says why and what to do first.
       const held = this.rentTypesFor(prop).filter(c => now.indexOf(c) < 0
-        && this.profileRows(prop).some(r => String(r.mits || '').toUpperCase() === c && this.leaseRoleOf(r) === 'rent'));
+        && this.profileRows(prop).some(r => String(r.mits || '').toUpperCase() === c && this.roleHolds(r, 'rent')));
       if (held.length) { this.setState({ rentCTBlock: { prop, codes: held, kind: 'rent' } }); return; }
       this._rentCT = Object.assign({}, this._rentCT, { [prop]: now }); };
     const rentCT = `<div style="display:flex;flex-direction:column;gap:4px;min-width:0">${lab('Rent Charge Types')}${this.multiSelect('pg-rent-ct', rentOpts, rentSel, "if(window.__rentCT)window.__rentCT(" + JSON.stringify(p).replace(/"/g, '&quot;') + ")")}</div>`;
