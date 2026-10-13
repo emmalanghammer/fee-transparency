@@ -511,9 +511,11 @@ class Component extends DCLogic {
     const r = this.q('input[name="m-lease-role"]:checked'); return r ? r.value : ''; }
   // One base rent and one security deposit per charge level — and per target below the property, so
   // each unit type or unit can carry its own — or there is no single answer to what the rent is.
+  // Only an active, current charge counts (2026-10-13): one Base Rent and one Security Deposit at the
+  // property, one per unit type and one per unit — an expired or not-yet-started charge holds nothing.
   roleAt(kind, level, target, exceptId){
     const lvl = String(level || 'Property');
-    return this.profileRows().filter(r => String(r.level || 'Property') === lvl
+    return this.profileRows().filter(r => this.chargeCurrent(r) && String(r.level || 'Property') === lvl
       && (lvl === 'Property' || String(r.target || '') === String(target || ''))
       && String(r.id) !== String(exceptId) && this.leaseRoleOf(r) === kind)[0] || null;
   }
@@ -4356,6 +4358,16 @@ class Component extends DCLogic {
   // the deposit. Every charge that could be either is grouped by where it is written — the property,
   // each unit type, each unit — because the most specific one applies to its units. A group's answer
   // is the charge marked on it (`listing.leaseRole`), else our suggestion: the highest charge.
+  // Active and current: a one-time charge has no window, so it always is; a recurring one has started
+  // and not ended.
+  chargeCurrent(r){
+    if (!r || r.excluded || /-one$/.test(String(r.group || ''))) return !(r && r.excluded);
+    const parse = (v) => { const m = String(v || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/); if (!m) return null;
+      let y = +m[3]; if (y < 100) y += 2000; const d = new Date(y, +m[1] - 1, +m[2]); return isNaN(d.getTime()) ? null : d; };
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const f = parse(r.from), t = parse(r.to);
+    return !(f && f > today) && !(t && t < today);
+  }
   roleAmt(r){ const n = this.parseAmt(r.amount); if (n) return n; if (r.est != null) return +r.est;
     return /market rent/i.test(String(r.amount || '')) ? 1e9 : 0; }
   roleAmtLabel(r){ if (/unit market rent/i.test(String(r.amount || ''))) return 'Unit Market Rent';
@@ -4370,7 +4382,7 @@ class Component extends DCLogic {
     const G = {};
     this.appliedRows(prop).forEach(r => {
       const level = String(r.level || 'Property');
-      if (!(level in lv) || r.propSpecific) return;
+      if (!(level in lv) || r.propSpecific || !this.chargeCurrent(r)) return;
       if (this.leaseRoleKind(r.mits, prop, /-one$/.test(String(r.group || ''))) !== kind) return;
       const k = level + '|' + (level === 'Property' ? '' : (r.target || ''));
       (G[k] || (G[k] = { level, target: level === 'Property' ? '' : (r.target || ''), rows: [] })).rows.push(r);
@@ -8985,9 +8997,15 @@ class Component extends DCLogic {
       // UX copy option A (2026-10-09): name the charge that holds the role now, the one-per-level rule,
       // and what continuing does — on Save, since nothing moves until the form is saved.
       const L = this.leaseRoleLabel(role);
+      // Property: one current charge. Below it, one per unit type and one per unit, so the rule and the
+      // name say which.
+      const tg = tgtNow(lvl);
+      const scopeName = lvl === 'Unit Type' ? (tg || 'this unit type') : lvl === 'Unit' ? (tg ? 'unit ' + tg : 'this unit') : this.state.property;
+      const scopeRule = lvl === 'Unit Type' ? `Each unit type can have only one current ${L}.`
+        : lvl === 'Unit' ? `Each unit can have only one current ${L}.` : `Only one current charge at the property level can be the ${L}.`;
       const nm = other.mits + (this.chargeTypeDesc(other.mits) ? ' – ' + this.chargeTypeDesc(other.mits) : '');
       const t = this.q('#m-leaseconf-txt');
-      if (t) t.innerHTML = `<strong style="font-weight:600;color:var(--rmx-brand-dark, #13314c)">${nm}</strong> is already the ${L} for ${this.state.property}. Only one charge per charge level can be the ${L}. If you continue, ${nm} becomes an additional charge and this charge becomes the ${L} when you save.`;
+      if (t) t.innerHTML = `<strong style="font-weight:600;color:var(--rmx-brand-dark, #13314c)">${nm}</strong> is already the ${L} for ${scopeName}. ${scopeRule} If you continue, ${nm} becomes an additional charge and this charge becomes the ${L} when you save.`;
       const ti = this.q('#m-leaseconf-title'); if (ti) ti.textContent = 'Replace the ' + L;
       const bt = this.q('#m-leaseconf-ok'); if (bt) bt.textContent = 'Replace ' + L;
       this._leasePend = other.id;

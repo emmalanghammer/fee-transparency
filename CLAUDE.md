@@ -1366,15 +1366,22 @@ How should listings treat this charge?"* (or *security deposit charge type*) ove
 locked to the role (`#m-name-lock`, the disabled field), and `resolvedListing` advertises the charge
 under that name; what it was called is kept on the charge, so answering Additional Charge brings it
 back. Changing the charge type re-asks through `window.__roleCheck` (from `__attrCheck`), reset to
-Additional Charge when the kind changes. **One per charge level**, and per target below the property
-(each unit type or unit can carry its own): `roleAt(kind, level, target, exceptId)`; choosing it where
+Additional Charge when the kind changes. **One active, current Base Rent — and Security Deposit — at
+the property, one per unit type and one per unit** (the user's rule, 2026-10-13): several unit types
+or units can each carry their own, but never two on the same one. `roleAt(kind, level, target,
+exceptId)` counts only `chargeCurrent` charges — a one-time charge always, a recurring one that has
+started and not ended — so an expired or future charge holds nothing, and `roleGroups` offers only
+current charges as candidates; choosing it where
 another charge already holds it raises the confirm (`#m-leaseconf`), and Save moves the role off the
 other charge (`_leaseTake`). The confirm's copy is UX-copy option A, which the user picked on
 2026-10-09: header **Replace the Base Rent** (no question mark, at the user's request; *Replace the
 Security Deposit* for a deposit); *"**RC – Rent** is already the Base Rent for `<Property>`. Only one
 charge per charge level can be the Base Rent. If you continue, RC – Rent becomes an additional charge
 and this charge becomes the Base Rent when you save."* — the charge holding the role named as
-*CODE – charge type description*, in SemiBold; footer **Replace Base Rent** / **Cancel**. No warning
+*CODE – charge type description*, in SemiBold; footer **Replace Base Rent** / **Cancel**. The middle
+sentence names the level's scope (2026-10-13): *"…is already the Base Rent for **2BR/2BA**. Each unit
+type can have only one current Base Rent."*, *"…for unit **1B**. Each unit can have only one current
+Base Rent."*, or at the property *"Only one current charge at the property level can be the Base Rent."* No warning
 icon. Stored as `listing.leaseRole`
 ('rent' / 'deposit' / '' for additional). **At rollout every candidate is an additional charge**
 (2026-10-13): `leaseRoleOf` reads the stored answer and nothing else — it used to read an un-asked
