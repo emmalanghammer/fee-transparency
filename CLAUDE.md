@@ -1458,8 +1458,9 @@ canvas *Confirm Base Rent & Deposit*).
   inline *Applies to* · *Charge* form (*Applies to* offers the property too, so a removed property row can come back): choosing where fills Charge (DOM-only, `window.__roleNewTarget`)
   with the charges of that role that already reach it — the property's, the unit type's, and for a unit its
   own (`roleReachable`) — labelled *RC Rent: $150.00 · The Berkshires*. Errors *Choose where it applies.*,
-  *Choose a charge.*, *`<x>` already has its own Base Rent.* An addition is a row with a green *Added*
-  lozenge and a close (`this._roleNew`). Save writes it onto the charge: `leaseRole` where the charge is
+  *Choose a charge.*, *`<x>` already has its own Base Rent.* An addition is a row like a confirmed one — the edit
+  pencil and a close (2026-10-14; it wore a green *Added* lozenge). The pencil swaps the charge for a
+  dropdown of what reaches that target (`window.__roleNewEdit` / `__roleNewPick`) (`this._roleNew`). Save writes it onto the charge: `leaseRole` where the charge is
   written at that level, otherwise **`listing.roleFor['<kind>|<level>|<target>'] = true`** — the charge
   answers that unit type or unit from above. `roleGroups` puts such a charge in that group too and treats
   it as the group's answer (`g.assigned`), so coverage, Change and activation all read it; `roleApplyRows`
