@@ -1478,7 +1478,7 @@ canvas *Confirm Base Rent & Deposit*).
 - **Listing Details and Edit Floor Plan carry `roleBoxPanelHTML` before activation**, and it never shows
   the suggestions (2026-10-14, the user's call). Unconfirmed (`roleSetupState` `sugg`): an amber RMX
   Callout, *Confirm Base Rent & Security Deposit* over *"Choose which charges are the Base Rent and
-  Security Deposit before activating fee transparency."* with **Confirm charges** (`roleReviewOpen`). No
+  Security Deposit before activating fee transparency."* with **Confirm Charges** (`roleReviewOpen`). No
   rent or deposit charge (`none`): a red one, *"Add a rent and a security deposit charge before
   activating fee transparency."* with **View Charges**. Confirmed (`done`): it reads as after activation —
   **Base Rent** and **Security Deposit** labels over the collapsed `roleBoxHTML(…, { bare: true })` tables,
