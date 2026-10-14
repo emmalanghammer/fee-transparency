@@ -672,15 +672,16 @@ existing charge never re-applies them.
 
 **How far a default reaches is asked, not assumed.** When `ctSave` sees the marketing details
 changed *and* charges of that type already exist, it holds them in `state.mktDefDraft` and raises
-`mktDefAskHTML()` — the **Apply Defaults** dialog, Figma `3595:57352`: a 417px overlay at
+`mktDefAskHTML()` — the **Apply Defaults** dialog, Figma `3595:57352`, titled **Update Default Charge
+Marketing** with **Update Charges** / Cancel since 2026-10-14 (the user's copy; both dialogs): a 417px overlay at
 `z-index:165` (above Charge Type Details' 160), *How would you like to apply these changes?* and
-the RMX Radio Selectors over a Save / Cancel footer. It no longer says how many charges use the
+the RMX Radio Selectors over an Update Charges / Cancel footer. It no longer says how many charges use the
 changed types — the user removed that line on 2026-09-30, from the property's dialog too. `mktDefApply` is what commits
 `state.mktDef`, not `ctSave` — otherwise `mktDefChanged` would be diffing against the values it
 just wrote. Only the types this save actually moved are touched.
 
 **There is no *Only new charges* option** — the user removed it on 2026-09-30, from this dialog and
-the property's, and **Charges with Default Marketing** is now the default in both
+the property's, and **Charges without edits** (was *Charges with Default Marketing*) is now the default in both
 (`mktDefMode` / `ctmMode` start at `'inherit'`). The `'new'` branches of `mktDefApply` and
 `ctmCommit` are unreachable but left in; a charge that already carries `noInherit` or `noProp` from
 before still honours it. What the option did:
@@ -691,12 +692,13 @@ before still honours it. What the option did:
   marked `listing.noInherit` instead — it refuses the **charge type's** defaults outright, while
   the property's own override still reaches it, because refusing that was never asked for. In
   **A**, which copies defaults down rather than cascading, this is simply "write nothing".
-- `inherit` — **Charges with Default Marketing** / *Charges with overrides remain as they are.* The default. In
+- `inherit` — **Charges without edits** / *Charges with overrides stay as they are.* The default. In
   C this writes nothing at all: a charge with no value of its own already follows the new default
   through `resolvedListing`, and one overridden at the property, on the charge, or by an earlier
   *Only new charges* is exactly what this answer leaves alone. In A it is `mktDefFill` with no
   force — fill the fields still empty.
-- `all` — **All Charges** / *This will clear every property and charge override.* In C it deletes those
+- `all` — **Every charge** / *All charges will update with the new defaults, regardless of an override.* (it
+  read *This will clear every property and charge override*, which testers found confusing). In C it deletes those
   types' entries from `state.propDef`, and the marketing fields and `noInherit` from every charge
   of them, so everything reads the new default and nothing else. In A it is
   `mktDefFill(..., true)`, values someone typed included.
@@ -1028,10 +1030,11 @@ the one place that writes the override, whichever route reached it.
   the charge type's. The two are independent, because refusing one was never an answer about the
   other. Writing today's resolved values instead cannot say it, for the same reason it couldn't a
   rung up: a field that resolves to nothing today is indistinguishable from one nobody has filled.
-- `inherit` — **Charges with Default Marketing** / *Charges with overrides remain as they are.*
+- `inherit` — **Charges without edits** / *Charges with overrides stay as they are.*
   Writes nothing: a charge with no value of its own already follows the new override through
   `resolvedListing`.
-- `all` — **All Charges** / *This will clear every charge override at this property.* Deletes the marketing
+- `all` — **Every charge** / *All charges will update with the new defaults, regardless of an override.*
+  Deletes the marketing
   fields and both refusals from every charge of that type at that property, so each reads the new
   default and nothing else.
 
@@ -1259,7 +1262,7 @@ from the charge type and the charge kept reading **Listing Ready** over a blank 
 user hit on 2026-09-30). `resolvedListing`'s `pick` returns `''` for a cleared field unless the
 charge has a value of its own (so a Bulk Update value still wins), the form reopens it empty
 (`INH` is blanked for those keys), re-filling it with the inherited value drops it from `cleared`
-and it inherits again, and both **All Charges** resets delete `cleared` with the rest. It covers
+and it inherits again, and both **Every charge** resets delete `cleared` with the rest. It covers
 Name, Marketing Description, Charge Requirement, Fee Due, Charge Schedule and Refundable, and the
 NSF / Late branch the three it can edit. Clearing an optional field (Marketing Description,
 Refundable) keeps it empty and the charge still ready. That is what
