@@ -1415,10 +1415,13 @@ figure, else its `est`). `roleState` is `set` when every group is marked, `none`
   a button, *Base Rent · 3 charges* with a brand chevron, that opens the full list (`window.__roleBox`,
   open state kept in `this._roleOpen` per box, since any click re-renders). Rows wrap rather than
   squeeze, so it holds in a third-width tile.
-- **`roleBoxHTML` is what Listing Details and Edit Floor Plan show after activation**: Price and Deposit
-  Fee(s) *are* the two boxes, with **Change in Charges**; the floor plan's Price is `roleBoxHTML(…, {
-  unitType })` over *Listings show a Total Monthly Price of $x – $y for these units* (`roleTotalRange`),
-  with a hidden `#fp-price` keeping the mapping. (Its multi-charge
+- **`roleBoxHTML` is what Listing Details and Edit Floor Plan show after activation**, and **activating
+  renames the fields** (2026-10-14): Listing Details' Price and Deposit Fee(s) become **Base Rent** and
+  **Security Deposit**, with **Change in Charges**; the floor plan's Price becomes **Base Rent**,
+  `roleBoxHTML(…, { unitType })` over *Listings show a Total Monthly Price of $x – $y for these units*
+  (`roleTotalRange`), with a hidden `#fp-price` keeping the mapping. They pass `bare: true`, since the
+  label already names the role: one charge is just its row, several read *n charges* in the header.
+  Before activation both are still Price and Deposit Fee(s). (Its multi-charge
   branch had `style=""border…`, a doubled quote, so those boxes lost their border; fixed 2026-10-13.)
 
 **Base Rent & Security Deposit are confirmed before activation, not in it** (2026-10-13, the user's
