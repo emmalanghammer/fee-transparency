@@ -2330,11 +2330,20 @@ class Component extends DCLogic {
   // left as they are. Every pricer reads it: rent quotes, the Pricing Preview, a unit's or unit type's
   // Charges and Move In.
   chargeRank(r){ const l = String(r.level || 'Property'); return l === 'Property' ? 0 : /^unit type$/i.test(l) ? 1 : l === 'Unit' ? 2 : null; }
-  mostSpecific(rows){
+  // `o.single` (rent quotes, the Pricing Preview; 2026-10-14): one charge per charge type, even where two
+  // share the most specific level — the one holding that type's Base Rent / Security Deposit, else the
+  // highest for the unit (`o.unit`), the same rule the role suggestion uses.
+  mostSpecific(rows, o){
     const key = r => r.mits + (/-one$/.test(r.group || '') ? '|one' : '|rec');
     const best = {};
     rows.forEach(r => { const k = this.chargeRank(r); if (k != null && (best[key(r)] == null || k > best[key(r)])) best[key(r)] = k; });
-    return rows.filter(r => { const k = this.chargeRank(r); return k == null || k === best[key(r)]; });
+    const out = rows.filter(r => { const k = this.chargeRank(r); return k == null || k === best[key(r)]; });
+    if (!(o && o.single)) return out;
+    const score = r => { const kind = this.leaseRoleKind(r.mits, r._prop || this.state.property, /-one$/.test(r.group || ''));
+      return (kind && this.roleHolds(r, kind) ? 1e12 : 0) + this.chargeAmt(r, o.unit); };
+    const pick = {};
+    out.forEach(r => { if (this.chargeRank(r) == null) return; const k = key(r); if (!pick[k] || score(r) > score(pick[k])) pick[k] = r; });
+    return out.filter(r => this.chargeRank(r) == null || pick[key(r)] === r);
   }
   // Whether a charge reaches one unit: the property's (less its exceptions), the unit's type's, the unit's.
   chargeReachesUnit(r, unitNo){
@@ -7278,7 +7287,7 @@ class Component extends DCLogic {
     const required = (r) => this.resolvedListing(r).requirement === 'Required';
     // A pet charge is taken once per pet, as in the Pricing Preview: it carries the most pets the
     // pet type allows and, where the pet type sets one, the most the resident pays however many.
-    const rows = this.mostSpecific(this.appliedRows(q.prop).filter(applies))
+    const rows = this.mostSpecific(this.appliedRows(q.prop).filter(applies), { single: true, unit: q.unit })
       .map(r => ({ id:'c' + r.id, level:r.level || 'Property', type:r.mits, comment:r.desc || '',
         amount:amount(r), one:/-one$/.test(r.group),
         def:r.group.indexOf('req') === 0, lock:required(r) ? 'grey' : null,
@@ -7879,7 +7888,7 @@ class Component extends DCLogic {
     const unit = this.unitInfo(p.unit);
     // Only what reaches the unit being previewed, and of each charge type only the most specific level.
     const rows = this.mostSpecific((ilsProp ? this.appliedRows().filter(r => r.ils) : this.appliedRows())
-      .filter(r => String(r.level || 'Property') === 'ORI' || this.chargeReachesUnit(r, unit.u)));
+      .filter(r => String(r.level || 'Property') === 'ORI' || this.chargeReachesUnit(r, unit.u)), { single: true, unit: unit.u });
     const money = n => '$' + n.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
     // Rent moves with the lease term: a short term costs more, a long one less. Only the rent charge
     // is offset, and the totals follow because everything prices through amtOf.

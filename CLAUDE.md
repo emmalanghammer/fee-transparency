@@ -1558,6 +1558,12 @@ Charges tile and overlay, Move In), the unit type scope of `chargeScope`, `rqRow
 the Pricing Preview, which also now offers only charges that reach the previewed unit
 (`chargeReachesUnit`, exceptions included) where it used to list every charge on the property.
 
+**Rent quotes and the Pricing Preview show one charge per charge type** (2026-10-14, `mostSpecific(rows,
+{ single: true, unit })`): where two charges of a type share the most specific level, only one is
+offered — the one holding that type's Base Rent / Security Deposit (`roleHolds`), else the highest for the
+unit. The Berkshires' 1A quotes the Unit Market Rent RC and not the $150 premium; mark the premium as the
+Base Rent and it swaps. A unit's Charges, totals and Move In still list every charge it is billed.
+
 **DOGFEE (Dog Rent; it was PETFEE / Pet Rent until 2026-10-14) came over as Pet Type Recurring Amount, so it names its pet type**: `attrs:{ petType:'Dog',
 petKind:'rec' }`, $25.00, out of `propCharges`' drift. Opening it, `__petApply` locks Amount and
 Amount Method and shows *Amount and Amount Method come from the Dog pet type.* in General, and the
