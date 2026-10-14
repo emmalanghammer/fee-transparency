@@ -1451,7 +1451,7 @@ figure, else its `est`). `roleState` is `set` when every group is marked, `none`
 - **`roleBoxHTML` is what Listing Details and Edit Floor Plan show after activation**, and **activating
   renames the fields** (2026-10-14): Listing Details' Price and Deposit Fee(s) become **Base Rent** and
   **Security Deposit** (its *Change in Charges* link came off on 2026-10-14); the floor plan's Price becomes **Base Rent**,
-  `roleBoxHTML(…, { unitType })` with its own range under it in SemiBold (*$990.00 – $995.00*,
+  `roleBoxHTML(…, { unitType })` with its own range right-aligned on the label row in SemiBold (*$990.00 – $995.00*,
   `roleTotalRange(…, true)`, 2026-10-14), over a read-only **Total Monthly Price** field, *$x – $y*
   (`roleTotalRange`; it was a grey line until 2026-10-14), with a hidden `#fp-price` keeping the mapping.
   The Floor Plans tile's dropdown does the same after activation: **Base Rent** (`roleTotalRange(prop,
