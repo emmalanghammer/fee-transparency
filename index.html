@@ -75,6 +75,11 @@ window.__resources = {
     /* Orange checkboxes render a white checkmark (native accent-color can't set the tick color). */
     .btn-out { background:#fff; color:var(--ac,var(--rmx-brand, #008dd5)); border:1px solid var(--ac,var(--rmx-brand, #008dd5)); border-radius:4px; padding:6px 14px; font:400 13px Roboto,sans-serif; cursor:pointer; }
     .btn-pri { background:var(--ac,var(--rmx-brand, #008dd5)); color:#fff; border:none; border-radius:4px; padding:6px 14px; font:400 13px Roboto,sans-serif; cursor:pointer; }
+    /* A Feed Status lozenge that opens its breakdown: a navy outline and an underlined label on hover. */
+    /* The Feed Status dropdown reads like the toolbar's other fields: white, brand outline. */
+    .lt-ms > div > div:first-child { background:#fff !important; border-color:var(--ac,var(--rmx-brand, #008dd5)) !important; }
+    *:hover > .lt-st { border-color:var(--rmx-brand-dark, #13314c) !important; }
+    *:hover > .lt-st .lt-st-l { text-decoration:underline; }
     .fld { padding:7px 10px; border:1px solid var(--rmx-line, #cedbe7); background:var(--rmx-bg-subtle, #f5f8fa); border-radius:4px; font:400 14px Roboto,sans-serif; color:var(--rmx-brand-dark, #13314c); width:100%; box-sizing:border-box; }
     /* What someone typed is content, so it reads navy; what they haven't typed stays muted. */
     input, textarea { color:var(--rmx-brand-dark, #13314c); }
@@ -211,6 +216,7 @@ class Component extends DCLogic {
     spBanner: true, // System Preferences Fee Transparency banner not yet dismissed
     tcsProp: null,  // the property whose Tenant Charge Setup overlay is open
     ltErrOnly: false,
+    ltStatus: [], // Feed Status filter on Listings: the state keys shown ('sent', 'missing', 'action'); empty shows all
     ltGroupBy: true,      // Listings: Group by property — off shows one register with a Property column
     ftSetup: null,        // { sec:{what,def}, props:{<name>:true} } — the Fee Transparency Setup overlay
     propDef: {},          // { '<Property>': { '<CODE>': { on:true, name, category, … } } } — a property's override of a charge type
@@ -3148,6 +3154,17 @@ class Component extends DCLogic {
   // test setup across, not just ?test=. The scenario rides in the query string: written on every
   // change below, read back once here. Guarded, because a hot reload calls this again.
   componentDidMount(){
+    // The Listings Feed Status filter. Ticking re-renders the page, which closes the panel, so the
+    // panel is reopened after the render: picking several statuses is one open panel, not three.
+    window.__ltStatus = () => {
+      const l = document.getElementById('lt-status-list'); if (!l) return;
+      const all = l.querySelectorAll('input'), on = l.querySelectorAll('input:checked');
+      const vals = on.length === all.length ? [] : Array.prototype.map.call(on, x => x.value);
+      this.setState({ ltStatus: vals.length ? vals : ['none'] }, () => {
+        const p = document.getElementById('lt-status-panel'); const t = p && p.previousElementSibling;
+        if (t) t.click();
+      });
+    };
     if (this._scenRead) return;
     this._scenRead = true;
     // The charge types come with their default charge marketing already set — `state.mktDef` can't
@@ -3175,7 +3192,7 @@ class Component extends DCLogic {
       copyFees: null, pricePreview: null, profMenu: null, profHist: null,
       recView: null, mrView: false, rowMenu: null, pubModal: null, pubDone: null, ftSel: null, mktDef: this.mktDefAll(),
       mktSetup: false, mktAdv: false, mktTab: 'General', petType: null, spBanner: true, tcsProp: null, ftHelp: false,
-      lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false, ltGroupBy: true, ftSetup: null, propDef: {}, ctmEdit: null, ctmAsk: null, ctmMode: 'inherit', mcTab: 'Overview',
+      lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false, ltStatus: [], ltGroupBy: true, ftSetup: null, propDef: {}, ctmEdit: null, ctmAsk: null, ctmMode: 'inherit', mcTab: 'Overview',
       fpData: {}, fpEdit: null, fpMenu: null, fpDel: null, sdTypes: ['DP'], roleReview: null,
       mcProp: null, mktDefDraft: null, mktDefAsk: false, mktDefMode: 'inherit', mpExp: null
     }, () => this.roleSeedActivated());
@@ -5358,12 +5375,13 @@ class Component extends DCLogic {
   }
   // What the Errors column says about one listing, to Figma `3640:5054`. Three states, and the line
   // between them is **whether the listing goes out at all**:
-  //   · charges short of their marketing details — **Action Required**. This is the only thing that
+  //   · charges short of their marketing details — **Not Sent** (was *Action Required*). This is the only thing that
   //     stops a listing being sent: without every charge's details there is no complete price to
   //     send, so the feed holds it.
-  //   · Rent Manager's own fields short, or a provider unhappy with what it got — **Missing
-  //     Information**. The listing is out; something on it is incomplete.
-  //   · nothing — **Sent to Provider**.
+  //   · Rent Manager's own fields short, or a provider unhappy with what it got — **Sent,
+  //     Incomplete** (was *Missing Information*). The listing is out; something on it is incomplete.
+  //   · nothing — **Sent** (was *Sent to Provider*). Labels are UX-copy option A, 2026-10-14: each
+  //     leads with whether the listing went out.
   // `more` counts the other sections that also carry something, so the cell names the worst without
   // pretending it is the only one. The overlay behind it is the same three sections in the same
   // order, so the lozenge and what opens under it cannot disagree.
@@ -5374,21 +5392,40 @@ class Component extends DCLogic {
     // fields — it went out incomplete). Rent Manager and the provider together are one status, not two.
     const more = (is.charges.length && (is.rm.length || is.prov.length)) ? 1 : 0;
     if (is.charges.length)
-      return { key:'action', label:'Action Required', ico:'error',
+      return { key:'action', label:'Not Sent', ico:'error',
         fg:'var(--rmx-error, #eb343c)', bg:'#fdecee', more };
     if (is.rm.length || is.prov.length)
-      return { key:'missing', label:'Missing Information', ico:'warning',
+      return { key:'missing', label:'Sent, Incomplete', ico:'warning',
         fg:'var(--rmx-notice, #faa61c)', bg:'#fdf3e7', more };
-    return { key:'sent', label:'Sent to Provider', ico:'check_circle',
+    return { key:'sent', label:'Sent', ico:'check_circle',
       fg:'var(--rmx-success, #6eb744)', bg:'var(--rmx-success-bg, #e2f1da)', more:0 };
   }
   // RMX Lozenge as the Errors cell draws it: 24px, 8px sides, a 16px icon 8px from 14px label text.
+  // A listing with something to read wears a trailing chevron and darkens on hover (`.lt-st`), and the
+  // cell's tooltip says what opening it shows. Sent has nothing behind it, so it is a plain lozenge.
   ltFeedLoz(l){
     const f = this.ltFeedState(l);
-    return `<span style="display:inline-flex;align-items:center;gap:8px;height:24px;box-sizing:border-box;padding:0 8px;border-radius:4px;background:${f.bg};white-space:nowrap;flex:none">`
+    const go = f.key !== 'sent';
+    return `<span class="${go ? 'lt-st' : ''}" style="display:inline-flex;align-items:center;gap:8px;height:24px;box-sizing:border-box;padding:0 ${go ? '4px' : '8px'} 0 8px;border-radius:4px;background:${f.bg};border:1px solid transparent;white-space:nowrap;flex:none">`
       + this.ico(f.ico, 16, 'color:' + f.fg + ';flex:none')
-      + `<span style="font-size:14px;line-height:16px;color:var(--rmx-brand-dark, #13314c)">${f.label}</span></span>`
+      + `<span class="lt-st-l" style="font-size:14px;line-height:16px;color:var(--rmx-brand-dark, #13314c)">${f.label}</span>`
+      + (go ? this.ico('chevron_right', 16, 'color:var(--rmx-brand-dark, #13314c);flex:none;margin-left:-4px') : '')
+      + `</span>`
       + (f.more ? `<span style="font-size:14px;color:var(--rmx-text, #666666);flex:none">+${f.more}</span>` : '');
+  }
+  // What hovering a status says: what it means, and for the two with something behind them, that a
+  // click shows it.
+  ltFeedTip(l){
+    const f = this.ltFeedState(l), is = this.ltIssues(l);
+    const n = is.rm.length + is.prov.length, c = is.charges.length;
+    if (f.key === 'action') return `Not sent: ${c} charge${c === 1 ? '' : 's'} need${c === 1 ? 's' : ''} marketing details before this listing can go out. Click to see which.`;
+    if (f.key === 'missing') return `Sent, but ${n} field${n === 1 ? ' is' : 's are'} missing. Providers may show less on the listing. Click to see what's missing.`;
+    return 'Sent to every provider with everything it needs.';
+  }
+  // The register's status cell: the lozenge, clickable only when there is something to read.
+  ltFeedCell(l, i){
+    const go = this.ltFeedState(l).key !== 'sent';
+    return `<span ${go ? `data-act="ltErrOpen" data-arg="${i}"` : ''} title="${this.ltFeedTip(l).replace(/"/g, '&quot;')}" style="display:flex;align-items:center;gap:8px;min-height:36px;box-sizing:border-box;padding:0 12px;min-width:0;overflow:hidden;${go ? 'cursor:pointer' : 'cursor:default'}">${this.ltFeedLoz(l)}</span>`;
   }
   // The Errors breakdown for one listing: Rent Manager's own fields and whatever the provider
   // rejected. Two sources, both about this listing's feed — charge details are the group header's
@@ -5412,7 +5449,7 @@ class Component extends DCLogic {
     const D_ERR = 'M480-280q17 0 28.5-11.5T520-320q0-17-11.5-28.5T480-360q-17 0-28.5 11.5T440-320q0 17 11.5 28.5T480-280Zm-40-160h80v-240h-80v240Zm40 360q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z';
     const D_WARN = 'm40-120 440-760 440 760H40Zm440-120q17 0 28.5-11.5T520-280q0-17-11.5-28.5T480-320q-17 0-28.5 11.5T440-280q0 17 11.5 28.5T480-240Zm-40-120h80v-200h-80v200Z';
     const loz = (label, fg, bg) => `<span style="display:inline-flex;align-items:center;gap:8px;height:24px;box-sizing:border-box;padding:0 8px;border-radius:4px;background:${bg};white-space:nowrap;flex:none">`
-      + fill(label === 'Missing Information' ? D_WARN : D_ERR, fg, 16)
+      + fill(label === 'Sent, Incomplete' ? D_WARN : D_ERR, fg, 16)
       + `<span style="font-size:14px;line-height:16px;color:var(--rmx-brand-dark, #13314c)">${label}</span></span>`;
     // `tone` is the section's own severity, and it is what makes the card look different rather than
     // a second colour inside it: the one that is stopping the listing takes a red border and a
@@ -5430,8 +5467,8 @@ class Component extends DCLogic {
             // The one section that stops a listing says so in words, in red, where the other two
             // carry their lozenge — same place, same job, and it needs no tint of its own because
             // the header it sits in is already red.
-            ? `<span style="flex:none;font-size:14px;font-weight:600;color:var(--rmx-error, #eb343c);white-space:nowrap">Action Required: Listing Not Sent</span>`
-            : loz('Missing Information', 'var(--rmx-notice, #faa61c)', '#fdf3e7')}
+            ? `<span style="flex:none;font-size:14px;font-weight:600;color:var(--rmx-error, #eb343c);white-space:nowrap">Not Sent</span>`
+            : loz('Sent, Incomplete', 'var(--rmx-notice, #faa61c)', '#fdf3e7')}
           ${n?`${this.ico(open[key]?'keyboard_arrow_up':'keyboard_arrow_down', 20, 'color:var(--rmx-text, #666666);flex:none')}`:''}
         </div>
         ${on ? `<div style="display:flex;flex-direction:column;gap:14px;padding:14px 16px 16px">${inner}</div>` : ''}
@@ -5497,7 +5534,10 @@ class Component extends DCLogic {
       .filter(r => filt === 'all' || r.l.prop === filt)
       // "without errors" means the green tick in the Errors column, and that column is now the
       // feed alone — so this is too. Charge details are reported per property, not per listing.
-      .filter(r => !this.state.ltErrOnly || this.ltIssues(r.l).total > 0);
+      .filter(r => !this.state.ltErrOnly || this.ltIssues(r.l).total > 0)
+      // The Feed Status filter: the listing's state has to be one of those ticked. Nothing ticked
+      // filters nothing.
+      .filter(r => { const sel = this.state.ltStatus || []; return !sel.length || sel.indexOf(this.ltFeedState(r.l).key) >= 0; });
     const out = [];
     rows.forEach(r => {
       let g = out.find(x => x.prop === r.l.prop);
@@ -5544,7 +5584,11 @@ class Component extends DCLogic {
         </span>
       </div>
       ${this.regCheck('Group by property', 'ltGroupToggle', grouped)}
-      ${this.regCheck('Hide listings without errors', 'ltErrToggle', this.state.ltErrOnly)}
+      <div class="lt-ms" style="display:flex;flex-direction:column;gap:4px;width:200px">
+        <span style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))">Feed Status</span>
+        ${this.multiSelect('lt-status', [{ value:'sent', label:'Sent' }, { value:'missing', label:'Sent, Incomplete' }, { value:'action', label:'Not Sent' }],
+          (this.state.ltStatus || []).length ? this.state.ltStatus : ['sent','missing','action'], 'if(window.__ltStatus)window.__ltStatus()')}
+      </div>
       <div style="flex:1"></div>
       <button data-act="todo" data-arg="Update Listings Feed" class="btn-pri" style="display:inline-flex;align-items:center;gap:8px;height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">${this.ico('autorenew', 18)}Update Listings Feed</button>
     </div>`;
@@ -5593,7 +5637,7 @@ class Component extends DCLogic {
       </div>`;
 
       const head = `<div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7)">
-        ${hc('Unit', true)}${hc('Unit Type')}${hc('Base Rent')}${hc('Security Deposit')}${hc('Total Monthly Price')}${hc('Available')}${hc('Listing Ready Charges')}${hc('Errors')}
+        ${hc('Unit', true)}${hc('Unit Type')}${hc('Base Rent')}${hc('Security Deposit')}${hc('Total Monthly Price')}${hc('Available')}${hc('Listing Ready Charges')}${hc('Feed Status')}
       </div>`;
 
       const body = g.rows.map(({ l, i }) => {
@@ -5612,7 +5656,7 @@ class Component extends DCLogic {
           ${cell(total)}
           ${cell(l.avail || '—')}
           ${chargeCell(l.prop)}
-          <span data-act="ltErrOpen" data-arg="${i}" title="What needs attention" style="display:flex;align-items:center;gap:8px;min-height:36px;box-sizing:border-box;padding:0 12px;cursor:pointer">${this.ltFeedLoz(l)}</span>
+          ${this.ltFeedCell(l, i)}
         </div>`;
       }).join('');
 
@@ -5622,7 +5666,7 @@ class Component extends DCLogic {
       </div>`;
     };
 
-    const emptyMsg = this.state.ltErrOnly ? 'No listings with errors.'
+    const emptyMsg = (this.state.ltStatus || []).length ? 'No listings with the selected feed status.' : this.state.ltErrOnly ? 'No listings with errors.'
       : 'No listings. No properties are enabled for online listings.';
     const empty = `<div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:26px 17px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">${emptyMsg}</div>`;
 
@@ -5633,7 +5677,7 @@ class Component extends DCLogic {
       const rows = groups.reduce((a, g) => a.concat(g.rows), []);
       if (!rows.length) return empty;
       const head = `<div ${this.colHead(flatK)} style="display:grid;grid-template-columns:${fcols};border-bottom:1px solid var(--rmx-line, #cedbe7)">
-        ${hc('Property', true)}${hc('Unit')}${hc('Unit Type')}${hc('Base Rent')}${hc('Security Deposit')}${hc('Total Monthly Price')}${hc('Available')}${hc('Listing Ready Charges')}${hc('Errors')}
+        ${hc('Property', true)}${hc('Unit')}${hc('Unit Type')}${hc('Base Rent')}${hc('Security Deposit')}${hc('Total Monthly Price')}${hc('Available')}${hc('Listing Ready Charges')}${hc('Feed Status')}
       </div>`;
       const body = rows.map(({ l, i }) => {
         const is = this.ltIssues(l);
@@ -5648,7 +5692,7 @@ class Component extends DCLogic {
           ${cell(total)}
           ${cell(l.avail || '\u2014')}
           ${chargeCell(l.prop)}
-          <span data-act="ltErrOpen" data-arg="${i}" title="What needs attention" style="display:flex;align-items:center;gap:8px;min-height:36px;box-sizing:border-box;padding:0 12px;cursor:pointer">${this.ltFeedLoz(l)}</span>
+          ${this.ltFeedCell(l, i)}
         </div>`;
       }).join('');
       return `<div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">${head}${body}</div>`;

@@ -127,7 +127,7 @@ the charge work happens at. Off, the same listings are one register whose first 
 **Property**, for when you are looking for a unit rather than reviewing a property.
 
 A register is **Unit · Unit Type · Base Rent · Security Deposit · Total Monthly Price · Available ·
-Listing Ready Charges · Errors**, one row per advertised unit (`listingsData()` in C is unit-level, with bed/bath and per-provider state).
+Listing Ready Charges · Feed Status**, one row per advertised unit (`listingsData()` in C is unit-level, with bed/bath and per-provider state).
 **Security Deposit** (2026-10-13, `ltDeposit(l)`) is the unit's deposit charge through `roleGroups(prop,
 'deposit')`: the one written on the unit, else its unit type (matched on `unitInfo().type` or
 `ltUnitType` with *B/* read as *BR/*), else the property's. It shows that group's marked charge, or the
@@ -434,7 +434,22 @@ the provider. That is what the cell's lozenge named, and what they pressed it to
 the head and a `more_vert` in each row came off on 2026-09-25 — the kebab was unbuilt `todo` chrome,
 and without the track the whole register fits without scrolling sideways.
 
-**Hide listings without errors** (`ltErrOnly`) follows the column: feed errors only.
+**The column is Feed Status, and its labels say whether the listing went out** (2026-10-14, UX-copy
+option A; it was *Errors* with *Action Required* / *Missing Information* / *Sent to Provider*):
+**Not Sent** (red), **Sent, Incomplete** (amber), **Sent** (green). `ltFeedState` keeps its keys
+(`action`, `missing`, `sent`). The breakdown overlay follows: the red section's right side reads **Not
+Sent**, and the amber sections' lozenge **Sent, Incomplete**. **A status you can open says so**
+(`ltFeedCell`): Not Sent and Sent, Incomplete carry a trailing `chevron_right` inside the lozenge, and
+on hover take a navy outline and an underlined label (`.lt-st`). The cell's `title` (`ltFeedTip`)
+says what's wrong and *Click to see which.* / *Click to see what's missing.* **Sent opens nothing**:
+it has no `data-act`, no chevron and no hover, since there is nothing behind it.
+
+**A Feed Status multi-select replaced *Hide listings without errors*** (2026-10-14): the toolbar's
+**Feed Status** dropdown (`multiSelect('lt-status')`, styled white with a brand outline by `.lt-ms`)
+over the three statuses, all ticked to start. `state.ltStatus` holds the keys shown; empty means all,
+and `['none']` stands for nothing ticked. `ltGroups` filters on it. Ticking re-renders, so
+`window.__ltStatus` reopens the panel afterwards. `ltErrOnly` is left for the Marketing Center's
+`mcErrs`.
 
 **C is A minus a page, not a different model.** Marketing details are still edited in Marketing
 Setup › Pricing, through the same `mktSetupHTML` overlay. `mcOpenProp` is what opens it — from a
