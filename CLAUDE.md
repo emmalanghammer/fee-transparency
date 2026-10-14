@@ -1447,11 +1447,12 @@ canvas *Confirm Base Rent & Deposit*).
   navy `info` and *"Confirm Base Rent & Security Deposit"* with **Confirm Charges** (2026-10-14, matching
   the Marketing Setup callout; it was *Confirm all units have base rent and security deposit selected*
   with **Review**, Figma `3930:1701`);
-  every group confirmed, a green `check_circle` and *"Base Rent & Security Deposit: confirmed"* with
-  **Review**; units without a Base Rent (`gap`), a red `error`, *Base Rent missing:* **n units** with
-  **Confirm Charges** (Marketing Setup's panel says the same in a red Callout, *Base Rent missing*); no
-  rent charge at all (`none`, `roleGroups(…, { all: true })` empty), *"Base Rent: no rent charge"* with
-  **View Charges**. A deposit with no charge doesn't count against either.
+  every group confirmed, a green `check_circle` with
+  **Review**; units without a Base Rent (`gap`), a red `error` with **Confirm Charges** (Marketing
+  Setup's panel spells it out in a red Callout, *Base Rent missing*); no rent charge at all (`none`,
+  `roleGroups(…, { all: true })` empty), a red `error` with **View Charges**. **The label is always
+  *Confirm Base Rent & Security Deposit*** (2026-10-14, the user's call): the icon and the action say which
+  state it is in. A deposit with no charge doesn't count against either.
 - **The Review overlay** (`roleReviewHTML`, `state.roleReview = { prop }`, z-index 155) matches Figma
   `3931:167844` / `3931:168155` (section `3944:73163`, 2026-10-13): *Base Rent & Security Deposit:
   `<Property>`*, then on the grey body a grey line — *"Every unit needs a Base Rent to activate; a
