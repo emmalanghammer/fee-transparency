@@ -1449,9 +1449,10 @@ canvas *Confirm Base Rent & Deposit*).
   one when editing a charge."* (UX-copy option A, 2026-10-14) —
   and **one section per role**, Base Rent then Security Deposit. A section's header is the role at
   16/600, a coverage lozenge *n of N units* (green `#e2f1da` when whole, `#feedd2` when not), what's missing
-  in navy by **floor plan** (2026-10-14, `missingHTML`): *Missing: Studio* then RMX's **Pill** (h20, 12px
-  radius, white, 1px `--rmx-brand` border, 12px text) counting the rest, *+1* — every floor plan with a unit
-  left uncovered, the full list in the `title`; a unit on no floor plan is named *Unit 1A*
+  in navy by **floor plan** (2026-10-14, `missingHTML`): *Missing: Studio* then RMX's dropdown **Pill**
+  counting the rest — brand *+1* and an `arrow_drop_down` caret in a brand outline, h20, 12px radius, white
+  (the user's reference) — which opens a small panel listing every floor plan with a unit left uncovered
+  (`window.__rolePill`, DOM-only; the sections no longer clip, so it can overhang); a unit on no floor plan is named *Unit 1A*
   and **+ Add Base Rent** / **+ Add Security Deposit** on the right. Rows are 52px with `#cedbe7` rules:
   Charge Level cell (260) · coverage (190, grey, *Used by n units*) · the charge as **`roleShort`** —
   *RC Rent: Unit Market Rent*, *DP Security Deposit: $600.00* — and the actions. The property's row is white,

@@ -4657,8 +4657,16 @@ class Component extends DCLogic {
     missing.forEach(u => { const f = plans.find(x => (x.units || []).indexOf(u.u) >= 0); const n = f ? f.name : 'Unit ' + u.u;
       if (!seen[n]) { seen[n] = true; fps.push(n); } });
     const e = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-    const missingHTML = !fps.length ? '' : `<span title="${e('Missing ' + (kind === 'rent' ? 'Base Rent' : 'Security Deposit') + ': ' + fps.join(', '))}" style="display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap">Missing: ${e(fps[0])}${fps.length > 1
-      ? `<span style="display:inline-flex;align-items:center;height:20px;box-sizing:border-box;padding:0 8px;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:12px;background:#fff;font:400 12px/16px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">+${fps.length - 1}</span>` : ''}</span>`;
+    // The Pill is RMX's dropdown Pill: brand *+n* and caret in a brand outline; it opens a small panel
+    // listing every floor plan still missing the charge (DOM-only, `window.__rolePill`).
+    if (!window.__rolePill) window.__rolePill = (btn, ev) => { if (ev) ev.stopPropagation();
+      const pnl = btn.parentNode.querySelector('[data-pillpnl]'); if (!pnl) return;
+      const on = pnl.style.display === 'none'; pnl.style.display = on ? 'block' : 'none'; btn.setAttribute('aria-expanded', on); };
+    const missingHTML = !fps.length ? '' : `<span style="position:relative;display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap">Missing: ${e(fps[0])}${fps.length > 1
+      ? `<button type="button" aria-expanded="false" aria-label="${e(fps.length - 1 + ' more floor plans missing')}" onclick="window.__rolePill(this, event)" style="display:inline-flex;align-items:center;gap:2px;height:20px;box-sizing:border-box;padding:0 4px 0 8px;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:12px;background:#fff;font:400 14px/16px Roboto,sans-serif;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap;cursor:pointer">+${fps.length - 1}${this.ico('arrow_drop_down', 20, 'flex:none;margin:0 -2px')}</button>
+        <div data-pillpnl style="display:none;position:absolute;top:100%;left:0;margin-top:4px;z-index:5;min-width:180px;padding:4px 0;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.12)">
+          <div style="padding:6px 12px;font-size:12px;line-height:16px;color:var(--rmx-text, #666666)">Missing ${kind === 'rent' ? 'Base Rent' : 'Security Deposit'}</div>
+          ${fps.map(n => `<div style="padding:6px 12px;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${e(n)}</div>`).join('')}</div>` : ''}</span>`;
     return { by, total: units.length, covered: units.length - missing.length, missingHTML, missingText: names.length ? names.join(', ') + ' missing ' + (kind === 'rent' ? 'base rent' : 'security deposit') : '' };
   }
   // One row renderer for the Review overlay (a 52px register row) and the two boxes (`o.stacked`).
@@ -4774,7 +4782,7 @@ class Component extends DCLogic {
       // The charge to add is one on a charge type this role reads: a rent charge type for the Base Rent
       // (recurring, so a type the property only runs one-time, like FMR, is left out), a security
       // deposit charge type for the Security Deposit.
-      return `<section data-rsec="${kind}" style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;background:#fff;overflow:hidden">
+      return `<section data-rsec="${kind}" style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;background:#fff">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;flex-wrap:wrap">
           <span style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-width:0">
             <span style="font-size:16px;line-height:24px;font-weight:600;${INK}">${L}</span>${lozenge(c)}
