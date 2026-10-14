@@ -1628,7 +1628,7 @@ class Component extends DCLogic {
       case 'roleReviewClose': if (this._roleDraft) this._roleDraft.review = {}; this._roleNew = []; this.setState({ roleReview: null }); break;
       case 'roleReviewSave': { const rv = this.state.roleReview; if (!rv) break;
         const ov = this.q('[data-rreview]');
-        const left = ov ? Array.prototype.filter.call(ov.querySelectorAll('[data-rrow]'), r => { const c = r.querySelector('[data-rs="conf"]'); return !c || c.style.display === 'none'; }).length : 0;
+        const left = ov ? Array.prototype.filter.call(ov.querySelectorAll('[data-rrow]:not([data-removed])'), r => { const c = r.querySelector('[data-rs="conf"]'); return !c || c.style.display === 'none'; }).length : 0;
         if (left) break;
         const prop = rv.prop;
         const rows = this.roleApplyRows(prop, (this._roleDraft || {}).review || {});
@@ -4590,6 +4590,12 @@ class Component extends DCLogic {
       const text = (t) => { const c = row.querySelector('[data-conftext]'); if (c) c.textContent = t; };
       if (act === 'confirm') { d[key] = { id: row.getAttribute('data-sid') }; text(row.getAttribute('data-slabel')); show('conf'); }
       else if (act === 'change') show('chg');
+      else if (act === 'remove') {
+        d[key] = { declined: true }; row.setAttribute('data-removed', ''); row.style.display = 'none';
+        // Taking the property's away shows the section's *No property level …* row in its place.
+        const sec = row.closest('[data-rsec]'), mp = sec && sec.querySelector('[data-rmissprop]');
+        if (mp && /\|Property\|/.test(key)) mp.style.display = 'flex';
+      }
       else if (act === 'pick') {
         if (v === '__prop') { d[key] = { declined: true }; text('Uses the property’s'); }
         else { d[key] = { id: v }; const o = row.querySelector('[data-v="' + v + '"]'); text(o ? o.getAttribute('data-l') : ''); }
@@ -4640,22 +4646,26 @@ class Component extends DCLogic {
     const confText = !ans ? '' : ans.declined ? 'Uses the property’s' : this.roleShort(byId(ans.id) || g.suggested);
     const icon = (act, glyph, label, color) => `<button type="button" aria-label="${label}" onclick="window.__roleRow(this,'${act}')" style="display:flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border:0;background:none;cursor:pointer;flex:none;color:${color}">${this.ico(glyph, 24)}</button>`;
     const opts = g.rows.slice().sort((a, b) => this.roleAmt(b) - this.roleAmt(a)).map(r => ({ value: String(r.id), label: this.roleShort(r) }));
-    if (g.level !== 'Property') opts.push({ value: '__prop', label: 'Use the property’s' });
     const ddId = 'rr-' + surface + '-' + key.replace(/[^a-z0-9]/gi, '_');
     const TXT = o.stacked ? 'flex:1 1 120px;min-width:0' : 'flex:1;min-width:0';
     const WRAP = o.stacked ? 'flex-wrap:wrap;' : '';
     const vis = (k) => (k === st ? 'flex' : 'none');
+    // Until it's answered the charge wears RMX's Lozenge reading *Suggested* (2026-10-14).
+    const SUGG = `<span style="display:inline-flex;align-items:center;height:24px;padding:0 8px;border-radius:4px;background:var(--rmx-brand-tint-bg, #ebf1f5);font:400 14px/16px Roboto,sans-serif;color:var(--rmx-brand-hover, #0071aa);white-space:nowrap;flex:none">Suggested</span>`;
     const states = `
-      <div data-rs="sugg" style="display:${vis('sugg')};${WRAP}align-items:center;gap:8px 16px;min-width:0"><span style="${TXT}">${esc(this.roleShort(g.suggested))}</span><span style="display:flex;gap:16px;flex:none">${icon('confirm', 'check', 'Confirm ' + this.leaseRoleLabel(kind), 'var(--ac,var(--rmx-brand, #008dd5))')}${icon('change', 'close', 'Choose a different charge', 'var(--rmx-text, #666666)')}</span></div>
+      <div data-rs="sugg" style="display:${vis('sugg')};${WRAP}align-items:center;gap:8px 16px;min-width:0"><span style="${TXT};display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px"><span>${esc(this.roleShort(g.suggested))}</span>${SUGG}</span><span style="display:flex;gap:16px;flex:none">${icon('confirm', 'check', 'Confirm ' + this.leaseRoleLabel(kind), 'var(--ac,var(--rmx-brand, #008dd5))')}${icon('remove', 'close', 'Remove ' + this.leaseRoleLabel(kind), 'var(--rmx-text, #666666)')}</span></div>
       <div data-rs="conf" style="display:${vis('conf')};${WRAP}align-items:center;gap:8px 16px;min-width:0"><span data-conftext style="${TXT}">${esc(confText)}</span><a onclick="window.__roleRow(this,'change')" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Change</a></div>
       <div data-rs="chg" data-disp="block" style="display:none;min-width:0">${this.singleSelect(ddId, opts, '', { noSearch: true, placeholder: 'Choose a charge', js: "window.__roleRow(this,'pick',_v)" })}</div>`;
     const data = `data-rrow data-surface="${surface}" data-key="${esc(key)}" data-prop="${esc(prop)}" data-sid="${esc(g.suggested && g.suggested.id)}" data-slabel="${esc(this.roleShort(g.suggested))}"`;
     if (o.stacked) return `<div ${data} style="display:flex;flex-direction:column;gap:4px;padding:8px 12px;border-top:1px solid var(--rmx-line, #cedbe7);background:${bg};font-size:14px;line-height:20px;${INK}">
         ${role}<div style="display:flex;align-items:flex-start;gap:8px;min-width:0"><span style="display:flex;align-items:center;min-height:24px">${this.chargeLevelTag(g.level)}</span><div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;min-height:24px">${states}</div></div></div>`;
-    return `<div ${data} style="display:flex;align-items:center;gap:12px;min-height:52px;box-sizing:border-box;padding:8px 16px;border-top:1px solid var(--rmx-line, #cedbe7);background:${bg};font-size:14px;line-height:20px;${INK}">
+    // A removed row (its X, or saved that way) is left out: it covers nothing, and the section's count
+    // and missing line say what that leaves short.
+    if (o.removed) return '';
+    return `<div ${data} style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;min-height:52px;box-sizing:border-box;padding:8px 16px;border-top:1px solid var(--rmx-line, #cedbe7);background:${bg};font-size:14px;line-height:20px;${INK}">
         <span style="flex:0 1 260px;min-width:120px;overflow:hidden">${this.chargeLevelCell(g.level, esc(g.name))}</span>
-        <span data-cov="${esc(key)}" style="flex:0 1 190px;min-width:90px;color:var(--rmx-text, #666666)"></span>
-        <div style="flex:1;min-width:0">${states}</div></div>`;
+        <span data-cov="${esc(key)}" style="flex:0 1 160px;min-width:90px;color:var(--rmx-text, #666666)"></span>
+        <div style="flex:1 1 260px;min-width:0">${states}</div></div>`;
   }
   // The box Listing Details and Edit Floor Plan share before activation (2026-10-13, simplified at the
   // user's request): what the two roles are for, then one line each naming the charge that fills it —
@@ -4693,7 +4703,7 @@ class Component extends DCLogic {
     return (this._roleNew || []).map((n, i) => { if (n.kind !== kind) return '';
       const r = rows.find(x => String(x.id) === String(n.id));
       return `<div style="display:flex;align-items:center;gap:12px;min-height:52px;box-sizing:border-box;padding:8px 16px;border-top:1px solid var(--rmx-line, #cedbe7);background:#fbfcfd;font-size:14px;line-height:20px;${INK}">
-      <span style="flex:0 1 260px;min-width:120px;overflow:hidden">${this.chargeLevelCell(n.level, n.level === 'Unit' ? n.target : n.target)}</span>
+      <span style="flex:0 1 260px;min-width:120px;overflow:hidden">${this.chargeLevelCell(n.level, n.level === 'Property' ? (prop || (this.state.roleReview || {}).prop) : n.target)}</span>
       <span data-cov="new|${kind}|${i}" style="flex:0 1 190px;min-width:90px;color:var(--rmx-text, #666666)"></span>
       <div style="flex:1;min-width:0;display:flex;align-items:center;gap:16px"><span style="flex:1;min-width:0">${this.roleShort(r)}</span>
         <span style="display:inline-flex;align-items:center;height:24px;padding:0 8px;border-radius:4px;background:var(--rmx-success-bg, #e2f1da);font:400 14px/16px Roboto,sans-serif;${INK};white-space:nowrap">Added</span>
@@ -4713,15 +4723,16 @@ class Component extends DCLogic {
       const L = this.leaseRoleLabel(kind);
       const gs = this.roleGroups(prop, kind, { all: true });
       const c = this.roleCoverage(prop, kind);
-      const hasProp = gs.some(g => g.level === 'Property');
+      const gone = (g) => { const a = this.roleAnswer('review', kind, g); return !!(a && a.declined); };
+      const hasProp = gs.some(g => g.level === 'Property' && !gone(g));
       // No property-level charge: a tinted row says so; for rent, a Callout nudges to one charge that
       // covers every unit by referencing Unit Market Rent.
-      const missingProp = hasProp ? '' : `<div style="display:flex;align-items:center;gap:12px;min-height:52px;box-sizing:border-box;padding:8px 16px;border-top:1px solid var(--rmx-line, #cedbe7);background:#fffaf3;font-size:14px;line-height:20px;${INK}">
+      const missingProp = `<div data-rmissprop style="display:${hasProp ? 'none' : 'flex'};align-items:center;gap:12px;min-height:52px;box-sizing:border-box;padding:8px 16px;border-top:1px solid var(--rmx-line, #cedbe7);background:#fffaf3;font-size:14px;line-height:20px;${INK}">
           <span style="flex:0 1 260px;min-width:120px;overflow:hidden">${this.chargeLevelCell('Property', esc(prop))}</span>
           <span style="${kind === 'rent' ? 'flex:0 1 190px;min-width:90px' : 'flex:1'};font-style:italic;color:var(--rmx-text, #666666)">No property level ${kind === 'rent' ? 'base rent' : 'security deposit'}</span>
           ${kind === 'rent' ? `<span style="display:inline-flex;align-items:center;gap:8px;padding:8px;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;white-space:nowrap">${this.ico('info', 20, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}Cover every unit with one charge using Unit Market Rent.</span>` : ''}
         </div>`;
-      const optsAdd = this.utData().map(t => ({ value: 'Unit Type|' + t.name, label: 'Unit type: ' + t.name })).concat(this.units().map(u => ({ value: 'Unit|' + u.u, label: 'Unit ' + u.u })));
+      const optsAdd = [{ value: 'Property|', label: 'Property: ' + prop }].concat(this.utData().map(t => ({ value: 'Unit Type|' + t.name, label: 'Unit type: ' + t.name })).concat(this.units().map(u => ({ value: 'Unit|' + u.u, label: 'Unit ' + u.u }))));
       // The charge to add is one on a charge type this role reads: a rent charge type for the Base Rent
       // (recurring, so a type the property only runs one-time, like FMR, is left out), a security
       // deposit charge type for the Security Deposit.
@@ -4733,10 +4744,10 @@ class Component extends DCLogic {
           </span>
           <a onclick="window.__roleNewForm('${kind}', true)" data-radd="${kind}" style="display:inline-flex;align-items:center;gap:4px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${this.ico('add', 20)}Add ${L}</a>
         </div>
-        ${missingProp}${gs.map(g => this.roleRowHTML('review', prop, kind, g)).join('')}
+        ${missingProp}${gs.map(g => this.roleRowHTML('review', prop, kind, g, { removed: gone(g) })).join('')}
         <div data-rnew="${kind}">${this.roleNewRowsHTML(kind, prop)}</div>
         <div data-rform="${kind}" style="display:none;flex-wrap:wrap;gap:12px;align-items:flex-end;padding:12px 16px;border-top:1px solid var(--rmx-line, #cedbe7)">
-          <div style="flex:1 1 200px;min-width:0;display:flex;flex-direction:column;gap:4px">${F.lab('Unit type or unit')}${this.singleSelect('rnew-at-' + kind, optsAdd, '', { placeholder: 'Select', js: "window.__roleNewTarget('" + kind + "',_v)" })}</div>
+          <div style="flex:1 1 200px;min-width:0;display:flex;flex-direction:column;gap:4px">${F.lab('Applies to')}${this.singleSelect('rnew-at-' + kind, optsAdd, '', { placeholder: 'Select', js: "window.__roleNewTarget('" + kind + "',_v)" })}</div>
           <div style="flex:2 1 280px;min-width:0;display:flex;flex-direction:column;gap:4px">${F.lab('Charge')}<div data-rct>${this.singleSelect('rnew-ch-' + kind, [], '', { noSearch: true, placeholder: 'Choose a unit type or unit first' })}</div></div>
           <button type="button" class="btn-pri" onclick="window.__roleNewAdd('${kind}')" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Add</button>
           <button type="button" class="btn-out" onclick="window.__roleNewForm('${kind}', false)" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Cancel</button>
@@ -4754,11 +4765,16 @@ class Component extends DCLogic {
           el.textContent = n ? 'Used by ' + n + ' unit' + (n === 1 ? '' : 's') : 'Not used'; });
         const lz = sec.querySelector('[data-covloz]'); if (lz) { lz.textContent = c.covered + ' of ' + c.total + ' units'; lz.style.background = c.covered === c.total ? 'var(--rmx-success-bg, #e2f1da)' : '#feedd2'; }
         const ms = sec.querySelector('[data-covmiss]'); if (ms) ms.textContent = c.missingText;
+        // *No property level …* shows whenever nothing live is written for the property.
+        const D = ((this._roleDraft || {}).review) || {};
+        const live = this.roleGroups(prop, kind, { all: true }).some(g => g.level === 'Property' && !(D[this.roleKey(kind, g)] ? D[this.roleKey(kind, g)].declined : g.declined))
+          || (this._roleNew || []).some(n => n.kind === kind && n.level === 'Property');
+        const mp = sec.querySelector('[data-rmissprop]'); if (mp) mp.style.display = live ? 'none' : 'flex';
       });
     };
     window.__roleCount = () => {
       const ov = document.querySelector('[data-rreview]'); if (!ov) return;
-      let n = 0; ov.querySelectorAll('[data-rrow]').forEach(r => { const c = r.querySelector('[data-rs="conf"]'); if (!c || c.style.display === 'none') n++; });
+      let n = 0; ov.querySelectorAll('[data-rrow]:not([data-removed])').forEach(r => { const c = r.querySelector('[data-rs="conf"]'); if (!c || c.style.display === 'none') n++; });
       const sv = ov.querySelector('#rr-save'); if (sv) { sv.disabled = !!n; sv.style.opacity = n ? '.5' : '1'; sv.style.cursor = n ? 'default' : 'pointer'; }
 
     };
@@ -4781,13 +4797,15 @@ class Component extends DCLogic {
       const at = (document.getElementById('rnew-at-' + kind) || {}).value || '';
       const id = (document.getElementById('rnew-ch-' + kind) || {}).value || '';
       const err = (t) => { const e = sec.querySelector('[data-rerr]'); e.textContent = t; e.style.display = 'block'; };
-      if (!at) return err('Choose a unit type or unit.');
+      if (!at) return err('Choose where it applies.');
       if (!id) return err('Choose a charge.');
       const [level, target] = at.split('|');
-      const has = this.roleGroups(prop, kind, { all: true }).some(g => g.level === level && g.target === target)
+      const D = ((this._roleDraft || {}).review) || {};
+      const has = this.roleGroups(prop, kind, { all: true }).some(g => g.level === level && g.target === target && !(D[this.roleKey(kind, g)] || {}).declined && !(g.declined && !D[this.roleKey(kind, g)]))
         || (this._roleNew || []).some(n => n.kind === kind && n.level === level && n.target === target);
-      if (has) return err((level === 'Unit' ? 'Unit ' + target : target) + ' already has its own ' + this.leaseRoleLabel(kind) + '.');
+      if (has) return err((level === 'Unit' ? 'Unit ' + target : level === 'Property' ? prop : target) + ' already has its own ' + this.leaseRoleLabel(kind) + '.');
       (this._roleNew || (this._roleNew = [])).push({ kind, level, target, id });
+      if (level === 'Property') { const mp = sec.querySelector('[data-rmissprop]'); if (mp) mp.style.display = 'none'; }
       sec.querySelector('[data-rnew]').innerHTML = this.roleNewRowsHTML(kind, prop);
       window.__roleNewForm(kind, false); window.__roleCov(); window.__roleCount();
     };

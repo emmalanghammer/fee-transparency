@@ -1454,9 +1454,9 @@ canvas *Confirm Base Rent & Deposit*).
   else its unit type's, else the property's — counting unsaved answers (a declined group covers nothing)
   and added charges, and `window.__roleCov` repaints the counts, lozenges and missing text DOM-only.
   **Add picks an existing charge; it never creates one** (2026-10-13, the user's correction). It opens an
-  inline *Unit type or unit* · *Charge* form: choosing where fills Charge (DOM-only, `window.__roleNewTarget`)
+  inline *Applies to* · *Charge* form (*Applies to* offers the property too, so a removed property row can come back): choosing where fills Charge (DOM-only, `window.__roleNewTarget`)
   with the charges of that role that already reach it — the property's, the unit type's, and for a unit its
-  own (`roleReachable`) — labelled *RC Rent: $150.00 · The Berkshires*. Errors *Choose a unit type or unit.*,
+  own (`roleReachable`) — labelled *RC Rent: $150.00 · The Berkshires*. Errors *Choose where it applies.*,
   *Choose a charge.*, *`<x>` already has its own Base Rent.* An addition is a row with a green *Added*
   lozenge and a close (`this._roleNew`). Save writes it onto the charge: `leaseRole` where the charge is
   written at that level, otherwise **`listing.roleFor['<kind>|<level>|<target>'] = true`** — the charge
@@ -1466,14 +1466,18 @@ canvas *Confirm Base Rent & Deposit*).
   Rent / Security Deposit Charge Types guards test, so an assignment holds the type too. Footer: Save
   (disabled while any row is unanswered) · Cancel. The *n to confirm* / **Confirm All** line and the *Unit charges* section are gone.
 - **One row renderer, `roleRowHTML(surface, prop, kind, g, o)`**, for the overlay and the two boxes
-  (`o.stacked`). **Suggested**: the charge, then a brand `check` and a grey `close` as plain 24px icon
-  buttons 16px apart, each with an `aria-label` (the *Suggested* lozenge and the 32px squares are gone);
-  **Confirmed**: the charge and **Change**; **Changing** (after the close or Change): a *Choose a charge*
-  `singleSelect` of the group's candidates, plus *Use the property’s* below the property — picking
-  confirms. States flip DOM-only (`window.__roleRow`); answers live in `this._roleDraft[surface]` and
-  `roleAnswer` reads them back. `roleApplyRows(prop, answers)` is the one writer; *Use the property’s*
-  marks the group `listing.roleDeclined = kind`, and `roleGroups(prop, kind, { all: true })` is the only call
-  that still returns declined groups. **When each surface commits:** the overlay on Save; Edit Floor Plan
+  (`o.stacked`). **Suggested**: the charge with a brand **Suggested** Lozenge (24px, `--rmx-brand-tint-bg`,
+  2026-10-14), then a brand `check` and a grey `close` as plain 24px icon buttons 16px apart, each with an
+  `aria-label`; **Confirmed**: the charge and **Change**; **Changing** (after Change): a *Choose a charge*
+  `singleSelect` of the group's candidates — picking confirms. **The close removes the row** (2026-10-14):
+  the group is answered `{ declined: true }`, the row hides (`data-removed`, skipped by Save's
+  unanswered count), and coverage repaints, so the section's lozenge and missing line flag any units
+  left with nothing — removing the property's own shows *No property level …* in its place. A removed
+  group isn't drawn again on reopening (`o.removed`). States flip DOM-only (`window.__roleRow`); answers
+  live in `this._roleDraft[surface]` and `roleAnswer` reads them back. `roleApplyRows(prop, answers)` is
+  the one writer; a removal marks the group `listing.roleDeclined = kind` (the *Use the property’s*
+  dropdown option is gone, since the close does it), and `roleGroups(prop, kind, { all: true })` is the
+  only call that still returns declined groups. **When each surface commits:** the overlay on Save; Edit Floor Plan
   inside `fpSave`; Listing Details the moment the check or a pick lands. A scenario switch resets drafts.
 - **Listing Details and Edit Floor Plan carry `roleBoxPanelHTML` before activation**, and it never shows
   the suggestions (2026-10-14, the user's call). Unconfirmed (`roleSetupState` `sugg`): an amber RMX
