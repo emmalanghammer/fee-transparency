@@ -4650,7 +4650,16 @@ class Component extends DCLogic {
     const types = {}; units.forEach(u => { (types[u.type] || (types[u.type] = [])).push(u.u); });
     const mt = {}; missing.forEach(u => { (mt[u.type] || (mt[u.type] = [])).push(u.u); });
     const names = Object.keys(mt).map(t => mt[t].length === types[t].length ? t + ' units' : mt[t].map(x => 'Unit ' + x).join(', '));
-    return { by, total: units.length, covered: units.length - missing.length, missingText: names.length ? names.join(', ') + ' missing ' + (kind === 'rent' ? 'base rent' : 'security deposit') : '' };
+    // Read by floor plan (2026-10-14): every floor plan with a unit left uncovered, the first named and
+    // the rest counted in RMX's Pill (h20, 12px radius, white with a 1px border-secondary), the full list
+    // in its title. A unit on no floor plan is named by itself.
+    const plans = this.fpList(prop), seen = {}, fps = [];
+    missing.forEach(u => { const f = plans.find(x => (x.units || []).indexOf(u.u) >= 0); const n = f ? f.name : 'Unit ' + u.u;
+      if (!seen[n]) { seen[n] = true; fps.push(n); } });
+    const e = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+    const missingHTML = !fps.length ? '' : `<span title="${e('Missing ' + (kind === 'rent' ? 'Base Rent' : 'Security Deposit') + ': ' + fps.join(', '))}" style="display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap">Missing: ${e(fps[0])}${fps.length > 1
+      ? `<span style="display:inline-flex;align-items:center;height:20px;box-sizing:border-box;padding:0 8px;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:12px;background:#fff;font:400 12px/16px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">+${fps.length - 1}</span>` : ''}</span>`;
+    return { by, total: units.length, covered: units.length - missing.length, missingHTML, missingText: names.length ? names.join(', ') + ' missing ' + (kind === 'rent' ? 'base rent' : 'security deposit') : '' };
   }
   // One row renderer for the Review overlay (a 52px register row) and the two boxes (`o.stacked`).
   // Suggested: the charge, then a brand check and a grey close, 24px, 16px apart. Confirmed: the charge,
@@ -4769,7 +4778,7 @@ class Component extends DCLogic {
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;flex-wrap:wrap">
           <span style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-width:0">
             <span style="font-size:16px;line-height:24px;font-weight:600;${INK}">${L}</span>${lozenge(c)}
-            <span data-covmiss style="font-size:14px;line-height:20px;${INK}">${esc(c.missingText)}</span>
+            <span data-covmiss style="font-size:14px;line-height:20px;${INK}">${c.missingHTML}</span>
           </span>
           <a onclick="window.__roleNewForm('${kind}', true)" data-radd="${kind}" style="display:inline-flex;align-items:center;gap:4px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${this.ico('add', 20)}Add ${L}</a>
         </div>
@@ -4793,7 +4802,7 @@ class Component extends DCLogic {
         sec.querySelectorAll('[data-cov]').forEach(el => { const k = el.getAttribute('data-cov'), n = c.by[k] || 0;
           el.textContent = n ? 'Used by ' + n + ' unit' + (n === 1 ? '' : 's') : 'Not used'; });
         const lz = sec.querySelector('[data-covloz]'); if (lz) { lz.textContent = c.covered + ' of ' + c.total + ' units'; lz.style.background = c.covered === c.total ? 'var(--rmx-success-bg, #e2f1da)' : '#feedd2'; }
-        const ms = sec.querySelector('[data-covmiss]'); if (ms) ms.textContent = c.missingText;
+        const ms = sec.querySelector('[data-covmiss]'); if (ms) ms.innerHTML = c.missingHTML;
         // *No property level …* shows whenever nothing live is written for the property.
         const D = ((this._roleDraft || {}).review) || {};
         const live = this.roleGroups(prop, kind, { all: true }).some(g => g.level === 'Property' && !(D[this.roleKey(kind, g)] ? D[this.roleKey(kind, g)].declined : g.declined))
