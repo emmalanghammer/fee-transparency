@@ -1434,8 +1434,9 @@ canvas *Confirm Base Rent & Deposit*).
   everywhere else; declined groups aren't returned, so their units keep reading the property's.
 - **Fee Transparency Setup** (`ftPropRow`) has a sub-row between Listing Ready Charges and Set Property
   Defaults, gone once the property is fee transparent (`roleSetupState`): while anything is unanswered a
-  navy `info` and *"Confirm all units have base rent and security deposit selected"* with **Review**
-  (Figma `3930:1701`, 2026-10-13; it read *suggested from your charges* with an `auto_awesome` before);
+  navy `info` and *"Confirm Base Rent & Security Deposit"* with **Confirm Charges** (2026-10-14, matching
+  the Marketing Setup callout; it was *Confirm all units have base rent and security deposit selected*
+  with **Review**, Figma `3930:1701`);
   every group confirmed, a green `check_circle` and *"Base Rent & Security Deposit: confirmed"* with
   **Review**; no candidate, a red `error` and *"…: no rent or deposit charge"* with **View Charges**.
 - **The Review overlay** (`roleReviewHTML`, `state.roleReview = { prop }`, z-index 155) matches Figma
