@@ -1492,7 +1492,9 @@ canvas *Confirm Base Rent & Deposit*).
   rent or deposit charge (`none`): a red one, *"Add a rent and a security deposit charge before
   activating fee transparency."* with **View Charges**. Confirmed (`done`): it reads as after activation —
   **Base Rent** and **Security Deposit** labels over the collapsed `roleBoxHTML(…, { bare: true })` tables,
-  then a **Review** link. Listing Details puts it above Price; Edit Floor Plan under the Price dropdown,
+  then a **Review** link — but inside a brand-outlined Callout led by an `info` and *"Used once fee
+  transparency is activated."* (2026-10-14), so it reads as apart from the Price and Deposit Fee(s)
+  under it, which the listing still uses until activation. Listing Details puts it above Price; Edit Floor Plan under the Price dropdown,
   scoped to that unit type (its own charge, else the property's).
 - **The Berkshires is the several-charges example** (`propCharges` adds ids 30–33): a second property RC
   (*Short-term premium*, $150), its own RC on 2BR/2BA ($1,600) and 3BR/2BA ($2,050), and its own DP on

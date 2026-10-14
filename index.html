@@ -4471,7 +4471,7 @@ class Component extends DCLogic {
     const many = groups.length > 1 || toChoose > 0;
     // Every box is a header over rows, whatever it holds, so one charge and five read as the same
     // control. Rows wrap rather than squeeze: in a third-width tile the charge drops under its level.
-    const value = (r) => `<span style="flex:1 1 180px;min-width:0;display:flex;align-items:baseline;justify-content:space-between;gap:12px"><span style="min-width:0">${esc(this.roleChargeLabel(r))}</span><span style="flex:none">${esc(this.roleAmtLabel(r))}</span></span>`;
+    const value = (r) => `<span style="flex:1 1 180px;min-width:0;display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:0 12px"><span style="min-width:0">${esc(this.roleChargeLabel(r))}</span><span style="flex:none">${esc(this.roleAmtLabel(r))}</span></span>`;
     const CAUTION = (t) => `<span style="display:inline-flex;align-items:center;height:24px;padding:0 8px;border-radius:4px;background:var(--rmx-notice-bg, #feedd2);font:400 14px/16px Roboto,sans-serif;${INK};white-space:nowrap;flex:none">${t}</span>`;
     const row = (g, gi) => {
       const n = g.rows.length, pick = o.edit && n > 1;
@@ -4702,7 +4702,10 @@ class Component extends DCLogic {
     if (st !== 'done') return callout('warning', 'var(--rmx-notice, #faa61c)', 'Confirm Base Rent &amp; Security Deposit', 'Choose which charges are the Base Rent and Security Deposit before activating fee transparency.', 'roleReviewOpen', 'Confirm Charges');
     const lab = (t) => `<span style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">${t}</span>`;
     const ut = o.unitType ? { unitType: o.unitType, bare: true } : { bare: true };
-    return `<div style="display:flex;flex-direction:column;gap:16px">
+    // Until activation they sit in a brand Callout, so they read as apart from the Price and Deposit
+    // Fee(s) the listing still uses (2026-10-14); after activation they are those fields.
+    return `<div style="display:flex;flex-direction:column;gap:16px;padding:12px;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;background:#fff">
+      <span style="display:flex;align-items:flex-start;gap:8px;font-size:14px;line-height:20px;${INK}">${this.ico('info', 20, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}<span style="flex:1;min-width:0">Used once fee transparency is activated.</span></span>
       <div style="display:flex;flex-direction:column;gap:4px">${lab('Base Rent')}${this.roleBoxHTML(prop, 'rent', ut)}</div>
       <div style="display:flex;flex-direction:column;gap:4px">${lab('Security Deposit')}${this.roleBoxHTML(prop, 'deposit', ut)}</div>
       <a data-act="roleReviewOpen" data-arg="${P}" style="align-self:flex-start;${LINK}">Review</a></div>`;
