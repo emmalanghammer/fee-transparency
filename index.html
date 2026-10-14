@@ -4526,6 +4526,17 @@ class Component extends DCLogic {
   // (a dropdown of the group's candidates, plus "Use the property's" below the property). The states
   // flip DOM-only (`window.__roleRow`), because Marketing Setup and Edit Floor Plan lose typed values
   // on a re-render; answers sit off state in `this._roleDraft[surface]` and the render reads them back.
+  // RMX Iconography's own check, close and edit-filled (harvested from doVDYRtepBULKGZntmmS5B on their
+  // 0 0 20 20 box), for the Review overlay's row actions — not the Material `ico` glyphs (2026-10-14).
+  rmxIco(name, size){
+    const P = {
+      check: '<path d="M7.90168 15.1494L3.01996 10.2676L4.24039 9.04721L7.90168 12.7085L15.7595 4.85065L16.98 6.07108L7.90168 15.1494Z"/>',
+      close: '<path d="M15.8334 5.34166L14.6584 4.16666L10 8.82499L5.34169 4.16666L4.16669 5.34166L8.82502 9.99999L4.16669 14.6583L5.34169 15.8333L10 11.175L14.6584 15.8333L15.8334 14.6583L11.175 9.99999L15.8334 5.34166Z"/>',
+      'edit-filled': '<path d="M2.49896 14.376V17.501H5.62396L14.8406 8.28438L11.7156 5.15938L2.49896 14.376Z"/><path d="M17.2573 4.69271L15.3073 2.74271C14.9823 2.41771 14.4573 2.41771 14.1323 2.74271L12.6073 4.26771L15.7323 7.39271L17.2573 5.86771C17.5823 5.54271 17.5823 5.01771 17.2573 4.69271Z"/>'
+    };
+    const n = size || 24;
+    return `<svg class="ico" width="${n}" height="${n}" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">${P[name] || ''}</svg>`;
+  }
   roleKey(kind, g){ return kind + '|' + g.level + '|' + (g.target || ''); }
   roleRowText(r){ return r ? this.roleChargeLabel(r, true) + ' · ' + this.roleAmtLabel(r) : ''; }
   roleAnswer(surface, kind, g){
@@ -4644,7 +4655,7 @@ class Component extends DCLogic {
     const byId = id => g.rows.filter(r => String(r.id) === String(id))[0];
     const st = ans ? 'conf' : 'sugg';
     const confText = !ans ? '' : ans.declined ? 'Uses the property’s' : this.roleShort(byId(ans.id) || g.suggested);
-    const icon = (act, glyph, label, color) => `<button type="button" aria-label="${label}" onclick="window.__roleRow(this,'${act}')" style="display:flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border:0;background:none;cursor:pointer;flex:none;color:${color}">${this.ico(glyph, 24)}</button>`;
+    const icon = (act, glyph, label, color) => `<button type="button" aria-label="${label}" onclick="window.__roleRow(this,'${act}')" style="display:flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border:0;background:none;cursor:pointer;flex:none;color:${color}">${this.rmxIco(glyph, 24)}</button>`;
     const opts = g.rows.slice().sort((a, b) => this.roleAmt(b) - this.roleAmt(a)).map(r => ({ value: String(r.id), label: this.roleShort(r) }));
     const ddId = 'rr-' + surface + '-' + key.replace(/[^a-z0-9]/gi, '_');
     const TXT = o.stacked ? 'flex:1 1 120px;min-width:0' : 'flex:1;min-width:0';
@@ -4654,7 +4665,7 @@ class Component extends DCLogic {
     const SUGG = `<span style="display:inline-flex;align-items:center;height:24px;padding:0 8px;border-radius:4px;background:var(--rmx-brand-tint-bg, #ebf1f5);font:400 14px/16px Roboto,sans-serif;color:var(--rmx-brand-hover, #0071aa);white-space:nowrap;flex:none">Suggested</span>`;
     const states = `
       <div data-rs="sugg" style="display:${vis('sugg')};${WRAP}align-items:center;gap:8px 16px;min-width:0"><span style="${TXT};display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px"><span>${esc(this.roleShort(g.suggested))}</span>${SUGG}</span><span style="display:flex;gap:16px;flex:none">${icon('confirm', 'check', 'Confirm ' + this.leaseRoleLabel(kind), 'var(--ac,var(--rmx-brand, #008dd5))')}${icon('remove', 'close', 'Remove ' + this.leaseRoleLabel(kind), 'var(--rmx-text, #666666)')}</span></div>
-      <div data-rs="conf" style="display:${vis('conf')};${WRAP}align-items:center;gap:8px 16px;min-width:0"><span data-conftext style="${TXT}">${esc(confText)}</span><span style="display:flex;gap:16px;flex:none">${icon('change', 'edit', 'Change ' + this.leaseRoleLabel(kind), 'var(--ac,var(--rmx-brand, #008dd5))')}${icon('remove', 'close', 'Remove ' + this.leaseRoleLabel(kind), 'var(--rmx-text, #666666)')}</span></div>
+      <div data-rs="conf" style="display:${vis('conf')};${WRAP}align-items:center;gap:8px 16px;min-width:0"><span data-conftext style="${TXT}">${esc(confText)}</span><span style="display:flex;gap:16px;flex:none">${icon('change', 'edit-filled', 'Change ' + this.leaseRoleLabel(kind), 'var(--ac,var(--rmx-brand, #008dd5))')}${icon('remove', 'close', 'Remove ' + this.leaseRoleLabel(kind), 'var(--rmx-text, #666666)')}</span></div>
       <div data-rs="chg" data-disp="block" style="display:none;min-width:0">${this.singleSelect(ddId, opts, '', { noSearch: true, placeholder: 'Choose a charge', js: "window.__roleRow(this,'pick',_v)" })}</div>`;
     const data = `data-rrow data-surface="${surface}" data-key="${esc(key)}" data-prop="${esc(prop)}" data-sid="${esc(g.suggested && g.suggested.id)}" data-slabel="${esc(this.roleShort(g.suggested))}"`;
     if (o.stacked) return `<div ${data} style="display:flex;flex-direction:column;gap:4px;padding:8px 12px;border-top:1px solid var(--rmx-line, #cedbe7);background:${bg};font-size:14px;line-height:20px;${INK}">
@@ -4707,7 +4718,7 @@ class Component extends DCLogic {
       <span data-cov="new|${kind}|${i}" style="flex:0 1 190px;min-width:90px;color:var(--rmx-text, #666666)"></span>
       <div style="flex:1;min-width:0;display:flex;align-items:center;gap:16px"><span style="flex:1;min-width:0">${this.roleShort(r)}</span>
         <span style="display:inline-flex;align-items:center;height:24px;padding:0 8px;border-radius:4px;background:var(--rmx-success-bg, #e2f1da);font:400 14px/16px Roboto,sans-serif;${INK};white-space:nowrap">Added</span>
-        <button type="button" aria-label="Remove" onclick="window.__roleNewRemove(${i})" style="display:flex;width:24px;height:24px;padding:0;border:0;background:none;cursor:pointer;color:var(--rmx-text, #666666)">${this.ico('close', 24)}</button></div></div>`; }).join('');
+        <button type="button" aria-label="Remove" onclick="window.__roleNewRemove(${i})" style="display:flex;width:24px;height:24px;padding:0;border:0;background:none;cursor:pointer;color:var(--rmx-text, #666666)">${this.rmxIco('close', 24)}</button></div></div>`; }).join('');
   }
   // The Review overlay, to Figma 3931:167844 / 3931:168155: one section per role, the property's charge
   // first and the unit type and unit charges stacked under it, each section headed by how many units

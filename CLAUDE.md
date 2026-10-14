@@ -1468,8 +1468,8 @@ canvas *Confirm Base Rent & Deposit*).
   (disabled while any row is unanswered) · Cancel. The *n to confirm* / **Confirm All** line and the *Unit charges* section are gone.
 - **One row renderer, `roleRowHTML(surface, prop, kind, g, o)`**, for the overlay and the two boxes
   (`o.stacked`). **Suggested**: the charge with a brand **Suggested** Lozenge (24px, `--rmx-brand-tint-bg`,
-  2026-10-14), then a brand `check` and a grey `close` as plain 24px icon buttons 16px apart, each with an
-  `aria-label`; **Confirmed**: the charge, a brand `edit` pencil and the same grey `close` (2026-10-14; it was a **Change** link); **Changing** (after the pencil): a *Choose a charge*
+  2026-10-14), then a brand check and a grey close as plain 24px icon buttons 16px apart — all three (and the *Added* row's close) are **RMX Iconography's** `check`, `close` and `edit-filled`, drawn by `rmxIco(name, size)`, not the Material `ico` glyphs (2026-10-14), each with an
+  `aria-label`; **Confirmed**: the charge, a brand edit pencil and the same grey close (2026-10-14; it was a **Change** link); **Changing** (after the pencil): a *Choose a charge*
   `singleSelect` of the group's candidates — picking confirms. **The close removes the row** (2026-10-14):
   the group is answered `{ declined: true }`, the row hides (`data-removed`, skipped by Save's
   unanswered count), and coverage repaints, so the section's lozenge and missing line flag any units
