@@ -1542,8 +1542,10 @@ canvas *Confirm Base Rent & Deposit*).
   border, 12px padding, white, no icon; the title in Paragraph/S SemiBold over the sentence in Regular, and
   the action a link Button (8px sides) on the right, wrapping under the text in a narrow tile.
   - Unconfirmed (`sugg`): brand border, *Base Rent & Security Deposit* over *"Choose which charges are the
-    Base Rent and Security Deposit before activating fee transparency."*, **Confirm Charges**.
-  - Confirmed (`done`): the same, its action **Review Charges**, over **Base Rent** and **Security
+    Base Rent and Security Deposit. They’ll show on listings once fee transparency is activated."*,
+    **Confirm Charges** (2026-10-14; the second sentence says they don't reach a listing yet).
+  - Confirmed (`done`): the same title over *"These will show on listings once fee transparency is
+    activated."*, its action **Review Charges**, over **Base Rent** and **Security
     Deposit** labels and the collapsed `roleBoxHTML(…, { bare: true })` tables — apart from the Price and
     Deposit Fee(s) the listing still uses until activation.
   - Units without a Base Rent (`gap`): red border, *Base Rent missing*, **Confirm Charges**; no rent charge

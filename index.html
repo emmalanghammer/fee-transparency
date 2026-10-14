@@ -4811,7 +4811,10 @@ class Component extends DCLogic {
         <a data-act="${act}" data-arg="${P}" style="flex:none;display:inline-flex;align-items:center;padding:4px 8px;margin-left:-8px;border-radius:4px;background:#fff;font-size:14px;line-height:normal;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${label}</a></div>`;
     const box = (border, inner) => `<div style="display:flex;flex-direction:column;gap:16px;padding:12px;border:1px solid ${border};border-radius:4px;background:#fff">${inner}</div>`;
     const BRAND = 'var(--ac,var(--rmx-brand, #008dd5))', ERR = 'var(--rmx-error, #eb343c)';
-    const WHY = 'Choose which charges are the Base Rent and Security Deposit before activating fee transparency.';
+    // One sentence of what to do, one of when it reaches a listing (2026-10-14): until activation the
+    // listing still advertises Price and Deposit Fee(s), and these wait.
+    const WHY = 'Choose which charges are the Base Rent and Security Deposit. They’ll show on listings once fee transparency is activated.';
+    const SET = 'These will show on listings once fee transparency is activated.';
     if (st === 'none') return box(ERR, head('Base Rent', 'Add a rent charge before activating fee transparency.', 'openFeeProfile', 'View Charges'));
     if (st === 'gap') { const n = this.roleRentGap(prop);
       return box(ERR, head('Base Rent missing', `Every unit needs a Base Rent before fee transparency can be activated. ${n} unit${n === 1 ? ' has' : 's have'} none.`, 'roleReviewOpen', 'Confirm Charges')); }
@@ -4820,7 +4823,7 @@ class Component extends DCLogic {
     // after activation — so they sit apart from the Price and Deposit Fee(s) the listing still uses.
     const lab = (t) => `<span style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">${t}</span>`;
     const ut = o.unitType ? { unitType: o.unitType, bare: true } : { bare: true };
-    return box(BRAND, head('Base Rent &amp; Security Deposit', WHY, 'roleReviewOpen', 'Review Charges')
+    return box(BRAND, head('Base Rent &amp; Security Deposit', SET, 'roleReviewOpen', 'Review Charges')
       + `<div style="display:flex;flex-direction:column;gap:4px">${lab('Base Rent')}${this.roleBoxHTML(prop, 'rent', ut)}</div>
       <div style="display:flex;flex-direction:column;gap:4px">${lab('Security Deposit')}${this.roleBoxHTML(prop, 'deposit', ut)}</div>`);
   }
