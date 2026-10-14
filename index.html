@@ -4793,27 +4793,29 @@ class Component extends DCLogic {
     o = o || {};
     const INK = 'color:var(--rmx-brand-dark, #13314c)';
     const P = String(prop).replace(/"/g, '&quot;');
-    const LINK = 'font-size:14px;line-height:20px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap';
     const st = this.roleSetupState(prop);
-    const callout = (icon, color, title, txt, act, label) => `<div style="display:flex;align-items:flex-start;gap:8px;padding:12px;border:1px solid ${color};border-radius:4px;background:#fff;${INK}">
-      ${this.ico(icon, 20, `color:${color};flex:none`)}
-      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;font-size:14px;line-height:20px">
-        <strong style="font-weight:600">${title}</strong><span>${txt}</span>
-        <a data-act="${act}" data-arg="${P}" style="align-self:flex-start;${LINK}">${label}</a></div></div>`;
-    if (st === 'none') return callout('error', 'var(--rmx-error, #eb343c)', 'Base Rent', 'Add a rent charge before activating fee transparency.', 'openFeeProfile', 'View Charges');
+    // RMX Callout, to Figma 3968:85045 (2026-10-14): a 1px border, 12px padding, white; the title in
+    // Paragraph/S SemiBold over the sentence in Regular, and the action as a link Button on the right
+    // (8px sides). No icon. It wraps under the text where the tile is narrow.
+    const head = (title, txt, act, label) => `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px 16px">
+        <div style="flex:1 1 200px;min-width:0;display:flex;flex-direction:column;gap:4px;font-size:14px;line-height:20px;${INK}"><strong style="font-weight:600">${title}</strong><span>${txt}</span></div>
+        <a data-act="${act}" data-arg="${P}" style="flex:none;display:inline-flex;align-items:center;padding:4px 8px;margin-left:-8px;border-radius:4px;background:#fff;font-size:14px;line-height:normal;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${label}</a></div>`;
+    const box = (border, inner) => `<div style="display:flex;flex-direction:column;gap:16px;padding:12px;border:1px solid ${border};border-radius:4px;background:#fff">${inner}</div>`;
+    const BRAND = 'var(--ac,var(--rmx-brand, #008dd5))', ERR = 'var(--rmx-error, #eb343c)';
+    const WHY = 'Choose which charges are the Base Rent and Security Deposit before activating fee transparency.';
+    if (st === 'none') return box(ERR, head('Base Rent', 'Add a rent charge before activating fee transparency.', 'openFeeProfile', 'View Charges'));
     if (st === 'gap') { const n = this.roleRentGap(prop);
-      return callout('error', 'var(--rmx-error, #eb343c)', 'Base Rent missing', `Every unit needs a Base Rent before fee transparency can be activated. ${n} unit${n === 1 ? ' has' : 's have'} none.`, 'roleReviewOpen', 'Confirm Charges'); }
-    if (st !== 'done') return callout('warning', 'var(--rmx-notice, #faa61c)', 'Confirm Base Rent &amp; Security Deposit', 'Choose which charges are the Base Rent and Security Deposit before activating fee transparency.', 'roleReviewOpen', 'Confirm Charges');
+      return box(ERR, head('Base Rent missing', `Every unit needs a Base Rent before fee transparency can be activated. ${n} unit${n === 1 ? ' has' : 's have'} none.`, 'roleReviewOpen', 'Confirm Charges')); }
+    if (st !== 'done') return box(BRAND, head('Base Rent &amp; Security Deposit', WHY, 'roleReviewOpen', 'Confirm Charges'));
+    // Confirmed: the same Callout, its action now Review Charges, over the two fields as they will read
+    // after activation — so they sit apart from the Price and Deposit Fee(s) the listing still uses.
     const lab = (t) => `<span style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">${t}</span>`;
     const ut = o.unitType ? { unitType: o.unitType, bare: true } : { bare: true };
-    // Until activation they sit in a brand Callout, so they read as apart from the Price and Deposit
-    // Fee(s) the listing still uses (2026-10-14); after activation they are those fields.
-    return `<div style="display:flex;flex-direction:column;gap:16px;padding:12px;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;background:#fff">
-      <span style="display:flex;align-items:flex-start;gap:8px;font-size:14px;line-height:20px;${INK}">${this.ico('info', 20, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}<span style="flex:1;min-width:0">Used once fee transparency is activated.</span></span>
-      <div style="display:flex;flex-direction:column;gap:4px">${lab('Base Rent')}${this.roleBoxHTML(prop, 'rent', ut)}</div>
-      <div style="display:flex;flex-direction:column;gap:4px">${lab('Security Deposit')}${this.roleBoxHTML(prop, 'deposit', ut)}</div>
-      <a data-act="roleReviewOpen" data-arg="${P}" style="align-self:flex-start;${LINK}">Review</a></div>`;
+    return box(BRAND, head('Base Rent &amp; Security Deposit', WHY, 'roleReviewOpen', 'Review Charges')
+      + `<div style="display:flex;flex-direction:column;gap:4px">${lab('Base Rent')}${this.roleBoxHTML(prop, 'rent', ut)}</div>
+      <div style="display:flex;flex-direction:column;gap:4px">${lab('Security Deposit')}${this.roleBoxHTML(prop, 'deposit', ut)}</div>`);
   }
+
   // Charges added in the overlay, drawn in their own role's section until Save writes them.
   roleNewRowsHTML(kind, prop){
     const INK = 'color:var(--rmx-brand-dark, #13314c)';

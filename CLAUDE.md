@@ -1528,16 +1528,18 @@ canvas *Confirm Base Rent & Deposit*).
   only call that still returns declined groups. **When each surface commits:** the overlay on Save; Edit Floor Plan
   inside `fpSave`; Listing Details the moment the check or a pick lands. A scenario switch resets drafts.
 - **Listing Details and Edit Floor Plan carry `roleBoxPanelHTML` before activation**, and it never shows
-  the suggestions (2026-10-14, the user's call). Unconfirmed (`roleSetupState` `sugg`): an amber RMX
-  Callout, *Confirm Base Rent & Security Deposit* over *"Choose which charges are the Base Rent and
-  Security Deposit before activating fee transparency."* with **Confirm Charges** (`roleReviewOpen`). No
-  rent or deposit charge (`none`): a red one, *"Add a rent and a security deposit charge before
-  activating fee transparency."* with **View Charges**. Confirmed (`done`): it reads as after activation —
-  **Base Rent** and **Security Deposit** labels over the collapsed `roleBoxHTML(…, { bare: true })` tables,
-  then a **Review** link — but inside a brand-outlined Callout led by an `info` and *"Used once fee
-  transparency is activated."* (2026-10-14), so it reads as apart from the Price and Deposit Fee(s)
-  under it, which the listing still uses until activation. Listing Details puts it above Price; Edit Floor Plan under the Price dropdown,
-  scoped to that unit type (its own charge, else the property's).
+  the suggestions (2026-10-14, the user's call). It is one **RMX Callout, to Figma `3968:85045`**: 1px
+  border, 12px padding, white, no icon; the title in Paragraph/S SemiBold over the sentence in Regular, and
+  the action a link Button (8px sides) on the right, wrapping under the text in a narrow tile.
+  - Unconfirmed (`sugg`): brand border, *Base Rent & Security Deposit* over *"Choose which charges are the
+    Base Rent and Security Deposit before activating fee transparency."*, **Confirm Charges**.
+  - Confirmed (`done`): the same, its action **Review Charges**, over **Base Rent** and **Security
+    Deposit** labels and the collapsed `roleBoxHTML(…, { bare: true })` tables — apart from the Price and
+    Deposit Fee(s) the listing still uses until activation.
+  - Units without a Base Rent (`gap`): red border, *Base Rent missing*, **Confirm Charges**; no rent charge
+    (`none`): red, *Base Rent*, **View Charges**.
+  Listing Details puts it above Price; Edit Floor Plan under the Price dropdown, scoped to that unit type
+  (its own charge, else the property's).
 - **The Berkshires is the several-charges example** (`propCharges` adds ids 30–33): a second property RC
   (*Short-term premium*, $150), its own RC on 2BR/2BA ($1,600) and 3BR/2BA ($2,050), and its own DP on
   3BR/2BA ($750). So its counts read four charges more than before; Riverview's baselines are unchanged.
