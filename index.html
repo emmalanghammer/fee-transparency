@@ -4652,6 +4652,12 @@ class Component extends DCLogic {
     const F = (r && r.listing && r.listing.roleFor) || {}; return Object.keys(F).some(k => F[k] && k.indexOf(kind + '|') === 0); }
   // The existing charges that reach a unit type or unit and could be its Base Rent / Security Deposit:
   // candidates of that kind written at the property, at the unit type (a unit's own type), or at the unit.
+  // Only the charges written exactly where Applies to points — the property's own, that unit type's, or
+  // that unit's (2026-10-14, the user's rule) — not everything that reaches it.
+  roleWrittenAt(prop, kind, level, target){
+    return this.roleReachable(prop, kind, level, target)
+      .filter(r => String(r.level || 'Property') === level && (level === 'Property' || String(r.target || '') === String(target || '')));
+  }
   roleReachable(prop, kind, level, target){
     const type = level === 'Unit' ? ((this.units().find(u => u.u === target) || {}).type || '') : target;
     return this.appliedRows(prop).filter(r => !r.propSpecific && this.chargeCurrent(r)
@@ -4917,8 +4923,8 @@ class Component extends DCLogic {
     window.__roleNewTarget = (kind, v) => {
       const sec = document.querySelector('[data-rreview] [data-rsec="' + kind + '"]'); if (!sec) return;
       const [level, target] = String(v || '').split('|');
-      const opts = level ? this.roleReachable(prop, kind, level, target).map(r => ({ value: String(r.id), label: this.roleShort(r) + ' · ' + this.chargeLevelName(r) })) : [];
-      sec.querySelector('[data-rct]').innerHTML = this.singleSelect('rnew-ch-' + kind, opts, opts.length === 1 ? opts[0].value : '', { noSearch: true, placeholder: opts.length ? 'Select a charge' : 'No charges reach it' });
+      const opts = level ? this.roleWrittenAt(prop, kind, level, target).map(r => ({ value: String(r.id), label: this.roleShort(r) })) : [];
+      sec.querySelector('[data-rct]').innerHTML = this.singleSelect('rnew-ch-' + kind, opts, opts.length === 1 ? opts[0].value : '', { noSearch: true, placeholder: opts.length ? 'Select a charge' : 'No charges at this level' });
     };
     window.__roleNewAdd = (kind) => {
       const sec = document.querySelector('[data-rreview] [data-rsec="' + kind + '"]'); if (!sec) return;
@@ -4942,7 +4948,7 @@ class Component extends DCLogic {
     window.__roleNewEdit = (btn, i) => {
       const n = (this._roleNew || [])[i]; if (!n) return;
       const txt = btn.closest('div').querySelector('[data-rnewtxt]'); if (!txt) return;
-      const opts = this.roleReachable(prop, n.kind, n.level, n.target).map(r => ({ value: String(r.id), label: this.roleShort(r) + ' · ' + this.chargeLevelName(r) }));
+      const opts = this.roleWrittenAt(prop, n.kind, n.level, n.target).map(r => ({ value: String(r.id), label: this.roleShort(r) }));
       txt.innerHTML = this.singleSelect('rnew-ed-' + i, opts, String(n.id), { noSearch: true, placeholder: 'Choose a charge', js: 'window.__roleNewPick(' + i + ',_v)' });
       btn.style.visibility = 'hidden';
     };

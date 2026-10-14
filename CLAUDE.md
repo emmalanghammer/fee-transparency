@@ -1502,8 +1502,9 @@ canvas *Confirm Base Rent & Deposit*).
   inline *Applies to* · *Charge* form (*Applies to* offers the property too, so a removed property row can come back; since 2026-10-14 it
   lists only places with nothing set — `roleAddTargets` drops any with a live row or an unsaved addition,
   rebuilt each time the form opens, and a removed row frees its place): choosing where fills Charge (DOM-only, `window.__roleNewTarget`)
-  with the charges of that role that already reach it — the property's, the unit type's, and for a unit its
-  own (`roleReachable`) — labelled *RC Rent: $150.00 · The Berkshires*. Errors *Choose where it applies.*,
+  with only the charges of that role **written exactly there** — the property's own, that unit type's, or
+  that unit's (`roleWrittenAt`, 2026-10-14; it used to offer everything that reached it) — labelled
+  *RC Rent: $150.00*, or *No charges at this level*. Errors *Choose where it applies.*,
   *Choose a charge.*, *`<x>` already has its own Base Rent.* An addition is a row like a confirmed one — the edit
   pencil and a close (2026-10-14; it wore a green *Added* lozenge). The pencil swaps the charge for a
   dropdown of what reaches that target (`window.__roleNewEdit` / `__roleNewPick`) (`this._roleNew`). Save writes it onto the charge: `leaseRole` where the charge is
