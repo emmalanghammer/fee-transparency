@@ -1314,7 +1314,7 @@ the lock and names the type. The hover tooltip that used to carry the same sente
 only fired if you happened to be over the row, which is the complaint.
 
 **A charge of nothing warns, where the property lists online.** `window.__amtNote` shows an amber
-note under the Amount when the method is **Flat** and the typed figure is zero or negative:
+note — at the top of **Charge Marketing** since 2026-10-14 (it sat under the Amount in General) — when the method is **Flat** and the typed figure is zero or negative:
 *“This charge is $0.00. Listing sites have no price to advertise for it, so it may not display as
 intended. If this is a concession or a discount, describe it in the Promotional Description on the
 property's Marketing Setup.”* Gated on `ilsOn()` — a property that doesn't list online has nothing
