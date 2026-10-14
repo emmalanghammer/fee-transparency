@@ -440,7 +440,8 @@ option A; it was *Errors* with *Action Required* / *Missing Information* / *Sent
 (`action`, `missing`, `sent`). The breakdown overlay follows: the red section's right side reads **Not
 Sent**, and the amber sections' lozenge **Sent, Incomplete**. **A status you can open says so**
 (`ltFeedCell`): Not Sent and Sent, Incomplete carry a trailing `chevron_right` inside the lozenge, and
-on hover take a navy outline and an underlined label (`.lt-st`). The cell's `title` (`ltFeedTip`)
+on hover their tint darkens slightly (`.lt-st`, an inset `rgba(19,49,76,0.07)` shadow; the user
+turned down an outline and an underline on 2026-10-14). The cell's `title` (`ltFeedTip`)
 says what's wrong and *Click to see which.* / *Click to see what's missing.* **Sent opens nothing**:
 it has no `data-act`, no chevron and no hover, since there is nothing behind it.
 

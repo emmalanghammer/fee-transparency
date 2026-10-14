@@ -75,11 +75,11 @@ window.__resources = {
     /* Orange checkboxes render a white checkmark (native accent-color can't set the tick color). */
     .btn-out { background:#fff; color:var(--ac,var(--rmx-brand, #008dd5)); border:1px solid var(--ac,var(--rmx-brand, #008dd5)); border-radius:4px; padding:6px 14px; font:400 13px Roboto,sans-serif; cursor:pointer; }
     .btn-pri { background:var(--ac,var(--rmx-brand, #008dd5)); color:#fff; border:none; border-radius:4px; padding:6px 14px; font:400 13px Roboto,sans-serif; cursor:pointer; }
-    /* A Feed Status lozenge that opens its breakdown: a navy outline and an underlined label on hover. */
     /* The Feed Status dropdown reads like the toolbar's other fields: white, brand outline. */
     .lt-ms > div > div:first-child { background:#fff !important; border-color:var(--ac,var(--rmx-brand, #008dd5)) !important; }
-    *:hover > .lt-st { border-color:var(--rmx-brand-dark, #13314c) !important; }
-    *:hover > .lt-st .lt-st-l { text-decoration:underline; }
+    /* A Feed Status lozenge that opens its breakdown darkens its own tint a touch on hover. The inset
+       shadow sits over the background and under the icon and label, so only the fill moves. */
+    *:hover > .lt-st { box-shadow:inset 0 0 0 100px rgba(19,49,76,0.07); }
     .fld { padding:7px 10px; border:1px solid var(--rmx-line, #cedbe7); background:var(--rmx-bg-subtle, #f5f8fa); border-radius:4px; font:400 14px Roboto,sans-serif; color:var(--rmx-brand-dark, #13314c); width:100%; box-sizing:border-box; }
     /* What someone typed is content, so it reads navy; what they haven't typed stays muted. */
     input, textarea { color:var(--rmx-brand-dark, #13314c); }
@@ -5406,7 +5406,7 @@ class Component extends DCLogic {
   ltFeedLoz(l){
     const f = this.ltFeedState(l);
     const go = f.key !== 'sent';
-    return `<span class="${go ? 'lt-st' : ''}" style="display:inline-flex;align-items:center;gap:8px;height:24px;box-sizing:border-box;padding:0 ${go ? '4px' : '8px'} 0 8px;border-radius:4px;background:${f.bg};border:1px solid transparent;white-space:nowrap;flex:none">`
+    return `<span class="${go ? 'lt-st' : ''}" style="display:inline-flex;align-items:center;gap:8px;height:24px;box-sizing:border-box;padding:0 ${go ? '4px' : '8px'} 0 8px;border-radius:4px;background:${f.bg};white-space:nowrap;flex:none;transition:box-shadow .12s">`
       + this.ico(f.ico, 16, 'color:' + f.fg + ';flex:none')
       + `<span class="lt-st-l" style="font-size:14px;line-height:16px;color:var(--rmx-brand-dark, #13314c)">${f.label}</span>`
       + (go ? this.ico('chevron_right', 16, 'color:var(--rmx-brand-dark, #13314c);flex:none;margin-left:-4px') : '')
