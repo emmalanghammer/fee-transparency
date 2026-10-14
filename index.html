@@ -4628,8 +4628,8 @@ class Component extends DCLogic {
     return { by, total: units.length, covered: units.length - missing.length, missingText: names.length ? names.join(', ') + ' missing ' + (kind === 'rent' ? 'base rent' : 'security deposit') : '' };
   }
   // One row renderer for the Review overlay (a 52px register row) and the two boxes (`o.stacked`).
-  // Suggested: the charge, then a brand check and a grey close, 24px, 16px apart. Confirmed: the charge
-  // and Change. Changing: a "Choose a charge" dropdown. Flipped DOM-only by `window.__roleRow`.
+  // Suggested: the charge, then a brand check and a grey close, 24px, 16px apart. Confirmed: the charge,
+  // a brand edit pencil and the same close (2026-10-14). Changing: a "Choose a charge" dropdown. Flipped DOM-only by `window.__roleRow`.
   roleRowHTML(surface, prop, kind, g, o){
     o = o || {};
     this.roleRowsInstall();
@@ -4654,7 +4654,7 @@ class Component extends DCLogic {
     const SUGG = `<span style="display:inline-flex;align-items:center;height:24px;padding:0 8px;border-radius:4px;background:var(--rmx-brand-tint-bg, #ebf1f5);font:400 14px/16px Roboto,sans-serif;color:var(--rmx-brand-hover, #0071aa);white-space:nowrap;flex:none">Suggested</span>`;
     const states = `
       <div data-rs="sugg" style="display:${vis('sugg')};${WRAP}align-items:center;gap:8px 16px;min-width:0"><span style="${TXT};display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px"><span>${esc(this.roleShort(g.suggested))}</span>${SUGG}</span><span style="display:flex;gap:16px;flex:none">${icon('confirm', 'check', 'Confirm ' + this.leaseRoleLabel(kind), 'var(--ac,var(--rmx-brand, #008dd5))')}${icon('remove', 'close', 'Remove ' + this.leaseRoleLabel(kind), 'var(--rmx-text, #666666)')}</span></div>
-      <div data-rs="conf" style="display:${vis('conf')};${WRAP}align-items:center;gap:8px 16px;min-width:0"><span data-conftext style="${TXT}">${esc(confText)}</span><a onclick="window.__roleRow(this,'change')" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Change</a></div>
+      <div data-rs="conf" style="display:${vis('conf')};${WRAP}align-items:center;gap:8px 16px;min-width:0"><span data-conftext style="${TXT}">${esc(confText)}</span><span style="display:flex;gap:16px;flex:none">${icon('change', 'edit', 'Change ' + this.leaseRoleLabel(kind), 'var(--ac,var(--rmx-brand, #008dd5))')}${icon('remove', 'close', 'Remove ' + this.leaseRoleLabel(kind), 'var(--rmx-text, #666666)')}</span></div>
       <div data-rs="chg" data-disp="block" style="display:none;min-width:0">${this.singleSelect(ddId, opts, '', { noSearch: true, placeholder: 'Choose a charge', js: "window.__roleRow(this,'pick',_v)" })}</div>`;
     const data = `data-rrow data-surface="${surface}" data-key="${esc(key)}" data-prop="${esc(prop)}" data-sid="${esc(g.suggested && g.suggested.id)}" data-slabel="${esc(this.roleShort(g.suggested))}"`;
     if (o.stacked) return `<div ${data} style="display:flex;flex-direction:column;gap:4px;padding:8px 12px;border-top:1px solid var(--rmx-line, #cedbe7);background:${bg};font-size:14px;line-height:20px;${INK}">

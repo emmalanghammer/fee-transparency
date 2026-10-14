@@ -1468,7 +1468,7 @@ canvas *Confirm Base Rent & Deposit*).
 - **One row renderer, `roleRowHTML(surface, prop, kind, g, o)`**, for the overlay and the two boxes
   (`o.stacked`). **Suggested**: the charge with a brand **Suggested** Lozenge (24px, `--rmx-brand-tint-bg`,
   2026-10-14), then a brand `check` and a grey `close` as plain 24px icon buttons 16px apart, each with an
-  `aria-label`; **Confirmed**: the charge and **Change**; **Changing** (after Change): a *Choose a charge*
+  `aria-label`; **Confirmed**: the charge, a brand `edit` pencil and the same grey `close` (2026-10-14; it was a **Change** link); **Changing** (after the pencil): a *Choose a charge*
   `singleSelect` of the group's candidates — picking confirms. **The close removes the row** (2026-10-14):
   the group is answered `{ declined: true }`, the row hides (`data-removed`, skipped by Save's
   unanswered count), and coverage repaints, so the section's lozenge and missing line flag any units
