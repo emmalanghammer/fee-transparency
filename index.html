@@ -2082,6 +2082,7 @@ class Component extends DCLogic {
           const next = cur + parseInt(d, 10);
           if (next <= 0) delete o[id]; else o[id] = petMax ? Math.min(next, petMax) : next;
           return { pricePreview: Object.assign({}, s.pricePreview, { opt: o }) }; }); break; }
+      case 'ppSh': this.setState(s => { const o = Object.assign({}, s.pricePreview.sh); if (o[arg]) delete o[arg]; else o[arg] = true; return { pricePreview: Object.assign({}, s.pricePreview, { sh: o }) }; }); break;
       case 'ppSitToggle': this.setState(s => ({ pricePreview: Object.assign({}, s.pricePreview, { sitOpen: !s.pricePreview.sitOpen }) })); break;
 
       // ---- recurring charges overlay ----
@@ -7340,11 +7341,15 @@ class Component extends DCLogic {
     const required = (r) => this.resolvedListing(r).requirement === 'Required';
     // A pet charge is taken once per pet, as in the Pricing Preview: it carries the most pets the
     // pet type allows and, where the pet type sets one, the most the resident pays however many.
-    const rows = this.mostSpecific(this.appliedRows(q.prop).filter(applies), { single: true, unit: q.unit })
-      .map(r => ({ id:'c' + r.id, level:r.level || 'Property', type:r.mits, comment:r.desc || '',
+    // Every charge of a type that reaches the unit is offered, but only the most specific starts ticked
+    // (2026-10-14); one it replaces arrives unticked and unlocked, the agent's to add.
+    const reach = this.appliedRows(q.prop).filter(applies);
+    const primary = this.mostSpecific(reach, { single: true, unit: q.unit });
+    const rows = reach
+      .map(r => { const top = primary.indexOf(r) >= 0; return { id:'c' + r.id, level:r.level || 'Property', type:r.mits, comment:r.desc || '',
         amount:amount(r), one:/-one$/.test(r.group),
-        def:r.group.indexOf('req') === 0, lock:required(r) ? 'grey' : null,
-        pet:this.chargeCategoryFor(r.mits) === 'Pet', max:this.ppPetMax(r, q.prop), cap:this.petCapOf(r) }));
+        def:top && r.group.indexOf('req') === 0, lock:top && required(r) ? 'grey' : null,
+        pet:this.chargeCategoryFor(r.mits) === 'Pet', max:this.ppPetMax(r, q.prop), cap:this.petCapOf(r) }; });
     // Charges added on the quote itself are the tenant's own, so they sit after the property's.
     (q.extra || []).forEach(x => rows.push(Object.assign({ def:true, lock:null }, x)));
     // A property with no rent charge to read has nothing to price from, so the quote
@@ -7939,9 +7944,14 @@ class Component extends DCLogic {
     // see what a listing would look like, not what is being filtered out.
     const ilsProp = this.ilsOn(p.prop);
     const unit = this.unitInfo(p.unit);
-    // Only what reaches the unit being previewed, and of each charge type only the most specific level.
-    const rows = this.mostSpecific((ilsProp ? this.appliedRows().filter(r => r.ils) : this.appliedRows())
-      .filter(r => String(r.level || 'Property') === 'ORI' || this.chargeReachesUnit(r, unit.u)), { single: true, unit: unit.u });
+    // Only what reaches the unit being previewed. Every charge of a type is listed, but only the most
+    // specific one starts ticked (2026-10-14): one replaced by a more specific charge (`shadow`) is
+    // offered unticked, and ticking it is remembered apart, in `p.sh`.
+    const rows = (ilsProp ? this.appliedRows().filter(r => r.ils) : this.appliedRows())
+      .filter(r => String(r.level || 'Property') === 'ORI' || this.chargeReachesUnit(r, unit.u));
+    const primary = this.mostSpecific(rows, { single: true, unit: unit.u });
+    const shadow = new Set(rows.filter(r => primary.indexOf(r) < 0).map(r => r.id));
+    const tick = r => shadow.has(r.id) ? (p.sh || {})[r.id] : p.opt[r.id];
     const money = n => '$' + n.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
     // Rent moves with the lease term: a short term costs more, a long one less. Only the rent charge
     // is offset, and the totals follow because everything prices through amtOf.
@@ -7952,7 +7962,9 @@ class Component extends DCLogic {
       return isRent(r) ? Math.max(0, base + termAdj) : base; };
     // Charges with no requirement chosen yet ('ind') sit with the required ones, so a freshly
     // converted property still previews a price instead of an empty breakdown.
-    const of = pre => rows.filter(r => r.group.indexOf(pre) === 0 || (pre === 'req' && r.group.indexOf('ind') === 0));
+    const ofAll = pre => rows.filter(r => r.group.indexOf(pre) === 0 || (pre === 'req' && r.group.indexOf('ind') === 0));
+    // A replaced charge isn't counted as required; it sits with the optional ones, unticked.
+    const of = pre => pre === 'opt' ? ofAll('opt').concat(ofAll('req').filter(r => shadow.has(r.id))) : pre === 'req' ? ofAll('req').filter(r => !shadow.has(r.id)) : ofAll(pre);
     const optRows = of('opt'), sitRows = of('sit');
     // Ready to convert — nothing publishes yet and every charge already has its listing fields — so
     // the preview turns into a full picker: every charge listed, grouped the way the Charges tab
@@ -7965,7 +7977,7 @@ class Component extends DCLogic {
     const allReq = rows.every(reqSet);
     const pickAll = !this.state.publishedProps[p.prop] && rows.length > 0
       && (rows.every(r => this.mitsComplete(r)) || !allReq);
-    const picked = r => !!p.opt[r.id];
+    const picked = r => !!tick(r);
     const monthly = pickAll ? rows.filter(r => !/-one$/.test(r.group) && picked(r)) : of('req').filter(r => !/-one$/.test(r.group));
     const oneTime = pickAll ? rows.filter(r => /-one$/.test(r.group) && picked(r)) : of('req').filter(r => /-one$/.test(r.group));
     // One-time charges split by when they're actually collected, so a prospect can see what's due at
@@ -7975,11 +7987,11 @@ class Component extends DCLogic {
     const atMoveIn = oneTime.filter(r => dueOf(r) === 'Move-In');
     const otherOne = oneTime.filter(r => ['At Application','Move-In'].indexOf(dueOf(r)) < 0);
     // In picker mode every ticked charge is already in the lists above, so there's nothing to add.
-    const chosenOpt = pickAll ? [] : optRows.filter(r => p.opt[r.id] && !/-one$/.test(r.group));
-    const chosenOptOne = pickAll ? [] : optRows.filter(r => p.opt[r.id] && /-one$/.test(r.group));
+    const chosenOpt = pickAll ? [] : optRows.filter(r => tick(r) && !/-one$/.test(r.group));
+    const chosenOptOne = pickAll ? [] : optRows.filter(r => tick(r) && /-one$/.test(r.group));
     // Pet add-ons can be taken more than once — one line per pet — so they carry a quantity.
     const isPet = r => this.chargeCategoryFor(r.mits) === 'Pet';
-    const qtyOf = r => { const v = p.opt[r.id]; return v === true ? 1 : (v || 0); };
+    const qtyOf = r => { const v = tick(r); return v === true ? 1 : (v || 0); };
     // A per-pet charge can carry a Max Charge Amount, which caps what the resident pays however many
     // pets they add — four pets at $30 with a $100 max is $100, not $120.
     const petCap = r => { const t = this.petTypeByName((r.attrs || {}).petType); if (!t) return 0;
@@ -8005,10 +8017,10 @@ class Component extends DCLogic {
     // A fixed-width slot on every row keeps the steppers (and the amounts beside them) in line.
     const stepper = r => { const mx = this.ppPetMax(r, p.prop), n = qtyOf(r);
       const count = `<span style="min-width:20px;text-align:center;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${n}${mx ? `<span style="color:var(--rmx-text-muted, #b3b3b3)">/${mx}</span>` : ''}</span>`;
-      return `<span style="display:inline-flex;align-items:center;justify-content:flex-end;gap:6px;width:80px;flex:none">${(!isPet(r) || !p.opt[r.id]) ? '' : `${step(r,-1,'remove')}${count}${mx && n >= mx ? stepOff('add') : step(r,1,'add')}`}</span>`; };
+      return `<span style="display:inline-flex;align-items:center;justify-content:flex-end;gap:6px;width:80px;flex:none">${(!isPet(r) || !tick(r)) ? '' : `${step(r,-1,'remove')}${count}${mx && n >= mx ? stepOff('add') : step(r,1,'add')}`}</span>`; };
     // As the rent quote's picker: the RMX Checkbox, then the charge's level pill, then its name (which
     // wraps rather than truncating), the pet stepper and the amount.
-    const optCb = r => `<label data-act="ppOpt" data-arg="${r.id}" style="display:flex;align-items:center;gap:10px;padding:5px 0;cursor:pointer;font-size:14px;color:var(--rmx-brand-dark, #13314c)">${this.rmxCheckbox(!!p.opt[r.id], false)}${this.chargeLevelTag(r.level)}<span style="flex:1;min-width:0;line-height:20px;overflow-wrap:anywhere">${ppName(r)}</span>${stepper(r)}<span style="width:112px;flex:none;text-align:right;font-size:14px;color:var(--rmx-ink-2, #424e5b);white-space:nowrap">${money(lineAmt(r))}${/-one$/.test(r.group)?'/one-time':'/mo'}</span></label>`;
+    const optCb = r => `<label data-act="${shadow.has(r.id) ? 'ppSh' : 'ppOpt'}" data-arg="${r.id}" style="display:flex;align-items:center;gap:10px;padding:5px 0;cursor:pointer;font-size:14px;color:var(--rmx-brand-dark, #13314c)">${this.rmxCheckbox(!!tick(r), false)}${this.chargeLevelTag(r.level)}<span style="flex:1;min-width:0;line-height:20px;overflow-wrap:anywhere">${ppName(r)}</span>${stepper(r)}<span style="width:112px;flex:none;text-align:right;font-size:14px;color:var(--rmx-ink-2, #424e5b);white-space:nowrap">${money(lineAmt(r))}${/-one$/.test(r.group)?'/one-time':'/mo'}</span></label>`;
     // Every charge, split the way the Charges tab splits them. Required charges arrive ticked (see
     // ppSeedOpt), so the breakdown opens on the price a prospect would be quoted.
     const pickSection = (t, rws) => rws.length ? `<div style="display:flex;flex-direction:column;gap:2px;margin-top:2px">

@@ -1580,11 +1580,14 @@ Charges tile and overlay, Move In), the unit type scope of `chargeScope`, `rqRow
 the Pricing Preview, which also now offers only charges that reach the previewed unit
 (`chargeReachesUnit`, exceptions included) where it used to list every charge on the property.
 
-**Rent quotes and the Pricing Preview show one charge per charge type** (2026-10-14, `mostSpecific(rows,
-{ single: true, unit })`): where two charges of a type share the most specific level, only one is
-offered — the one holding that type's Base Rent / Security Deposit (`roleHolds`), else the highest for the
-unit. The Berkshires' 1A quotes the Unit Market Rent RC and not the $150 premium; mark the premium as the
-Base Rent and it swaps. A unit's Charges, totals and Move In still list every charge it is billed.
+**Rent quotes and the Pricing Preview tick one charge per charge type** (2026-10-14; for an hour it hid
+the rest, and the user asked for them back). Every charge that reaches the unit is listed, but only
+`mostSpecific(rows, { single: true, unit })`'s pick starts ticked — the most specific level, and where two
+share it the one holding the Base Rent / Security Deposit (`roleHolds`), else the highest for the unit. A
+charge it replaces is offered **unticked and unlocked**: on the quote `def` and `lock` are dropped for it;
+in the preview it joins the optional list (`shadow`), its tick kept apart in `p.sh` (`ppSh`). The
+Berkshires' 2A opens on its unit type's $1,600 RC, with the property's Unit Market Rent and $150 RCs
+there to add. A unit's Charges, totals and Move In still list every charge it is billed.
 
 **DOGFEE (Dog Rent; it was PETFEE / Pet Rent until 2026-10-14) came over as Pet Type Recurring Amount, so it names its pet type**: `attrs:{ petType:'Dog',
 petKind:'rec' }`, $25.00, out of `propCharges`' drift. Opening it, `__petApply` locks Amount and
