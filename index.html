@@ -9483,6 +9483,7 @@ class Component extends DCLogic {
       t.style.display = role ? 'none' : 'block';
       lk.style.display = role ? 'block' : 'none';
       if (lv) lv.value = this.leaseRoleLabel(role);
+      const lr = this.q('#m-name-lock-role'); if (lr) lr.textContent = this.leaseRoleLabel(role);
       nm.value = role ? this.leaseRoleLabel(role) : (t.getAttribute('data-typed') || '');
       if (window.__mitsRecheck) window.__mitsRecheck();
     };
@@ -9981,7 +9982,7 @@ class Component extends DCLogic {
     const listing = `<div style="display:flex;gap:12px;align-items:flex-start">
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Name', '', 'name')}
           <div id="m-name-text" data-typed="${esc(nm0)}" style="display:${role0 ? 'none' : 'block'}"><input id="m-name" class="fld" value="${esc(nameNow)}" oninput="if(window.__mitsRecheck)window.__mitsRecheck()" style="height:36px;box-sizing:border-box"></div>
-          <div id="m-name-lock" style="display:${role0 ? 'block' : 'none'}">${this.infoTip(`<span style="display:block;white-space:normal">Listing providers use standardized names for the Base Rent and Security Deposit, so this charge is advertised under that name. Choose Additional Charge to use your own.</span>`, 0, { block: true,
+          <div id="m-name-lock" style="display:${role0 ? 'block' : 'none'}">${this.infoTip(`<span style="display:block;white-space:normal">Listing providers use a standardized name for the <span id="m-name-lock-role">${esc(this.leaseRoleLabel(role0))}</span>, so this charge is advertised under that name.</span>`, 0, { block: true,
             trigger: `<input id="m-name-lock-v" class="fld" disabled value="${esc(this.leaseRoleLabel(role0))}" style="height:36px;box-sizing:border-box;width:100%;background:#f9f9f9;border-color:#ebf1f5;color:var(--rmx-text-muted, #b3b3b3);cursor:default;pointer-events:none">` })}</div>
         </div>
         <div style="flex:2;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Marketing Description (Optional)', '', 'marketing')}<textarea id="m-marketing" class="fld" oninput="if(window.__mktDiff)window.__mktDiff()" style="height:36px;resize:none;box-sizing:border-box;padding:8px 12px;font:400 14px Roboto,sans-serif">${(ed&&ed.listing&&ed.listing.marketing)||(ed?(INH.marketing||''):'')}</textarea></div>

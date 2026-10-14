@@ -1400,8 +1400,8 @@ and a save there keeps whatever role the charge already held. The charge form's 
 How should listings treat this charge?"* (or *security deposit charge type*) over **Base Rent** /
 **Additional Charge** (or **Security Deposit** / **Additional Charge**) radios. Answered, Name is
 locked to the role (`#m-name-lock`, the disabled field; hovering it raises the RMX Tooltip *"Listing providers
-use standardized names for the Base Rent and Security Deposit, so this charge is advertised under that
-name. Choose Additional Charge to use your own."* — `infoTip`'s new `block` option makes a whole field its
+use a standardized name for the Base Rent, so this charge is advertised under that name."* — naming
+whichever role the charge holds, *Security Deposit* on a deposit (2026-10-14) — `infoTip`'s new `block` option makes a whole field its
 trigger, 2026-10-14), and `resolvedListing` advertises the charge
 under that name; what it was called is kept on the charge, so answering Additional Charge brings it
 back. Changing the charge type re-asks through `window.__roleCheck` (from `__attrCheck`), reset to
