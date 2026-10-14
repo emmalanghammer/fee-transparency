@@ -4537,6 +4537,20 @@ class Component extends DCLogic {
     const n = size || 24;
     return `<svg class="ico" width="${n}" height="${n}" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">${P[name] || ''}</svg>`;
   }
+  // Where the Review overlay's Add can still go: the property, each unit type and each unit, less any
+  // that already has its own Base Rent / Security Deposit — a live row, unsaved answers included, or an
+  // addition not yet saved (2026-10-14). A removed row frees its place.
+  roleAddTargets(prop, kind){
+    const D = ((this._roleDraft || {}).review) || {};
+    const taken = {};
+    this.roleGroups(prop, kind, { all: true }).forEach(g => { const a = D[this.roleKey(kind, g)];
+      if (!(a ? a.declined : g.declined)) taken[g.level + '|' + (g.target || '')] = true; });
+    (this._roleNew || []).forEach(n => { if (n.kind === kind) taken[n.level + '|' + (n.target || '')] = true; });
+    return [{ value: 'Property|', label: 'Property: ' + prop }]
+      .concat(this.utData().map(t => ({ value: 'Unit Type|' + t.name, label: 'Unit type: ' + t.name })))
+      .concat(this.units().map(u => ({ value: 'Unit|' + u.u, label: 'Unit ' + u.u })))
+      .filter(o => !taken[o.value]);
+  }
   roleKey(kind, g){ return kind + '|' + g.level + '|' + (g.target || ''); }
   roleRowText(r){ return r ? this.roleChargeLabel(r, true) + ' · ' + this.roleAmtLabel(r) : ''; }
   roleAnswer(surface, kind, g){
@@ -4747,7 +4761,7 @@ class Component extends DCLogic {
           <span style="${kind === 'rent' ? 'flex:0 1 190px;min-width:90px' : 'flex:1'};font-style:italic;color:var(--rmx-text, #666666)">No property level ${kind === 'rent' ? 'base rent' : 'security deposit'}</span>
           ${kind === 'rent' ? `<span style="display:inline-flex;align-items:center;gap:8px;padding:8px;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;white-space:nowrap">${this.ico('info', 20, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}Cover every unit with one charge using Unit Market Rent.</span>` : ''}
         </div>`;
-      const optsAdd = [{ value: 'Property|', label: 'Property: ' + prop }].concat(this.utData().map(t => ({ value: 'Unit Type|' + t.name, label: 'Unit type: ' + t.name })).concat(this.units().map(u => ({ value: 'Unit|' + u.u, label: 'Unit ' + u.u }))));
+      const optsAdd = this.roleAddTargets(prop, kind);
       // The charge to add is one on a charge type this role reads: a rent charge type for the Base Rent
       // (recurring, so a type the property only runs one-time, like FMR, is left out), a security
       // deposit charge type for the Security Deposit.
@@ -4762,7 +4776,7 @@ class Component extends DCLogic {
         ${missingProp}${gs.map(g => this.roleRowHTML('review', prop, kind, g, { removed: gone(g) })).join('')}
         <div data-rnew="${kind}">${this.roleNewRowsHTML(kind, prop)}</div>
         <div data-rform="${kind}" style="display:none;flex-wrap:wrap;gap:12px;align-items:flex-end;padding:12px 16px;border-top:1px solid var(--rmx-line, #cedbe7)">
-          <div style="flex:1 1 200px;min-width:0;display:flex;flex-direction:column;gap:4px">${F.lab('Applies to')}${this.singleSelect('rnew-at-' + kind, optsAdd, '', { placeholder: 'Select', js: "window.__roleNewTarget('" + kind + "',_v)" })}</div>
+          <div data-rat style="flex:1 1 200px;min-width:0;display:flex;flex-direction:column;gap:4px">${F.lab('Applies to')}${this.singleSelect('rnew-at-' + kind, optsAdd, '', { placeholder: 'Select', js: "window.__roleNewTarget('" + kind + "',_v)" })}</div>
           <div style="flex:2 1 280px;min-width:0;display:flex;flex-direction:column;gap:4px">${F.lab('Charge')}<div data-rct>${this.singleSelect('rnew-ch-' + kind, [], '', { noSearch: true, placeholder: 'Choose a unit type or unit first' })}</div></div>
           <button type="button" class="btn-pri" onclick="window.__roleNewAdd('${kind}')" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Add</button>
           <button type="button" class="btn-out" onclick="window.__roleNewForm('${kind}', false)" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Cancel</button>
@@ -4795,6 +4809,11 @@ class Component extends DCLogic {
     };
     window.__roleNewForm = (kind, on) => {
       const sec = document.querySelector('[data-rreview] [data-rsec="' + kind + '"]'); if (!sec) return;
+      // Rebuilt on every open, since a removal or an Add since the render changes what's taken.
+      if (on) {
+        sec.querySelector('[data-rat]').innerHTML = F.lab('Applies to') + this.singleSelect('rnew-at-' + kind, this.roleAddTargets(prop, kind), '', { placeholder: 'Select', js: "window.__roleNewTarget('" + kind + "',_v)" });
+        window.__roleNewTarget(kind, '');
+      }
       sec.querySelector('[data-rform]').style.display = on ? 'flex' : 'none';
       sec.querySelector('[data-radd]').style.visibility = on ? 'hidden' : 'visible';
       const e = sec.querySelector('[data-rerr]'); if (e) e.style.display = 'none';

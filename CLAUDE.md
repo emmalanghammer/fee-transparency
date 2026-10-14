@@ -1459,7 +1459,9 @@ canvas *Confirm Base Rent & Deposit*).
   else its unit type's, else the property's — counting unsaved answers (a declined group covers nothing)
   and added charges, and `window.__roleCov` repaints the counts, lozenges and missing text DOM-only.
   **Add picks an existing charge; it never creates one** (2026-10-13, the user's correction). It opens an
-  inline *Applies to* · *Charge* form (*Applies to* offers the property too, so a removed property row can come back): choosing where fills Charge (DOM-only, `window.__roleNewTarget`)
+  inline *Applies to* · *Charge* form (*Applies to* offers the property too, so a removed property row can come back; since 2026-10-14 it
+  lists only places with nothing set — `roleAddTargets` drops any with a live row or an unsaved addition,
+  rebuilt each time the form opens, and a removed row frees its place): choosing where fills Charge (DOM-only, `window.__roleNewTarget`)
   with the charges of that role that already reach it — the property's, the unit type's, and for a unit its
   own (`roleReachable`) — labelled *RC Rent: $150.00 · The Berkshires*. Errors *Choose where it applies.*,
   *Choose a charge.*, *`<x>` already has its own Base Rent.* An addition is a row like a confirmed one — the edit
