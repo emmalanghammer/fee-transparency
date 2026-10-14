@@ -1456,7 +1456,8 @@ figure, else its `est`). `roleState` is `set` when every group is marked, `none`
   The Floor Plans tile's dropdown does the same after activation: **Base Rent** (`roleTotalRange(prop,
   type, true)`, the rent alone) and **Total Monthly Price** (plus the required monthly fees,
   `ltMonthlyFees`) in place of *Price*. They pass `bare: true`, since the
-  label already names the role: one charge is just its row, several read *n charges* in the header.
+  label already names the role: one charge is just its row, several read *n charges* in the header — on
+  white, no grey fill (2026-10-14).
   Before activation both are still Price and Deposit Fee(s). (Its multi-charge
   branch had `style=""border…`, a doubled quote, so those boxes lost their border; fixed 2026-10-13.)
 
