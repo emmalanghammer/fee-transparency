@@ -342,7 +342,7 @@ class Component extends DCLogic {
     // Damage and violation charges are conditions, not choices — checked before the pet rules so a
     // pet damage charge doesn't read as an add-on.
     if (/^(LATE|LC|NSF|DAMAGE|VIOLATION|LEGAL)/.test(code) || /\bdamage\b/.test(text)) return 'Situational';
-    if (/^PET/.test(code) || /\bpets?\b/.test(text)) return 'Optional';
+    if (/^(PET|DOG)/.test(code) || /\bpets?\b/.test(text)) return 'Optional';
     if (/^(SF|STORAGE|COVPARK|PARK|PARKING|GARAGE|HOLD|AMENFEE|AMENITY|UPGRADE|TECH|CABLE|TRANSFER|EVCHG)/.test(code)) return 'Optional';
     if (/\b(optional|add-?on|valet|storage|parking|garage|reservation|locker|access)\b/.test(text)) return 'Optional';
     return 'Required';
@@ -357,7 +357,7 @@ class Component extends DCLogic {
       ADMIN:      { by:'Admin',          hist:[['2025-01','$125.00'],['2026-01','$150.00']] },
       APPFEE:     { by:'Rachel Hodges',  hist:[['2025-01','$50.00'],['2026-01','$50.00']] },
       AMENFEE:    { by:'Admin',          hist:[['2025-01','$25.00'],['2026-01','$28.00']] },
-      PETFEE:     { by:'Devon Marsh',    hist:[['2025-01','$35.00'],['2026-01','$45.00']] },
+      DOGFEE:     { by:'Devon Marsh',    hist:[['2025-01','$35.00'],['2026-01','$45.00']] },
       DP:         { by:'Admin',          hist:[['2025-01','$450.00'],['2026-01','$500.00']] },
       HOLD:       { by:'Rachel Hodges',  hist:[['2026-01','$200.00']] }
     };
@@ -787,7 +787,7 @@ class Component extends DCLogic {
       SF:         ['Storage Closet', 'Private storage closet, available to reserve while supplies last.'],
       AMENFEE:    ['Pool & Fitness Access', 'Optional access to the pool and fitness center.'],
       COVPARK:    ['Covered Parking', 'Reserved covered parking space, priced at market rate.'],
-      PETFEE:     ['Pet Rent', 'Monthly rent per pet on the lease, up to two pets.'],
+      DOGFEE:     ['Dog Rent', 'Monthly rent per dog on the lease, up to two dogs.'],
       PETDP:      ['Pet Deposit', 'Refundable deposit charged when a pet is added to the lease.'],
       EVCHG:      ['EV Charging', 'Access to the property’s EV charging stations.'],
       NSF:        ['NSF Fee', 'Charged when a payment is returned for non-sufficient funds.'],
@@ -864,11 +864,11 @@ class Component extends DCLogic {
   portfolioCharges(){
     const core = ['RC','DP','FMR','APPFEE','GARBAG','NSF','LATE'];
     return {
-      'Riverview Apartments':    core.concat(['PETFEE','COVPARK']),
+      'Riverview Apartments':    core.concat(['DOGFEE','COVPARK']),
       'The Berkshires':          core.slice(),
       'The Windermere':          core.concat(['COVPARK']),
       'Oakwood Manor':           core.slice(),
-      'The Estates':             core.concat(['PETFEE']),
+      'The Estates':             core.concat(['DOGFEE']),
       'The Hamptons':            core.slice(),
       // Manufactured housing: lot rent and the basics, no deposit.
       'Clearcreek Condominiums': ['RC','FMR','APPFEE','GARBAG','NSF','LATE']
@@ -895,14 +895,14 @@ class Component extends DCLogic {
     return {
       'Riverview Apartments':     [],                                  // the full set
       'The Berkshires':           ['COVPARK','EVCHG','HOLD'],
-      'The Windermere':           ['SF','HOLD','PETFEE'],
+      'The Windermere':           ['SF','HOLD','DOGFEE'],
       'The Estates':              ['EVCHG'],
       'Willow Creek':             ['COVPARK','SF','HOLD','KEY'],
       'Greenbriar Village':       ['HOLD','EVCHG'],
       'Oakwood Manor':            ['EVCHG','LMR'],
       'Pinewood Place':           ['HOLD'],
       'Cedar Ridge':              ['COVPARK','EVCHG','AMENFEE','HOLD'],
-      'The Highlands':            ['SF','EVCHG','PETFEE','PETDP','HOLD'],
+      'The Highlands':            ['SF','EVCHG','DOGFEE','PETDP','HOLD'],
       'Valley Forge':             ['COVPARK','AMENFEE','EVCHG','SF','HOLD','KEY'],
       'The Arbors':               ['EVCHG','HOLD','GARBAGEFEE'],
       'Stonegate Village':        ['HOLD','EVCHG'],
@@ -966,10 +966,10 @@ class Component extends DCLogic {
       Object.assign({ id:13, group:'opt-one', mits:'HOLD',       name:'Hold fee',          desc:'Unit reservation fee',         from:'01/01/2026', to:'', amount:'$200.00',   amtMethod:'Flat', ils:true  }, L('Property')),
       // Pet rent and pet deposit are add-ons a resident chooses by bringing a pet, so they're optional.
       // Damage-type charges stay situational — nobody opts into those.
-      // Pet rent came over from Tenant Charge Setup with the source Pet Type Recurring Amount, so it
+      // Dog rent came over from Tenant Charge Setup with the source Pet Type Recurring Amount, so it
       // names its pet type: Dog carries the figure ($25 a pet, $50 at most), which is why the charge
       // form locks Amount and Amount Method on it. The amount is the pet type's, not drifted.
-      Object.assign({ id:14, group:'opt-rec', mits:'PETFEE',     name:'Pet rent',          desc:'Dog rent, per pet',            freq:'Every Month', from:'01/01/2026', to:'', amount:'$25.00',      amtMethod:'Flat', ils:true, attrs:{ petType:'Dog', petKind:'rec' } }, L('Property')),
+      Object.assign({ id:14, group:'opt-rec', mits:'DOGFEE',     name:'Dog rent',          desc:'Dog rent, per dog',            freq:'Every Month', from:'01/01/2026', to:'', amount:'$25.00',      amtMethod:'Flat', ils:true, attrs:{ petType:'Dog', petKind:'rec' } }, L('Property')),
       Object.assign({ id:15, group:'opt-one', mits:'PETDP',      name:'Pet deposit',       desc:'Pet deposit',                  from:'01/01/2026', to:'', amount:'$300.00',   amtMethod:'Flat', ils:true }, L('Property')),
       // A charge type created at the property that nobody assigned a MITS category to. Deliberately
       // absent from chargeCategoryMap so the Charge Category error state is always demoable.
@@ -996,7 +996,7 @@ class Component extends DCLogic {
       ELEC:'Utility', GARAGE:'Parking', GARBAG:'Service', GARBAGEFEE:'Service', GAS:'Utility', H2O:'Utility',
       HO4:'Insurance', HOA:'Service', HOLD:'Admin', KEY:'Key', LATE:'Violation', LC:'Violation', FMR:'Lease', LMR:'Lease',
       NSF:'Violation', NSFFEE:'Violation', PARK:'Parking', PETDP:'Pet',
-      PETFEE:'Pet', PET:'Pet', RC:'Lease', RUBS:'Utility', SEWER:'Utility', SF:'Storage', STORAGE:'Storage',
+      DOGFEE:'Pet', PET:'Pet', RC:'Lease', RUBS:'Utility', SEWER:'Utility', SF:'Storage', STORAGE:'Storage',
       TRANSFER:'Transfer', TRASH:'Service', UTIL:'Utility', WATER:'Utility' };
     // Whatever the Charge Types register says wins — that is where a type's category is set.
     const fromReg = {};
@@ -1047,7 +1047,7 @@ class Component extends DCLogic {
   chargeTypeAmounts(){
     return { ADMIN:150, AMENFEE:28, APPFEE:50, CLEAN:225, COVPARK:75, DAMAGE:250, GARAGE:125,
       GARBAG:28, GARBAGEFEE:4, EVCHG:35, HO4:14, HOLD:200, KEY:50, LATE:100, NSF:25, PARK:60,
-      PETDP:300, PETFEE:45, REKEY:75, SF:40, STORAGE:50, TRANSFER:160, TRASH:100, WATER:38 };
+      PETDP:300, DOGFEE:45, REKEY:75, SF:40, STORAGE:50, TRANSFER:160, TRASH:100, WATER:38 };
   }
   // A parking or storage type only belongs to the properties that rent those items out; everything
   // else is company-wide.
@@ -1112,12 +1112,12 @@ class Component extends DCLogic {
   chargeTypeListAll(){
     return [['ADMIN','Administrative Fee'],['AMENFEE','Amenity Fee'],['APPFEE','Application Fee'],['CABLE','Cable Utility'],
       ['CAM','Common Area Maintenance'],['CAMTAX','CAM - Taxes'],['CLEAN','Cleaning Fee'],['COVPARK','Covered Parking'],
-      ['DAMAGE','Damage Repair'],['DP','Security Deposit'],['ELEC','Electric Utility'],['EPAYAJ','ePay Refund Adjustment'],
+      ['DAMAGE','Damage Repair'],['DOGFEE','Dog Rent'],['DP','Security Deposit'],['ELEC','Electric Utility'],['EPAYAJ','ePay Refund Adjustment'],
       ['EPD','Early Payment Discount'],['GARAGE','Garage Fee'],['GARBAG','Garbage Fee'],['GARBAGEFEE','Additional Trash Valet'],
       ['EVCHG','EV Charging Station'],['FMR',"First Month's Rent"],
       ['GAS','Gas Utility'],['H2O','Water Utility'],['HO4','Renters Insurance'],['HOA','HOA Fee'],['HOLD','Hold Fee'],
       ['KEY','Key & Fob Deposit'],['LATE','Late Fee'],['LMR',"Last Month's Rent"],['NSF','NSF Fee'],['PARK','Parking'],
-      ['PETDP','Pet Deposit'],['PETFEE','Pet Rent'],['RC','Rent'],['REKEY','Rekey Fee'],['RUBS','Flat Bill for All Utilities'],['SEWER','Sewer Utility'],
+      ['PETDP','Pet Deposit'],['RC','Rent'],['REKEY','Rekey Fee'],['RUBS','Flat Bill for All Utilities'],['SEWER','Sewer Utility'],
       ['SF','Storage Fee'],['STORAGE','Storage Fee'],['TRANSFER','Transfer Fee'],['TRASH','Trash Valet'],['WATER','Water Service']];
   }
   units() {
@@ -5612,13 +5612,13 @@ class Component extends DCLogic {
   }
   // What System Preferences set up, as [charge type, charge source] pairs.
   tcsSystem(){
-    return { rec: [['RC','Flat Amount'],['PETFEE','Pet Type Recurring Amount']],
+    return { rec: [['RC','Flat Amount'],['DOGFEE','Pet Type Recurring Amount']],
              one: [['DP','Flat Amount'],['FMR','Unit Market Rent']] };
   }
   // A property could override System Preferences with its own list. Riverview did, adding the
   // application fee, so the property overlay has both faces to show.
   tcsOverrides(){
-    return { 'Riverview Apartments': { rec: [['RC','Flat Amount'],['PETFEE','Pet Recurring Amount']],
+    return { 'Riverview Apartments': { rec: [['RC','Flat Amount'],['DOGFEE','Pet Recurring Amount']],
                                        one: [['DP','Flat Amount'],['FMR','Unit Market Rent'],['APPFEE','Flat Amount']] } };
   }
   // What a Tenant Charge Setup source became on the property charge: a flat figure stays flat, a pet

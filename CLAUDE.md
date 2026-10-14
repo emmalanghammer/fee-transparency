@@ -1092,8 +1092,8 @@ Requirement, Charge Schedule and Fee Due, so a walkthrough has something to go a
 **The portfolio scenarios are small too** (On Rollout, Mid and Post Conversion, No ILS):
 `portfolioCharges()` is their keep list per property, read through `propChargePlan` and
 `chargeTypeList` exactly as Happy Path's is, so Charge Types is nine — RC, DP, FMR, APPFEE, GARBAG,
-PETFEE, COVPARK, NSF, LATE — and a property's Charges six to ten rows. Rent, the deposit, **first
-month's rent**, the **application fee**, Garbage, NSF and Late everywhere; PETFEE and COVPARK where the property rents
+DOGFEE, COVPARK, NSF, LATE — and a property's Charges six to ten rows. Rent, the deposit, **first
+month's rent**, the **application fee**, Garbage, NSF and Late everywhere; DOGFEE and COVPARK where the property rents
 them, so the Pet and Parking detail sections are on screen; Clearcreek runs no deposit. Mid
 Conversion's Windermere drifts **one** charge. REKEY stays Happy Path's alone.
 
@@ -1285,7 +1285,7 @@ grey out — which says they can't be edited but not why, and the pet type that 
 inside Charge Marketing, which is collapsed. **The lock follows the category, not the Pet Type
 field**: the Pet section keeps its value when the charge type changes, so `__petApply` only locks
 while `#m-cat` is *Pet`*, and `__attrCheck` re-runs it on every charge type change — moving a charge
-off PETFEE opens Amount and Amount Method back up, and moving it back re-locks them. So `#m-pet-amt-note` stands under the Amount row, in
+off DOGFEE opens Amount and Amount Method back up, and moving it back re-locks them. So `#m-pet-amt-note` stands under the Amount row, in
 the same grey `--rmx-bg-muted` strip the cascade uses everywhere else for *this came from
 somewhere*: *"Amount and Amount Method come from the `<type>` pet type."* `__petApply` shows it with
 the lock and names the type. The hover tooltip that used to carry the same sentence is gone — it
@@ -1507,7 +1507,7 @@ canvas *Confirm Base Rent & Deposit*).
   Every glyph used is in the `ico` map (`info`, not `info_outline`, which isn't).
 
 **At rollout, Tenant Charge Setup's charges became property charges on every property** (2026-10-07).
-Each default (RC and PETFEE recurring, DP and FMR one-time) was added as a property-level charge with the
+Each default (RC and DOGFEE recurring, DP and FMR one-time) was added as a property-level charge with the
 same charge source on the properties that use it. Rent quotes and the Move In and Add Tenant wizards
 now read the property's Charges. Those charges are **ordinary**: nothing marks where they came from.
 Every Test Feature State is at or after rollout, so this is the only face the page has.
@@ -1521,7 +1521,7 @@ the unit's rent, in the pricers and in `chargeTotals`' *+ Market Rent*, so an as
 never read as the unit's. The other sources have no figure in the prototype and price at their `est`
 or nothing.
 
-**PETFEE came over as Pet Type Recurring Amount, so it names its pet type**: `attrs:{ petType:'Dog',
+**DOGFEE (Dog Rent; it was PETFEE / Pet Rent until 2026-10-14) came over as Pet Type Recurring Amount, so it names its pet type**: `attrs:{ petType:'Dog',
 petKind:'rec' }`, $25.00, out of `propCharges`' drift. Opening it, `__petApply` locks Amount and
 Amount Method and shows *Amount and Amount Method come from the Dog pet type.* in General, and the
 Pricing Preview and rent quote take Dog's two-pet cap and $50 maximum.
