@@ -1430,10 +1430,17 @@ figure, else its `est`). `roleState` is `set` when every group is marked, `none`
 **Base Rent & Security Deposit are confirmed before activation, not in it** (2026-10-13, the user's
 canvas *Confirm Base Rent & Deposit*).
 
+- **A Base Rent on every unit is required to activate; a Security Deposit is recommended** (2026-10-14,
+  the user's rule). `roleRentGap(prop)` counts units no Base Rent reaches, as saved
+  (`roleCoverage(prop, kind, true)` ignores the Review overlay's drafts and additions); anything above
+  zero keeps the property out of `ftReadyProps()` (so no green banner or picker entry), makes its Setup
+  row **Not Ready** with no Activate (`ftSetupRows`' `ready`, beside `whole`, which is still the charges
+  alone), and blocks `pubConfirm`. A missing deposit blocks nothing: an empty deposit box reads *No
+  security deposit charge. Recommended, not required.* in a neutral outline, and the Review overlay's
+  sections carry a red **Required** (Base Rent) and a brand **Recommended** (Security Deposit) lozenge.
 - **The activation dialog says nothing about them.** `pubModalHTML` is the sentence, *What this means for
-  your listings* and Activate / Cancel. Only when a property has no rent or deposit candidate does it add
-  one red line — *"Add a rent and a security deposit charge before activating."* — with Activate
-  disabled. `pubConfirm` keeps whatever has been confirmed and writes `g.chosen` (our suggestion)
+  your listings* and Activate / Cancel. Only when a unit has no Base Rent does it add one red line —
+  *"Every unit needs a Base Rent before activating."* — with Activate disabled. `pubConfirm` keeps whatever has been confirmed and writes `g.chosen` (our suggestion)
   everywhere else; declined groups aren't returned, so their units keep reading the property's.
 - **Fee Transparency Setup** (`ftPropRow`) has a sub-row between Listing Ready Charges and Set Property
   Defaults, gone once the property is fee transparent (`roleSetupState`): while anything is unanswered a
@@ -1441,12 +1448,16 @@ canvas *Confirm Base Rent & Deposit*).
   the Marketing Setup callout; it was *Confirm all units have base rent and security deposit selected*
   with **Review**, Figma `3930:1701`);
   every group confirmed, a green `check_circle` and *"Base Rent & Security Deposit: confirmed"* with
-  **Review**; no candidate, a red `error` and *"…: no rent or deposit charge"* with **View Charges**.
+  **Review**; units without a Base Rent (`gap`), a red `error`, *Base Rent missing:* **n units** with
+  **Confirm Charges** (Marketing Setup's panel says the same in a red Callout, *Base Rent missing*); no
+  rent charge at all (`none`, `roleGroups(…, { all: true })` empty), *"Base Rent: no rent charge"* with
+  **View Charges**. A deposit with no charge doesn't count against either.
 - **The Review overlay** (`roleReviewHTML`, `state.roleReview = { prop }`, z-index 155) matches Figma
   `3931:167844` / `3931:168155` (section `3944:73163`, 2026-10-13): *Base Rent & Security Deposit:
-  `<Property>`*, then on the grey body a grey line — *"Every unit needs one Base Rent and one Security
-  Deposit to list. The property’s applies unless a unit type or unit has its own. You can also set either
-  one when editing a charge."* (UX-copy option A, 2026-10-14) —
+  `<Property>`*, then on the grey body a grey line — *"Every unit needs a Base Rent to activate; a
+  Security Deposit is recommended. The property’s applies unless a unit type or unit has its own. You can
+  also set either one when editing a charge."* (UX-copy option A, its first sentence changed the same day
+  when the deposit became optional) —
   and **one section per role**, Base Rent then Security Deposit. A section's header is the role at
   16/600, a coverage lozenge *n of N units* (green `#e2f1da` when whole, `#feedd2` when not), what's missing
   in navy by **floor plan** (2026-10-14, `missingHTML`): *Missing: Studio* then RMX's dropdown **Pill**

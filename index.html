@@ -1732,7 +1732,7 @@ class Component extends DCLogic {
         this._rolePick = {}; this.setState({ pubModal: { prop: arg } }); break; }
       case 'pubCancel': this.setState({ pubModal: null }); break;
       case 'pubConfirm': { const m = this.state.pubModal; const props = m.props || [m.prop];
-        if (props.some(p => this.roleState(p, 'rent') === 'none' || this.roleState(p, 'deposit') === 'none')) break;
+        if (props.some(p => this.roleRentGap(p) > 0)) break;
         // Activating writes the roles: confirmed answers as they are, our suggestion everywhere else.
         const fees = {};
         props.forEach((p, pi) => {
@@ -3886,7 +3886,7 @@ class Component extends DCLogic {
   ftReadyProps(){
     return this.ftScopeNames().filter(p => {
       const ch = this.ftCharges(p); const onList = ch.ready + ch.incomplete;
-      return this.ftApplicable(p) && onList > 0 && !ch.incomplete && !this.state.publishedProps[p];
+      return this.ftApplicable(p) && onList > 0 && !ch.incomplete && !this.state.publishedProps[p] && this.roleRentGap(p) === 0;
     });
   }
   ftSelHTML(){
@@ -4458,6 +4458,7 @@ class Component extends DCLogic {
       groups = own.length ? own : groups.filter(g => g.level === 'Property'); }
     const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
     const INK = 'color:var(--rmx-brand-dark, #13314c)';
+    if (!groups.length && kind === 'deposit') return `<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 12px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;font-size:14px;line-height:20px;${INK}">${this.ico('info', 20, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}<span style="flex:1;min-width:0">No security deposit charge. Recommended, not required.</span></div>`;
     if (!groups.length) return `<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 12px;border:1px solid var(--rmx-error, #eb343c);border-radius:4px;font-size:14px;line-height:20px;${INK}">${this.ico('error', 20, 'color:var(--rmx-error, #eb343c);flex:none')}<span style="flex:1;min-width:0">No ${kind === 'rent' ? 'recurring rent' : 'one-time security deposit'} charge on ${esc(prop)} can be the ${label}.</span></div>`;
     if (!window.__roleBox) window.__roleBox = (btn) => {
       const box = btn.closest('[data-rolebox]'), body = box && box.querySelector('[data-rolebody]'); if (!body) return;
@@ -4598,9 +4599,14 @@ class Component extends DCLogic {
     const rows = this.roleApplyRows(prop, answers);
     this.setState(s => ({ profileFees: Object.assign({}, s.profileFees, { [prop]: rows }) }));
   }
-  // Setup's sub-row: no candidate for either, every group answered, or still suggested.
+  // Units with no Base Rent reaching them, as saved. Activation waits on none being left (2026-10-14):
+  // a Base Rent on every unit is required; a Security Deposit is recommended and holds nothing up.
+  roleRentGap(prop){ const c = this.roleCoverage(prop, 'rent', true); return c.total - c.covered; }
+  // Setup's sub-row: no rent candidate, units left without a Base Rent, every group answered, or still
+  // suggested.
   roleSetupState(prop){
-    if (this.roleState(prop, 'rent') === 'none' || this.roleState(prop, 'deposit') === 'none') return 'none';
+    if (!this.roleGroups(prop, 'rent', { all: true }).length) return 'none';
+    if (this.roleRentGap(prop) > 0) return 'gap';
     const gs = ['rent', 'deposit'].reduce((a, k) => a.concat(this.roleGroups(prop, k, { all: true })), []);
     return gs.every(g => g.marked || g.declined) ? 'done' : 'sugg';
   }
@@ -4637,11 +4643,11 @@ class Component extends DCLogic {
   // Which units each group covers, and which units nothing covers: a unit reads its own charge, else
   // its unit type's, else the property's. Answers not yet saved count — a declined group stops covering
   // anything, and a charge added in the overlay starts covering its units.
-  roleCoverage(prop, kind){
-    const draft = ((this._roleDraft || {}).review) || {};
+  roleCoverage(prop, kind, saved){
+    const draft = saved ? {} : ((this._roleDraft || {}).review) || {};
     const live = this.roleGroups(prop, kind, { all: true }).filter(g => { const a = draft[this.roleKey(kind, g)]; return a ? !a.declined : !g.declined; })
       .map(g => ({ key: this.roleKey(kind, g), level: g.level, target: g.target }));
-    (this._roleNew || []).filter(n => n.kind === kind).forEach((n, i) => live.push({ key: 'new|' + kind + '|' + i, level: n.level, target: n.target }));
+    (saved ? [] : (this._roleNew || [])).filter(n => n.kind === kind).forEach((n, i) => live.push({ key: 'new|' + kind + '|' + i, level: n.level, target: n.target }));
     const pick = (u) => live.find(x => x.level === 'Unit' && x.target === u.u) || live.find(x => x.level === 'Unit Type' && x.target === u.type) || live.find(x => x.level === 'Property');
     const by = {}, missing = [];
     const units = this.units();
@@ -4729,7 +4735,9 @@ class Component extends DCLogic {
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;font-size:14px;line-height:20px">
         <strong style="font-weight:600">${title}</strong><span>${txt}</span>
         <a data-act="${act}" data-arg="${P}" style="align-self:flex-start;${LINK}">${label}</a></div></div>`;
-    if (st === 'none') return callout('error', 'var(--rmx-error, #eb343c)', 'Base Rent &amp; Security Deposit', 'Add a rent and a security deposit charge before activating fee transparency.', 'openFeeProfile', 'View Charges');
+    if (st === 'none') return callout('error', 'var(--rmx-error, #eb343c)', 'Base Rent', 'Add a rent charge before activating fee transparency.', 'openFeeProfile', 'View Charges');
+    if (st === 'gap') { const n = this.roleRentGap(prop);
+      return callout('error', 'var(--rmx-error, #eb343c)', 'Base Rent missing', `Every unit needs a Base Rent before fee transparency can be activated. ${n} unit${n === 1 ? ' has' : 's have'} none.`, 'roleReviewOpen', 'Confirm Charges'); }
     if (st !== 'done') return callout('warning', 'var(--rmx-notice, #faa61c)', 'Confirm Base Rent &amp; Security Deposit', 'Choose which charges are the Base Rent and Security Deposit before activating fee transparency.', 'roleReviewOpen', 'Confirm Charges');
     const lab = (t) => `<span style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">${t}</span>`;
     const ut = o.unitType ? { unitType: o.unitType, bare: true } : { bare: true };
@@ -4785,7 +4793,9 @@ class Component extends DCLogic {
       return `<section data-rsec="${kind}" style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;background:#fff">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;flex-wrap:wrap">
           <span style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-width:0">
-            <span style="font-size:16px;line-height:24px;font-weight:600;${INK}">${L}</span>${lozenge(c)}
+            <span style="font-size:16px;line-height:24px;font-weight:600;${INK}">${L}</span>${kind === 'rent'
+              ? `<span style="display:inline-flex;align-items:center;height:24px;padding:0 8px;border-radius:4px;background:#fdecee;font:400 14px/16px Roboto,sans-serif;color:#a3252c;white-space:nowrap">Required</span>`
+              : `<span style="display:inline-flex;align-items:center;height:24px;padding:0 8px;border-radius:4px;background:var(--rmx-brand-tint-bg, #ebf1f5);font:400 14px/16px Roboto,sans-serif;color:var(--rmx-brand-hover, #0071aa);white-space:nowrap">Recommended</span>`}${lozenge(c)}
             <span data-covmiss style="font-size:14px;line-height:20px;${INK}">${c.missingHTML}</span>
           </span>
           <a onclick="window.__roleNewForm('${kind}', true)" data-radd="${kind}" style="display:inline-flex;align-items:center;gap:4px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${this.ico('add', 20)}Add ${L}</a>
@@ -4888,7 +4898,7 @@ class Component extends DCLogic {
           <span data-act="roleReviewClose" style="display:flex;cursor:pointer">${this.ico('close', 24, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
         </div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;background:var(--rmx-bg-subtle, #f5f8fa)">
-          <p style="margin:0;font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">Every unit needs one Base Rent and one Security Deposit to list. The property’s applies unless a unit type or unit has its own. You can also set either one when editing a charge.</p>
+          <p style="margin:0;font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">Every unit needs a Base Rent to activate; a Security Deposit is recommended. The property’s applies unless a unit type or unit has its own. You can also set either one when editing a charge.</p>
           ${section('rent')}${section('deposit')}
         </div>
         <div style="display:flex;align-items:center;gap:16px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:8px 16px;flex:none">
@@ -4922,7 +4932,8 @@ class Component extends DCLogic {
     return this.ftScopeNames().filter(p => this.ftApplicable(p)).map(p => {
       const ch = this.ftCharges(p);
       const onList = ch.ready + ch.incomplete;
-      return { p, ch, onList, whole: onList > 0 && ch.incomplete === 0,
+      const whole = onList > 0 && ch.incomplete === 0;
+      return { p, ch, onList, whole, ready: whole && this.roleRentGap(p) === 0,
         converted: !!this.state.publishedProps[p] };
     }).filter(r => r.onList > 0);
   }
@@ -4941,12 +4952,12 @@ class Component extends DCLogic {
     // about work outstanding, and this one is about work finished.
     const status = r.converted
       ? `<span style="font-size:14px;font-style:italic;color:var(--rmx-text, #666666);white-space:nowrap">Fee Transparent</span>`
-      : r.whole
+      : r.ready
       ? loz('Ready', 'var(--rmx-success-bg, #e2f1da)', 'var(--rmx-brand-dark, #13314c)', 'var(--rmx-success, #6eb744)')
       : loz('Not Ready', '#fdf3e7', 'var(--rmx-brand-dark, #13314c)', 'var(--rmx-notice, #faa61c)');
     // The action sits with the status it follows from, left of it — a row reads name on the left,
     // then what to do about it and where it stands, together on the right.
-    const lead = r.converted ? '' : r.whole ? link('Activate Fee Transparency', 'pubOpen', r.p) : '';
+    const lead = r.converted ? '' : r.ready ? link('Activate Fee Transparency', 'pubOpen', r.p) : '';
     const sub = (icon, label, value, action) => `<div style="display:flex;align-items:center;gap:12px;min-height:36px;box-sizing:border-box;padding:8px;background:var(--rmx-bg-subtle, #f5f8fa)">
       ${icon}
       <span style="flex:1;min-width:0;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}${value ? ` <strong style="font-weight:600">${value}</strong>` : ''}</span>
@@ -4964,7 +4975,9 @@ class Component extends DCLogic {
         ${sub(tick, 'Listing Ready Charges:', `${r.ch.ready}/${r.onList}`, link(r.whole ? 'View Charges' : 'Add Charge Marketing', 'openFeeProfile', r.p))}
         ${r.converted ? '' : (() => { const rs = this.roleSetupState(r.p);
           return rule + (rs === 'none'
-            ? sub(this.ico('error', 20, 'color:var(--rmx-error, #eb343c);flex:none'), 'Base Rent &amp; Security Deposit: no rent or deposit charge', '', link('View Charges', 'openFeeProfile', r.p))
+            ? sub(this.ico('error', 20, 'color:var(--rmx-error, #eb343c);flex:none'), 'Base Rent: no rent charge', '', link('View Charges', 'openFeeProfile', r.p))
+            : rs === 'gap'
+            ? sub(this.ico('error', 20, 'color:var(--rmx-error, #eb343c);flex:none'), 'Base Rent missing:', (n => n + ' unit' + (n === 1 ? '' : 's'))(this.roleRentGap(r.p)), link('Confirm Charges', 'roleReviewOpen', r.p))
             : rs === 'done'
             ? sub(this.ico('check_circle', 20, 'color:var(--rmx-success, #6eb744);flex:none'), 'Base Rent &amp; Security Deposit: confirmed', '', link('Review', 'roleReviewOpen', r.p))
             : sub(this.ico('info', 20, 'color:var(--rmx-brand-dark, #13314c);flex:none'), 'Confirm Base Rent &amp; Security Deposit', '', link('Confirm Charges', 'roleReviewOpen', r.p))); })()}
@@ -5102,10 +5115,10 @@ class Component extends DCLogic {
     // Which charges listings start from (2026-10-12): pre-filled with what's marked, else our
     // suggestion, so most properties read two lines and Activate. A property with nothing that can be
     // either can't activate until one exists.
-    const blocked = props.some(p => this.roleState(p, 'rent') === 'none' || this.roleState(p, 'deposit') === 'none');
+    const blocked = props.some(p => this.roleRentGap(p) > 0);
     // The review happens before this (2026-10-13): the dialog only says what activating does. A property
     // with no rent or deposit candidate can't activate, and that is the one thing it adds.
-    const roles = blocked ? `<span style="font-size:14px;line-height:20px;color:var(--rmx-error, #eb343c)">Add a rent and a security deposit charge before activating.</span>` : '';
+    const roles = blocked ? `<span style="font-size:14px;line-height:20px;color:var(--rmx-error, #eb343c)">Every unit needs a Base Rent before activating.</span>` : '';
     return `<div data-act="pubCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:152">
       <div data-act="noop" style="width:640px;max-width:94vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
