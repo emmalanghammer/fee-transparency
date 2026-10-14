@@ -316,6 +316,12 @@ unlabelled Property/Tenant column. The rent quote and Pricing Preview pickers ca
 since the row already names the charge. The `.lvl` / `.lvl-*` classes, `LVL`, `PVL` and `tenantPill`
 are gone.
 
+**"Override" is only a charge marketing word** (2026-10-14, the user's rule). A charge written at a
+unit type or unit is simply the one those units use when the property also has one — it is never labelled
+an override. The word belongs to charge marketing defaults (a property overriding its charge type, a charge
+overriding either). The orange *Override* pill the shared charges register put on a unit charge whose
+amount differed from the property's is gone.
+
 **Charge Level is always the first column** (2026-10-12): **Charge Level · Charge Type · Comment ·
 Frequency · From · To · Amount · Listing Ready** by default. In the property Charges register it is
 first in `chargeColDefs` (Column Setup can still move it); in the shared `chargeRegisterHTML` it sits
