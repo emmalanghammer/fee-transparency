@@ -1464,8 +1464,8 @@ canvas *Confirm Base Rent & Deposit*).
   zero keeps the property out of `ftReadyProps()` (so no green banner or picker entry), makes its Setup
   row **Not Ready** with no Activate (`ftSetupRows`' `ready`, beside `whole`, which is still the charges
   alone), and blocks `pubConfirm`. A missing deposit blocks nothing: an empty deposit box reads *No
-  security deposit charge. Recommended, not required.* in a neutral outline, and the Review overlay's
-  sections carry a red **Required** (Base Rent) and a brand **Recommended** (Security Deposit) lozenge.
+  security deposit charge. Recommended, not required.* in a neutral outline. The Review overlay's
+  sections carry no Required / Recommended lozenges (removed 2026-10-14); its intro line says it.
 - **The activation dialog says nothing about them.** `pubModalHTML` is the sentence, *What this means for
   your listings* and Activate / Cancel. Only when a unit has no Base Rent does it add one red line —
   *"Every unit needs a Base Rent before activating."* — with Activate disabled. `pubConfirm` keeps whatever has been confirmed and writes `g.chosen` (our suggestion)
