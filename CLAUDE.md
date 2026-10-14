@@ -1427,8 +1427,11 @@ figure, else its `est`). `roleState` is `set` when every group is marked, `none`
 - **`roleBoxHTML` is what Listing Details and Edit Floor Plan show after activation**, and **activating
   renames the fields** (2026-10-14): Listing Details' Price and Deposit Fee(s) become **Base Rent** and
   **Security Deposit**, with **Change in Charges**; the floor plan's Price becomes **Base Rent**,
-  `roleBoxHTML(…, { unitType })` over *Listings show a Total Monthly Price of $x – $y for these units*
-  (`roleTotalRange`), with a hidden `#fp-price` keeping the mapping. They pass `bare: true`, since the
+  `roleBoxHTML(…, { unitType })` over a read-only **Total Monthly Price** field, *$x – $y*
+  (`roleTotalRange`; it was a grey line until 2026-10-14), with a hidden `#fp-price` keeping the mapping.
+  The Floor Plans tile's dropdown does the same after activation: **Base Rent** (`roleTotalRange(prop,
+  type, true)`, the rent alone) and **Total Monthly Price** (plus the required monthly fees,
+  `ltMonthlyFees`) in place of *Price*. They pass `bare: true`, since the
   label already names the role: one charge is just its row, several read *n charges* in the header.
   Before activation both are still Price and Deposit Fee(s). (Its multi-charge
   branch had `style=""border…`, a doubled quote, so those boxes lost their border; fixed 2026-10-13.)

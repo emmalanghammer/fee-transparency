@@ -4278,7 +4278,7 @@ class Component extends DCLogic {
     const total = ftOn && !preFT && fp.type ? this.roleTotalRange(prop, fp.type) : '';
     const priceBlock = !ftOn ? fld('Price', dd('fp-price', S.price, fp.price))
       : preFT ? fld('Price', dd('fp-price', S.price, fp.price) + `<div style="margin-top:8px">${this.roleBoxPanelHTML(prop, 'fp', { unitType: fp.type || '' })}</div>`)
-      : fld('Base Rent', `<input type="hidden" id="fp-price" value="${esc(fp.price)}">${this.roleBoxHTML(prop, 'rent', fp.type ? { unitType: fp.type, bare: true } : { bare: true })}${total ? small('', 'Listings show a Total Monthly Price of ' + total + ' for these units.') : ''}`);
+      : fld('Base Rent', `<input type="hidden" id="fp-price" value="${esc(fp.price)}">${this.roleBoxHTML(prop, 'rent', fp.type ? { unitType: fp.type, bare: true } : { bare: true })}`) + (total ? fld('Total Monthly Price', `<span style="font-size:14px;line-height:20px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${total}</span>`) : '');
     const ERR = `<svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-error, #eb343c);flex:none"><path d="M453-433h60v-253h-60v253Zm27 147q14 0 23.5-9.5T513-319q0-14-9.5-23.5T480-352q-14 0-23.5 9.5T447-319q0 14 9.5 23.5T480-286Zm0 206q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z"/></svg>`;
     const card = (head, inner) => `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;background:#fff;display:flex;flex-direction:column;flex:none">
         <div style="display:flex;align-items:center;gap:16px;min-height:44px;box-sizing:border-box;padding:8px 12px;border-bottom:1px solid var(--rmx-line, #cedbe7)">${head}</div>${inner}</div>`;
@@ -4958,10 +4958,11 @@ class Component extends DCLogic {
     </div>`;
   }
   // What an advertised unit of this type totals: its Base Rent plus the required monthly charges.
-  roleTotalRange(prop, unitType){
+  // `rentOnly`: the Base Rent alone, without the required monthly fees (the floor plan's Base Rent row).
+  roleTotalRange(prop, unitType, rentOnly){
     const g = (() => { const gs = this.roleGroups(prop, 'rent'); return gs.filter(x => x.level === 'Unit Type' && x.target === unitType)[0] || gs.filter(x => x.level === 'Property')[0]; })();
     if (!g) return '';
-    const fees = this.ltMonthlyFees(prop);
+    const fees = rentOnly ? 0 : this.ltMonthlyFees(prop);
     const vals = this.units().filter(u => u.type === unitType).map(u => this.chargeAmt(g.chosen, u.u) + fees);
     if (!vals.length) return '';
     const lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
@@ -10855,6 +10856,9 @@ class Component extends DCLogic {
     const FPCELL = 'min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 8px';
     const fpHead = (t) => `<span style="${FPCELL};font:500 12.6px Roboto,sans-serif;letter-spacing:1.134px;color:var(--rmx-brand-dark, #13314c)">${t}</span>`;
     const fpPlans = this.fpList(P.name);
+    // After activation a floor plan's Price is two things (2026-10-14): the Base Rent its units read and
+    // the Total Monthly Price a listing shows — the Base Rent plus the required monthly charges.
+    const fpActive = !!this.state.publishedProps[P.name] && this.ftApplicable(P.name);
     // The row opens the floor plan (`fpOpen`); the chevron and the kebab stop the click so each does
     // only its own thing.
     const fpRow = (f, i) => {
@@ -10867,7 +10871,9 @@ class Component extends DCLogic {
           <span data-act="fpMenu" data-arg="${esc2(f.id)}" title="Floor plan actions" style="display:flex;align-items:center;justify-content:center;height:36px;cursor:pointer;color:var(--ac,var(--rmx-brand, #008dd5))">${this.ico('more_vert', 20)}</span>
         </div>
         <div data-fpbody style="display:${open ? 'block' : 'none'};padding:2px 16px 8px 44px">
-          ${kv('Beds', f.beds || '—')}${kv('Baths', f.baths || '—')}${kv('Square Feet', s.sqft)}${kv('Price', s.rent)}${kv('Available', s.avail + ' of ' + s.units)}${kv('Images', f.images.length)}
+          ${kv('Beds', f.beds || '—')}${kv('Baths', f.baths || '—')}${kv('Square Feet', s.sqft)}${fpActive
+            ? kv('Base Rent', this.roleTotalRange(P.name, f.type, true) || '—') + kv('Total Monthly Price', this.roleTotalRange(P.name, f.type) || '—')
+            : kv('Price', s.rent)}${kv('Available', s.avail + ' of ' + s.units)}${kv('Images', f.images.length)}
         </div>
       </div>`;
     };
