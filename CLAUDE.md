@@ -1442,7 +1442,8 @@ canvas *Confirm Base Rent & Deposit*).
 - **The Review overlay** (`roleReviewHTML`, `state.roleReview = { prop }`, z-index 155) matches Figma
   `3931:167844` / `3931:168155` (section `3944:73163`, 2026-10-13): *Base Rent & Security Deposit:
   `<Property>`*, then on the grey body a grey line — *"Every unit needs one Base Rent and one Security
-  Deposit to list. The property’s applies to every unit unless its unit type or the unit has its own."* —
+  Deposit to list. The property’s applies unless a unit type or unit has its own. You can also set either
+  one when editing a charge."* (UX-copy option A, 2026-10-14) —
   and **one section per role**, Base Rent then Security Deposit. A section's header is the role at
   16/600, a coverage lozenge *n of N units* (green `#e2f1da` when whole, `#feedd2` when not), what's missing
   in navy (*"Studio units missing security deposit"*: a whole unit type by name, stragglers as *Unit 1A*)
