@@ -1536,12 +1536,27 @@ dropdown is `refSources()`: the sources Tenant Charge Setup offered (**Unit Type
 Unit Recurring Charge, Unit Market Rent, Asset Market Rent**), plus **Unit Default Security Deposit**
 (2026-10-14), then a few UDFs. Until someone picks one, the Reference dropdown follows the charge type
 (`refDefault`, `data-auto` on `#m-ref`, moved by `__attrCheck`): a security deposit charge type
-(`depTypesFor`) opens on Unit Default Security Deposit, anything else on Unit Market Rent. It has no
-figure in the prototype, so it prices at the charge's `est` or nothing, like the other sources. RC now reads *Unit
-Market Rent* and COVPARK, an ORI charge, *Asset Market Rent*. Only `/unit market rent/i` prices from
-the unit's rent, in the pricers and in `chargeTotals`' *+ Market Rent*, so an asset's market rent is
-never read as the unit's. The other sources have no figure in the prototype and price at their `est`
-or nothing.
+(`depTypesFor`) opens on Unit Default Security Deposit, anything else on Unit Market Rent. RC now reads
+*Unit Market Rent* and COVPARK, an ORI charge, *Asset Market Rent*.
+
+**Every pricer reads a reference for the unit it's pricing** (2026-10-14): `chargeAmt(r, unit)` is the
+charge's figure, else `refAmount(r, unit)`, else its `est`, else 0 — so a reference now wins over an
+`est` (RC's `est:1350` no longer shows; it prices at the unit's market rent). `refAmount` reads **Unit
+Market Rent** (the unit's rent), **Unit Default Security Deposit** (`unitDeposit`: Studio $500, 1BR/1BA
+$600, 2BR/2BA $750, 3BR/2BA $900), **Unit Type Recurring Charge** / **Unit Recurring Charge** (the flat
+figure on a recurring charge of the same type written at the unit's type / at the unit), and returns
+null for the rest (Asset Market Rent, UDFs), which price at `est` or nothing. On the property, with no
+unit, `chargeTotals` still names *+ Market Rent*.
+
+**The most specific charge of a charge type wins** (2026-10-14, the user's rule). Of the charges of one
+type that reach a unit, only the most specific level applies — the unit's own over its unit type's, the
+unit type's over the property's; recurring and one-time are judged apart, and ORI and tenant charges
+are untouched (`mostSpecific(rows)`, `chargeRank`). The Berkshires: unit 1A reads both property RCs
+(Unit Market Rent and the $150 premium) and the property DP; 2A reads only its unit type's $1,600 RC;
+4C its unit type's $2,050 RC and $750 DP. It is read by `unitRecurring` / `unitOneTime` (the unit page's
+Charges tile and overlay, Move In), the unit type scope of `chargeScope`, `rqRows` (rent quotes), and
+the Pricing Preview, which also now offers only charges that reach the previewed unit
+(`chargeReachesUnit`, exceptions included) where it used to list every charge on the property.
 
 **DOGFEE (Dog Rent; it was PETFEE / Pet Rent until 2026-10-14) came over as Pet Type Recurring Amount, so it names its pet type**: `attrs:{ petType:'Dog',
 petKind:'rec' }`, $25.00, out of `propCharges`' drift. Opening it, `__petApply` locks Amount and

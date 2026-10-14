@@ -2324,6 +2324,45 @@ class Component extends DCLogic {
   }
   statusLoz(s, c){ const m = { green:'background:var(--rmx-success-bg, #e2f1da);color:var(--rmx-success, #6eb744)', amber:'background:#fdeedd;color:var(--rmx-attention, #f58220)', gray:'background:var(--rmx-bg-muted, #f2f2f2);color:var(--rmx-text, #666666)' }; return `<span class="loz" style="${m[c]};text-transform:none;letter-spacing:0">${s}</span>`; }
   propertyTypes(){ return ['Single Family','Multi Family','Manufactured Housing','Commercial','Storage','Apartment','Duplex','Association','RV / Campground','Short Term Rental']; }
+  // Charge level precedence (2026-10-14, the user's rule): of the charges of one charge type that reach
+  // a unit, only the most specific level applies — the unit's own over its unit type's, the unit
+  // type's over the property's. Recurring and one-time are judged apart; ORI and tenant charges are
+  // left as they are. Every pricer reads it: rent quotes, the Pricing Preview, a unit's or unit type's
+  // Charges and Move In.
+  chargeRank(r){ const l = String(r.level || 'Property'); return l === 'Property' ? 0 : /^unit type$/i.test(l) ? 1 : l === 'Unit' ? 2 : null; }
+  mostSpecific(rows){
+    const key = r => r.mits + (/-one$/.test(r.group || '') ? '|one' : '|rec');
+    const best = {};
+    rows.forEach(r => { const k = this.chargeRank(r); if (k != null && (best[key(r)] == null || k > best[key(r)])) best[key(r)] = k; });
+    return rows.filter(r => { const k = this.chargeRank(r); return k == null || k === best[key(r)]; });
+  }
+  // Whether a charge reaches one unit: the property's (less its exceptions), the unit's type's, the unit's.
+  chargeReachesUnit(r, unitNo){
+    const info = this.unitInfo(unitNo) || {}, lvl = String(r.level || 'Property');
+    if (lvl === 'Property') { const ex = this.exclOf(r);
+      return !ex.prop && (ex.units || []).indexOf(unitNo) < 0 && (ex.types || []).indexOf(info.type) < 0; }
+    if (/^unit type$/i.test(lvl)) return !r.target || r.target === info.type;
+    if (lvl === 'Unit') return r.target === unitNo;
+    return false;
+  }
+  // A Reference amount, read for one unit: its market rent, its default security deposit, or the figure
+  // on the same charge type written at its unit type or at the unit. Null where there's nothing to read.
+  unitDeposit(unitNo){ const t = (this.unitInfo(unitNo) || {}).type;
+    return ({ 'Studio': 500, '1BR/1BA': 600, '2BR/2BA': 750, '3BR/2BA': 900 })[t] || 600; }
+  refAmount(r, unitNo){
+    const a = String(r.amount || ''), u = unitNo ? this.unitInfo(unitNo) : null; if (!u) return null;
+    if (/unit market rent/i.test(a)) return this.parseAmt(u.rent);
+    if (/unit default security deposit/i.test(a)) return this.unitDeposit(u.u);
+    const ut = /unit type recurring charge/i.test(a), un = /unit recurring charge/i.test(a);
+    if (!ut && !un) return null;
+    const hit = this.appliedRows(r._prop || this.state.property).find(x => x.id !== r.id && x.mits === r.mits && !/-one$/.test(x.group || '')
+      && this.parseAmt(x.amount) && (ut ? /^unit type$/i.test(String(x.level || '')) && x.target === u.type : String(x.level || '') === 'Unit' && x.target === u.u));
+    return hit ? this.parseAmt(hit.amount) : null;
+  }
+  // What a charge costs one unit: its figure, else its reference read for that unit, else its estimate.
+  chargeAmt(r, unitNo){ const n = this.parseAmt(r.amount); if (n) return n;
+    const ref = this.refAmount(r, unitNo); if (ref != null) return ref;
+    return r.est != null ? +r.est : 0; }
   parseAmt(v){ if(!v) return 0; const m=(''+v).replace(/[, ]/g,'').match(/\$?(\d+(?:\.\d+)?)/); return m?parseFloat(m[1]):0; }
   // Frequency is the multiplier, not the period — "Every Month" is every 1 month. The period itself
   // lives in Charge Schedule, so the column shows the number on its own.
@@ -4914,7 +4953,7 @@ class Component extends DCLogic {
     const g = (() => { const gs = this.roleGroups(prop, 'rent'); return gs.filter(x => x.level === 'Unit Type' && x.target === unitType)[0] || gs.filter(x => x.level === 'Property')[0]; })();
     if (!g) return '';
     const fees = this.ltMonthlyFees(prop);
-    const vals = this.units().filter(u => u.type === unitType).map(u => (/unit market rent/i.test(String(g.chosen.amount || '')) ? this.parseAmt(u.rent) : this.roleAmt(g.chosen)) + fees);
+    const vals = this.units().filter(u => u.type === unitType).map(u => this.chargeAmt(g.chosen, u.u) + fees);
     if (!vals.length) return '';
     const lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
     return lo === hi ? this.money(lo) : this.money(lo) + ' – ' + this.money(hi);
@@ -5428,8 +5467,8 @@ class Component extends DCLogic {
       || groups.filter(x => x.level === 'Unit Type' && types.indexOf(x.target) >= 0)[0]
       || groups.filter(x => x.level === 'Property')[0];
     if (!g || !g.chosen) return null;
-    const r = g.chosen, n = this.parseAmt(r.amount);
-    return n || (r.est != null ? +r.est : null);
+    const r = g.chosen, n = this.chargeAmt(r, ui && ui.u);
+    return n || null;
   }
   ltUnitType(l){
     if (!l.beds) return 'Studio';
@@ -7047,18 +7086,14 @@ class Component extends DCLogic {
       const o = (q.oris || [])[f.ori] || {};
       if (!o.ctype) return [];
       const unit = q.unit ? this.unitInfo(q.unit) : null;
-      const amountOf = (r) => { const a = this.parseAmt(r.amount); if (a) return a;
-        if (r.est != null) return r.est;
-        return /unit market rent/i.test(r.amount || '') ? this.parseAmt(unit ? unit.rent : '') : 0; };
+      const amountOf = (r) => unit ? this.chargeAmt(r, q.unit) : (this.parseAmt(r.amount) || (r.est != null ? r.est : 0));
       return this.appliedRows(o.prop || q.prop)
         .filter(r => r.level === 'ORI' && r.mits === o.ctype)
         .map(r => ({ id:'o' + r.id, source:'Property', note:r.mits, amount:amountOf(r) }));
     }
     const unit = q.unit ? this.unitInfo(q.unit) : null;
     const rows = this.appliedRows(q.prop).filter(r => !/-one$/.test(r.group));
-    const amountOf = (r) => { const a = this.parseAmt(r.amount); if (a) return a;
-      if (r.est != null) return r.est;
-      return /unit market rent/i.test(r.amount || '') ? this.parseAmt(unit ? unit.rent : '') : 0; };
+    const amountOf = (r) => unit ? this.chargeAmt(r, q.unit) : (this.parseAmt(r.amount) || (r.est != null ? r.est : 0));
     const out = [];
     const rent = rows.filter(r => r.mits === 'RC' && (r.level || 'Property') === 'Property')[0];
     out.push({ id:'prop', source:'Property', note: rent ? rent.mits : 'Market Rent',
@@ -7219,9 +7254,7 @@ class Component extends DCLogic {
   rqRows(){
     const q = this.state.rq || {};
     const unit = q.unit ? this.unitInfo(q.unit) : null;
-    const base = (r) => { const a = this.parseAmt(r.amount); if (a) return a;
-      if (r.est != null) return r.est;
-      return /unit market rent/i.test(r.amount || '') ? this.parseAmt(unit ? unit.rent : '') : 0; };
+    const base = (r) => unit ? this.chargeAmt(r, q.unit) : (this.parseAmt(r.amount) || (r.est != null ? r.est : 0));
     // The rent on the quote is the one typed in step one; everything else prices off the charge.
     const amount = (r) => (r.mits === 'RC' && this.rqAmt(q.rent)) ? this.rqAmt(q.rent) : base(r);
     // A charge only reaches this quote if its level points at the unit being quoted. ORI charges are
@@ -7245,7 +7278,7 @@ class Component extends DCLogic {
     const required = (r) => this.resolvedListing(r).requirement === 'Required';
     // A pet charge is taken once per pet, as in the Pricing Preview: it carries the most pets the
     // pet type allows and, where the pet type sets one, the most the resident pays however many.
-    const rows = this.appliedRows(q.prop).filter(applies)
+    const rows = this.mostSpecific(this.appliedRows(q.prop).filter(applies))
       .map(r => ({ id:'c' + r.id, level:r.level || 'Property', type:r.mits, comment:r.desc || '',
         amount:amount(r), one:/-one$/.test(r.group),
         def:r.group.indexOf('req') === 0, lock:required(r) ? 'grey' : null,
@@ -7469,7 +7502,7 @@ class Component extends DCLogic {
     const info = unit ? this.unitInfo(unit) : null;
     const names = {}; this.chargeTypeListAll().forEach(t => { names[t[0]] = t[1]; });
     const ctLabel = (c) => c + (names[c] ? ' - ' + names[c] : '');
-    const amtOf = (f) => /market rent/i.test(String(f.amount || '')) ? this.parseAmt(info && info.rent) : this.parseAmt(f.amount);
+    const amtOf = (f) => f.level === 'Tenant' ? this.parseAmt(f.amount) : this.chargeAmt(f, info && info.u);
     const dec = (n) => n.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
     const short = (d) => { const m = String(d || '').match(/^(\d\d)\/(\d\d)\/\d\d(\d\d)$/); return m ? `${m[1]}/${m[2]}/${m[3]}` : (d || ''); };
     const ink = 'var(--rmx-brand-dark, #13314c)';
@@ -7843,16 +7876,17 @@ class Component extends DCLogic {
     // listings. Everywhere else nothing publishes at all, so it shows every charge — the point is to
     // see what a listing would look like, not what is being filtered out.
     const ilsProp = this.ilsOn(p.prop);
-    const rows = ilsProp ? this.appliedRows().filter(r => r.ils) : this.appliedRows();
-    const money = n => '$' + n.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
     const unit = this.unitInfo(p.unit);
+    // Only what reaches the unit being previewed, and of each charge type only the most specific level.
+    const rows = this.mostSpecific((ilsProp ? this.appliedRows().filter(r => r.ils) : this.appliedRows())
+      .filter(r => String(r.level || 'Property') === 'ORI' || this.chargeReachesUnit(r, unit.u)));
+    const money = n => '$' + n.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
     // Rent moves with the lease term: a short term costs more, a long one less. Only the rent charge
     // is offset, and the totals follow because everything prices through amtOf.
     const term = p.term || '12 Months';
     const termAdj = this.leaseTermOffsets()[term] || 0;
     const isRent = r => r.mits === 'RC';
-    const amtOf = r => { const base = (() => { const a = this.parseAmt(r.amount); if (a) return a; if (r.est != null) return r.est;
-        return /unit market rent/i.test(r.amount||'') ? this.parseAmt(unit.rent) : 0; })();
+    const amtOf = r => { const base = this.chargeAmt(r, unit.u);
       return isRent(r) ? Math.max(0, base + termAdj) : base; };
     // Charges with no requirement chosen yet ('ind') sit with the required ones, so a freshly
     // converted property still previews a price instead of an empty breakdown.
@@ -8078,7 +8112,7 @@ class Component extends DCLogic {
   unitRecurring(u){
     const unitNo = u || this.state.unit;
     const info = this.unitInfo(unitNo) || {};
-    return this.propertyCharges()
+    return this.mostSpecific(this.propertyCharges()
       .filter(f => !f.excluded && !/-one$/.test(f.group))
       .filter(f => {
         const lvl = String(f.level || 'Property');
@@ -8086,14 +8120,14 @@ class Component extends DCLogic {
         if (/^unit type$/i.test(lvl)) return !f.target || f.target === info.type;
         if (lvl === 'Unit') return f.target === unitNo;
         return false;
-      });
+      }));
   }
   // The one-time charges that reach one unit, by the same level rule as `unitRecurring`. NSF and
   // late fees are situational — they land only when something happens — so they are not counted here.
   unitOneTime(u){
     const unitNo = u || this.state.unit;
     const info = this.unitInfo(unitNo) || {};
-    return this.propertyCharges()
+    return this.mostSpecific(this.propertyCharges()
       .filter(f => !f.excluded && /-one$/.test(f.group) && !/^sit-/.test(f.group))
       .filter(f => {
         const lvl = String(f.level || 'Property');
@@ -8101,7 +8135,7 @@ class Component extends DCLogic {
         if (/^unit type$/i.test(lvl)) return !f.target || f.target === info.type;
         if (lvl === 'Unit') return f.target === unitNo;
         return false;
-      });
+      }));
   }
   // The charges that reach this scope, split recurring / one-time. A unit reads its own reach
   // (`unitRecurring` / `unitOneTime`); the property reads every charge it carries, at every level.
@@ -8111,10 +8145,10 @@ class Component extends DCLogic {
     // A unit type reads the property's charges that reach it and the ones written for it.
     if (scope === 'unittype') {
       const ut = this.state.unitType || 'Studio';
-      const all = this.propertyCharges().filter(f => !f.excluded && !f.propSpecific && !/^sit-/.test(f.group || ''))
+      const all = this.mostSpecific(this.propertyCharges().filter(f => !f.excluded && !f.propSpecific && !/^sit-/.test(f.group || ''))
         .filter(f => { const lvl = String(f.level || 'Property');
           if (lvl === 'Property') return (this.exclOf(f).types || []).indexOf(ut) < 0;
-          return /^unit type$/i.test(lvl) && (!f.target || f.target === ut); });
+          return /^unit type$/i.test(lvl) && (!f.target || f.target === ut); }));
       return { rec: all.filter(f => !/-one$/.test(f.group)), one: all.filter(f => /-one$/.test(f.group)) };
     }
     const all = this.propertyCharges().filter(f => !f.excluded && !f.propSpecific && !/^sit-/.test(f.group || ''));
@@ -8127,7 +8161,8 @@ class Component extends DCLogic {
     const sum = (list) => {
       let n = 0, mr = false;
       const utRent = scope === 'unittype' ? this.parseAmt(((this.units().find(u => u.type === (this.state.unitType || 'Studio')) || {}).rent)) : 0;
-      list.forEach(f => { if (/unit market rent/i.test(String(f.amount || ''))) { if (scope === 'unit') n += this.parseAmt(info.rent); else if (scope === 'unittype') n += utRent; else mr = true; } else n += this.parseAmt(f.amount); });
+      list.forEach(f => { if (scope === 'unit' && f.level !== 'Tenant') { n += this.chargeAmt(f, info.u); return; }
+        if (/unit market rent/i.test(String(f.amount || ''))) { if (scope === 'unittype') n += utRent; else mr = true; } else n += this.parseAmt(f.amount); });
       return this.money(n) + (mr ? ' + Market Rent' : '');
     };
     const part = (n, label, total) => `<span style="display:inline-flex;align-items:baseline;gap:8px;white-space:nowrap"><span style="font-weight:600">${n} ${label}${n === 1 ? '' : 's'}</span><span>${total}</span></span>`;
