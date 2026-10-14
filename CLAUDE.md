@@ -1475,14 +1475,15 @@ canvas *Confirm Base Rent & Deposit*).
   marks the group `listing.roleDeclined = kind`, and `roleGroups(prop, kind, { all: true })` is the only call
   that still returns declined groups. **When each surface commits:** the overlay on Save; Edit Floor Plan
   inside `fpSave`; Listing Details the moment the check or a pick lands. A scenario switch resets drafts.
-- **Listing Details and Edit Floor Plan carry a simplified version** (`roleBoxPanelHTML`, made simpler
-  and explanatory at the user's request on 2026-10-13): a bordered box, *Base Rent & Security Deposit*
-  over the why — *"Listings start the Total Monthly Price from the Base Rent and show the Security Deposit
-  separately. Confirm the suggested charges before activating."* in grey — then one read-only line per
-  role: the role in SemiBold with a brand *Suggested* lozenge until it's answered, over *CODE – Description,
-  amount* (or *No rent / deposit charge*). No tags, no ✓ / ✕ / Change on the box; one outlined **Review**
-  button opens the overlay, where the answers are given. Listing Details puts it above Price; Edit Floor
-  Plan under the Price dropdown, naming that unit type's own charge, else the property's.
+- **Listing Details and Edit Floor Plan carry `roleBoxPanelHTML` before activation**, and it never shows
+  the suggestions (2026-10-14, the user's call). Unconfirmed (`roleSetupState` `sugg`): an amber RMX
+  Callout, *Confirm Base Rent & Security Deposit* over *"Choose which charges are the Base Rent and
+  Security Deposit before activating fee transparency."* with **Confirm charges** (`roleReviewOpen`). No
+  rent or deposit charge (`none`): a red one, *"Add a rent and a security deposit charge before
+  activating fee transparency."* with **View Charges**. Confirmed (`done`): it reads as after activation —
+  **Base Rent** and **Security Deposit** labels over the collapsed `roleBoxHTML(…, { bare: true })` tables,
+  then a **Review** link. Listing Details puts it above Price; Edit Floor Plan under the Price dropdown,
+  scoped to that unit type (its own charge, else the property's).
 - **The Berkshires is the several-charges example** (`propCharges` adds ids 30–33): a second property RC
   (*Short-term premium*, $150), its own RC on 2BR/2BA ($1,600) and 3BR/2BA ($2,050), and its own DP on
   3BR/2BA ($750). So its counts read four charges more than before; Riverview's baselines are unchanged.

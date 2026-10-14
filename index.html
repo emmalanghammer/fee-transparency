@@ -4661,33 +4661,30 @@ class Component extends DCLogic {
   // user's request): what the two roles are for, then one line each naming the charge that fills it —
   // *Suggested* until someone confirms it — and a single **Review** into the overlay, where the answers
   // are given. `o.unitType` makes it a floor plan's: that unit type's own charge, else the property's.
+  // Before activation (2026-10-14): the suggestions aren't shown. Until both roles are confirmed it is
+  // an amber Callout saying they must be, with **Confirm charges** into the Review overlay; with no
+  // rent or deposit charge at all, a red one with **View Charges**. Once confirmed it reads as it will
+  // after activation: Base Rent and Security Deposit as fields over the collapsed `roleBoxHTML`
+  // tables, with **Review** to change them.
   roleBoxPanelHTML(prop, surface, o){
     o = o || {};
     const INK = 'color:var(--rmx-brand-dark, #13314c)';
-    const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;');
-    const line = (kind) => {
-      const gs = this.roleGroups(prop, kind, { all: true });
-      const pg = gs.filter(g => g.level === 'Property')[0];
-      const ug = o.unitType != null ? gs.filter(g => g.level === 'Unit Type' && g.target === o.unitType)[0] : null;
-      const g = ug || pg;
-      const a = g ? this.roleAnswer(surface, kind, g) : null;
-      const r = g && a && a.id ? (g.rows || []).filter(x => String(x.id) === String(a.id))[0] : null;
-      const shown = r || (g && !(a && a.declined) ? (g.suggested || g.chosen) : null);
-      const what = shown ? esc(this.roleChargeLabel(shown) + ', ' + this.roleAmtLabel(shown))
-        : `<span style="font-style:italic;color:var(--rmx-text, #666666)">No ${kind === 'rent' ? 'rent' : 'deposit'} charge</span>`;
-      const sugg = shown && !a ? `<span style="display:inline-flex;align-items:center;height:20px;padding:0 6px;border-radius:4px;background:var(--rmx-brand-tint-bg, #ebf1f5);font:400 12px/16px Roboto,sans-serif;color:var(--rmx-brand-hover, #0071aa);white-space:nowrap">Suggested</span>` : '';
-      return `<div style="display:flex;flex-direction:column;gap:2px;min-width:0">
-        <span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px;line-height:20px;font-weight:600;${INK}">${this.leaseRoleLabel(kind)}${sugg}</span>
-        <span style="font-size:14px;line-height:20px;${INK};overflow-wrap:anywhere">${what}</span></div>`;
-    };
-    return `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;background:#fff;padding:12px;display:flex;flex-direction:column;gap:12px">
-      <div style="display:flex;flex-direction:column;gap:4px">
-        <strong style="font-size:14px;line-height:20px;font-weight:600;${INK}">Base Rent &amp; Security Deposit</strong>
-        <span style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">Listings start the Total Monthly Price from the Base Rent and show the Security Deposit separately. Confirm the suggested charges before activating.</span>
-      </div>
-      ${line('rent')}${line('deposit')}
-      <button type="button" data-act="roleReviewOpen" data-arg="${String(prop).replace(/"/g, '&quot;')}" class="btn-out" style="align-self:flex-start;height:32px;min-height:32px;padding:0 16px;border-radius:4px;font-size:14px">Review</button>
-    </div>`;
+    const P = String(prop).replace(/"/g, '&quot;');
+    const LINK = 'font-size:14px;line-height:20px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap';
+    const st = this.roleSetupState(prop);
+    const callout = (icon, color, title, txt, act, label) => `<div style="display:flex;align-items:flex-start;gap:8px;padding:12px;border:1px solid ${color};border-radius:4px;background:#fff;${INK}">
+      ${this.ico(icon, 20, `color:${color};flex:none`)}
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;font-size:14px;line-height:20px">
+        <strong style="font-weight:600">${title}</strong><span>${txt}</span>
+        <a data-act="${act}" data-arg="${P}" style="align-self:flex-start;${LINK}">${label}</a></div></div>`;
+    if (st === 'none') return callout('error', 'var(--rmx-error, #eb343c)', 'Base Rent &amp; Security Deposit', 'Add a rent and a security deposit charge before activating fee transparency.', 'openFeeProfile', 'View Charges');
+    if (st !== 'done') return callout('warning', 'var(--rmx-notice, #faa61c)', 'Confirm Base Rent &amp; Security Deposit', 'Choose which charges are the Base Rent and Security Deposit before activating fee transparency.', 'roleReviewOpen', 'Confirm charges');
+    const lab = (t) => `<span style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">${t}</span>`;
+    const ut = o.unitType ? { unitType: o.unitType, bare: true } : { bare: true };
+    return `<div style="display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;flex-direction:column;gap:4px">${lab('Base Rent')}${this.roleBoxHTML(prop, 'rent', ut)}</div>
+      <div style="display:flex;flex-direction:column;gap:4px">${lab('Security Deposit')}${this.roleBoxHTML(prop, 'deposit', ut)}</div>
+      <a data-act="roleReviewOpen" data-arg="${P}" style="align-self:flex-start;${LINK}">Review</a></div>`;
   }
   // Charges added in the overlay, drawn in their own role's section until Save writes them.
   roleNewRowsHTML(kind, prop){
