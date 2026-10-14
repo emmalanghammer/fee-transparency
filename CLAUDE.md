@@ -189,6 +189,11 @@ charge's draft and collapses. `mktPricingSave` is `mpCapture()` + `mpCommit()` w
 the overlay's own Save. Because a charge lands in state the moment it is saved, its Listing Ready
 badge, the banner above and the strip's Convert button all move while the overlay is still open.
 
+**Text buttons never underline** (2026-10-14, the user's rule). Links and text buttons say they're
+clickable by colour alone: `a:hover` and the design system's `.rmx a:hover` (which underlines, and lives in
+`ds/`, so it is overridden in `index.html`'s head) only darken to `--rmx-brand-hover`; breadcrumbs do the
+same; and no inline `onmouseover` sets `textDecoration` any more.
+
 **A lozenge's text is always Roboto Regular.** RMX's own `.loz` is `font-weight:400`, so every
 hand-rolled one matches it — the Charge Marketing section's *Required*,
 *N listings off the feed* and the *Coming from* tier chip, the Fee Transparency Setup overlay's
