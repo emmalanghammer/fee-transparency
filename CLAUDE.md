@@ -701,7 +701,7 @@ existing charge never re-applies them.
 changed *and* charges of that type already exist, it holds them in `state.mktDefDraft` and raises
 `mktDefAskHTML()` — the **Apply Defaults** dialog, Figma `3595:57352`, titled **Update Default Charge
 Marketing** with **Update Charges** / Cancel since 2026-10-14 (the user's copy; both dialogs): a 417px overlay at
-`z-index:165` (above Charge Type Details' 160), *How would you like to apply these changes?* and
+`z-index:165` (above Charge Type Details' 160), *What would you like to apply these changes to?* and
 the RMX Radio Selectors over an Update Charges / Cancel footer. It no longer says how many charges use the
 changed types — the user removed that line on 2026-09-30, from the property's dialog too. `mktDefApply` is what commits
 `state.mktDef`, not `ctSave` — otherwise `mktDefChanged` would be diffing against the values it
