@@ -5606,8 +5606,9 @@ class Component extends DCLogic {
   // ---------- Tenant Charge Setup, as it stood before rollout ----------
   // Where a Reference amount can come from — the charge form's Amount dropdown. The same sources
   // Tenant Charge Setup offered, plus the UDFs a charge can read a figure from.
+  refDefault(code){ return this.depTypesFor(this.state.property).indexOf(String(code || '').toUpperCase()) >= 0 ? 'Unit Default Security Deposit' : 'Unit Market Rent'; }
   refSources(){
-    return ['Unit Type Recurring Charge','Unit Recurring Charge','Unit Market Rent','Asset Market Rent',
+    return ['Unit Type Recurring Charge','Unit Recurring Charge','Unit Market Rent','Unit Default Security Deposit','Asset Market Rent',
       'Unit UDF: Parking Spot #','Unit UDF: Storage Fee','Property UDF: Amenity Fee'];
   }
   // What System Preferences set up, as [charge type, charge source] pairs.
@@ -9338,6 +9339,9 @@ class Component extends DCLogic {
     // Storage / Parking categories reveal their optional attribute sections.
     window.__attrCheck = () => {
       const cc = ((this.q('#m-cat') || {}).value) || '';
+      const rh = this.q('#m-ref');
+      if (rh && rh.getAttribute('data-auto') && window.__ddSet) { const d = this.refDefault(((this.q('#m-ctype') || {}).value) || '');
+        if (rh.value !== d) { window.__ddSet('m-ref', d, d); rh.setAttribute('data-auto', '1'); } }
       const sw = this.q('#m-stor-wrap'), pw = this.q('#m-park-wrap'), tw = this.q('#m-pet-wrap');
       const lw = this.q('#m-lease-wrap');
       if (lw) lw.style.display = (cc === 'Lease') ? 'flex' : 'none';
@@ -9528,13 +9532,16 @@ class Component extends DCLogic {
       const method = (this.q('#m-source') || {}).value;
       n.style.display = (method === 'Calculation' && on) ? 'block' : 'none';
     };
+    // Until someone picks a reference, it follows the charge type: a security deposit charge type opens
+    // on Unit Default Security Deposit, anything else on Unit Market Rent (2026-10-14).
+    setTimeout(() => { const h = this.q('#m-ref'); if (h && !(ed && src === 'Reference' && ed.amount)) h.setAttribute('data-auto', '1'); }, 0);
     const methodJs = "var t={'Flat':'flat','Reference':'ref','Calculation':'calc'}[_v];document.getElementById('m-source').value=_v;['flat','ref','calc'].forEach(function(k){document.getElementById('m-blk-'+k).style.display=(k===t?'flex':'none')});if(window.__calcNote)window.__calcNote();if(window.__amtNote)window.__amtNote()";
     // The amount pair rides the date row, so General Details is three rows rather than four.
     const amountFields = `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Amount Method')}${dd('m-method',['Flat','Calculation','Reference'],src,{noSearch:true,js:methodJs})}</div>
       <div style="flex:1;min-width:0">
         <input type="hidden" id="m-source" value="${src}">
         <div id="m-blk-flat" style="display:${src==='Flat'?'flex':'none'};flex-direction:column;gap:4px">${lab('Amount')}${iconInput('m-amount',amtFlat,'00.00','')}</div>
-        <div id="m-blk-ref" style="display:${src==='Reference'?'flex':'none'};flex-direction:column;gap:4px">${lab('Amount')}${dd('m-ref',this.refSources(),(ed && src==='Reference' && ed.amount) || 'Unit Market Rent',{noSearch:true})}</div>
+        <div id="m-blk-ref" style="display:${src==='Reference'?'flex':'none'};flex-direction:column;gap:4px">${lab('Amount')}${dd('m-ref',this.refSources(),(ed && src==='Reference' && ed.amount) || this.refDefault((ed && ed.mits) || ''),{noSearch:true,js:"document.getElementById('m-ref').removeAttribute('data-auto')"})}</div>
         <div id="m-blk-calc" style="display:${src==='Calculation'?'flex':'none'};flex-direction:column;gap:4px">${lab('Amount')}${iconInput('m-calc','','','edit')}</div>
       </div>`;
     // A charge of nothing, or less than nothing, has no price for a listing site to advertise, so it

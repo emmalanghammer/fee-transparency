@@ -1515,7 +1515,11 @@ Every Test Feature State is at or after rollout, so this is the only face the pa
 **A Reference amount names its source** (2026-10-07). The charge form's Amount Method reads
 **Flat · Calculation · Reference**, in that order, as does Bulk Update's. On Reference, the Amount
 dropdown is `refSources()`: the sources Tenant Charge Setup offered (**Unit Type Recurring Charge,
-Unit Recurring Charge, Unit Market Rent, Asset Market Rent**), then a few UDFs. RC now reads *Unit
+Unit Recurring Charge, Unit Market Rent, Asset Market Rent**), plus **Unit Default Security Deposit**
+(2026-10-14), then a few UDFs. Until someone picks one, the Reference dropdown follows the charge type
+(`refDefault`, `data-auto` on `#m-ref`, moved by `__attrCheck`): a security deposit charge type
+(`depTypesFor`) opens on Unit Default Security Deposit, anything else on Unit Market Rent. It has no
+figure in the prototype, so it prices at the charge's `est` or nothing, like the other sources. RC now reads *Unit
 Market Rent* and COVPARK, an ORI charge, *Asset Market Rent*. Only `/unit market rent/i` prices from
 the unit's rent, in the pricers and in `chargeTotals`' *+ Market Rent*, so an asset's market rent is
 never read as the unit's. The other sources have no figure in the prototype and price at their `est`
