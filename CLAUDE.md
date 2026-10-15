@@ -405,7 +405,12 @@ together are one status, Missing Information, so they no longer count as `+1`; t
 always the one named. The overlay behind it is
 the same three sections in the same order, so the lozenge and what opens under it cannot disagree.
 `ltIssues` still returns `rm`, `prov` and `charges(ltChargeIssues(prop), only when `ftApplicable`);
-`ltChargeIssues` takes a **property**, not a listing.
+`ltChargeIssues(prop, l)` takes a property and, for a listing, the listing: **a listing is Not Sent only when a
+charge that applies to its unit is short** (2026-10-15, `ltChargeHits`): the property's charges less their
+exceptions and less any replaced by a more specific charge of the same type (`mostSpecific`), its unit
+type's (`ltTypeOf`: the unit's own type, else its bed/bath), its unit's, and rentable items'. A short unit
+type charge holds back that type's units alone. The charge form's *n Listings Not Sent* count follows
+the same reach (`affectedUnits`). Without a listing it is every short charge on the property.
 
 **`ltErrHTML` matches Figma `3642:6750`.** A 714px dialog, a 48px header reading
 *Errors: `<property>` · `<unit>`*, then the three sections 8px apart, then an **OK** footer.

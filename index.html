@@ -5387,8 +5387,28 @@ class Component extends DCLogic {
   // The charges on this listing's property that can't be advertised yet, each naming the fields it
   // is still short. Not a feed error — it is why there is no complete price to feed — but it is the
   // first thing anyone opening the badge needs to see.
-  ltChargeIssues(prop){
-    return this.appliedRows(prop)
+  // A listing's unit type, as the charges name it: the unit's own where Rent Manager knows the unit,
+  // else read off the listing's bed/bath (*3B/2.5BA* → *3BR/2.5BA*).
+  ltTypeOf(l){ const u = this.units().find(x => x.u === l.unit); return u ? u.type : this.ltUnitType(l).replace(/B\//, 'BR/'); }
+  // Whether a charge applies to one listing: the property's (less its exceptions) unless a more specific
+  // charge of the same type replaces it there, its unit type's, its unit's, or a rentable item's.
+  ltChargeHits(l){
+    const type = this.ltTypeOf(l);
+    const reach = this.appliedRows(l.prop).filter(r => {
+      const lvl = String(r.level || 'Property');
+      if (lvl === 'Property') { const ex = this.exclOf(r);
+        return !ex.prop && (ex.units || []).indexOf(l.unit) < 0 && (ex.types || []).indexOf(type) < 0; }
+      if (/^unit type$/i.test(lvl)) return !r.target || r.target === type;
+      if (lvl === 'Unit') return r.target === l.unit;
+      return true;
+    });
+    return this.mostSpecific(reach);
+  }
+  // `l`, a listing: only the short charges that apply to that unit (2026-10-15) — a listing is Not Sent
+  // only when a charge it would carry is missing charge marketing, not for any short charge on the
+  // property. Without one, every short charge on the property.
+  ltChargeIssues(prop, l){
+    return (l ? this.ltChargeHits(l) : this.appliedRows(prop))
       .filter(r => r.ils && !this.mitsComplete(r))
       .map(r => ({
         name: `${r.mits ? r.mits + ' ' : ''}${r.desc || (r.listing && r.listing.name) || r.name || ''}`.trim(),
@@ -5411,7 +5431,7 @@ class Component extends DCLogic {
     // deposit alone, so a charge short of marketing details isn't an error on any listing — the only
     // states are Sent to Provider and Missing Information. The Listing Ready Charges column still
     // says how far along the charges are.
-    const ch = (this.ftApplicable(l.prop) && this.state.publishedProps[l.prop]) ? this.ltChargeIssues(l.prop) : [];
+    const ch = (this.ftApplicable(l.prop) && this.state.publishedProps[l.prop]) ? this.ltChargeIssues(l.prop, l) : [];
     const feed = e.rm.length + e.tz.length;
     // One tone, not two. A listing whose charges are short advertises the wrong price, which is an
     // error of the same weight as a rejected feed — and the Listing Ready Charges dot beside it is
@@ -10213,11 +10233,18 @@ class Component extends DCLogic {
     // State 4 names the listings that are actually held back. A charge written at unit level only
     // affects its own unit; anything wider affects everything the property advertises.
     const propUnits = this.listingsData().filter(l => l.prop === this.state.property).map(l => l.unit || l.prop);
+    // The listings this charge holds back: a unit charge its unit, a unit type charge that type's units,
+    // anything else every listing on the property (2026-10-15).
     const affectedUnits = () => {
-      if ((((this.q('#m-app') || {}).value) || 'Property') === 'Unit') {
+      const lvl = (((this.q('#m-app') || {}).value) || 'Property');
+      if (lvl === 'Unit') {
         const t = String(((this.q('#m-appt-unit') || {}).value) || '');
         const hit = propUnits.filter(u => u === t || (t && t.indexOf(u) >= 0));
         if (hit.length) return hit;
+      }
+      if (lvl === 'Unit Type') {
+        const t = String(((this.q('#m-appt-ut') || {}).value) || '');
+        return this.listingsData().filter(l => l.prop === this.state.property && this.ltTypeOf(l) === t).map(l => l.unit || l.prop);
       }
       return propUnits;
     };
