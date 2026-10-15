@@ -1179,6 +1179,9 @@ the four states draw, because before activation the feed still publishes rent an
 a plan, while after it is holding a listing off the feed. A property that doesn't advertise online
 carries **no status at all**, because none of this is asked of it.
 
+**The Listing Ready cell's icons are filled** (2026-10-15, `filledIco`): a filled green `check_circle` when
+ready, and the *n Fields Missing* pill's filled `error`, amber before activation and red after.
+
 **The Charges register says Excluded before it says anything else.** `mitsStatusCell` tests `r.ils`
 **first**: a charge kept off listings reads a grey **Excluded** pill whatever its fields hold, since
 nothing will advertise it and counting fields it will never need reads as work outstanding when
