@@ -1520,8 +1520,9 @@ canvas *Confirm Base Rent & Deposit*).
   with only the charges of that role **written exactly there** — the property's own, that unit type's, or
   that unit's (`roleWrittenAt`, 2026-10-14; it used to offer everything that reached it) — labelled
   *RC Rent: $150.00*. Charge is the RMX disabled field (`roleChargeOff`) until Applies to is chosen, and
-  reads *No charges at this level*, still disabled, where nothing is written there (2026-10-15). Errors *Choose where it applies.*,
-  *Choose a charge.*, *`<x>` already has its own Base Rent.* An addition is a row like a confirmed one — the edit
+  reads *No charges at this level*, still disabled, where nothing is written there (2026-10-15). **Add** is disabled until a charge is
+  picked (or the only one on offer is preselected), so *Choose a charge.* is gone (2026-10-15); errors
+  *Choose where it applies.*, *`<x>` already has its own Base Rent.* An addition is a row like a confirmed one — the edit
   pencil and a close (2026-10-14; it wore a green *Added* lozenge). The pencil swaps the charge for a
   dropdown of what reaches that target (`window.__roleNewEdit` / `__roleNewPick`) (`this._roleNew`). Save writes it onto the charge: `leaseRole` where the charge is
   written at that level, otherwise **`listing.roleFor['<kind>|<level>|<target>'] = true`** — the charge

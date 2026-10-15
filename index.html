@@ -4894,7 +4894,7 @@ class Component extends DCLogic {
         <div data-rform="${kind}" style="display:none;flex-wrap:wrap;gap:12px;align-items:flex-end;padding:12px 16px;border-top:1px solid var(--rmx-line, #cedbe7)">
           <div data-rat style="flex:1 1 200px;min-width:0;display:flex;flex-direction:column;gap:4px">${F.lab('Applies to')}${this.singleSelect('rnew-at-' + kind, optsAdd, '', { placeholder: 'Select', js: "window.__roleNewTarget('" + kind + "',_v)" })}</div>
           <div style="flex:2 1 280px;min-width:0;display:flex;flex-direction:column;gap:4px">${F.lab('Charge')}<div data-rct>${this.roleChargeOff(kind, 'Select')}</div></div>
-          <button type="button" class="btn-pri" onclick="window.__roleNewAdd('${kind}')" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Add</button>
+          <button type="button" class="btn-pri" data-raddbtn disabled onclick="window.__roleNewAdd('${kind}')" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;opacity:.5;cursor:default">Add</button>
           <button type="button" class="btn-out" onclick="window.__roleNewForm('${kind}', false)" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Cancel</button>
           <span data-rerr style="display:none;flex-basis:100%;font-size:12px;line-height:16px;color:var(--rmx-error, #eb343c)"></span>
         </div>
@@ -4943,7 +4943,13 @@ class Component extends DCLogic {
       // Disabled until Applies to is chosen, and while nothing is written there to pick (2026-10-15).
       sec.querySelector('[data-rct]').innerHTML = !level ? this.roleChargeOff(kind, 'Select')
         : !opts.length ? this.roleChargeOff(kind, 'No charges at this level')
-        : this.singleSelect('rnew-ch-' + kind, opts, opts.length === 1 ? opts[0].value : '', { noSearch: true, placeholder: 'Select a charge' });
+        : this.singleSelect('rnew-ch-' + kind, opts, opts.length === 1 ? opts[0].value : '', { noSearch: true, placeholder: 'Select a charge', js: "window.__roleAddOn('" + kind + "', true)" });
+      // Add stays disabled until there is a charge to add — one picked, or the only one on offer.
+      window.__roleAddOn(kind, opts.length === 1);
+    };
+    window.__roleAddOn = (kind, on) => {
+      const b = document.querySelector('[data-rreview] [data-rsec="' + kind + '"] [data-raddbtn]'); if (!b) return;
+      b.disabled = !on; b.style.opacity = on ? '1' : '.5'; b.style.cursor = on ? 'pointer' : 'default';
     };
     window.__roleNewAdd = (kind) => {
       const sec = document.querySelector('[data-rreview] [data-rsec="' + kind + '"]'); if (!sec) return;
@@ -4951,7 +4957,7 @@ class Component extends DCLogic {
       const id = (document.getElementById('rnew-ch-' + kind) || {}).value || '';
       const err = (t) => { const e = sec.querySelector('[data-rerr]'); e.textContent = t; e.style.display = 'block'; };
       if (!at) return err('Choose where it applies.');
-      if (!id) return err('Choose a charge.');
+      if (!id) return;
       const [level, target] = at.split('|');
       const D = ((this._roleDraft || {}).review) || {};
       const has = this.roleGroups(prop, kind, { all: true }).some(g => g.level === level && g.target === target && !(D[this.roleKey(kind, g)] || {}).declined && !(g.declined && !D[this.roleKey(kind, g)]))
