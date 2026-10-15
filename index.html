@@ -9512,15 +9512,18 @@ class Component extends DCLogic {
     // silent swap, so it asks first — and cancelling puts the radio back where it was.
     // The Name control follows the role: a list for the rent or the deposit, free text otherwise.
     // What was typed is kept, so flipping through the roles and back doesn't lose it.
-    window.__nameMode = (role) => {
+    // `keep`: switching the radio back to Additional Charge keeps the name the charge was just showing
+    // (*Base Rent*), now editable, rather than restoring what was typed before (2026-10-15).
+    window.__nameMode = (role, keep) => {
       const t = this.q('#m-name-text'), lk = this.q('#m-name-lock'), lv = this.q('#m-name-lock-v'), nm = this.q('#m-name');
       if (!t || !lk || !nm) return;
+      const was = lk.style.display !== 'none' && lv ? lv.value : '';
       if (t.style.display !== 'none') t.setAttribute('data-typed', nm.value);
       t.style.display = role ? 'none' : 'block';
       lk.style.display = role ? 'block' : 'none';
       if (lv) lv.value = this.leaseRoleLabel(role);
       const lr = this.q('#m-name-lock-role'); if (lr) lr.textContent = this.leaseRoleLabel(role);
-      nm.value = role ? this.leaseRoleLabel(role) : (t.getAttribute('data-typed') || '');
+      nm.value = role ? this.leaseRoleLabel(role) : (keep && was) ? was : (t.getAttribute('data-typed') || '');
       if (window.__mitsRecheck) window.__mitsRecheck();
     };
     // The role card follows the charge type: shown for a rent or security deposit charge type of this
@@ -9548,7 +9551,7 @@ class Component extends DCLogic {
     window.__leaseRole = (el) => {
       this._leaseTake = null;
       const role = el.value;
-      window.__nameMode(role);
+      window.__nameMode(role, true);
       if (!role) return;
       const lvl = ((this.q('#m-app') || {}).value) || 'Property';
       const other = this.roleAt(role, lvl, tgtNow(lvl), ed ? ed.id : null);
