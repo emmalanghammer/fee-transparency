@@ -540,7 +540,8 @@ Types since Version 5), the same way. **Version 7 on 2026-10-15**, from `a5b0524
 Deposit confirmed before activation and required on every unit, the Review overlay, most-specific charge
 pricing, references read per unit, DOGFEE, and the rest since Version 6), the same way. **Version 8 the same day**, from
 `999ea70` (filled status icons, the Review overlay's Tip and disabled Add, the Charge Marketing columns in
-Column Setup, and the copy changes since Version 7), the same way.
+Column Setup, and the copy changes since Version 7), the same way. **Version 9 the same day**, from `72cd6c4` (no
+Activate until a Base Rent is confirmed for every unit), the same way.
 
 **Do not republish the old artifact.** <https://claude.ai/artifact/JCtc82KKhtuQJ1eEDfiQdj> is
 frozen at Version 29, which matches `main`. It is the shareable record of that snapshot, so
