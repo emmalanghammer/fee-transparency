@@ -960,8 +960,8 @@ describes the design before that tag; the code for most of it is still in the fi
   header, striped rows that tint `#ebf1f5` on hover. **Properties** reads *All Properties*, one property's
   code, or the first code then RMX's dropdown Pill *+n* (`morePill`, 2026-10-15) whose panel lists every
   one — only properties in the scenario's portfolio. The Pill's handler is shared with the Review
-  overlay's missing floor plans (`pillInstall` / `window.__rolePill`). An empty required field reads a filled red `error` and
-  red *Required for listings* (it was an amber **Missing** lozenge until 2026-10-15), an optional one `-`. **One cell is edited at a time, as production's mass edit does**
+  overlay's missing floor plans (`pillInstall` / `window.__rolePill`). An empty required field reads a filled red `error` glyph
+  alone, *Required for listings* on hover (it was an amber **Missing** lozenge, then the glyph with the words), an optional one `-`. **One cell is edited at a time, as production's mass edit does**
   (2026-10-15, DOM-only): clicking a cell (`window.__meEdit`) closes whichever was open, keeping its
   value (`window.__meClose`), and opens this one — Name and Marketing Description as a white input with a
   1px brand border, focused with its text selected; a field with choices as the same blue-edged box with
