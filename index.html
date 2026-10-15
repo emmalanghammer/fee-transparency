@@ -1636,7 +1636,7 @@ class Component extends DCLogic {
       case 'roleReviewClose': if (this._roleDraft) this._roleDraft.review = {}; this._roleNew = []; this.setState({ roleReview: null }); break;
       case 'roleReviewSave': { const rv = this.state.roleReview; if (!rv) break;
         const ov = this.q('[data-rreview]');
-        const left = ov ? Array.prototype.filter.call(ov.querySelectorAll('[data-rrow]:not([data-removed])'), r => { const c = r.querySelector('[data-rs="conf"]'); return !c || c.style.display === 'none'; }).length : 0;
+        const left = ov ? Array.prototype.filter.call(ov.querySelectorAll('[data-rsec="rent"] [data-rrow]:not([data-removed])'), r => { const c = r.querySelector('[data-rs="conf"]'); return !c || c.style.display === 'none'; }).length : 0;
         if (left) break;
         const prop = rv.prop;
         const rows = this.roleApplyRows(prop, (this._roleDraft || {}).review || {});
@@ -1737,10 +1737,12 @@ class Component extends DCLogic {
         // Publishing an incomplete charge set would advertise a price missing required fees, so the
         // charges have to be finished first.
         if (st.issues) { this.flash(st.issues + ' charge' + (st.issues===1?'':'s') + ' still need details before fee transparency can be activated'); break; }
+        // No Activate without a confirmed Base Rent on every unit (2026-10-15): take them to confirm it.
+        if (!this.roleRentReady(arg)) { this._roleDraft = Object.assign({}, this._roleDraft, { review: {} }); this._roleNew = []; this.setState({ roleReview: { prop: arg } }); break; }
         this._rolePick = {}; this.setState({ pubModal: { prop: arg } }); break; }
       case 'pubCancel': this.setState({ pubModal: null }); break;
       case 'pubConfirm': { const m = this.state.pubModal; const props = m.props || [m.prop];
-        if (props.some(p => this.roleRentGap(p) > 0)) break;
+        if (props.some(p => !this.roleRentReady(p))) break;
         // Activating writes the roles: confirmed answers as they are, our suggestion everywhere else.
         const fees = {};
         props.forEach((p, pi) => {
@@ -3231,6 +3233,9 @@ class Component extends DCLogic {
     return short
       ? { key:'short', order:1, status:'Incomplete Charges', loz:'amber', next:'Add Charge Details',
           act:'mcOpenProp', issues:short, ft:false }
+      // Charges done but the Base Rent not yet confirmed on every unit: the next step is the Review.
+      : !this.roleRentReady(p)
+      ? { key:'ready', order:2, status:'Confirm Base Rent', loz:'amber', next:'Confirm Charges', act:'roleReviewOpen', ft:false, rentPending:true }
       : { key:'ready', order:2, status:'Ready to Activate', loz:'blue',
           next:'Activate Fee Transparency', act:'pubOpen', ft:false };
   }
@@ -3518,7 +3523,7 @@ class Component extends DCLogic {
     const rows = filt === 'all' ? all : all.filter(p => this.ftStatus(p.name).key === filt);
     const esc = s2 => (''+s2).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
 
-    const convertable = this.propertiesData().map(p => p.name).filter(n => this.ftStatus(n).key === 'ready');
+    const convertable = this.propertiesData().map(p => p.name).filter(n => this.ftStatus(n).key === 'ready' && !this.ftStatus(n).rentPending);
 
     // ---- toolbar ----
     const filtLabels = { all:'All selected', short:'Incomplete Charges',
@@ -3617,7 +3622,7 @@ class Component extends DCLogic {
       const ch = this.ftCharges(r.name);
       const menuId = `ft${key}${i}-pnl`;
       const items = mitem('Marketing Setup','mcOpenProp',r.name) + mitem('View Charges','openFeeProfile',r.name)
-        + (st.key === 'ready' ? mitem('Activate Fee Transparency','pubOpen',r.name) : '')
+        + (st.key === 'ready' && !st.rentPending ? mitem('Activate Fee Transparency','pubOpen',r.name) : '')
         + (st.ft === 'na' && !this.ilsOn(r.name) ? mitem('Enable for Online Listings','ilsEnable',r.name) : '');
       const menuPos = `event.stopPropagation();var t=document.getElementById('${menuId}');if(t.style.display==='block'){t.style.display='none';}else{t.style.display='block';var r=this.getBoundingClientRect();var w=t.offsetWidth,h=t.offsetHeight;var l=r.right-w;if(l<8)l=8;var y=r.bottom+4;if(y+h>window.innerHeight-8)y=r.top-h-4;t.style.left=l+'px';t.style.top=y+'px';}`;
       // Where the property advertises. A property that isn't listed online says so rather than
@@ -3954,7 +3959,7 @@ class Component extends DCLogic {
   ftReadyProps(){
     return this.ftScopeNames().filter(p => {
       const ch = this.ftCharges(p); const onList = ch.ready + ch.incomplete;
-      return this.ftApplicable(p) && onList > 0 && !ch.incomplete && !this.state.publishedProps[p] && this.roleRentGap(p) === 0;
+      return this.ftApplicable(p) && onList > 0 && !ch.incomplete && !this.state.publishedProps[p] && this.roleRentReady(p);
     });
   }
   ftSelHTML(){
@@ -4682,6 +4687,13 @@ class Component extends DCLogic {
   // Units with no Base Rent reaching them, as saved. Activation waits on none being left (2026-10-14):
   // a Base Rent on every unit is required; a Security Deposit is recommended and holds nothing up.
   roleRentGap(prop){ const c = this.roleCoverage(prop, 'rent', true); return c.total - c.covered; }
+  // Ready for activation as far as the Base Rent goes (2026-10-15): every unit has one, and every Base
+  // Rent group has been confirmed — a suggestion nobody has answered doesn't count. The Security
+  // Deposit is recommended and holds nothing up.
+  roleRentReady(prop){
+    const gs = this.roleGroups(prop, 'rent', { all: true });
+    return gs.length > 0 && this.roleRentGap(prop) === 0 && gs.every(g => g.marked || g.declined);
+  }
   // Setup's sub-row: no rent candidate, units left without a Base Rent, every group answered, or still
   // suggested.
   roleSetupState(prop){
@@ -4919,7 +4931,8 @@ class Component extends DCLogic {
     };
     window.__roleCount = () => {
       const ov = document.querySelector('[data-rreview]'); if (!ov) return;
-      let n = 0; ov.querySelectorAll('[data-rrow]:not([data-removed])').forEach(r => { const c = r.querySelector('[data-rs="conf"]'); if (!c || c.style.display === 'none') n++; });
+      // Only the Base Rent has to be answered to save (2026-10-15); a deposit left suggested is fine.
+      let n = 0; ov.querySelectorAll('[data-rsec="rent"] [data-rrow]:not([data-removed])').forEach(r => { const c = r.querySelector('[data-rs="conf"]'); if (!c || c.style.display === 'none') n++; });
       const sv = ov.querySelector('#rr-save'); if (sv) { sv.disabled = !!n; sv.style.opacity = n ? '.5' : '1'; sv.style.cursor = n ? 'default' : 'pointer'; }
 
     };
@@ -5032,7 +5045,7 @@ class Component extends DCLogic {
       const ch = this.ftCharges(p);
       const onList = ch.ready + ch.incomplete;
       const whole = onList > 0 && ch.incomplete === 0;
-      return { p, ch, onList, whole, ready: whole && this.roleRentGap(p) === 0,
+      return { p, ch, onList, whole, ready: whole && this.roleRentReady(p),
         converted: !!this.state.publishedProps[p] };
     }).filter(r => r.onList > 0);
   }
@@ -5214,10 +5227,10 @@ class Component extends DCLogic {
     // Which charges listings start from (2026-10-12): pre-filled with what's marked, else our
     // suggestion, so most properties read two lines and Activate. A property with nothing that can be
     // either can't activate until one exists.
-    const blocked = props.some(p => this.roleRentGap(p) > 0);
+    const blocked = props.some(p => !this.roleRentReady(p));
     // The review happens before this (2026-10-13): the dialog only says what activating does. A property
     // with no rent or deposit candidate can't activate, and that is the one thing it adds.
-    const roles = blocked ? `<span style="font-size:14px;line-height:20px;color:var(--rmx-error, #eb343c)">Every unit needs a Base Rent before activating.</span>` : '';
+    const roles = blocked ? `<span style="font-size:14px;line-height:20px;color:var(--rmx-error, #eb343c)">Confirm a Base Rent for every unit before activating.</span>` : '';
     return `<div data-act="pubCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:152">
       <div data-act="noop" style="width:640px;max-width:94vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
@@ -11111,6 +11124,12 @@ class Component extends DCLogic {
     const ftNote = !ftOn ? '' : ftPublished
       ? `<span style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--rmx-brand-dark, #13314c);padding-top:2px"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-success, #6eb744)"><path d="m346-60-76-130-151-31 17-147-96-112 96-111-17-147 151-31 76-131 134 62 134-62 77 131 150 31-17 147 96 111-96 112 17 147-150 31-77 130-134-62-134 62Zm91-287 227-225-45-41-182 180-95-99-46 45 141 140Z"/></svg>This property is using Fee Transparency and is displaying complete pricing on its listings.</span>`
       : (this.ilsOn(prop2) ? (() => { const need = this.ftStatus(prop2).issues || 0;
+          // Charges done but the Base Rent not confirmed on every unit: no Activate yet (2026-10-15).
+          if (!need && !this.roleRentReady(prop2)) return `<div style="display:flex;align-items:flex-start;gap:10px;background:#fef4e8;border:1px solid #f6d9ac;border-radius:4px;padding:11px 14px">
+                ${this.filledIco('warning', 18, 'color:var(--rmx-attention, #f58220);flex:none;margin-top:1px')}
+                <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Fee transparency can be activated once a Base Rent is confirmed for every unit.</span>
+                <a data-act="roleReviewOpen" data-arg="${prop2}" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Confirm Charges</a>
+              </div>`;
           // Publishing waits until every charge has the fields listings require.
           return need
             ? `<div style="display:flex;align-items:flex-start;gap:10px;background:#fef4e8;border:1px solid #f6d9ac;border-radius:4px;padding:11px 14px">

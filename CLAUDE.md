@@ -1476,8 +1476,16 @@ figure, else its `est`). `roleState` is `set` when every group is marked, `none`
 **Base Rent & Security Deposit are confirmed before activation, not in it** (2026-10-13, the user's
 canvas *Confirm Base Rent & Deposit*).
 
-- **A Base Rent on every unit is required to activate; a Security Deposit is recommended** (2026-10-14,
-  the user's rule). `roleRentGap(prop)` counts units no Base Rent reaches, as saved
+- **A confirmed Base Rent on every unit is required to activate; a Security Deposit is recommended**
+  (2026-10-14; *confirmed* added 2026-10-15). `roleRentReady(prop)`: every unit reached by a Base Rent
+  **and** every Base Rent group answered (`marked` or removed) — an unanswered suggestion doesn't count.
+  Until then there is no Activate anywhere: the Setup row reads **Not Ready**, `ftStatus` reads *Confirm
+  Base Rent* with **Confirm Charges** as the next step (`rentPending`), the property page's Activate
+  button is an amber note with **Confirm Charges**, `pubOpen` opens the Review instead, and the activation
+  dialog says *"Confirm a Base Rent for every unit before activating."* with Activate disabled. The
+  Review's Save needs only the Base Rent rows answered; deposit rows can stay suggested. So Happy Path's
+  Riverview opens on Confirm Base Rent, and the walkthrough confirms it before activating.
+  (Below, the 2026-10-14 coverage rule this builds on.) `roleRentGap(prop)` counts units no Base Rent reaches, as saved
   (`roleCoverage(prop, kind, true)` ignores the Review overlay's drafts and additions); anything above
   zero keeps the property out of `ftReadyProps()` (so no green banner or picker entry), makes its Setup
   row **Not Ready** with no Activate (`ftSetupRows`' `ready`, beside `whole`, which is still the charges
