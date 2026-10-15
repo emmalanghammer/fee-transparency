@@ -1025,7 +1025,7 @@ describes the design before that tag; the code for most of it is still in the fi
   *Required for listings, missing on the GARBAG charge type:*, wrapping) lists the fields; or the green
   filled check — amber before activation, red after. The two pills have no fill (2026-10-15): the filled glyph and the words only. `mitsStatusCell` (after its Excluded case), the
   Charge Types page's **Listing Ready** column (below; red once any property using the type has activated,
-  a grey *Not on Listings* pill for a type no listed charge uses) and the Listings Charge Types overlay's
+  italic grey *Not on Listings* text (no pill, 2026-10-15) for a type no listed charge uses) and the Listings Charge Types overlay's
   Listing Ready column all draw it, so the overlay no longer spells the fields out inline.
 - **Charge Type Details marks what's still required** (2026-10-15): each Marketing Details field
   the type's listed charges are missing (`ctMissingAll()`, mapped to keys through `mitsFields()`) gets the
