@@ -548,7 +548,8 @@ pricing, references read per unit, DOGFEE, and the rest since Version 6), the sa
 `999ea70` (filled status icons, the Review overlay's Tip and disabled Add, the Charge Marketing columns in
 Column Setup, and the copy changes since Version 7), the same way. **Version 9 the same day**, from `72cd6c4` (no
 Activate until a Base Rent is confirmed for every unit), the same way. **Version 10 the same day**, from `811a0b3` (a
-listing is Not Sent only when a charge applying to its unit is short), the same way.
+listing is Not Sent only when a charge applying to its unit is short), the same way. **Version 11**, from `c631b98`
+(Listing Ready Charges per unit), the same way.
 
 **Do not republish the old artifact.** <https://claude.ai/artifact/JCtc82KKhtuQJ1eEDfiQdj> is
 frozen at Version 29, which matches `main`. It is the shareable record of that snapshot, so
