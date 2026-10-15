@@ -6720,7 +6720,11 @@ class Component extends DCLogic {
     // Listing Ready pill's hover lists, from `ctMissingAll()`. The class only colours the field's own box.
     const NEED = (() => { const m = (this.ctMissingAll()[String(code || '').toUpperCase()]) || [];
       const o = {}; this.mitsFields().forEach(f => { if (m.indexOf(f.label) >= 0) o[f.key] = true; }); return o; })();
-    const mfld = (label, ctl, help, key) => `<div ${key && NEED[key] ? 'class="ctd-need" ' : ''}style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0"><span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--rmx-text, #666666)">${label}${help || ''}</span>${ctl}</div>`;
+    // …and its label carries the charge form's own *Required for Listings* lozenge, amber until a property
+    // using the type has activated, red after.
+    const NEED_ACT = this.ctUsage(code).props.some(p => this.state.publishedProps[p]);
+    const NEED_LOZ = `<span style="display:inline-flex;align-items:center;height:19px;box-sizing:border-box;padding:0 7px;border-radius:4px;background:${NEED_ACT ? '#fdecee' : '#fdf3e7'};font-size:12px;color:${NEED_ACT ? '#a3252c' : '#7a5a2a'};white-space:nowrap">Required for Listings</span>`;
+    const mfld = (label, ctl, help, key) => `<div ${key && NEED[key] ? 'class="ctd-need" ' : ''}style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0"><span style="display:inline-flex;align-items:center;flex-wrap:wrap;gap:6px;font-size:14px;color:var(--rmx-text, #666666)">${label}${help || ''}${key && NEED[key] ? NEED_LOZ : ''}</span>${ctl}</div>`;
     // Figma 3582:1667. The tile is named for what it sets, and the case for setting it moved out of
     // the field labels into one link in the header \u2014 the fields carry no help icons of their own.
     const whyTip = this.infoTip('<span style="display:block;white-space:normal">Listing sites need these fields before they will advertise a fee. Setting them on the charge type means every charge of that type starts complete, on every property, and a property or a single charge can still override any of them.</span>', undefined,
