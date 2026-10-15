@@ -6012,13 +6012,12 @@ class Component extends DCLogic {
       const types = this.ltTypes(l);
       if (!types.length) return cell('\u2014');
       const bad = types.filter(t => t.missing.length || t.dup).length;
-      const act = !!this.state.publishedProps[prop];
-      const icon = bad ? this.filledIco('error', 16, `color:${act ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-notice, #faa61c)'};flex:none`)
-        : this.filledIco('check_circle', 16, 'color:var(--rmx-success, #6eb744);flex:none');
-      const codes = types.map(t => t.code).join(', ');
+      // The old Listing Ready Charges look (2026-10-15, the user's call): a status dot — green once every
+      // type is listing ready, red while any is short — and the fraction, now of charge types.
+      const dot = bad ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-success, #6eb744)';
       const tip = bad ? bad + ' of ' + types.length + ' charge type' + (types.length === 1 ? '' : 's') + ' not listing ready: ' + types.filter(t => t.missing.length || t.dup).map(t => t.code).join(', ')
         : 'Every charge type on this listing is listing ready';
-      return `<span data-act="ltTypesOpen" data-arg="${i}" title="${tip.replace(/"/g, '&quot;')} — select to see each charge type" onmouseover="this.style.color='var(--ac,var(--rmx-brand, #008dd5))'" onmouseout="this.style.color='var(--rmx-brand-dark, #13314c)'" style="display:flex;align-items:center;gap:6px;min-width:0;min-height:36px;box-sizing:border-box;padding:0 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer">${icon}<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${codes}</span></span>`;
+      return `<span data-act="ltTypesOpen" data-arg="${i}" title="${tip.replace(/"/g, '&quot;')} — select to see each charge type" onmouseover="this.style.color='var(--ac,var(--rmx-brand, #008dd5))'" onmouseout="this.style.color='var(--rmx-brand-dark, #13314c)'" style="display:flex;align-items:center;gap:8px;min-width:0;min-height:36px;box-sizing:border-box;padding:0 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;flex:none;background:${dot}"></span>${types.length - bad}/${types.length}</span>`;
     };
 
     const group = (g, gi) => {

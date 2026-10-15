@@ -361,11 +361,12 @@ different component. `infoTip(inner, width, opts)` still takes a width; nothing 
 component measures in `3573:779`; the 36 is the user's own call, below RMX's 44px Cell, so a
 property's listings read as one block rather than a scroll.
 
-**The Charge Types column replaced Listing Ready Charges** (2026-10-15, the user's call). It lists the
+**The Charge Types column replaced Listing Ready Charges** (2026-10-15, the user's call). It counts the
 charge types the listing carries (`ltTypes(l)`: the listed charges reaching its unit, grouped by type, each
-with its missing fields and any duplicate pair), ellipsized, after a filled 16px icon — green
-`check_circle` when every type is listing ready, else `error`, amber before activation and red after —
-with a `title` naming the short ones. It opens **`ltTypesHTML`** (`ltTypesOpen` with the listing index,
+with its missing fields and any duplicate pair), drawn the way Listing Ready Charges was
+(the user's call, the same day; for a few hours it listed the codes): an 8px status dot — green once every
+type is listing ready, red while any is short — and the fraction of charge types ready, *6/7*, with a
+`title` naming the short ones. It opens **`ltTypesHTML`** (`ltTypesOpen` with the listing index,
 `state.ltTypes = { i }`, z-index 150): *Charge Types: `<property · unit>`*, a lead *"1 of 7 charge types on
 this listing isn't listing ready. Each charge's marketing details come from its charge type."* with
 **Mass Edit Marketing Details** beside it when more than one type is short — opening Mass Edit on **every**
