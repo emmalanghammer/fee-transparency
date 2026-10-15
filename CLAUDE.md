@@ -1269,11 +1269,11 @@ those values are now the only copy on screen rather than a mirror beside the rea
 4. **Activated and short.** Red, and red is earned here and nowhere else — this is the one state
    costing something today, and **the only one that still puts anything in the card**. The lozenge still reads **Required for Listings** — the field is the same field
    either way, and only the tone differs. The card takes a red border, and the note reads
-   *“Units 3B, 5A, 4C are not posting. Riverview Apartments is fee transparent, so any listings using
-   this charge will not be sent until every required field is filled in or the charge is
-   excluded.”* — **every** unit named, comma-separated (`unitList`), from `affectedUnits`: the
-   charge's own unit when it is written at unit level, everything the property advertises
-   otherwise. The count (`#m-mkt-count`) reads **3 listings not sent** (*1 listing not sent*) and
+   *“Riverview Apartments is fee transparent, so any listings using this charge will not be sent until
+   every required field is filled in or the charge is excluded.”* (its *Units 3B, 5A, 4C are not
+   posting.* lead came off on 2026-10-14). The count (`#m-mkt-count`, from `affectedUnits`: the charge's
+   own unit when it is written at unit level, everything the property advertises otherwise) reads
+   **3 Listings Not Sent** (*1 Listing Not Sent*; title case since 2026-10-14) and
    sits in the **collapsed** header, because this is the one state that has to be legible without
    opening the section.
 
