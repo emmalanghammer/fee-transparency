@@ -6418,7 +6418,11 @@ class Component extends DCLogic {
       const pnl = document.createElement('div');
       pnl.id = 'me-pnl';
       pnl.style.cssText = 'position:fixed;z-index:1000;min-width:' + Math.max(160, r.width - 8) + 'px;max-height:260px;overflow-y:auto;padding:4px 0;background:#fff;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18)';
-      pnl.innerHTML = opts.map(o => `<div data-v="${esc(o.value)}" onmouseenter="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseleave="this.style.background=this.getAttribute('data-sel')?'var(--rmx-brand-tint-bg, #ebf1f5)':'#fff'" ${o.value === cur ? 'data-sel="1"' : ''} style="padding:8px 14px;font-size:14px;cursor:pointer;white-space:nowrap;${INK};background:${o.value === cur ? 'var(--rmx-brand-tint-bg, #ebf1f5)' : '#fff'}">${esc(o.label)}</div>`).join('');
+      // The current value reads in the primary blue with white text (2026-10-15, the user's call); the
+      // others tint on hover.
+      pnl.innerHTML = opts.map(o => { const on = o.value === cur;
+        return on ? `<div data-v="${esc(o.value)}" data-sel="1" style="padding:8px 14px;font-size:14px;cursor:pointer;white-space:nowrap;color:#fff;background:var(--ac,var(--rmx-brand, #008dd5))">${esc(o.label)}</div>`
+          : `<div data-v="${esc(o.value)}" onmouseenter="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseleave="this.style.background='#fff'" style="padding:8px 14px;font-size:14px;cursor:pointer;white-space:nowrap;${INK};background:#fff">${esc(o.label)}</div>`; }).join('');
       pnl.addEventListener('mousedown', (e) => { const it = e.target.closest('[data-v]'); if (!it) return; e.preventDefault(); e.stopPropagation();
         const v = it.getAttribute('data-v'); if (v !== V(code, f)) keep(code, f, v); pnl.remove(); paint(el); });
       document.body.appendChild(pnl);

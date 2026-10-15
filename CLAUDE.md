@@ -965,7 +965,7 @@ describes the design before that tag; the code for most of it is still in the fi
   (2026-10-15, DOM-only): clicking a cell (`window.__meEdit`) closes whichever was open, keeping its
   value (`window.__meClose`), and opens this one — Name and Marketing Description as a white input with a
   1px brand border, focused with its text selected; a field with choices as the same blue-edged box with
-  its options already open under it, led by a blank option that clears the field (not on Charge Role) (`#me-pnl`, fixed, kept inside the window), a pick closing it. Enter or
+  its options already open under it, led by a blank option that clears the field (not on Charge Role), the current value in the primary blue with white text (`#me-pnl`, fixed, kept inside the window), a pick closing it. Enter or
   a click elsewhere in the register keeps the value, Escape drops it, scrolling closes it. What is kept
   lives in `this._meVals[code][field]` and the cell reads it back as text. A navy bar floats over the register — *"You are in Mass Edit mode for marketing details.
   Select any field to update its value."*, *n charge types changed*, white Save and outlined Cancel —
