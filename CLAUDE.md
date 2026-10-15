@@ -35,7 +35,7 @@ screen (2026-10-07; it used to wait on every listing advertising a complete pric
 `3562:42475`. A 972px dialog: header, then three cards 8px apart inside a 16px scrolling body.
 
 - **What is Fee Transparency?** — collapsed by default. Open, it carries one line of what changes
-  on a listing, then three notes with tinted 33px icon tiles: *Required in Some States* (amber
+  on a listing, then three notes with tinted 33px icon tiles: *Required in More States* (*A growing number of states require advertised rent to include mandatory fees, and Zillow flags listings that don't.*, 2026-10-15; amber
   `error`), *Streamlined Process* (grey `settings`), *Applicable Properties* (brand `apartment`).
 - **Set Defaults** + a blue `Recommended` lozenge — also collapsed. Open, it explains inheritance
   and offers **Set Defaults on Charge Types** (`navChargeTypes`, which closes the overlay behind it:
