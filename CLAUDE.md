@@ -360,8 +360,9 @@ component measures in `3573:779`; the 36 is the user's own call, below RMX's 44p
 property's listings read as one block rather than a scroll.
 
 **Listing Ready Charges is a column, beside Errors**, matching Figma `3573:779`: a status dot and
-the fraction, nothing else — **green once whole, red while any charge is short**. Every listing of
-a property wears its property's count, since that is what it is. A property fee transparency cannot
+the fraction, nothing else — **green once whole, red while any charge is short**. Since 2026-10-15 **each
+listing counts only the charges that apply to its unit** (`ltChargeHits`, the same reach as Not Sent), so
+units of one property can read different fractions. A property fee transparency cannot
 apply to (`ftApplicable` is false: not on an ILS feed, or on MH Village) reads **N/A**, because the
 question isn't asked of it (it read `—` until 2026-10-08; `—` is left for an applicable property
 whose listings carry no charges). **The group header no longer carries it** — the same number in two

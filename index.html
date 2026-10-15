@@ -5680,8 +5680,12 @@ class Component extends DCLogic {
     // Figma `3573:779`: a status dot and the fraction, nothing else — green once every charge
     // listings carry is ready, red while any is short. This is the only place the count is shown,
     // so it carries the whole property's state on every one of its rows.
-    const chargeCell = (prop) => {
-      const ch = this.ftCharges(prop);
+    // Per unit (2026-10-15): the count is of the charges that apply to this listing's unit
+    // (`ltChargeHits`), so a short unit type charge only reddens that type's rows.
+    const chargeCell = (l) => {
+      const prop = l.prop;
+      const on = this.ltChargeHits(l).filter(r => r.ils);
+      const ch = { ready: on.filter(r => this.mitsComplete(r)).length, incomplete: on.filter(r => !this.mitsComplete(r)).length };
       const onList = ch.ready + ch.incomplete;
       // A property fee transparency can't apply to isn't short of anything: the question isn't asked.
       if (!this.ftApplicable(prop)) return cell('N/A');
@@ -5733,7 +5737,7 @@ class Component extends DCLogic {
           ${cell(dep)}
           ${cell(total)}
           ${cell(l.avail || '—')}
-          ${chargeCell(l.prop)}
+          ${chargeCell(l)}
           ${this.ltFeedCell(l, i)}
         </div>`;
       }).join('');
@@ -5769,7 +5773,7 @@ class Component extends DCLogic {
           ${cell(dep)}
           ${cell(total)}
           ${cell(l.avail || '\u2014')}
-          ${chargeCell(l.prop)}
+          ${chargeCell(l)}
           ${this.ltFeedCell(l, i)}
         </div>`;
       }).join('');
