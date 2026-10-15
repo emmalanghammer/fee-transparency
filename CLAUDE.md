@@ -971,8 +971,8 @@ describes the design before that tag; the code for most of it is still in the fi
   - **What's required follows usage.** `mitsMissing` already asks a recurring charge for Charge Schedule
     and a one-time charge for Charge Timing. `ctUsage(code)` counts the type's recurring and one-time
     charges on listings at properties fee transparency applies to; Charge Type Details labels the two
-    fields from it (`mktUse`: *Required: used by 2 recurring charges* / *Not needed: no one-time charges on
-    listings*), and Mass Edit shows a grey dash (not Missing) for a field no charge of the type needs, and
+    fields *Recurring Charges Only* / *One-Time Charges Only* (it read *Required: used by 2 recurring charges*
+    / *Not needed: …* from `mktUse` briefly; the user asked for the static qualifiers back), and Mass Edit shows a grey dash (not Missing) for a field no charge of the type needs, and
     `-` rather than Missing on a type no listed charge uses (SF).
   - **Duplicates** (the user's rule): two charges of one charge type, at the same level on the same
     target, both live (`chargeLive`: current and not ending today) and both on listings, would show as

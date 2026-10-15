@@ -6596,8 +6596,10 @@ class Component extends DCLogic {
   // of charge it is, and shows Charge Schedule or Fee Due accordingly.
   // In Text/text-disabled grey, so the qualifier reads as a footnote to the label rather than part of it.
   mktOnly(t){ return ` <em style="font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">${t}</em>`; }
-  schedOnly(code){ return 'Charge Schedule' + this.mktUse('rec', code); }
-  dueOnly(code){ return 'Charge Timing' + this.mktUse('one', code); }
+  // Back to the static qualifiers (2026-10-15, the user's call; for a day they read *Required: used by 3
+  // recurring charges* / *Not needed: …* from `mktUse`, which is now unused).
+  schedOnly(){ return 'Charge Schedule' + this.mktOnly('Recurring Charges Only'); }
+  dueOnly(){ return 'Charge Timing' + this.mktOnly('One-Time Charges Only'); }
   refundOnly(){ return 'Refundability (Optional)' + this.mktOnly('One-Time Charges Only'); }
   ctFieldBits(){
     const esc = v => ('' + (v == null ? '' : v)).replace(/"/g, '&quot;');
