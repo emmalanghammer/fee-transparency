@@ -1406,8 +1406,9 @@ locked to the role (`#m-name-lock`, the disabled field; hovering it raises the R
 use a standardized name for the Base Rent, so this charge is advertised under that name."* — naming
 whichever role the charge holds, *Security Deposit* on a deposit (2026-10-14) — `infoTip`'s new `block` option makes a whole field its
 trigger, 2026-10-14), and `resolvedListing` advertises the charge
-under that name; what it was called is kept on the charge, so answering Additional Charge brings it
-back. Changing the charge type re-asks through `window.__roleCheck` (from `__attrCheck`), reset to
+under that name. Switching the radio back to Additional Charge leaves the Name reading *Base Rent* /
+*Security Deposit*, now editable, rather than restoring the old name (`__nameMode(role, keep)`,
+2026-10-15). Changing the charge type re-asks through `window.__roleCheck` (from `__attrCheck`), reset to
 Additional Charge when the kind changes. **One active, current Base Rent — and Security Deposit — at
 the property, one per unit type and one per unit** (the user's rule, 2026-10-13): several unit types
 or units can each carry their own, but never two on the same one. `roleAt(kind, level, target,
