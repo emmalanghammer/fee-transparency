@@ -233,6 +233,7 @@ class Component extends DCLogic {
     ctmMode: 'inherit',
  // Listings page: hide listings without errors
     ltErr: null, // { i, open } — Listing Errors popup for one listing
+    dupResolve: null, // { prop, key } — Resolve Duplicate Charges (2026-10-15)
     // Charges register columns: chgCols is the chosen keys in order (null = defaults), colNames holds
     // any renamed headers, colSetup opens the Customize Column Setup dialog.
     chgCols: null, colNames: {}, colSetup: false,
@@ -572,6 +573,66 @@ class Component extends DCLogic {
       .map(f => f.label);
   }
   mitsComplete(r){ return this.mitsMissing(r).length === 0; }
+  // A charge on listings is ready when its charge type has the marketing details it needs for that
+  // charge (one-time or recurring — `mitsMissing` already asks only for the fields its frequency uses)
+  // and no other charge would advertise as the same fee (2026-10-15).
+  chargeReady(r){ return this.mitsComplete(r) && !this.chargeDupeOf(r); }
+  // Duplicates (2026-10-15, the user's rule): two charges of one charge type, written at the same
+  // level on the same target, both current and both on listings, would show on a listing as the same
+  // fee, so neither can be sent. A recurring and a one-time charge of one type are not duplicates. A
+  // recurring charge ending today no longer counts. Cached per property until the charges change.
+  chargeDupes(prop){
+    if (this._dupFees !== this.state.profileFees || this._dupScen !== this.state.scenario) {
+      this._dupCache = {}; this._dupFees = this.state.profileFees; this._dupScen = this.state.scenario; }
+    const p = prop || this.state.property;
+    if (this._dupCache[p]) return this._dupCache[p];
+    const G = {};
+    this.appliedRows(p).forEach(r => {
+      if (!r.ils || !r.mits || r.propSpecific || !this.chargeLive(r)) return;
+      const one = /-one$/.test(r.group || '');
+      const k = [String(r.mits).toUpperCase(), String(r.level || 'Property'), String(r.target || ''), one ? 'one' : 'rec'].join('|');
+      (G[k] = G[k] || []).push(r);
+    });
+    const out = Object.keys(G).filter(k => G[k].length > 1).map(k => { const a = k.split('|');
+      return { key: k, prop: p, code: a[0], level: a[1], target: a[2], kind: a[3], rows: G[k], ids: G[k].map(r => String(r.id)) }; });
+    this._dupCache[p] = out;
+    return out;
+  }
+  // Current, and not ending today: the test both duplicate detection and the charge form's save use.
+  chargeLive(r){
+    if (!this.chargeCurrent(r)) return false;
+    if (/-one$/.test(r.group || '')) return true;
+    const m = String(r.to || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/); if (!m) return true;
+    let y = +m[3]; if (y < 100) y += 2000;
+    const t = new Date(y, +m[1] - 1, +m[2]), today = new Date(); today.setHours(0, 0, 0, 0);
+    return t.getTime() > today.getTime();
+  }
+  chargeDupeOf(r){ if (!r) return null; return this.chargeDupes(r._prop).filter(g => g.ids.indexOf(String(r.id)) >= 0)[0] || null; }
+  dupWhere(level, target){ return level === 'Property' ? 'at the property' : level === 'Unit Type' ? 'on ' + target
+    : level === 'Unit' ? 'on unit ' + target : 'on ' + (target || this.levelLabel(level)); }
+  dupLabel(g){ return g.rows.length + ' ' + g.code + ' charges ' + this.dupWhere(g.level, g.target); }
+  // How a charge type is used on listings, across the properties fee transparency applies to: how many
+  // recurring and one-time charges of it are included. Which of Charge Schedule and Charge Timing it
+  // needs follows from this (2026-10-15): a field no charge of the type uses is not missing.
+  ctUsage(code){
+    const c = String(code || '').toUpperCase(), u = { rec: 0, one: 0, props: [] };
+    if (!c) return u;
+    this.propNames().filter(p => this.ftApplicable(p)).forEach(p => this.appliedRows(p).forEach(r => {
+      if (!r.ils || String(r.mits || '').toUpperCase() !== c) return;
+      if (/-one$/.test(r.group || '')) u.one++; else u.rec++;
+      if (u.props.indexOf(p) < 0) u.props.push(p);
+    }));
+    return u;
+  }
+  // The label qualifier for Charge Schedule / Charge Timing on a charge type: required, and by how
+  // many charges, or not needed. Without a code it is the static *Recurring / One-Time Charges Only*.
+  mktUse(kind, code){
+    const what = kind === 'rec' ? 'recurring' : 'one-time';
+    if (!code) return this.mktOnly(kind === 'rec' ? 'Recurring Charges Only' : 'One-Time Charges Only');
+    const n = this.ctUsage(code)[kind];
+    return this.mktOnly(n ? 'Required: used by ' + n + ' ' + what + ' charge' + (n === 1 ? '' : 's')
+      : 'Not needed: no ' + what + ' charges on listings');
+  }
   mitsIncompleteCount(){ return this.appliedRows().filter(r => !this.mitsComplete(r)).length; }
   // ---------- marketing defaults by charge type ----------
   // What a charge of a given type should start with. One set of values for the whole portfolio: they
@@ -843,7 +904,8 @@ class Component extends DCLogic {
     return this.propCharges(prop || this.listingReadyProps()[0]).map(r => {
       const m = M[r.mits] || [r.name, ''];
       const oneTime = /-one$/.test(r.group || '');
-      return Object.assign({}, r, { ils: !r.propSpecific, listing: Object.assign({}, r.listing, {
+      // A charge the reference set keeps off listings (the Berkshires' second rent, 2026-10-15) stays off.
+      return Object.assign({}, r, { ils: !r.propSpecific && r.ils !== false, listing: Object.assign({}, r.listing, {
         name: m[0],
         // EV charging has no mapped category on purpose, so this example spells its own out.
         category: this.chargeCategoryFor(r.mits) || (r.mits === 'EVCHG' ? 'Utility' : ''),
@@ -967,7 +1029,9 @@ class Component extends DCLogic {
     // (2026-10-12): two unit types carry their own rent, one its own deposit, and the property a
     // second, smaller rent charge — so its activation dialog has a level to choose at.
     const extra = prop !== 'The Berkshires' ? [] : [
-      { id:30, group:'opt-rec', mits:'RC', name:'Rent', desc:'Short-term premium', freq:'Every Month', from:'01/01/2026', to:'', amount:'$150.00', amtMethod:'Flat', ils:true, level:'Property', target:'' },
+      // The duplicate example (2026-10-15): a second property RC on listings. Happy Path and Post
+      // Conversion are the finished stories, so there it is excluded from listings.
+      { id:30, group:'opt-rec', mits:'RC', name:'Rent', desc:'Short-term premium', freq:'Every Month', from:'01/01/2026', to:'', amount:'$150.00', amtMethod:'Flat', ils:!/^(happy|post)$/.test(this.scenarioKey()), level:'Property', target:'' },
       { id:31, group:'req-rec', mits:'RC', name:'Rent', desc:'2BR/2BA rent', freq:'Every Month', from:'01/01/2026', to:'', amount:'$1,600.00', amtMethod:'Flat', ils:true, level:'Unit Type', target:'2BR/2BA' },
       { id:32, group:'req-rec', mits:'RC', name:'Rent', desc:'3BR/2BA rent', freq:'Every Month', from:'01/01/2026', to:'', amount:'$2,050.00', amtMethod:'Flat', ils:true, level:'Unit Type', target:'3BR/2BA' },
       { id:33, group:'req-one', mits:'DP', name:'Security deposit', desc:'3BR/2BA deposit', from:'01/01/2026', to:'', amount:'$750.00', amtMethod:'Flat', ils:true, level:'Unit Type', target:'3BR/2BA' }
@@ -1346,7 +1410,30 @@ class Component extends DCLogic {
       // it closes that overlay behind it — you asked to go to the charge types, not to read them
       // through a scrim.
       case 'navChargeTypes': this.go('chargetypes', { ftSetup: null }); break;
-      case 'ftMassEdit': this._meVals = {}; this.go('chargetypes', { ftSetup: null, ctMass: true }); break;
+      // Opened from a "missing marketing details" link, Mass Edit shows only the charge types named.
+      case 'ftMassEdit': this._meVals = {}; this.go('chargetypes', { ftSetup: null, ltErr: null, dupResolve: null,
+        ctMass: arg ? { only: String(arg).split(',').filter(Boolean) } : true }); break;
+      case 'ctMassAll': this.setState({ ctMass: true }); break;
+      case 'dupOpen': { const k = String(arg).indexOf('::'); this.setState({ rowMenu: null, dupResolve: { prop: String(arg).slice(0, k), key: String(arg).slice(k + 2) } }); break; }
+      case 'dupClose': this.setState({ dupResolve: null }); break;
+      case 'dupExclude': { const k = String(arg).indexOf('::'), pr = String(arg).slice(0, k), id = String(arg).slice(k + 2);
+        const r = this.profileRows(pr).find(x => String(x.id) === id); if (!r) break;
+        this.dupPatch(pr, id, { ils: false });
+        this.flash((r.mits || '') + (r.desc ? ' – ' + r.desc : '') + ' is excluded from listings'); break; }
+      case 'dupEnd': { const k = String(arg).indexOf('::'), pr = String(arg).slice(0, k), id = String(arg).slice(k + 2);
+        const inp = this.q('#dup-end-in-' + id); const val = inp ? inp.value.trim() : '';
+        if (!/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(val)) { if (inp) inp.style.borderColor = 'var(--rmx-error, #eb343c)'; break; }
+        const r = this.profileRows(pr).find(x => String(x.id) === id); if (!r) break;
+        this.dupPatch(pr, id, { to: val });
+        this.flash((r.mits || '') + (r.desc ? ' – ' + r.desc : '') + ' ends ' + val); break; }
+      // Changing the charge type happens on the charge itself, so the charge form opens over the
+      // property's Charges and this dialog closes behind it.
+      case 'dupChangeType': { const k = String(arg).indexOf('::'), pr = String(arg).slice(0, k), id = String(arg).slice(k + 2);
+        const r = this.profileRows(pr).find(x => String(x.id) === id); if (!r) break;
+        this.setState({ dupResolve: null, ltErr: null, ftSetup: null, recView: null });
+        this.go('property', { property: pr, propTab: 'Charges', modal: { group: r.group, edit: r },
+          chargesFrom: (this.state.view === 'feetrans' || this.state.view === 'unit' || this.state.view === 'unittype' || this.state.view === 'sysprefs') ? this.state.view : this.state.chargesFrom });
+        break; }
       case 'ctInactiveToggle': this.setState(s => ({ ctShowInactive: !s.ctShowInactive })); break;
       case 'regInactiveToggle': this.setState(s => ({ regShowInactive: !s.regShowInactive })); break;
       // Mass Edit Marketing Details (Figma 3980:160947, 2026-10-15): every charge type's marketing details
@@ -2235,16 +2322,21 @@ class Component extends DCLogic {
     if (!/-one$/.test(m.group || '')) { const f = v('m-freq'); mark(this.q('#m-freq'), !f); if (!f) errs.push('Frequency'); }
     const ils = v('m-ils') === '1';
     if (errs.length) { const b = this.q('#m-err'); if (b) { const t = b.querySelector('#m-err-txt'); if (t) t.textContent = 'Complete required fields: ' + errs.join(', '); b.style.display = 'inline-flex'; } return false; }
-    // Two charges of the same charge type can't share a name at the same charge level (including
-    // both having none) — the listing feed couldn't tell them apart. A different level is fine.
-    const dup = this.profileRows().find(r => (!m.edit || String(r.id) !== String(m.edit.id))
+    // A second current charge of one charge type at the same level on the same target, on listings,
+    // would advertise as the same fee as the first (2026-10-15), so it can't be saved on listings. A
+    // recurring and a one-time charge of one type don't conflict. (It replaced a rule about two
+    // charges sharing a name, which a charge no longer has: names come from the charge type.)
+    const isOneNow = /-one$/.test(m.group || '');
+    const liveNow = this.chargeLive({ group: m.group, from: isOneNow ? '' : v('m-from'), to: isOneNow ? '' : v('m-to') });
+    const dup = ils && liveNow && !(m.edit && m.edit.propSpecific) && this.profileRows().find(r => (!m.edit || String(r.id) !== String(m.edit.id))
+      && r.ils && !r.propSpecific && this.chargeLive(r)
       && String(r.mits || '').toUpperCase() === code.toUpperCase()
-      && String(r.level || 'Property') === app
-      && String((r.listing && r.listing.name) || '').trim().toLowerCase() === name.toLowerCase());
-    if (dup) { mark(this.q('#m-name'), true);
+      && String(r.level || 'Property') === app && String(r.target || '') === String(target || '')
+      && /-one$/.test(r.group || '') === isOneNow);
+    if (dup) {
       const b = this.q('#m-err'); if (b) { const t = b.querySelector('#m-err-txt');
-        if (t) t.textContent = 'This property already has a ' + code + ' charge ' + (name ? 'named "' + name + '"' : 'with no name')
-          + ' at the ' + app + ' level. Change the name or charge level.';
+        if (t) t.textContent = code + (dup.desc ? ' – ' + dup.desc : '') + ' is already on listings ' + this.dupWhere(app, target)
+          + '. Two ' + code + ' charges there would show as the same fee. Turn off Include on listings, or end or exclude the other charge first.';
         b.style.display = 'inline-flex'; }
       return false; }
     const eb = this.q('#m-err'); if (eb) eb.style.display = 'none';
@@ -3234,7 +3326,7 @@ class Component extends DCLogic {
       newProps: [], addProp: null, histLog: [], toggles: {}, tenantCharges: {},
       modal: null, bulk: null, bulkSel: null, bulkUpd: null,
       copyFees: null, pricePreview: null, profMenu: null, profHist: null,
-      recView: null, mrView: false, rowMenu: null, pubModal: null, pubDone: null, ftSel: null, mktDef: this.mktDefAll(),
+      recView: null, mrView: false, rowMenu: null, pubModal: null, pubDone: null, ftSel: null, dupResolve: null, mktDef: this.mktDefAll(),
       mktSetup: false, mktAdv: false, mktTab: 'General', petType: null, spBanner: true, tcsProp: null, ftHelp: false,
       lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false, ltStatus: [], ltGroupBy: true, ftSetup: null, propDef: {}, ctmEdit: null, ctmAsk: null, ctmMode: 'inherit', mcTab: 'Overview',
       fpData: {}, fpEdit: null, fpMenu: null, fpDel: null, sdTypes: ['DP'], roleReview: null,
@@ -3253,8 +3345,8 @@ class Component extends DCLogic {
     const rows = this.appliedRows(p);
     const on = rows.filter(r => r.ils);
     return { total: rows.length,
-      ready: on.filter(r => this.mitsComplete(r)).length,
-      incomplete: on.filter(r => !this.mitsComplete(r)).length,
+      ready: on.filter(r => this.chargeReady(r)).length,
+      incomplete: on.filter(r => !this.chargeReady(r)).length,
       excluded: rows.length - on.length };
   }
   // One status per property, worded for the register it lands in. Four states, in the order the work
@@ -5075,6 +5167,72 @@ class Component extends DCLogic {
   ftHomeSvg(){ return `<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="flex:none"><path d="M19.8376 10.8469L9.99318 1L0.148804 10.8469H1.76693L3.0763 9.5375V18.0306H7.56068V10.4712H12.4201V18.0306H16.9044V9.5375L18.2169 10.8469H19.8376Z"/></svg>`; }
   // Every property fee transparency can apply to, and only where listings carry charges at all.
   // Charge types short of marketing details among the charges listed at the properties in scope.
+  // The short charge types with the fields their listed charges are missing, for Setup's step 1.
+  // Resolve Duplicate Charges (2026-10-15): the charges of one duplicate group side by side, each with
+  // the three ways out — exclude it from listings, end it, or change its charge type. `state.dupResolve`
+  // is `{ prop, key }`; it closes itself once the pair no longer conflicts.
+  dupResolveHTML(){
+    const st = this.state.dupResolve; if (!st) return '';
+    const g = this.chargeDupes(st.prop).filter(x => x.key === st.key)[0];
+    if (!g) return '';
+    const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+    const names = {}; this.chargeTypeListAll().forEach(t => { names[t[0]] = t[1]; });
+    const today = new Date(), pad = n => String(n).padStart(2, '0');
+    const todayStr = pad(today.getMonth() + 1) + '/' + pad(today.getDate()) + '/' + today.getFullYear();
+    const btn = (t, act, arg, extra) => `<button type="button" data-act="${act}" data-arg="${esc(arg)}"${extra || ''} class="btn-out" style="height:32px;min-height:32px;padding:0 12px;border-radius:4px;font-size:14px;white-space:nowrap">${t}</button>`;
+    const card = (r) => {
+      const arg = g.prop + '::' + r.id;
+      const lvlName = g.level === 'Property' ? g.prop : g.target;
+      const when = g.kind === 'rec' ? (r.from || '—') + ' – ' + (r.to || 'No end date') : 'One-time';
+      return `<div style="display:flex;flex-direction:column;gap:12px;padding:12px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;background:#fff">
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+          <span style="flex:1;min-width:200px;display:flex;flex-direction:column;gap:4px">
+            <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${esc(g.code + ' – ' + (names[g.code] || r.name || ''))}${r.desc ? ` · ${esc(r.desc)}` : ''}</span>
+            <span style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:14px;color:var(--rmx-text, #666666)">${this.chargeLevelCell(g.level, lvlName)}<span>${esc(r.amount || '')}</span><span>${esc(when)}</span></span>
+          </span>
+          <span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            ${btn('Exclude from Listings', 'dupExclude', arg)}
+            ${g.kind === 'rec' ? `<button type="button" class="btn-out" onclick="var w=document.getElementById('dup-end-${esc(r.id)}');w.style.display=w.style.display==='flex'?'none':'flex'" style="height:32px;min-height:32px;padding:0 12px;border-radius:4px;font-size:14px;white-space:nowrap">End Charge</button>` : ''}
+            ${btn('Change Charge Type', 'dupChangeType', arg)}
+          </span>
+        </div>
+        ${g.kind === 'rec' ? `<div id="dup-end-${esc(r.id)}" style="display:none;align-items:flex-end;gap:12px;flex-wrap:wrap;padding-top:12px;border-top:1px solid var(--rmx-brand-tint-bg, #ebf1f5)">
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:14px;color:var(--rmx-text, #666666)">End date
+            <input id="dup-end-in-${esc(r.id)}" class="fld" value="${todayStr}" style="width:140px;height:36px;box-sizing:border-box"></label>
+          <button type="button" data-act="dupEnd" data-arg="${esc(arg)}" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Save End Date</button>
+          <span style="flex:1 1 200px;font-size:12px;line-height:16px;color:var(--rmx-text, #666666)">Ending it today takes it off listings now. A later date keeps both off listings until then.</span>
+        </div>` : ''}
+      </div>`;
+    };
+    return `<div data-act="dupClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:160">
+      <div data-act="noop" role="dialog" aria-label="Resolve duplicate charges" style="width:720px;max-width:94vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:14px;height:48px;box-sizing:border-box;padding:0 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
+          <span style="flex:1;min-width:0;font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Resolve Duplicate Charges</span>
+          <span data-act="dupClose" style="display:flex;cursor:pointer" aria-label="Close">${this.ico('close', 24, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
+        </div>
+        <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;background:var(--rmx-bg-subtle, #f5f8fa)">
+          <span style="font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)"><strong style="font-weight:600">${esc(this.dupLabel(g))}</strong> at ${esc(g.prop)} would show on listings as the same fee, so neither can be sent. Keep one on listings, and for ${g.rows.length === 2 ? 'the other' : 'the others'}:</span>
+          ${g.rows.map(card).join('')}
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:12px 16px;flex:none">
+          <button type="button" data-act="dupClose" class="btn-out" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Close</button>
+        </div>
+      </div>
+    </div>`;
+  }
+  // Change one charge of a duplicate group without touching the property on screen.
+  dupPatch(prop, id, patch){
+    const rows = this.profileRows(prop).map(r => String(r.id) === String(id) ? Object.assign({}, r, patch) : r);
+    this.setState(s => ({ profileFees: Object.assign({}, s.profileFees, { [prop]: rows }) }));
+  }
+  ftShortDetail(){
+    const M = {};
+    this.ftScopeNames().filter(p => this.ftApplicable(p)).forEach(p =>
+      this.appliedRows(p).filter(r => r.ils && !this.mitsComplete(r)).forEach(r => {
+        const c = String(r.mits || '').toUpperCase(); if (!c) return;
+        const f = M[c] || (M[c] = []); this.mitsMissing(r).forEach(x => { if (f.indexOf(x) < 0) f.push(x); }); }));
+    return Object.keys(M).sort().map(c => ({ code: c, fields: M[c] }));
+  }
   ftShortTypes(){
     const out = [];
     this.ftScopeNames().filter(p => this.ftApplicable(p)).forEach(p =>
@@ -5088,7 +5246,7 @@ class Component extends DCLogic {
       const whole = onList > 0 && ch.incomplete === 0;
       const short = [];
       this.appliedRows(p).filter(r => r.ils && !this.mitsComplete(r)).forEach(r => { if (r.mits && short.indexOf(r.mits) < 0) short.push(r.mits); });
-      return { p, ch, onList, whole, short: short.sort(), ready: whole && this.roleRentReady(p),
+      return { p, ch, onList, whole, short: short.sort(), dupes: this.chargeDupes(p), ready: whole && this.roleRentReady(p),
         converted: !!this.state.publishedProps[p] };
     }).filter(r => r.onList > 0);
   }
@@ -5212,7 +5370,7 @@ class Component extends DCLogic {
         ${DESC('Each charge type’s marketing details, including whether its charges are the Base Rent, the Security Deposit or an additional charge, apply to every charge that uses it.')}
       </div>
       ${short.length
-        ? mkSub(WARN, `Charge Types missing marketing details: <strong style="font-weight:600">${short.join(', ')}</strong>`, mkLink('Mass Edit Marketing Details', 'ftMassEdit'))
+        ? mkSub(WARN, `Charge Types missing marketing details: ${this.ftShortDetail().map(d => `<strong style="font-weight:600">${d.code}</strong> (${d.fields.join(', ')})`).join(', ')}`, mkLink('Mass Edit Marketing Details', 'ftMassEdit', short.join(',')))
         : mkSub(this.filledIco('check_circle', 20, 'color:var(--rmx-success, #6eb744);flex:none'),
             'Every charge type used on listings has marketing details.', mkLink('View Charge Types', 'navChargeTypes'))}
     </div>`;
@@ -5239,9 +5397,12 @@ class Component extends DCLogic {
       const gap = !r.converted && r.whole && !r.ready ? this.roleRentGap(r.p) : 0;
       // An activated property whose charges have since gone short still says what it needs: its
       // listings using that charge aren't being sent.
-      const next = r.converted ? (r.short.length ? mkLink('Add ' + r.short.join(', ') + ' marketing details', 'ftMassEdit') : '')
+      const fixMd = () => mkLink('Add ' + r.short.join(', ') + ' marketing details', 'ftMassEdit', r.short.join(','));
+      const fixDup = () => { const g = r.dupes[0]; return mkLink('Resolve duplicate ' + g.code + ' charges', 'dupOpen', g.prop + '::' + g.key); };
+      const next = r.converted ? (r.short.length ? fixMd() : r.dupes.length ? fixDup() : '')
         : r.ready ? mkLink('Activate Fee Transparency', 'pubOpen', r.p)
-        : r.short.length ? mkLink('Add ' + r.short.join(', ') + ' marketing details', 'ftMassEdit')
+        : r.short.length ? fixMd()
+        : r.dupes.length ? fixDup()
         : gap ? mkLink('Add Base Rent to ' + gap + ' unit' + (gap === 1 ? '' : 's'), 'openFeeProfile', r.p)
         : mkLink('Add a Base Rent charge', 'openFeeProfile', r.p);
       const RULE = 'border-top:1px solid var(--rmx-brand-tint-bg, #ebf1f5);';
@@ -5481,12 +5642,18 @@ class Component extends DCLogic {
   // only when a charge it would carry is missing marketing details, not for any short charge on the
   // property. Without one, every short charge on the property.
   ltChargeIssues(prop, l){
-    return (l ? this.ltChargeHits(l) : this.appliedRows(prop))
-      .filter(r => r.ils && !this.mitsComplete(r))
+    const rows = l ? this.ltChargeHits(l) : this.appliedRows(prop);
+    const out = rows.filter(r => r.ils && !this.mitsComplete(r))
       .map(r => ({
         name: `${r.mits ? r.mits + ' ' : ''}${r.desc || (r.listing && r.listing.name) || r.name || ''}`.trim(),
+        code: String(r.mits || '').toUpperCase(),
         missing: this.mitsMissing(r)
       }));
+    // A duplicate pair is one issue, however many of its charges reach the listing.
+    const seen = {};
+    rows.forEach(r => { if (!r.ils) return; const g = this.chargeDupeOf(r); if (!g || seen[g.key]) return; seen[g.key] = 1;
+      out.push({ name: this.dupLabel(g), dup: g, missing: [] }); });
+    return out;
   }
   // Which providers rejected this listing. The feed errors are held on the listing as one count, so
   // they are attributed to the providers actually carrying an error.
@@ -5632,10 +5799,17 @@ class Component extends DCLogic {
     const provNames = this.ltErrProviders(l);
     const provTitle = provNames.length ? provNames.join(' / ') + ' Errors' : 'Listing Provider Errors';
     // The charge section's own lead: what is wrong, and the one place it gets fixed, on the same row.
+    // Each cause goes to its own fix (2026-10-15): missing details to Mass Edit, filtered to those
+    // charge types; a duplicate pair to its Resolve dialog.
+    const escA = t => String(t).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+    const mdCodes = is.charges.filter(c => !c.dup).map(c => c.code).filter((c, i, a) => c && a.indexOf(c) === i);
     const chargeLead = `<div style="display:flex;align-items:flex-start;gap:14px">
-        <span style="flex:1;min-width:0;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">These charges are missing marketing information required to send to providers.</span>
-        <a data-act="openFeeProfile" data-arg="${String(l.prop).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Add Marketing Details</a>
+        <span style="flex:1;min-width:0;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">These charges are keeping this listing from being sent to providers.</span>
+        ${mdCodes.length ? `<a data-act="ftMassEdit" data-arg="${escA(mdCodes.join(','))}" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Mass Edit Marketing Details</a>` : ''}
       </div>`;
+    const chargeItem = (c) => c.dup
+      ? `<strong style="font-weight:600">${c.name}</strong><br><span style="color:var(--rmx-text, #666666)">They would show as the same fee. </span><a data-act="dupOpen" data-arg="${escA(c.dup.prop + '::' + c.dup.key)}" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Resolve</a>`
+      : `<strong style="font-weight:600">${c.name}</strong><br><span style="color:var(--rmx-text, #666666)">Missing on the ${c.code} charge type: ${c.missing.join(', ')}</span>`;
     return `<div data-act="ltErrClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:150">
       <div data-act="noop" style="width:714px;max-width:94vw;max-height:90vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="flex:none;display:flex;align-items:center;gap:12px;height:48px;box-sizing:border-box;padding:0 16px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
@@ -5644,7 +5818,7 @@ class Component extends DCLogic {
         </div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px">
           ${!this.state.publishedProps[l.prop] ? '' : sect('charges', 'Marketing Details Errors', 'red', is.charges.length,
-            chargeLead + numbered(is.charges.map(c => `<strong style="font-weight:600">${c.name}</strong><br><span style="color:var(--rmx-text, #666666)">Missing: ${c.missing.join(', ')}</span>`)))}
+            chargeLead + numbered(is.charges.map(chargeItem)))}
           ${sect('rm', 'Rent Manager Errors', 'amber', is.rm.length, numbered(is.rm))}
           ${sect('prov', provTitle, 'amber', is.prov.length, numbered(is.prov))}
         </div>
@@ -5758,7 +5932,7 @@ class Component extends DCLogic {
     const chargeCell = (l) => {
       const prop = l.prop;
       const on = this.ltChargeHits(l).filter(r => r.ils);
-      const ch = { ready: on.filter(r => this.mitsComplete(r)).length, incomplete: on.filter(r => !this.mitsComplete(r)).length };
+      const ch = { ready: on.filter(r => this.chargeReady(r)).length, incomplete: on.filter(r => !this.chargeReady(r)).length };
       const onList = ch.ready + ch.incomplete;
       // A property fee transparency can't apply to isn't short of anything: the question isn't asked.
       if (!this.ftApplicable(prop)) return cell('N/A');
@@ -6105,7 +6279,12 @@ class Component extends DCLogic {
     if (!this.state.ctMass) return '';
     const INK = 'color:var(--rmx-brand-dark, #13314c)';
     const esc = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-    const rows = this.chargeTypeRows().filter(r => r.active).slice().sort((a, b) => a.code.localeCompare(b.code));
+    const only = (this.state.ctMass && this.state.ctMass.only) || null;
+    const rows = this.chargeTypeRows().filter(r => r.active && (!only || only.indexOf(r.code) >= 0)).slice().sort((a, b) => a.code.localeCompare(b.code));
+    // What each type's charges need (2026-10-15): Charge Schedule only where a recurring charge of it is on
+    // listings, Charge Timing and Refundability only where a one-time one is, and nothing at all for a
+    // type no listed charge uses. A field nothing needs reads a grey dash, not Missing.
+    const U = {}; rows.forEach(r => { U[r.code] = this.ctUsage(r.code); });
     const ROLE = [{ value:'rent', label:'Base Rent' }, { value:'deposit', label:'Security Deposit' }, { value:'', label:'Additional Charge' }];
     const DUE = [{ value:'At Application', label:'At Application' }, { value:'Move-In', label:'At Move-In' }, { value:'During Term', label:'During Term' }, { value:'Move-Out', label:'At Move-Out' }];
     const REF = [{ value:'yes', label:'Refundable' }, { value:'no', label:'Not Refundable' }];
@@ -6127,14 +6306,20 @@ class Component extends DCLogic {
     const MISSING = `<span style="display:inline-flex;align-items:center;height:24px;padding:0 8px;border-radius:4px;background:var(--rmx-notice-bg, #feedd2);font:400 14px/16px Roboto,sans-serif;${INK}">Missing</span>`;
     const V = (code, f) => { const dv = ((this._meVals || {})[code] || {})[f]; if (dv !== undefined) return dv;
       const d = this.mktDefFor(code) || {}; return f === 'role' ? (d.role || '') : (d[f] || ''); };
-    const show = (c, v) => c.f === 'role' ? esc(lbl(ROLE, v || '')) : v ? esc(c.opts ? lbl(c.opts, v) : v) : (c.req ? MISSING : '-');
+    const NA = `<span style="color:var(--rmx-text-muted, #b3b3b3)" title="No charge of this type needs it">—</span>`;
+    const show = (c, v, code) => { if (c.f === 'role') return esc(lbl(ROLE, v || '')); if (v) return esc(c.opts ? lbl(c.opts, v) : v);
+      const u = U[code] || { rec: 0, one: 0 };
+      if (c.f === 'schedule') return u.rec ? MISSING : NA;
+      if (c.f === 'feeDue') return u.one ? MISSING : NA;
+      if (c.f === 'refundable') return u.one ? '-' : NA;
+      return c.req && (u.rec + u.one) ? MISSING : '-'; };
     // One cell at a time, as production's mass edit does (2026-10-15): clicking a cell closes the one
     // that was open — keeping what was typed or picked in `this._meVals` — and opens this one. A text
     // field becomes a blue-edged input with its text selected; a field with choices opens straight onto
     // its options. Enter or a click elsewhere keeps the value, Escape drops it. All DOM-only.
     const BRAND = 'var(--ac,var(--rmx-brand, #008dd5))';
     const paint = (el) => { const c = COLS.filter(x => x.f === el.getAttribute('data-f'))[0];
-      el.innerHTML = show(c, V(el.getAttribute('data-code'), c.f)); el.removeAttribute('data-editing'); };
+      el.innerHTML = show(c, V(el.getAttribute('data-code'), c.f), el.getAttribute('data-code')); el.removeAttribute('data-editing'); };
     const count = () => { const n = Object.keys(this._meVals || {}).length, t = document.getElementById('me-count');
       if (t) t.textContent = n ? n + ' charge type' + (n === 1 ? '' : 's') + ' changed' : ''; };
     const keep = (code, f, v) => { ((this._meVals || (this._meVals = {}))[code] || (this._meVals[code] = {}))[f] = v; count(); };
@@ -6190,7 +6375,7 @@ class Component extends DCLogic {
       const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:36px;box-sizing:border-box;padding:0 8px;font-size:14px;${INK};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra || ''}">${t}</span>`;
       return `<div onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background='${bg}'" style="display:grid;grid-template-columns:${tracks};align-items:center;background:${bg};border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)">
         ${cell(esc(r.code))}${cell(props(r), 'overflow:visible')}
-        ${COLS.map(c => `<span data-code="${esc(r.code)}" data-f="${c.f}" onclick="window.__meEdit(this)" title="Select to edit" style="display:flex;align-items:center;min-height:36px;min-width:0;box-sizing:border-box;padding:2px 8px;font-size:14px;${INK};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer">${show(c, V(r.code, c.f))}</span>`).join('')}
+        ${COLS.map(c => `<span data-code="${esc(r.code)}" data-f="${c.f}" onclick="window.__meEdit(this)" title="Select to edit" style="display:flex;align-items:center;min-height:36px;min-width:0;box-sizing:border-box;padding:2px 8px;font-size:14px;${INK};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer">${show(c, V(r.code, c.f), r.code)}</span>`).join('')}
       </div>`;
     }).join('');
     const PEN = this.ico('edit_square', 20, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none');
@@ -6205,6 +6390,7 @@ class Component extends DCLogic {
         </div>
         <div style="flex:1;min-height:0;display:flex;flex-direction:column;gap:16px;padding:16px;position:relative">
           <span style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">Set the marketing information for every charge that uses this charge type. Charges will display on listings as they are here.</span>
+          ${only ? `<span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">Showing ${only.length === 1 ? 'the charge type' : only.length + ' charge types'} missing marketing details: <strong style="font-weight:600">${only.map(esc).join(', ')}</strong><span data-act="ctMassAll" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Show All Charge Types</span></span>` : ''}
           <div data-rreg-me onmousedown="window.__meOutside(event)" onscroll="window.__meClose(true);this.querySelectorAll('[data-pillpnl]').forEach(p=>p.style.display='none')" style="flex:1;min-height:0;overflow:auto;border:1px solid var(--rmx-line, #cedbe7)">
             <div style="min-width:1400px">
               <div style="display:grid;grid-template-columns:${tracks};background:var(--rmx-register-header, #737373);position:sticky;top:0;z-index:1">
@@ -6320,8 +6506,8 @@ class Component extends DCLogic {
   // of charge it is, and shows Charge Schedule or Fee Due accordingly.
   // In Text/text-disabled grey, so the qualifier reads as a footnote to the label rather than part of it.
   mktOnly(t){ return ` <em style="font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">${t}</em>`; }
-  schedOnly(){ return 'Charge Schedule' + this.mktOnly('Recurring Charges Only'); }
-  dueOnly(){ return 'Charge Timing' + this.mktOnly('One-Time Charges Only'); }
+  schedOnly(code){ return 'Charge Schedule' + this.mktUse('rec', code); }
+  dueOnly(code){ return 'Charge Timing' + this.mktUse('one', code); }
   refundOnly(){ return 'Refundability (Optional)' + this.mktOnly('One-Time Charges Only'); }
   ctFieldBits(){
     const esc = v => ('' + (v == null ? '' : v)).replace(/"/g, '&quot;');
@@ -6462,10 +6648,10 @@ class Component extends DCLogic {
        ${mfld('Marketing Description (Optional)', marea('ctd-mkt-marketing', d.marketing || ''))}
        <div style="display:flex;gap:16px">
          ${mfld('Charge Requirement', mdd('ctd-mkt-requirement', REQ, d.requirement || ''), H.requirement)}
-         ${mfld(this.schedOnly(), mdd('ctd-mkt-schedule', SCHED, d.schedule || ''))}
+         ${mfld(this.schedOnly(code), mdd('ctd-mkt-schedule', SCHED, d.schedule || ''))}
        </div>
        <div style="display:flex;gap:16px">
-         ${mfld(this.dueOnly(), mdd('ctd-mkt-feeDue', DUE, d.feeDue || seed.feeDue))}
+         ${mfld(this.dueOnly(code), mdd('ctd-mkt-feeDue', DUE, d.feeDue || seed.feeDue))}
          ${mfld(this.refundOnly(), mdd('ctd-mkt-refundable', REF, d.refundable || seed.refundable))}
        </div>
        ${this.attrDefSections('ctd', d.attrs, String(d.category || ''))}`, true);
@@ -6863,6 +7049,12 @@ class Component extends DCLogic {
     if (!r.ils) {
       return `<span style="display:inline-flex;align-items:center;gap:5px;background:var(--rmx-bg-muted, #f2f2f2);border-radius:12px;padding:2px 9px;cursor:default" title="This charge isn&#39;t included on listings, so it isn&#39;t measured for listing readiness"><svg class="ico" width="14" height="14" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-text-muted, #b3b3b3)"><path d="m629-419-44-44q26-71-27-118t-115-24l-44-44q17-11 38-16t43-5q71 0 120.5 49.5T650-500q0 22-5.5 43.5T629-419Zm129 129-40-40q49-36 85.5-80.5T857-500q-50-111-150-175.5T490-740q-42 0-86 8t-69 19l-46-47q35-16 89.5-28T485-800q143 0 261.5 81.5T920-500q-26 64-67 117t-95 93Zm58 226L648-229q-35 14-79 21.5t-89 7.5q-146 0-265-81.5T40-500q20-52 55.5-101.5T182-696L56-822l42-43 757 757-39 44ZM223-654q-37 27-71.5 71T102-500q51 111 153.5 175.5T488-260q33 0 65-4t48-12l-64-64q-11 5-27 7.5t-30 2.5q-70 0-120-49t-50-121q0-15 2.5-30t7.5-27l-97-97Zm305 142Zm-116 58Z"/></svg><span style="font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap">Excluded</span></span>`;
     }
+    // A duplicate pair can't be sent whatever its fields hold (2026-10-15), so it says so first and opens
+    // the Resolve dialog.
+    const dg = this.chargeDupeOf(r);
+    if (dg) {
+      return `<span data-act="dupOpen" data-arg="${String(dg.prop + '::' + dg.key).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" title="${this.dupLabel(dg)} would show as the same fee. Select to resolve." style="display:inline-flex;align-items:center;gap:5px;background:${act ? '#fdecee' : '#fdf3e3'};border-radius:12px;padding:2px 9px;cursor:pointer">${this.filledIco('error', 16, `color:${act ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-notice, #faa61c)'};flex:none`)}<span style="font-size:13px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">Duplicate</span></span>`;
+    }
     // One missing field reads like several — "1 Field Missing", with the hover naming it — so the
     // column says the same kind of thing on every row.
     if (missing.length) {
@@ -7239,16 +7431,30 @@ class Component extends DCLogic {
     const p = this.state.property;
     if (!this.state.publishedProps[p] || !this.ilsOn(p)) return '';
     const short = this.appliedRows(p).filter(r => r.ils && !this.mitsComplete(r));
-    if (!short.length) return '';
+    const dupes = this.chargeDupes(p);
+    if (!short.length && !dupes.length) return '';
+    const esc = t => String(t).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+    const codes = short.map(r => String(r.mits || '').toUpperCase()).filter((c, i, a) => c && a.indexOf(c) === i).sort();
+    const link = (t, act, arg) => `<span data-act="${act}" data-arg="${esc(arg)}" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${t}</span>`;
     const n = short.length;
     // Only ever shown once fee transparency is active, where a short charge is holding listings off
-    // the feed — so it is red, the colour this file keeps for that one state.
+    // the feed — so it is red, the colour this file keeps for that one state. Each line names its cause
+    // and goes to its fix (2026-10-15): the charge types to Mass Edit, a duplicate pair to Resolve.
+    const line = (title, body, action) => `<span style="display:flex;align-items:flex-start;gap:12px">
+        <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
+          <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title}</span>
+          <span style="font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">${body}</span>
+        </span>${action}</span>`;
+    const parts = [];
+    if (n) parts.push(line(`${n} Listed Charge${n === 1 ? ' is' : 's are'} Missing Marketing Details`,
+      `Fee transparency is active on ${esc(p)}, so any listing using ${n === 1 ? 'this charge' : 'these charges'} will not post until the ${codes.join(', ')} charge type${codes.length === 1 ? ' has' : 's have'} every required field.`,
+      link('Mass Edit Marketing Details', 'ftMassEdit', codes.join(','))));
+    dupes.forEach(g => parts.push(line(`${this.dupLabel(g)[0].toUpperCase() + this.dupLabel(g).slice(1)} can’t both show on listings`,
+      'They would show as the same fee, so listings using them will not post until one is excluded, ended or changed to another charge type.',
+      link('Resolve', 'dupOpen', g.prop + '::' + g.key))));
     return `<div style="flex:none;display:flex;align-items:flex-start;gap:12px;padding:14px 16px;background:#fdecee;border:1px solid var(--rmx-error, #eb343c);border-radius:4px">
       ${this.ico('error', 20, 'color:var(--rmx-error, #eb343c);flex:none;margin-top:1px')}
-      <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
-        <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${n} Listed Charge${n === 1 ? ' is' : 's are'} Missing Marketing Details</span>
-        <span style="font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">Fee transparency is active on ${String(p).replace(/&/g,'&amp;').replace(/</g,'&lt;')}, so any listing using ${n === 1 ? 'this charge' : 'these charges'} will not post until every required field is filled out.</span>
-      </span>
+      <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:14px">${parts.join('')}</span>
     </div>`;
   }
   mitsBannerOld(){
@@ -11577,6 +11783,7 @@ class Component extends DCLogic {
     out += this.marketRentHTML();
     out += this.utDelHTML();
     out += this.ltErrHTML();
+    out += this.dupResolveHTML();
     out += this.colSetupHTML();
     out += this.addPropHTML();
     out += this.pfFilterHTML();

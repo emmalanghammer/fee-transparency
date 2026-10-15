@@ -950,6 +950,46 @@ describes the design before that tag; the code for most of it is still in the fi
   and the footer repeats Save / Cancel. **Save** (`ctMassSave`) writes `_meVals` into
   `mktDef`, so every charge of those types changes at once, and flashes *Marketing details saved for n
   charge types*.
+- **Listing ready has two causes, and each goes to its own fix** (2026-10-15, after a critique of the whole
+  flow). `chargeReady(r)` = `mitsComplete(r)` (the charge type has the fields that charge needs) **and** no
+  duplicate (`chargeDupeOf(r)`). `ftCharges`, the Listings per-unit count, `ltChargeIssues` (so Not Sent),
+  Setup and the Charges register all read it.
+  - **What's required follows usage.** `mitsMissing` already asks a recurring charge for Charge Schedule
+    and a one-time charge for Charge Timing. `ctUsage(code)` counts the type's recurring and one-time
+    charges on listings at properties fee transparency applies to; Charge Type Details labels the two
+    fields from it (`mktUse`: *Required: used by 2 recurring charges* / *Not needed: no one-time charges on
+    listings*), and Mass Edit shows a grey dash (not Missing) for a field no charge of the type needs, and
+    `-` rather than Missing on a type no listed charge uses (SF).
+  - **Duplicates** (the user's rule): two charges of one charge type, at the same level on the same
+    target, both live (`chargeLive`: current and not ending today) and both on listings, would show as
+    the same fee, so neither is sent. A recurring and a one-time charge of one type are **not**
+    duplicates. `chargeDupes(prop)` (cached on `profileFees` + scenario) returns `{ key, prop, code,
+    level, target, kind, rows, ids }`; `dupLabel(g)` reads *2 RC charges at the property*. **The
+    Berkshires' $150 Short-term premium (id 30) is the example**: on listings in On Rollout / No ILS, so
+    it reads 8/11 there; excluded in Happy Path and Post Conversion (and `listingReadyRows` now keeps an
+    excluded reference charge off listings), so those stay finished.
+  - **Resolve Duplicate Charges** (`dupResolveHTML`, `state.dupResolve = { prop, key }`, z-index 160,
+    `dupOpen` with `prop::key`): each charge as a card — code, description, Charge Level tag, amount,
+    dates — with **Exclude from Listings** (`dupExclude`), **End Charge** (recurring only; reveals an End
+    date, today by default, and **Save End Date** → `dupEnd`; ending today resolves it now, a later date
+    leaves both off until then) and **Change Charge Type** (`dupChangeType`: opens that charge's form
+    over the property's Charges). It closes itself once the pair no longer conflicts. `dupPatch` edits a
+    charge on any property.
+  - **Saving can't create one**: `saveFee`'s old same-name check is replaced — a charge on listings whose
+    type, level, target and frequency match another live listed charge is refused with *"RC – Base rent
+    is already on listings at the property. Two RC charges there would show as the same fee. Turn off
+    Include on listings, or end or exclude the other charge first."*
+  - **Routing by cause.** Missing details → **Mass Edit filtered to those charge types**
+    (`ftMassEdit` with `GARBAG,SF`; `state.ctMass = { only }`, a *Showing the charge type missing
+    marketing details: GARBAG* line with **Show All Charge Types** → `ctMassAll`). A duplicate →
+    **Resolve**. Listing Errors' charge section says *"These charges are keeping this listing from being
+    sent to providers."* with **Mass Edit Marketing Details**, each item *Missing on the DOGFEE charge type:
+    …* or *2 RC charges at the property · They would show as the same fee. Resolve*. The Charges overlay's
+    red `mitsBanner` names the types with **Mass Edit Marketing Details** and adds a line per duplicate
+    with **Resolve**. The Charges register's Listing Ready cell reads a **Duplicate** pill (amber, red
+    once activated) that opens Resolve. Setup's step 1 strip names each type's missing fields
+    (`ftShortDetail`), and a property row's next step is *Add GARBAG marketing details*, else *Resolve
+    duplicate RC charges*, else the Base Rent link.
 - **Marketing Setup has no Default Charge Marketing tile**; Floor Plans spans its two columns.
 - **Activation needs a Base Rent on every unit, nothing confirmed** (`roleRentReady` is coverage only).
   The Setup row's Base Rent sub-row appears only when it's missing (*Base Rent missing: n units* /
