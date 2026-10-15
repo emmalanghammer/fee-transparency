@@ -4860,12 +4860,11 @@ class Component extends DCLogic {
       const c = this.roleCoverage(prop, kind);
       const gone = (g) => { const a = this.roleAnswer('review', kind, g); return !!(a && a.declined); };
       const hasProp = gs.some(g => g.level === 'Property' && !gone(g));
-      // No property-level charge: a tinted row says so; for rent, a Callout nudges to one charge that
-      // covers every unit by referencing Unit Market Rent.
-      const missingProp = `<div data-rmissprop style="display:${hasProp ? 'none' : 'flex'};align-items:center;gap:12px;min-height:52px;box-sizing:border-box;padding:8px 16px;border-top:1px solid var(--rmx-line, #cedbe7);background:#fffaf3;font-size:14px;line-height:20px;${INK}">
-          <span style="flex:0 1 260px;min-width:120px;overflow:hidden">${this.chargeLevelCell('Property', esc(prop))}</span>
-          <span style="${kind === 'rent' ? 'flex:0 1 190px;min-width:90px' : 'flex:1'};font-style:italic;color:var(--rmx-text, #666666)">No property level ${kind === 'rent' ? 'base rent' : 'security deposit'}</span>
-          ${kind === 'rent' ? `<span style="display:inline-flex;align-items:center;gap:8px;padding:8px;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;white-space:nowrap">${this.ico('info', 20, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}Cover every unit with one charge using Unit Market Rent.</span>` : ''}
+      // No property-level charge (2026-10-15): for rent, the first row under the header is just a tip
+      // Callout towards one property charge on Unit Market Rent; a deposit shows nothing, the missing
+      // line in the header already says it.
+      const missingProp = kind !== 'rent' ? '' : `<div data-rmissprop style="display:${hasProp ? 'none' : 'flex'};align-items:center;min-height:52px;box-sizing:border-box;padding:8px 16px;border-top:1px solid var(--rmx-line, #cedbe7);font-size:14px;line-height:20px;${INK}">
+          <span style="display:inline-flex;align-items:center;gap:8px;padding:8px;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px">${this.ico('info', 20, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}<span><strong style="font-weight:600">Tip:</strong> Include Base Rent on every unit with one property charge using Unit Market Rent.</span></span>
         </div>`;
       const optsAdd = this.roleAddTargets(prop, kind);
       // The charge to add is one on a charge type this role reads: a rent charge type for the Base Rent

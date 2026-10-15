@@ -1506,9 +1506,10 @@ canvas *Confirm Base Rent & Deposit*).
   and **+ Add Base Rent** / **+ Add Security Deposit** on the right. Rows are 52px with `#cedbe7` rules:
   Charge Level cell (260) · coverage (190, grey, *Used by n units*) · the charge as **`roleShort`** —
   *RC Rent: Unit Market Rent*, *DP Security Deposit: $600.00* — and the actions. The property's row is white,
-  unit type and unit rows `#fbfcfd`. With no property-level charge a `#fffaf3` row says *No property level
-  base rent* / *…security deposit* in grey italic, and for rent adds a brand Callout, *"Cover every unit
-  with one charge using Unit Market Rent."* `roleCoverage(prop, kind)` works it out — a unit reads its own,
+  unit type and unit rows `#fbfcfd`. With no property-level Base Rent, the first row under its header is only a brand Callout, *"**Tip:**
+  Include Base Rent on every unit with one property charge using Unit Market Rent."* (2026-10-15); a
+  missing property Security Deposit shows no row at all — the header's missing line already says it (the
+  tinted *No property level …* rows came off) `roleCoverage(prop, kind)` works it out — a unit reads its own,
   else its unit type's, else the property's — counting unsaved answers (a declined group covers nothing)
   and added charges, and `window.__roleCov` repaints the counts, lozenges and missing text DOM-only.
   **Add picks an existing charge; it never creates one** (2026-10-13, the user's correction). It opens an
