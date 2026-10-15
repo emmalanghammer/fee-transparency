@@ -39,7 +39,8 @@ screen (2026-10-07; it used to wait on every listing advertising a complete pric
   `error`), *Streamlined Process* (grey `settings`), *Applicable Properties* (brand `apartment`).
 - **Revised to Figma `3991:162248` again on 2026-10-15** (the frame was updated): *What is Fee
   Transparency?* is a compact card with a 1px **brand** border, 8px/16px padding, a brand `help` glyph and
-  the title at 14px Regular navy, then the chevron (open, it keeps its notes). The steps carry **no
+  the title at 14px Regular navy, then the chevron (open, a full-width `--rmx-line` rule separates the header
+  from the notes under it). The steps carry **no
   numbers**.
 - **Add Marketing Details to Charge Types** + the `Required` lozenge (`#fbd6d8`, navy text), with a
   **Charge Types** link on the right (`navChargeTypes`), over *"Edit each charge type's marketing
