@@ -7143,7 +7143,8 @@ class Component extends DCLogic {
   // charge type; ready is the green check. Amber before activation, red after (`act`).
   lrPill(code, missing, act, dup){
     const tone = act ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-attention, #f58220)';
-    const pill = (t, extra) => `<span ${extra || ''} style="display:inline-flex;align-items:center;gap:5px;background:${act ? '#fdecee' : '#fdf3e3'};border-radius:12px;padding:2px 9px;cursor:${extra ? 'pointer' : 'default'}">${this.filledIco('error', 14, 'color:' + tone + ';flex:none')}<span style="font-size:14px;color:${act ? '#a3252c' : '#7a5a2a'};white-space:nowrap">${t}</span></span>`;
+    // No fill (2026-10-15, the user's call): the icon and the words, aligned with the bare check on ready rows.
+    const pill = (t, extra) => `<span ${extra || ''} style="display:inline-flex;align-items:center;gap:5px;padding:2px 0;cursor:${extra ? 'pointer' : 'default'}">${this.filledIco('error', 14, 'color:' + tone + ';flex:none')}<span style="font-size:14px;color:${act ? '#a3252c' : '#7a5a2a'};white-space:nowrap">${t}</span></span>`;
     if (dup) return pill('Duplicate', `data-act="dupOpen" data-arg="${String(dup.prop + '::' + dup.key).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" title="${this.dupLabelAt(dup)} would show as the same fee. Select to resolve."`);
     if (missing && missing.length) return this.infoTip(
       `<span style="display:block;white-space:normal;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);padding-bottom:9px;border-bottom:1px solid var(--rmx-line, #cedbe7)">Required for listings, missing on the ${String(code || '').toUpperCase()} charge type:</span>`

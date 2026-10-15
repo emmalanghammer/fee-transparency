@@ -1014,7 +1014,7 @@ describes the design before that tag; the code for most of it is still in the fi
   system of charges"). `lrPill(code, missing, act, dup)` is the Charges register's own status — a
   **Duplicate** pill that opens Resolve; a **Missing Details** pill whose hover (the RMX Tooltip, header
   *Required for listings, missing on the GARBAG charge type:*, wrapping) lists the fields; or the green
-  filled check — amber before activation, red after. `mitsStatusCell` (after its Excluded case), the
+  filled check — amber before activation, red after. The two pills have no fill (2026-10-15): the filled glyph and the words only. `mitsStatusCell` (after its Excluded case), the
   Charge Types page's **Listing Ready** column (below; red once any property using the type has activated,
   a grey *Not on Listings* pill for a type no listed charge uses) and the Listings Charge Types overlay's
   Listing Ready column all draw it, so the overlay no longer spells the fields out inline.
