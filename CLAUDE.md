@@ -900,7 +900,7 @@ describes the design before that tag; the code for most of it is still in the fi
 
 - **`resolvedListing(r)` reads the charge type only** (`mktDefFor(r.mits)`); whatever a charge or a
   property stored is ignored. `ctmOwn` returns null and `chargeInherits` returns the charge type's values.
-- **Charge Type Details' Charge Marketing** gains *Charges using this charge type are* **Base Rent /
+- **Charge Type Details' Charge Marketing** gains *Charges using this charge type are:* (label and radios on one line) **Base Rent /
   Security Deposit / Additional Charge** radios (`ctd-mkt-role` → `mktDef[CODE].role`; `mktDefSeed`
   makes RC `rent` and DP `deposit`). **Save commits straight away** — no Update Default Charge Marketing
   question, since there are no overrides for it to reach.
