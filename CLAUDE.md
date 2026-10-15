@@ -18,11 +18,13 @@ Two whole prototypes are served off the same deploy, so they can be compared liv
 banner, a toolbar, then the properties. `ltGroups()` gathers the listings under their property and
 `listingsPageBody` renders each group.
 
-**The banner is an invitation, not a warning.** It is the brand-tinted info surface — background
-`rgba(232,246,250,0.5)`, 1px brand border, 4px radius, 16px padding — with *Fee Transparency Setup*
-at 16/600 over *"We'll walk you through everything that needs updating before activating fee
-transparency on your listings."* at 14/20 `#616466`, and a primary **View Setup** button carrying
-the Material `checklist` glyph. It replaced the amber callout that argued the case for fee
+**The banner is an invitation, not a warning.** Since 2026-10-15 it matches Figma `3980:158106`: an
+attention-orange surface — background `#fff7e9`, 1px `--rmx-attention` border, 4px radius, 16px padding —
+with the filled navy `campaign` glyph (32px, from the Figma) 8px from *Fee Transparency Setup* at 16/24
+SemiBold over *"We'll walk you through everything that needs updating before activating fee
+transparency on your listings."* at 14/20 `--rmx-text`, and an orange **View Setup** button
+(`--rmx-attention` fill, white Regular label, 8px/16px sides) carrying the Material `checklist` glyph.
+(It was the brand-tinted info surface with a blue primary button, Figma `3561:122549`.) It replaced the amber callout that argued the case for fee
 transparency: the page now offers the way in rather than making the argument. It hides once
 **every property fee transparency can apply to has activated** (`needsFT`: any `ftApplicable`
 property not in `publishedProps`), so Post Conversion shows none and Happy Path loses it the moment
