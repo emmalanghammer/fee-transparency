@@ -5817,11 +5817,15 @@ class Component extends DCLogic {
     const mdCodes = is.charges.filter(c => !c.dup).map(c => c.code).filter((c, i, a) => c && a.indexOf(c) === i);
     const chargeLead = `<div style="display:flex;align-items:flex-start;gap:14px">
         <span style="flex:1;min-width:0;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">These charges are keeping this listing from being sent to providers.</span>
-        ${mdCodes.length ? `<a data-act="ftMassEdit" data-arg="${escA(mdCodes.join(','))}" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Mass Edit Marketing Details</a>` : ''}
+        ${mdCodes.length > 1 ? `<a data-act="ftMassEdit" data-arg="${escA(mdCodes.join(','))}" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Mass Edit Marketing Details</a>` : ''}
       </div>`;
+    // Each item carries its own fix on the right (2026-10-15): Edit Charge Type for missing details,
+    // Resolve for a duplicate pair. Mass Edit sits in the lead only when more than one type is short.
+    const itemLink = (t, act, arg) => `<a data-act="${act}" data-arg="${escA(arg)}" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${t}</a>`;
+    const itemRow = (main, sub, action) => `<span style="display:flex;align-items:flex-start;gap:14px"><span style="flex:1;min-width:0"><strong style="font-weight:600">${main}</strong><br><span style="color:var(--rmx-text, #666666)">${sub}</span></span>${action}</span>`;
     const chargeItem = (c) => c.dup
-      ? `<strong style="font-weight:600">${c.name}</strong><br><span style="color:var(--rmx-text, #666666)">They would show as the same fee. </span><a data-act="dupOpen" data-arg="${escA(c.dup.prop + '::' + c.dup.key)}" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Resolve</a>`
-      : `<strong style="font-weight:600">${c.name}</strong><br><span style="color:var(--rmx-text, #666666)">Missing on the ${c.code} charge type: ${c.missing.join(', ')}</span>`;
+      ? itemRow(c.name, 'They would show as the same fee.', itemLink('Resolve', 'dupOpen', c.dup.prop + '::' + c.dup.key))
+      : itemRow(c.name, `Missing on the ${c.code} charge type: ${c.missing.join(', ')}`, itemLink('Edit Charge Type', 'ctOpen', c.code));
     return `<div data-act="ltErrClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:150">
       <div data-act="noop" style="width:714px;max-width:94vw;max-height:90vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="flex:none;display:flex;align-items:center;gap:12px;height:48px;box-sizing:border-box;padding:0 16px;border-bottom:1px solid var(--rmx-line, #cedbe7)">

@@ -983,8 +983,10 @@ describes the design before that tag; the code for most of it is still in the fi
     (`ftMassEdit` with `GARBAG,SF`; `state.ctMass = { only }`, a *Showing the charge type missing
     marketing details: GARBAG* line with **Show All Charge Types** → `ctMassAll`). A duplicate →
     **Resolve**. Listing Errors' charge section says *"These charges are keeping this listing from being
-    sent to providers."* with **Mass Edit Marketing Details**, each item *Missing on the DOGFEE charge type:
-    …* or *2 RC charges at the property · They would show as the same fee. Resolve*. The Charges overlay's
+    sent to providers."*, with **Mass Edit Marketing Details** beside it **only when more than one charge
+    type is short**; each item carries its own fix on the right — *Missing on the DOGFEE charge type: …*
+    with **Edit Charge Type** (`ctOpen`, Charge Type Details over the dialog), or *2 RC charges at the
+    property · They would show as the same fee.* with **Resolve**. The Charges overlay's
     red `mitsBanner` names the types with **Mass Edit Marketing Details** and adds a line per duplicate
     with **Resolve**. The Charges register's Listing Ready cell reads a **Duplicate** pill (amber, red
     once activated) that opens Resolve. Setup's step 1 strip names each type's missing fields
