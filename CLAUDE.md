@@ -927,6 +927,20 @@ describes the design before that tag; the code for most of it is still in the fi
   editable fields and the role card stay in the DOM, hidden, so `__mitsRecheck`, the header status and
   `saveFee` keep working; they are filled from the charge type (the form strips `ed.listing`). The
   Include on listings toggle stays per charge.
+- **Mass Edit Marketing Details** (Figma `3980:160947`, 2026-10-15): an action link (`edit_square`) beside
+  Add Charge Type on the Charge Types page opens `ctMassHTML` (`state.ctMass`, z-index 150, 1572px wide):
+  the 48px header with a help (`todo`) and close, *"Set the marketing information for every charge that
+  uses this charge type. Charges will display on listings as they are here."*, then one register row per
+  active charge type — **Charge Type · Properties · Charge Role · Name · Charge Category · Marketing
+  Description · Charge Requirement · Charge Schedule · Charge Timing · Refundability** — grey Register
+  header, striped rows. An empty required field reads an amber **Missing** lozenge, an optional one `-`.
+  **Clicking a cell makes it its field** (DOM-only, `window.__meEdit`): a `singleSelect` for the choices,
+  a text input for Name and Marketing Description; `this._meDirty` remembers which charge types were
+  touched. A navy bar floats over the register — *"You are in Mass Edit mode for marketing details.
+  Select any field to update its value."*, *n charge types changed*, white Save and outlined Cancel —
+  and the footer repeats Save / Cancel. **Save** (`ctMassSave`) writes every touched field into
+  `mktDef`, so every charge of those types changes at once, and flashes *Marketing details saved for n
+  charge types*.
 - **Marketing Setup has no Default Charge Marketing tile**; Floor Plans spans its two columns.
 - **Activation needs a Base Rent on every unit, nothing confirmed** (`roleRentReady` is coverage only).
   The Setup row's Base Rent sub-row appears only when it's missing (*Base Rent missing: n units* /

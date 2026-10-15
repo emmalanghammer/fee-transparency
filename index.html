@@ -1348,6 +1348,26 @@ class Component extends DCLogic {
       case 'navChargeTypes': this.go('chargetypes', { ftSetup: null }); break;
       case 'ctInactiveToggle': this.setState(s => ({ ctShowInactive: !s.ctShowInactive })); break;
       case 'regInactiveToggle': this.setState(s => ({ regShowInactive: !s.regShowInactive })); break;
+      // Mass Edit Marketing Details (Figma 3980:160947, 2026-10-15): every charge type's marketing details
+      // in one register. Cells edit in place, DOM-only, and Save writes them all to the charge types.
+      case 'ctMassOpen': this._meDirty = {}; this.setState({ ctMass: true }); break;
+      case 'ctMassClose': this._meDirty = {}; this.setState({ ctMass: false }); break;
+      case 'ctMassSave': {
+        const dirty = this._meDirty || {};
+        const defs = Object.assign({}, this.mktDefs());
+        const codes = Object.keys(dirty);
+        codes.forEach(code => {
+          const d = Object.assign({}, defs[code] || {});
+          Object.keys(dirty[code]).forEach(f => {
+            const el = this.q('#me-' + code + '-' + f);
+            if (el) d[f] = String(el.value || '').trim();
+          });
+          defs[code] = d;
+        });
+        this._meDirty = {};
+        this.setState({ mktDef: defs, ctMass: false });
+        if (codes.length) this.flash('Marketing details saved for ' + codes.length + ' charge type' + (codes.length === 1 ? '' : 's'));
+        break; }
       case 'ctAddOpen': this.setState({ ctAdd: { code:'', desc:'', gl:'', amount:'0.00', props:null, category:'', active:true } }); break;
       case 'ctAddClose': this.setState({ ctAdd: null }); break;
       case 'ctAddSave': { const v = id => ((this.q('#' + id) || {}).value || '').trim();
@@ -6028,6 +6048,96 @@ class Component extends DCLogic {
   petTypesFor(prop){ const p = prop || this.state.property;
     return this.state.petTypes.filter(t => !t.props || t.props.indexOf(p) >= 0); }
   // ---------- Charge Types register (mock 2219-2405) ----------
+  ctMassHTML(){
+    if (!this.state.ctMass) return '';
+    const INK = 'color:var(--rmx-brand-dark, #13314c)';
+    const esc = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    const rows = this.chargeTypeRows().filter(r => r.active).slice().sort((a, b) => a.code.localeCompare(b.code));
+    const ROLE = [{ value:'rent', label:'Base Rent' }, { value:'deposit', label:'Security Deposit' }, { value:'', label:'Additional Charge' }];
+    const DUE = [{ value:'At Application', label:'At Application' }, { value:'Move-In', label:'At Move-In' }, { value:'During Term', label:'During Term' }, { value:'Move-Out', label:'At Move-Out' }];
+    const REF = [{ value:'yes', label:'Refundable' }, { value:'no', label:'Not Refundable' }];
+    const lbl = (opts, v) => { const o = opts.filter(x => typeof x === 'object' ? x.value === v : x === v)[0]; return o ? (typeof o === 'object' ? o.label : o) : v; };
+    // Columns, to the Figma frame: what each edits, its options (none = free text), whether an empty
+    // value is Missing (required for listings) or a dash (optional), and its width.
+    const COLS = [
+      { f:'role', h:'Charge Role', opts: ROLE, req:false, w:'150px' },
+      { f:'name', h:'Name', req:true, w:'170px' },
+      { f:'category', h:'Charge Category', opts: this.chargeCategoryOptions(), req:true, w:'140px' },
+      { f:'marketing', h:'Marketing Description', req:false, w:'minmax(200px,1fr)' },
+      { f:'requirement', h:'Charge Requirement', opts: ['Required','Optional','Situational'], req:true, w:'160px' },
+      { f:'schedule', h:'Charge Schedule', opts: ['Weekly','Monthly','Annually'], req:true, w:'140px' },
+      { f:'feeDue', h:'Charge Timing', opts: DUE, req:true, w:'140px' },
+      { f:'refundable', h:'Refundability', opts: REF, req:false, w:'130px' }
+    ];
+    const tracks = '100px 120px ' + COLS.map(c => c.w).join(' ');
+    const head = (t) => `<span style="display:flex;align-items:center;height:28px;box-sizing:border-box;padding:0 8px;font:500 12.6px Roboto,sans-serif;letter-spacing:1.134px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>`;
+    const MISSING = `<span style="display:inline-flex;align-items:center;height:24px;padding:0 8px;border-radius:4px;background:var(--rmx-notice-bg, #feedd2);font:400 14px/16px Roboto,sans-serif;${INK}">Missing</span>`;
+    const show = (c, v) => c.f === 'role' ? esc(lbl(ROLE, v || '')) : v ? esc(c.opts ? lbl(c.opts, v) : v) : (c.req ? MISSING : '-');
+    // Clicking a cell turns it into its field — a dropdown, or a text input — and remembers that the
+    // charge type changed (`this._meDirty`), so Save writes only what was touched.
+    if (!window.__meEdit) window.__meEdit = (el) => {
+      if (el.getAttribute('data-editing')) return;
+      const code = el.getAttribute('data-code'), f = el.getAttribute('data-f');
+      const c = COLS.filter(x => x.f === f)[0]; if (!c) return;
+      const d = this.mktDefFor(code) || {};
+      const cur = f === 'role' ? (d.role || '') : (d[f] || '');
+      el.setAttribute('data-editing', '1');
+      ((this._meDirty || (this._meDirty = {}))[code] || (this._meDirty[code] = {}))[f] = true;
+      el.innerHTML = '<div style="flex:1;min-width:0">' + (c.opts
+        ? this.singleSelect('me-' + code + '-' + f, c.opts, cur, { noSearch: true, blank: f !== 'role', placeholder: f === 'role' ? 'Additional Charge' : c.req ? 'Missing' : '-' })
+        : `<input id="me-${code}-${f}" class="fld" value="${esc(cur)}" placeholder="${c.req ? 'Missing' : '-'}" style="height:32px;box-sizing:border-box">`) + '</div>';
+      const inp = el.querySelector('input:not([type=hidden])'); if (inp) inp.focus();
+      const n = Object.keys(this._meDirty).length, t = document.getElementById('me-count');
+      if (t) t.textContent = n ? n + ' charge type' + (n === 1 ? '' : 's') + ' changed' : '';
+    };
+    const props = (r) => !r.props || !r.props.length ? 'All Properties' : this.propInfo(r.props[0]).short + (r.props.length > 1 ? ' +' + (r.props.length - 1) : '');
+    const body = rows.map((r, i) => {
+      const d = this.mktDefFor(r.code) || {};
+      const bg = i % 2 ? '#fff' : 'var(--rmx-bg-subtle, #f5f8fa)';
+      const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:36px;box-sizing:border-box;padding:0 8px;font-size:14px;${INK};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra || ''}">${t}</span>`;
+      return `<div style="display:grid;grid-template-columns:${tracks};align-items:center;background:${bg};border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)">
+        ${cell(esc(r.code))}${cell(esc(props(r)))}
+        ${COLS.map(c => `<span data-code="${esc(r.code)}" data-f="${c.f}" onclick="window.__meEdit(this)" title="Select to edit" style="display:flex;align-items:center;min-height:36px;min-width:0;box-sizing:border-box;padding:2px 8px;font-size:14px;${INK};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer">${show(c, c.f === 'role' ? (d.role || '') : d[c.f])}</span>`).join('')}
+      </div>`;
+    }).join('');
+    const PEN = this.ico('edit_square', 20, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none');
+    return `<div style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:150">
+      <div data-act="noop" style="width:1572px;max-width:96vw;height:909px;max-height:94vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;height:48px;box-sizing:border-box;padding:8px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
+          <span style="font:400 20px/28px Roboto,sans-serif;${INK};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Mass Edit Marketing Details</span>
+          <span style="display:flex;align-items:center;gap:8px;flex:none">
+            <span data-act="todo" data-arg="Mass edit help" style="display:flex;cursor:pointer">${this.ico('help', 24, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
+            <span data-act="ctMassClose" style="display:flex;cursor:pointer">${this.ico('close', 24, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
+          </span>
+        </div>
+        <div style="flex:1;min-height:0;display:flex;flex-direction:column;gap:16px;padding:16px;position:relative">
+          <span style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">Set the marketing information for every charge that uses this charge type. Charges will display on listings as they are here.</span>
+          <div style="flex:1;min-height:0;overflow:auto;border:1px solid var(--rmx-line, #cedbe7)">
+            <div style="min-width:1400px">
+              <div style="display:grid;grid-template-columns:${tracks};background:var(--rmx-register-header, #737373);position:sticky;top:0;z-index:1">
+                ${head('Charge Type')}${head('Properties')}${COLS.map(c => head(c.h)).join('')}
+              </div>
+              ${body}
+              <div style="height:72px"></div>
+            </div>
+          </div>
+          <div style="position:absolute;left:0;right:0;bottom:32px;display:flex;justify-content:center;pointer-events:none">
+            <div style="pointer-events:auto;display:flex;align-items:center;gap:24px;flex-wrap:wrap;max-width:calc(100% - 32px);box-sizing:border-box;padding:8px;border-radius:4px;background:var(--rmx-brand-dark, #13314c);box-shadow:0 3px 6px rgba(0,0,0,0.25)">
+              <span style="display:flex;align-items:center;gap:8px;font-size:14px;line-height:20px;color:#fff">${PEN}You are in Mass Edit mode for marketing details. Select any field to update its value.<span id="me-count" style="color:var(--rmx-bg-muted, #f2f2f2);opacity:.8"></span></span>
+              <span style="display:flex;align-items:center;gap:16px;flex:none">
+                <button data-act="ctMassSave" style="height:29px;padding:0 16px;border:0;border-radius:4px;background:#fff;color:var(--rmx-brand-dark, #13314c);font:400 14px Roboto,sans-serif;cursor:pointer">Save</button>
+                <button data-act="ctMassClose" style="height:29px;padding:0 16px;border:1px solid #fff;border-radius:4px;background:transparent;color:#fff;font:400 14px Roboto,sans-serif;cursor:pointer">Cancel</button>
+              </span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:16px;padding:8px 16px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);flex:none">
+          <button data-act="ctMassSave" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Save</button>
+          <button data-act="ctMassClose" class="btn-out" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+  }
   chargeTypesBody(){
     const money = n => (n || 0).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
     const esc = v => ('' + (v == null ? '' : v)).replace(/"/g, '&quot;');
@@ -6069,6 +6179,7 @@ class Component extends DCLogic {
         ${searchBox}${savedFilters}
         ${this.regCheck('Show Inactive', 'ctInactiveToggle', this.state.ctShowInactive)}
         <div style="flex:1"></div>
+        <a data-act="ctMassOpen" style="display:inline-flex;align-items:center;gap:4px;height:36px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${this.ico('edit_square', 20)}Mass Edit Marketing Details</a>
         <button data-act="ctAddOpen" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M453-280h60v-166h167v-60H513v-174h-60v174H280v60h173v166Zm27.27 200q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg>Add Charge Type</button>
         <button data-act="todo" data-arg="Merge charge types" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="m256-120-42-42 196-196q24-24 32-44t8-59v-265l-90 90-42-42 162-162 162 162-42 42-90-90v265q0 39 8 59t32 44l196 196-42 42-224-224-224 224Z"/></svg>Merge</button>
       </div>
@@ -11407,6 +11518,7 @@ class Component extends DCLogic {
     out += this.ftHelpHTML();
     out += this.ctAddHTML();
     out += this.ctDetailHTML();
+    out += this.ctMassHTML();
     out += this.toastHTML();
     return out;
   }
