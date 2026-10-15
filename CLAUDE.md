@@ -1018,10 +1018,11 @@ describes the design before that tag; the code for most of it is still in the fi
   Charge Types page's **Listing Ready** column (below; red once any property using the type has activated,
   a grey *Not on Listings* pill for a type no listed charge uses) and the Listings Charge Types overlay's
   Listing Ready column all draw it, so the overlay no longer spells the fields out inline.
-- **Charge Type Details outlines what's still required in red** (2026-10-15): each Marketing Details field
+- **Charge Type Details marks what's still required** (2026-10-15): each Marketing Details field
   the type's listed charges are missing (`ctMissingAll()`, mapped to keys through `mitsFields()`) gets the
-  `ctd-need` class on its field wrapper, and the head stylesheet turns that field's own box (input,
-  textarea or the `singleSelect` box) `--rmx-error`. Its label carries the charge form's **Required for Listings** lozenge (amber, red once a property
+  **Required for Listings** lozenge always, and — only once a property using the type has activated —
+  the `ctd-need` class on its field wrapper, which the head stylesheet uses to turn that field's own box
+  (input, textarea or the `singleSelect` box) `--rmx-error`. Before activation the field looks normal. Its label carries the charge form's **Required for Listings** lozenge (amber, red once a property
   using the type has activated). GARBAG in On Rollout: Charge Requirement and Charge
   Schedule. It clears once the type is saved complete.
 - **Charge Types has a Listing Ready column and callout** (2026-10-15; the column was headed *Marketing
