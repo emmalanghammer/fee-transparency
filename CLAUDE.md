@@ -129,7 +129,7 @@ the charge work happens at. Off, the same listings are one register whose first 
 **Property**, for when you are looking for a unit rather than reviewing a property.
 
 A register is **Unit · Unit Type · Base Rent · Security Deposit · Total Monthly Price · Available ·
-Listing Ready Charges · Feed Status**, one row per advertised unit (`listingsData()` in C is unit-level, with bed/bath and per-provider state).
+Charge Types · Feed Status**, one row per advertised unit (`listingsData()` in C is unit-level, with bed/bath and per-provider state).
 **Security Deposit** (2026-10-13, `ltDeposit(l)`) is the unit's deposit charge through `roleGroups(prop,
 'deposit')`: the one written on the unit, else its unit type (matched on `unitInfo().type` or
 `ltUnitType` with *B/* read as *BR/*), else the property's. It shows that group's marked charge, or the
@@ -361,7 +361,21 @@ different component. `infoTip(inner, width, opts)` still takes a width; nothing 
 component measures in `3573:779`; the 36 is the user's own call, below RMX's 44px Cell, so a
 property's listings read as one block rather than a scroll.
 
-**Listing Ready Charges is a column, beside Errors**, matching Figma `3573:779`: a status dot and
+**The Charge Types column replaced Listing Ready Charges** (2026-10-15, the user's call). It lists the
+charge types the listing carries (`ltTypes(l)`: the listed charges reaching its unit, grouped by type, each
+with its missing fields and any duplicate pair), ellipsized, after a filled 16px icon — green
+`check_circle` when every type is listing ready, else `error`, amber before activation and red after —
+with a `title` naming the short ones. It opens **`ltTypesHTML`** (`ltTypesOpen` with the listing index,
+`state.ltTypes = { i }`, z-index 150): *Charge Types: `<property · unit>`*, a lead *"1 of 7 charge types on
+this listing isn't listing ready. Each charge's marketing details come from its charge type."* with
+**Mass Edit Marketing Details** beside it when more than one type is short — opening Mass Edit on **every**
+charge type, not only the short ones (the user's call) — then a register **Charge Type · Listing Ready ·
+action**: *GARBAG – Garbage Fee*; *Listing Ready*, or *Missing Details* over *Required for listings:
+Charge Requirement, Charge Schedule*, or *Duplicate* over *2 RC charges at The Berkshires would show as the
+same fee*; and **Edit Charge Type** (`ctOpen`) or, for a duplicate, **Resolve**. An OK footer. What follows
+describes the fraction it replaced.
+
+**Listing Ready Charges was a column, beside Errors**, matching Figma `3573:779`: a status dot and
 the fraction, nothing else — **green once whole, red while any charge is short**. Since 2026-10-15 **each
 listing counts only the charges that apply to its unit** (`ltChargeHits`, the same reach as Not Sent), so
 units of one property can read different fractions. A property fee transparency cannot
