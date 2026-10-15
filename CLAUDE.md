@@ -1343,7 +1343,7 @@ no Marketing Name / requirement / category columns, and Bulk Update is General-o
 
 **`mitsBanner` is the one warning it does carry**, and only after activation: when a property has
 fee transparency active and a charge it carries on listings is short of its marketing details, a
-**red** banner (`#fdecee`, `--rmx-error` border and icon) at the top of the overlay says *“N charges on listings are missing charge marketing”*
+**red** banner (`#fdecee`, `--rmx-error` border and icon) at the top of the overlay says *“N Listed Charges are Missing Charge Marketing”* (*1 Listed Charge is…*; reworded 2026-10-15)
 over *“Fee transparency is active on <property>, so any listing using these charges will not post
 until every required field is filled out.”* Before activation there is nothing to warn about — the
 feed still publishes rent alone, and the Listing Ready column already says which charges are short. General's Listing Details carries no pricing callout and the
