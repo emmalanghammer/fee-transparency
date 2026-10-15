@@ -419,7 +419,7 @@ card's own colour, so a third copy of it was decoration. **A section is always t
 source**, with its count in brackets; **what state it is in sits on the right**, where the eye is
 already going. Rent Manager's and the provider's carry the
 **Missing Information** lozenge there; Charge Marketing Errors carries
-a **Not Sent** lozenge (2026-10-15: white, the filled `error` glyph in red beside regular navy text,
+a **Not Sent** lozenge (2026-10-15: no fill of its own, the filled `error` glyph in red beside regular navy text,
 built like *Sent, Incomplete*'s; it was red SemiBold words, earlier *Action Required: Listing Not Sent*) instead, needing no tint of its own because
 the header it sits in is already red. Only that one is ever red — a red border and a `#fdecee`
 header — and it is what makes the card look different rather than a second colour inside it. Rent
