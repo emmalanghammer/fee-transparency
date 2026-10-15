@@ -313,7 +313,7 @@ so the width never changes and whatever follows lines up: **P** Property (`#cce8
 (`--rmx-bg-muted` / `--rmx-text`), with a `title` (*Property charge* …). **ORI has no library letter
 yet** and borrows Unit Type's colours. Never red, green or orange — those are status.
 `chargeLevelCell(level, name)` is the tag, 8px, then the name of what the charge is written on in
-ordinary 14px register text (`data-lvl-name`, truncating). It is in the shared charges register's
+ordinary 14px register text, always navy (`--rmx-brand-dark`, 2026-10-15) (`data-lvl-name`, truncating). It is in the shared charges register's
 Charge Level column (the unit/unit type tile and Charges overlays), on the property Charges register
 and the copy flows (`chargeLevelPill` now returns it), and as the **first column of Tenant Details ›
 Recurring Charges** (*P Riverview Apartments*, *T Tenant*), which lost its 10px colour bar and the
