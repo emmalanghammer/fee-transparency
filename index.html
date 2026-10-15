@@ -1346,6 +1346,7 @@ class Component extends DCLogic {
       // it closes that overlay behind it — you asked to go to the charge types, not to read them
       // through a scrim.
       case 'navChargeTypes': this.go('chargetypes', { ftSetup: null }); break;
+      case 'ftMassEdit': this._meVals = {}; this.go('chargetypes', { ftSetup: null, ctMass: true }); break;
       case 'ctInactiveToggle': this.setState(s => ({ ctShowInactive: !s.ctShowInactive })); break;
       case 'regInactiveToggle': this.setState(s => ({ regShowInactive: !s.regShowInactive })); break;
       // Mass Edit Marketing Details (Figma 3980:160947, 2026-10-15): every charge type's marketing details
@@ -5073,6 +5074,13 @@ class Component extends DCLogic {
   // ---------- Fee Transparency Setup: the property rows ----------
   ftHomeSvg(){ return `<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="flex:none"><path d="M19.8376 10.8469L9.99318 1L0.148804 10.8469H1.76693L3.0763 9.5375V18.0306H7.56068V10.4712H12.4201V18.0306H16.9044V9.5375L18.2169 10.8469H19.8376Z"/></svg>`; }
   // Every property fee transparency can apply to, and only where listings carry charges at all.
+  // Charge types short of marketing details among the charges listed at the properties in scope.
+  ftShortTypes(){
+    const out = [];
+    this.ftScopeNames().filter(p => this.ftApplicable(p)).forEach(p =>
+      this.appliedRows(p).filter(r => r.ils && !this.mitsComplete(r)).forEach(r => { if (r.mits && out.indexOf(r.mits) < 0) out.push(r.mits); }));
+    return out.sort();
+  }
   ftSetupRows(){
     return this.ftScopeNames().filter(p => this.ftApplicable(p)).map(p => {
       const ch = this.ftCharges(p);
@@ -5117,7 +5125,7 @@ class Component extends DCLogic {
         ${lead}${status}${chev}
       </div>
       ${open ? `<div>
-        ${sub(tick, 'Listing Ready Charges:', `${r.ch.ready}/${r.onList}`, link(r.whole ? 'View Charges' : 'Add Marketing Details', 'openFeeProfile', r.p))}
+        ${sub(tick, 'Listing Ready Charges:', `${r.ch.ready}/${r.onList}`, r.whole ? link('View Charges', 'openFeeProfile', r.p) : link('Mass Edit Marketing Details', 'ftMassEdit'))}
         ${r.converted ? '' : (() => { const rs = this.roleSetupState(r.p);
           // Nothing to confirm (2026-10-15): the row only appears when some unit has no Base Rent — no
           // charge on a Base Rent charge type reaches it — and points to the charges.
@@ -5189,20 +5197,31 @@ class Component extends DCLogic {
       <div style="display:flex;flex-direction:column;gap:12px">
         ${notif(this.ico('error', 20, 'flex:none'), '#fdf3e7', 'var(--rmx-notice, #faa61c)', 'Required in More States', 'A growing number of states require advertised rent to include mandatory fees, and Zillow flags listings that don&#39;t.')}
         ${rule}
-        ${notif(SETTINGS, '#eef1f4', 'var(--rmx-ink-2, #424e5b)', 'Streamlined Process', 'Add marketing details on the charge type, property, or individual charge to simplify the setup and get fee transparent.')}
+        ${notif(SETTINGS, '#eef1f4', 'var(--rmx-ink-2, #424e5b)', 'Streamlined Process', 'Marketing details are set once on each charge type, and every charge of that type, at every property, uses them.')}
         ${rule}
         ${notif(PROPERTY, 'var(--rmx-brand-tint-bg, #ebf1f5)', 'var(--ac,var(--rmx-brand, #008dd5))', 'Applicable Properties', 'Fee Transparency can only be activated for properties that are using online listings with providers that have total pricing/complete pricing')}
       </div>` : ''}
     </div>`;
 
-    // ---- section 2: the shortcut ----
-    const defOpen = !!sec.def;
+    // ---- section 2: marketing details live on the charge type (2026-10-15) ----
+    // Charges no longer carry their own, so this is the work, not a shortcut: every charge type used
+    // on listings at a property in scope needs its details, and Mass Edit is where they are filled in.
+    const short = this.ftShortTypes();
+    const mkSub = (icon, label, action) => `<div style="display:flex;align-items:center;gap:12px;min-height:36px;box-sizing:border-box;padding:8px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px">
+      ${icon}<span style="flex:1;min-width:0;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">${label}</span>${action}</div>`;
+    const mkLink = (t, act) => `<span data-act="${act}" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${t}</span>`;
     const defaults = `<div style="${CARD};padding:17px;display:flex;flex-direction:column;gap:16px">
-      <div data-act="ftSetupSec" data-arg="def" style="display:flex;align-items:center;gap:8px;cursor:pointer">
-        ${H('Set Defaults')}${loz('Recommended', 'var(--rmx-brand-tint-bg, #ebf1f5)', 'var(--rmx-brand-hover, #0071aa)')}<div style="flex:1"></div>${chev(defOpen)}
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:center;gap:8px">
+          ${H('Add Marketing Details to Charge Types')}${loz('Required', '#fdecee', '#a3252c')}
+        </div>
+        ${DESC('Each charge type’s marketing details, including whether its charges are the Base Rent, the Security Deposit or an additional charge, apply to every charge that uses it.')}
       </div>
-      ${defOpen ? `${DESC('Fill in marketing details once per charge type, and every charge of that type uses it, at every property — including whether its charges are the Base Rent, the Security Deposit or an additional charge.')}
-      <span data-act="navChargeTypes" style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;color:var(--ac,var(--rmx-brand, #008dd5))">${SETTINGS}<span style="font-size:14px">Set Defaults on Charge Types</span></span>` : ''}
+      ${short.length
+        ? mkSub(this.filledIco('error', 20, 'color:var(--rmx-notice, #faa61c);flex:none'),
+            `Missing marketing details: <strong style="font-weight:600">${short.join(', ')}</strong>`, mkLink('Mass Edit Marketing Details', 'ftMassEdit'))
+        : mkSub(this.filledIco('check_circle', 20, 'color:var(--rmx-success, #6eb744);flex:none'),
+            'Every charge type used on listings has marketing details.', mkLink('View Charge Types', 'navChargeTypes'))}
     </div>`;
 
     // ---- section 3: the work, one row per property ----
@@ -5210,9 +5229,9 @@ class Component extends DCLogic {
     const charges = `<div style="${CARD};padding:17px;display:flex;flex-direction:column;gap:16px">
       <div style="display:flex;flex-direction:column;gap:12px">
         <div style="display:flex;align-items:center;gap:8px">
-          ${H('Add Marketing Details')}${loz('Required', '#fdecee', '#a3252c')}
+          ${H('Activate Properties')}
         </div>
-        ${DESC('A property can activate fee transparency once every charge shown on listings has marketing details.')}
+        ${DESC('A property can activate once every charge it shows on listings has marketing details and every unit has a Base Rent.')}
       </div>
       <div style="display:flex;flex-direction:column;gap:8px">
         ${rows.length ? rows.map(prop).join('') : DESC('No properties are enabled for online listings yet.')}
