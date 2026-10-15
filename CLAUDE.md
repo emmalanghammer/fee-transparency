@@ -891,6 +891,11 @@ to keep in view.
 
 ## Charge marketing is the charge type's alone (2026-10-15)
 
+**"Charge Marketing" is called "Marketing Details" everywhere in the UI** (2026-10-15, every case:
+the Charge Type Details tile, the charge form's section, *Add Marketing Details*, *Listed Charge is Missing
+Marketing Details*, the Listing Errors section, and so on). Notes in this file still say Charge Marketing;
+read them as Marketing Details.
+
 **Fee Due is called Charge Timing** everywhere it shows (2026-10-15): Charge Type Details (*Charge Timing*
 *One-Time Charges Only*), the charge form, Column Setup, Bulk Update and the missing-field lists. The
 stored key is still `feeDue`, and older notes below still say Fee Due.

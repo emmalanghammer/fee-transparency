@@ -222,7 +222,7 @@ class Component extends DCLogic {
     ltGroupBy: true,      // Listings: Group by property — off shows one register with a Property column
     ftSetup: null,        // { sec:{what,def}, props:{<name>:true} } — the Fee Transparency Setup overlay
     propDef: {},          // { '<Property>': { '<CODE>': { on:true, name, category, … } } } — a property's override of a charge type
-    ctmEdit: null,        // { prop, code } — the Default Charge Marketing dialog
+    ctmEdit: null,        // { prop, code } — the Default Marketing Details dialog
     fpData: {},           // { '<Property>': [ floor plan ] } — only once someone edits; fpList() seeds otherwise
     fpEdit: null,         // { prop, id } — the New / Edit Floor Plan dialog (id null = new)
     fpMenu: null,         // { id, x, y } — a floor plan row's kebab menu
@@ -578,14 +578,14 @@ class Component extends DCLogic {
   // fill the blank marketing fields on charges that already exist, and seed every charge made after.
   mktDefs(){ return this.state.mktDef || {}; }
   mktDefFor(code){ return this.mktDefs()[String(code || '').toUpperCase()] || null; }
-  // What a charge type's Default Charge Marketing opens on before anyone has set it. Three guesses
+  // What a charge type's Default Marketing Details opens on before anyone has set it. Three guesses
   // that are almost always right and are always editable: the Name is the charge type's own
   // description, a deposit is Refundable, and rent is due During Term. It is read **only** when the
   // type has never been saved — once it has, the form shows exactly what was saved, blanks included,
   // or clearing a field would be undone the next time the overlay opened. Nothing else reads this:
   // `state.mktDef` stays empty until someone saves, so a seed can't quietly make a charge listing
   // ready.
-  // What `state.mktDef` starts as: every charge type already carrying its default charge marketing,
+  // What `state.mktDef` starts as: every charge type already carrying its default marketing details,
   // so the tiering is there to look at rather than something to set up first. **Five types are left
   // short on purpose** — the ones Riverview's charges run on — because Happy Path exists to show a
   // property with work still to do, and a complete default on those types would cascade down and
@@ -630,8 +630,8 @@ class Component extends DCLogic {
       }
       out[code] = d;
     });
-    // Storage carries no default charge marketing whatsoever — not even a name or a category — so
-    // its Default Charge Marketing tile opens empty and a charge added on it raises Add Category.
+    // Storage carries no default marketing details whatsoever — not even a name or a category — so
+    // its Default Marketing Details tile opens empty and a charge added on it raises Add Category.
     if (out.SF) out.SF = { name:'', category:'', marketing:'', requirement:'', schedule:'', feeDue:'', refundable:'' };
     return out;
   }
@@ -669,12 +669,12 @@ class Component extends DCLogic {
   // charge type's, and they are independent — refusing one was never an answer about the other.
   // The charge form fills from this rather than `ctmFor`, so what it shows and what
   // `resolvedListing` would publish cannot disagree.
-  // The charge form's Charge Marketing, read-only (2026-10-15): the charge type's values, a dash and the
+  // The charge form's Marketing Details, read-only (2026-10-15): the charge type's values, a dash and the
   // Required for Listings lozenge where a required one is empty, and a link to where they are set.
   chargeMktStaticHTML(code, isOne){
     const c = String(code || '').toUpperCase();
     const INK = 'color:var(--rmx-brand-dark, #13314c)';
-    if (!c) return `<span style="font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">Select a charge type to see its charge marketing.</span>`;
+    if (!c) return `<span style="font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">Select a charge type to see its marketing details.</span>`;
     const D = this.mktDefFor(c) || {};
     const act = !!this.state.publishedProps[this.state.property];
     const need = `<span style="display:inline-flex;align-items:center;height:19px;box-sizing:border-box;padding:0 7px;border-radius:4px;background:${act ? '#fdecee' : '#fdf3e7'};font-size:12px;color:${act ? '#a3252c' : '#7a5a2a'};white-space:nowrap">Required for Listings</span>`;
@@ -714,7 +714,7 @@ class Component extends DCLogic {
     return !!(own && own.on);
   }
   // The marketing fields a property's override covers — one list, read by the dialog, by `ctmSave`
-  // and by the count in the Default Charge Marketing register, so none of the three can be counting
+  // and by the count in the Default Marketing Details register, so none of the three can be counting
   // a different set.
   // Charge Category is not one of them: it belongs to the charge type and is only set there.
   ctmFields(){ return ['name','marketing','requirement','schedule','feeDue','refundable']; }
@@ -1040,7 +1040,7 @@ class Component extends DCLogic {
     (this.state.chargeTypes || []).forEach(r => { if (r.category) fromReg[r.code] = r.category; });
     const out = Object.assign(base, fromReg);
     if (raw) return out;
-    // A charge type's category is set in its own Default Charge Marketing, so that is what wins —
+    // A charge type's category is set in its own Default Marketing Details, so that is what wins —
     // and a type whose defaults say none has none, which is what raises Add Category on a charge.
     const defs = this.state.mktDef || {};
     Object.keys(defs).forEach(c => { const d = defs[c];
@@ -1256,7 +1256,7 @@ class Component extends DCLogic {
     // recomputed from the form rather than from the unsaved row.
     if (window.__mitsRecheck && this.q('#m-due')) window.__mitsRecheck();
     if (window.__amtNote && this.q('#m-amt-note')) window.__amtNote();
-    // The Charge Marketing override note and its locked mirror are written from the form itself, so
+    // The Marketing Details override note and its locked mirror are written from the form itself, so
     // they are filled in once the form is on the page rather than during render.
     const snap = this._scrollSnap; this._scrollSnap = null;
     if (this._resetScroll) { this._resetScroll = false; return; }
@@ -1389,7 +1389,7 @@ class Component extends DCLogic {
         if (newCode !== code) delete defs[code];
         if (Object.keys(mk).some(k => mk[k])) defs[newCode] = mk; else delete defs[newCode];
         // No overrides any more (2026-10-15): what the charge type says is what every charge of it says,
-        // so saving commits straight away — there is no Update Default Charge Marketing question to ask.
+        // so saving commits straight away — there is no Update Default Marketing Details question to ask.
         this.setState({ chargeTypes: next, mktDef: defs, ctDetail: arg === 'close' ? null : newCode });
         this.flash('Charge type saved'); break; }
       case 'ctDelete': { const code = this.state.ctDetail; if (!code) break;
@@ -2320,7 +2320,7 @@ class Component extends DCLogic {
       })()
     };
     // Nothing is copied down on create any more: a charge with no values of its own resolves through
-    // `resolvedListing`, and the Charge Marketing checkbox is what decides whether it has any.
+    // `resolvedListing`, and the Marketing Details checkbox is what decides whether it has any.
     // Base rent confirmed as moving off another charge: it has to be cleared in the same write, since
     // setProfileRows reads the rows as they stand when it's called.
     const take = row.listing.leaseRole ? this._leaseTake : null;
@@ -3196,7 +3196,7 @@ class Component extends DCLogic {
     };
     if (this._scenRead) return;
     this._scenRead = true;
-    // The charge types come with their default charge marketing already set — `state.mktDef` can't
+    // The charge types come with their default marketing details already set — `state.mktDef` can't
     // be built in the state literal, which is written before the methods exist.
     this.setState({ mktDef: this.mktDefAll() });
     // The scenario is always applied, the opening one included — the state literal's portfolio is
@@ -3520,7 +3520,7 @@ class Component extends DCLogic {
     return `<div style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:165">
       <div data-act="noop" style="width:417px;max-width:94vw;max-height:92vh;box-sizing:border-box;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="flex:none;display:flex;align-items:center;justify-content:space-between;gap:8px;height:48px;box-sizing:border-box;padding:8px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
-          <span style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">Update Default Charge Marketing</span>
+          <span style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">Update Default Marketing Details</span>
           <svg class="ico" width="24" height="24" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="mktDefAskCancel" style="color:${BRAND};cursor:pointer;flex:none"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
         </div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:24px">
@@ -4010,7 +4010,7 @@ class Component extends DCLogic {
       </div>
     </div>`;
   }
-  // ---------- Default Charge Marketing, a property's override (Figma 3638:4452) ----------
+  // ---------- Default Marketing Details, a property's override (Figma 3638:4452) ----------
   // A property's override of one charge type. The checkbox is the whole decision: off, the fields
   // show the charge type's defaults, greyed and locked; on, they are this property's to set, and
   // every charge of that type here inherits them unless the charge itself says otherwise.
@@ -4132,7 +4132,7 @@ class Component extends DCLogic {
     return `<div style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:165">
       <div data-act="noop" style="width:417px;max-width:94vw;max-height:92vh;box-sizing:border-box;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="flex:none;display:flex;align-items:center;justify-content:space-between;gap:8px;height:48px;box-sizing:border-box;padding:8px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
-          <span style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">Update Default Charge Marketing</span>
+          <span style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">Update Default Marketing Details</span>
           <svg class="ico" width="24" height="24" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="ctmAskCancel" style="color:${BRAND};cursor:pointer;flex:none"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
         </div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:24px">
@@ -4214,13 +4214,13 @@ class Component extends DCLogic {
     const box = on
       ? `<span style="display:flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:2px;background:var(--rmx-attention, #f58220);flex:none"><svg width="16" height="16" viewBox="0 -960 960 960" fill="#fff" aria-hidden="true"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg></span>`
       : `<span style="display:block;box-sizing:border-box;width:20px;height:20px;border-radius:2px;background:#fff;border:2px solid var(--rmx-text-muted, #b3b3b3);flex:none"></span>`;
-    // The same count the Default Charge Marketing register shows, read from the same place.
+    // The same count the Default Marketing Details register shows, read from the same place.
     const nCharges = this.appliedRows(prop).filter(r => String(r.mits || '').toUpperCase() === code).length;
 
     return `<div data-act="ctmCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:150">
       <div data-act="noop" style="width:700px;max-width:94vw;max-height:92vh;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;height:48px;box-sizing:border-box;padding:8px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
-          <span style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">Default Charge Marketing</span>
+          <span style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">Default Marketing Details</span>
           <span data-act="ctmCancel" style="display:flex;cursor:pointer">${this.ico('close', 24, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
         </div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:20px">
@@ -5110,7 +5110,7 @@ class Component extends DCLogic {
         ${lead}${status}${chev}
       </div>
       ${open ? `<div>
-        ${sub(tick, 'Listing Ready Charges:', `${r.ch.ready}/${r.onList}`, link(r.whole ? 'View Charges' : 'Add Charge Marketing', 'openFeeProfile', r.p))}
+        ${sub(tick, 'Listing Ready Charges:', `${r.ch.ready}/${r.onList}`, link(r.whole ? 'View Charges' : 'Add Marketing Details', 'openFeeProfile', r.p))}
         ${r.converted ? '' : (() => { const rs = this.roleSetupState(r.p);
           // Nothing to confirm (2026-10-15): the row only appears when some unit has no Base Rent — no
           // charge on a Base Rent charge type reaches it — and points to the charges.
@@ -5155,7 +5155,7 @@ class Component extends DCLogic {
       <span style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;flex:none;background:var(--rmx-success, #6eb744);color:#fff">${MEGAPHONE}</span>
       <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
         <span style="font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Ready to display all charges?</span>
-        ${DESC('Activate fee transparency on properties that have all charge marketing filled out.')}
+        ${DESC('Activate fee transparency on properties that have all marketing details filled out.')}
       </div>
       <button data-act="ftActivateReady" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;border:none;font:400 14px Roboto,sans-serif;background:var(--rmx-success, #6eb744);color:#fff;cursor:pointer;white-space:nowrap;flex:none">Activate Fee Transparency</button>
     </div>`;
@@ -5190,7 +5190,7 @@ class Component extends DCLogic {
       <div data-act="ftSetupSec" data-arg="def" style="display:flex;align-items:center;gap:8px;cursor:pointer">
         ${H('Set Defaults')}${loz('Recommended', 'var(--rmx-brand-tint-bg, #ebf1f5)', 'var(--rmx-brand-hover, #0071aa)')}<div style="flex:1"></div>${chev(defOpen)}
       </div>
-      ${defOpen ? `${DESC('Fill in charge marketing once per charge type, and every charge of that type uses it, at every property — including whether its charges are the Base Rent, the Security Deposit or an additional charge.')}
+      ${defOpen ? `${DESC('Fill in marketing details once per charge type, and every charge of that type uses it, at every property — including whether its charges are the Base Rent, the Security Deposit or an additional charge.')}
       <span data-act="navChargeTypes" style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;color:var(--ac,var(--rmx-brand, #008dd5))">${SETTINGS}<span style="font-size:14px">Set Defaults on Charge Types</span></span>` : ''}
     </div>`;
 
@@ -5199,7 +5199,7 @@ class Component extends DCLogic {
     const charges = `<div style="${CARD};padding:17px;display:flex;flex-direction:column;gap:16px">
       <div style="display:flex;flex-direction:column;gap:12px">
         <div style="display:flex;align-items:center;gap:8px">
-          ${H('Add Charge Marketing')}${loz('Required', '#fdecee', '#a3252c')}
+          ${H('Add Marketing Details')}${loz('Required', '#fdecee', '#a3252c')}
         </div>
         ${DESC('A property can activate fee transparency once every charge shown on listings has marketing details.')}
       </div>
@@ -5427,7 +5427,7 @@ class Component extends DCLogic {
     return this.mostSpecific(reach);
   }
   // `l`, a listing: only the short charges that apply to that unit (2026-10-15) — a listing is Not Sent
-  // only when a charge it would carry is missing charge marketing, not for any short charge on the
+  // only when a charge it would carry is missing marketing details, not for any short charge on the
   // property. Without one, every short charge on the property.
   ltChargeIssues(prop, l){
     return (l ? this.ltChargeHits(l) : this.appliedRows(prop))
@@ -5553,7 +5553,7 @@ class Component extends DCLogic {
       + `<span style="font-size:14px;line-height:16px;color:var(--rmx-brand-dark, #13314c)">${label}</span></span>`;
     // `tone` is the section's own severity, and it is what makes the card look different rather than
     // a second colour inside it: the one that is stopping the listing takes a red border and a
-    // tinted header, so the eye lands on it before reading a word. **Only Charge Marketing Errors
+    // tinted header, so the eye lands on it before reading a word. **Only Marketing Details Errors
     // ever does** — without every charge's details there is no complete price to send, so the feed
     // holds the listing. Rent Manager's own fields and a provider's complaints are both about a
     // listing that went out, so both are amber and both carry the Missing Information lozenge.
@@ -5583,7 +5583,7 @@ class Component extends DCLogic {
     // The charge section's own lead: what is wrong, and the one place it gets fixed, on the same row.
     const chargeLead = `<div style="display:flex;align-items:flex-start;gap:14px">
         <span style="flex:1;min-width:0;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">These charges are missing marketing information required to send to providers.</span>
-        <a data-act="openFeeProfile" data-arg="${String(l.prop).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Add Charge Marketing</a>
+        <a data-act="openFeeProfile" data-arg="${String(l.prop).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Add Marketing Details</a>
       </div>`;
     return `<div data-act="ltErrClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:150">
       <div data-act="noop" style="width:714px;max-width:94vw;max-height:90vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
@@ -5592,7 +5592,7 @@ class Component extends DCLogic {
           <svg class="ico" width="24" height="24" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="ltErrClose" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;flex:none"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
         </div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px">
-          ${!this.state.publishedProps[l.prop] ? '' : sect('charges', 'Charge Marketing Errors', 'red', is.charges.length,
+          ${!this.state.publishedProps[l.prop] ? '' : sect('charges', 'Marketing Details Errors', 'red', is.charges.length,
             chargeLead + numbered(is.charges.map(c => `<strong style="font-weight:600">${c.name}</strong><br><span style="color:var(--rmx-text, #666666)">Missing: ${c.missing.join(', ')}</span>`)))}
           ${sect('rm', 'Rent Manager Errors', 'amber', is.rm.length, numbered(is.rm))}
           ${sect('prov', provTitle, 'amber', is.prov.length, numbered(is.prov))}
@@ -6098,7 +6098,7 @@ class Component extends DCLogic {
     const any = ['name','marketing','category','requirement','feeDue','schedule','refundable']
       .some(k => String(t[k] == null ? '' : t[k]).trim());
     if (any) return { key:'type', label, chip:c + ' charge type', note:'' };
-    return { key:'empty', label, chip:'', note:c + ' has no default charge marketing yet.' };
+    return { key:'empty', label, chip:'', note:c + ' has no default marketing details yet.' };
   }
   mktHelp(){
     if (!this._mktHelp) this._mktHelp = {
@@ -6245,7 +6245,7 @@ class Component extends DCLogic {
     // portfolio's own RC and DP arrive as Base Rent and Security Deposit, through `mktDefAll`.
     const role0 = d.role != null ? d.role : '';
     const roleRadio = (val, label) => `<label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap"><input type="radio" name="ctd-mkt-role" value="${val}" ${role0 === val ? 'checked' : ''} style="width:18px;height:18px;margin:0;flex:none"><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${label}</span></label>`;
-    const mktTile = tile('Charge Marketing', whyTip,
+    const mktTile = tile('Marketing Details', whyTip,
       `<span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.45">Set the marketing information for every charge that uses this charge type. Charges show it as it is set here.</span>
        <div style="display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap">
          <span style="font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap">Charges using this charge type are:</span>
@@ -6783,7 +6783,7 @@ class Component extends DCLogic {
       // Off by default, on through Column Setup. It reads the resolved schedule, so a one-time
       // charge shows One-Time here rather than sitting blank beside the recurring ones.
       { key:'sched',    label:'Charge Schedule',       w:'140px' },
-      // Every other Charge Marketing field, off by default and offered in Column Setup (2026-10-15).
+      // Every other Marketing Details field, off by default and offered in Column Setup (2026-10-15).
       { key:'mktname',  label:'Name',                  w:'160px' },
       { key:'mktdesc',  label:'Marketing Description', w:'220px' },
       { key:'category', label:'Charge Category',       w:'140px' },
@@ -7042,7 +7042,7 @@ class Component extends DCLogic {
     return `<div style="flex:none;display:flex;align-items:flex-start;gap:12px;padding:14px 16px;background:#fdecee;border:1px solid var(--rmx-error, #eb343c);border-radius:4px">
       ${this.ico('error', 20, 'color:var(--rmx-error, #eb343c);flex:none;margin-top:1px')}
       <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
-        <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${n} Listed Charge${n === 1 ? ' is' : 's are'} Missing Charge Marketing</span>
+        <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${n} Listed Charge${n === 1 ? ' is' : 's are'} Missing Marketing Details</span>
         <span style="font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">Fee transparency is active on ${String(p).replace(/&/g,'&amp;').replace(/</g,'&lt;')}, so any listing using ${n === 1 ? 'this charge' : 'these charges'} will not post until every required field is filled out.</span>
       </span>
     </div>`;
@@ -7624,7 +7624,7 @@ class Component extends DCLogic {
   }
   // Add Recurring / One-Time Charge from a rent quote (2026-10-07): a tenant-level charge on this
   // quote. General only — Charge Level reads *Tenant*, then Charge Type, Comment, and for a recurring
-  // charge Frequency / From / To, then Amount — and no Charge Marketing, because a tenant's own charge
+  // charge Frequency / From / To, then Amount — and no Marketing Details, because a tenant's own charge
   // is never advertised. Saved onto `rq.extra`, it arrives in the picker ticked, with a Tenant pill.
   rqAddHTML(){
     const a = this.state.rqAdd; if (!a) return '';
@@ -7692,7 +7692,7 @@ class Component extends DCLogic {
     const tot = (n) => `<div style="display:flex;justify-content:flex-end;padding:8px 16px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);font-size:12px;color:var(--rmx-text, #666666)">Total: ${dec(n)}</div>`;
     const none = (t) => `<div style="grid-column:1/-1;padding:12px 16px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3);border-bottom:1px solid var(--rmx-line-soft, #ebf1f5)">${t}</div>`;
     // Tenant-level charges added here (Add Recurring / One-Time Charge) are the tenant's alone and
-    // carry no Charge Marketing; they sit after the unit's own and read *Tenant* in Source.
+    // carry no Marketing Details; they sit after the unit's own and read *Tenant* in Source.
     const ten = (this._miExtra || []).map(x => ({ mits:x.type, desc:x.comment, amount:x.amount, level:'Tenant',
       freq:x.freq, from:x.one ? '01/01/2026' : (x.from || '01/01/2026'), to:x.to || '', one:x.one }));
     const rec = (info ? this.unitRecurring(unit) : []).concat(ten.filter(x => !x.one));
@@ -8436,7 +8436,7 @@ class Component extends DCLogic {
       const open = !!openSet[key];
       const freq = isRec ? (this.freqNum(f) || '1') : 'One-time';
       // A unit's own charge is simply the one its units use; it isn't labelled an override, a word kept
-      // for charge marketing defaults (2026-10-14).
+      // for marketing details defaults (2026-10-14).
       const comment = esc2(f.desc || f.name || '');
       const amt = String(f.amount || '').replace(/^\$/, '');
       const lvl = this.chargeLevelCell(f.level || 'Property', esc2(this.chargeLevelName(f)));
@@ -9406,7 +9406,7 @@ class Component extends DCLogic {
   // The charge form itself — General Details, the CRE sections and Marketing Details — shared by the
   // Charge Details overlay and by Bulk Update Charges, which frames it differently.
   chargeForm(m){
-    // Charge marketing is the charge type's alone (2026-10-15), so whatever a charge stored of its own is
+    // Marketing details is the charge type's alone (2026-10-15), so whatever a charge stored of its own is
     // left out of the form: its hidden marketing fields hold the charge type's values.
     const ed = m.edit ? Object.assign({}, m.edit, { listing: {} }) : null;
     const isOne = /-one$/.test(m.group);
@@ -9572,7 +9572,7 @@ class Component extends DCLogic {
     // Storage / Parking categories reveal their optional attribute sections.
     window.__attrCheck = () => {
       const cc = ((this.q('#m-cat') || {}).value) || '';
-      // The read-only Charge Marketing follows the charge type as it is picked.
+      // The read-only Marketing Details follows the charge type as it is picked.
       const ms = this.q('#m-mkt-static'); if (ms) ms.innerHTML = this.chargeMktStaticHTML(((this.q('#m-ctype') || {}).value) || '', isOne);
       const rh = this.q('#m-ref');
       if (rh && rh.getAttribute('data-auto') && window.__ddSet) { const d = this.refDefault(((this.q('#m-ctype') || {}).value) || '');
@@ -9794,7 +9794,7 @@ class Component extends DCLogic {
         <span style="flex:1;min-width:0;font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">Amount and Amount Method come from the <strong style="font-weight:600" id="m-pet-amt-name"></strong> pet type.</span>
       </div>
       <span id="m-calc-note" style="display:${calcNote};font-size:12px;color:var(--rmx-text, #666666);line-height:1.45">Calculated charges may be labeled as a <i>Varying Amount</i> on the listing provider site.</span>`;
-    // A charge of nothing is a listing problem, so its warning sits in Charge Marketing (2026-10-14).
+    // A charge of nothing is a listing problem, so its warning sits in Marketing Details (2026-10-14).
     const amtNote = `<div id="m-amt-note" style="display:none;align-items:flex-start;gap:10px;padding:12px 14px;background:#fdf3e7;border:1px solid var(--rmx-attention, #f58220);border-radius:4px">
         ${this.ico('error', 20, 'color:var(--rmx-attention, #f58220);flex:none;margin-top:1px')}
         <span style="flex:1;min-width:0;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)"><span id="m-amt-note-t"></span> Listing sites have no price to advertise for it, so it may not display as intended. If this is a concession or a discount, describe it in the <strong style="font-weight:600">Promotional Description</strong> on the property's Marketing Setup.</span>
@@ -10317,7 +10317,7 @@ class Component extends DCLogic {
     const mktSection = `<div style="flex:none">
         <div onclick="${mktToggleJs}" style="display:flex;align-items:center;gap:8px;padding:11px 0 10px;cursor:pointer">
           <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" id="m-mkt-caret" style="color:var(--rmx-text, #666666)"><path d="M530-481 332-679l43-43 241 241-241 241-43-43 198-198Z"/></svg>
-          <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Charge Marketing</span>
+          <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Marketing Details</span>
           ${!offTip ? '' : `<span onclick="event.stopPropagation()" style="display:inline-flex;align-items:center">${offTip}</span>`}
           ${!this.ftApplicable(this.state.property) ? '' : `<span id="m-lr-status" style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap"></span>`}
           <span id="m-mkt-count" style="display:none;align-items:center;height:22px;box-sizing:border-box;padding:0 9px;border-radius:4px;background:#fdecee;font-size:13px;color:#a3252c;white-space:nowrap"></span>
@@ -10554,7 +10554,7 @@ class Component extends DCLogic {
       </div></div>`;
   }
   // `pre` is 'm' on the charge form, which reads the charge type off its typeahead; 'ctm' on a
-  // property's Default Charge Marketing, which knows its charge type (`code`) already.
+  // property's Default Marketing Details, which knows its charge type (`code`) already.
   catAddHTML(pre, code){
     pre = pre || 'm';
     const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
@@ -10587,7 +10587,7 @@ class Component extends DCLogic {
       // rather than waiting for the form to be saved and reopened.
       + "if(window.__attrCheck)window.__attrCheck();"
       + "if(window.__mitsRecheck)window.__mitsRecheck();";
-    // On a property's Default Charge Marketing the pick is shown in place of the red box, and swaps
+    // On a property's Default Marketing Details the pick is shown in place of the red box, and swaps
     // the Storage / Parking / Pet section the same way the charge type's own category would.
     const addCtm = "var s=document.getElementById('ctm-catadd-sel');var cc=s.value;if(!cc)return;"
       + "document.getElementById('ctm-category').value=cc;"
@@ -11039,7 +11039,7 @@ class Component extends DCLogic {
       </div>`);
     const uts = this.utData();
     // A register inside a tile runs flush to the tile's edges: the body's own padding is cancelled
-    // and the cells carry their own, the same as Default Charge Marketing beside it, so the two
+    // and the cells carry their own, the same as Default Marketing Details beside it, so the two
     // registers in the bottom row line up on the same left edge.
     // Only what fits a third-width tile is a column — Name, Unit Type, Unit Count. The rest of a
     // floor plan (Beds, Baths, Price, Images) opens under its row from the chevron. The toggle is
@@ -11107,7 +11107,7 @@ class Component extends DCLogic {
     const ctmHead = (t, extra) => `<span style="display:flex;align-items:center;min-height:36px;box-sizing:border-box;padding:0 14px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;${extra||''}">${t}</span>`;
     const ctmCell = (t, extra) => `<span style="display:flex;align-items:center;min-height:38px;box-sizing:border-box;padding:0 14px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;${extra||''}">${t}</span>`;
     const CTMCOLS = 'minmax(90px,1.2fr) minmax(90px,1.2fr) minmax(150px,1.6fr) 44px';
-    const ctm = card('Default Charge Marketing', `
+    const ctm = card('Default Marketing Details', `
       <div style="margin:-14px -16px;overflow-x:auto">
         <div style="min-width:374px;display:grid;grid-template-columns:${CTMCOLS};border-bottom:1px solid var(--rmx-line, #cedbe7)">
           ${ctmHead('Charge Type')}${ctmHead('Charges')}${ctmHead('Property Override')}${ctmHead('')}
@@ -11119,7 +11119,7 @@ class Component extends DCLogic {
               // mark is the Charge Types register's own yes; a no is left blank, as it is there.
               ? `<svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-label="Overridden" style="color:var(--rmx-success, #6eb744)"><path d="m421-298 283-283-46-45-237 237-120-120-45 45 165 166Zm59 218q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 31.5-156t86-127Q252-817 325-848.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 82-31.5 155T763-197.5q-54 54.5-127 86T480-80Z"/></svg>`
               : '')}
-            <span data-act="ctmOpen" data-arg="${esc2(t.code)}" title="Edit this property's default charge marketing" style="display:flex;align-items:center;justify-content:center;min-height:38px;cursor:pointer">${EDIT_FILLED}</span>
+            <span data-act="ctmOpen" data-arg="${esc2(t.code)}" title="Edit this property's default marketing details" style="display:flex;align-items:center;justify-content:center;min-height:38px;cursor:pointer">${EDIT_FILLED}</span>
           </div>`).join('')
           : `<div style="padding:14px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No charges on this property yet.</div>`}
       </div>`, '', false, true);
@@ -11144,7 +11144,7 @@ class Component extends DCLogic {
           </div>
           <div style="display:grid;grid-template-columns:repeat(3, minmax(0,1fr));gap:16px;align-items:stretch;align-content:start">
             ${contact1}${contact2}${listing}${features}<div style="grid-column:span 2;min-width:0;display:grid">${floor}</div>
-            ${'' /* Default Charge Marketing came off (2026-10-15): a property no longer overrides its charge types. */}${void ctm || ''}
+            ${'' /* Default Marketing Details came off (2026-10-15): a property no longer overrides its charge types. */}${void ctm || ''}
           </div>
         </div>
       </div>`;
