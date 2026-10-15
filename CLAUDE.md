@@ -932,6 +932,7 @@ describes the design before that tag; the code for most of it is still in the fi
 
 - **`resolvedListing(r)` reads the charge type only** (`mktDefFor(r.mits)`); whatever a charge or a
   property stored is ignored. `ctmOwn` returns null and `chargeInherits` returns the charge type's values.
+- **Charge Type Details' Save closes the overlay** (`ctSave` with `close`, 2026-10-15; it stayed open before).
 - **Charge Type Details' Charge Marketing** gains *Charge Role:* (it read *Charges using this charge type are:* until 2026-10-15; label and radios on one line) **Base Rent /
   Security Deposit / Additional Charge** radios (`ctd-mkt-role` → `mktDef[CODE].role`; `mktDefAll`
   makes the portfolio's RC `rent` and DP `deposit`; any charge type added later starts as **Additional
