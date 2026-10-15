@@ -1493,10 +1493,9 @@ canvas *Confirm Base Rent & Deposit*).
   state it is in. A deposit with no charge doesn't count against either.
 - **The Review overlay** (`roleReviewHTML`, `state.roleReview = { prop }`, z-index 155) matches Figma
   `3931:167844` / `3931:168155` (section `3944:73163`, 2026-10-13): *Base Rent & Security Deposit:
-  `<Property>`*, then on the grey body a grey line — *"Every unit needs a Base Rent to activate; a
-  Security Deposit is recommended. The property’s applies unless a unit type or unit has its own. You can
-  also set either one when editing a charge."* (UX-copy option A, its first sentence changed the same day
-  when the deposit became optional) —
+  `<Property>`*, then on the grey body a grey line — *"Every unit needs a Base Rent to activate fee
+  transparency; a Security Deposit is recommended. A property charge will apply to all unless a unit type
+  or unit has its own. You can also set either one when editing a charge."* (the user's wording, 2026-10-15) —
   and **one section per role**, Base Rent then Security Deposit. A section's header is the role at
   16/600, a coverage lozenge *n of N units* (green `#e2f1da` when whole, `#feedd2` when not), what's missing
   in navy by **floor plan** (2026-10-14, `missingHTML`): *Missing: Studio* then RMX's dropdown **Pill**
