@@ -1027,11 +1027,8 @@ describes the design before that tag; the code for most of it is still in the fi
   Details* with *Ready* / *n Missing* text for a few hours). `ctMissingAll()` is each type's
   missing fields across the listed charges at applicable properties (absent for a type no listed charge
   uses). After Description (`colTracks` key `ctypes2`, register min-width 1370): filled green `check_circle`
-  **Ready**, amber filled `error` **n Missing** (title lists the fields), or grey *Not on listings*. Above
-  the register, while any type is short: a white callout with an amber border and `warning` — *"1 charge
-  type is missing marketing details. Listings can't show its charges until every required field is filled
-  in."* — with **Show Only These** / **Show All** (`ctMissingOnly`, `state.ctMissingOnly`) and **Mass Edit
-  Marketing Details** (filtered to those types).
+  **Ready**, amber filled `error` **n Missing** (title lists the fields), or grey *Not on listings*. The callout that sat above the register (*n charge types are missing marketing details*, with Show
+  Only These and Mass Edit) was removed at the user's request the same day; `ctMissingOnly` is unreachable.
 - **One vocabulary for listing readiness** (2026-10-15): a charge type is *missing marketing details* or
   *Ready*; a field is *Required for listings*; a property is *Not Ready* / *Ready* / *Fee Transparent*;
   the consequence is *Not Sent*, only ever about listings; a charge on listings that's fine is *Listing
