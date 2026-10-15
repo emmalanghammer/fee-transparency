@@ -6714,7 +6714,14 @@ class Component extends DCLogic {
       { key:'method',   label:'Amount Method',         w:'130px' },
       // Off by default, on through Column Setup. It reads the resolved schedule, so a one-time
       // charge shows One-Time here rather than sitting blank beside the recurring ones.
-      { key:'sched',    label:'Charge Schedule',       w:'140px' }
+      { key:'sched',    label:'Charge Schedule',       w:'140px' },
+      // Every other Charge Marketing field, off by default and offered in Column Setup (2026-10-15).
+      { key:'mktname',  label:'Name',                  w:'160px' },
+      { key:'mktdesc',  label:'Marketing Description', w:'220px' },
+      { key:'category', label:'Charge Category',       w:'140px' },
+      { key:'req',      label:'Charge Requirement',    w:'160px' },
+      { key:'due',      label:'Fee Due',               w:'130px' },
+      { key:'refund',   label:'Refundability',         w:'140px' }
     ];
   }
   chargeColDef(k){ return this.chargeColDefs().filter(c => c.key === k)[0]; }
@@ -6921,11 +6928,12 @@ class Component extends DCLogic {
         ready: (i) => `<span style="display:flex;align-items:center;min-height:44px;padding:8px 12px">${this.mitsStatusCell(r)}</span>`,
         category: (i) => cell(L.category || '—', pad(i)),
         req: (i) => cell(L.requirement || '—', pad(i)),
-        due: (i) => cell(L.feeDue || '—', pad(i)),
+        // Fee Due and Refundability are a one-time charge's questions, so a recurring one reads a dash.
+        due: (i) => cell((/-one$/.test(r.group || '') && L.feeDue) || '—', pad(i)),
         sched: (i) => cell(L.schedule || '—', pad(i)),
         mktdesc: (i) => cell(L.marketing || '—', pad(i)),
         method: (i) => cell(r.amtMethod || '—', pad(i)),
-        refund: (i) => cell(L.refundable === undefined ? '—' : (L.refundable ? 'Refundable' : 'Not Refundable'), pad(i))
+        refund: (i) => cell((v => v === '' || v == null ? '—' : /^(yes|true|refundable)$/i.test(String(v)) ? 'Refundable' : 'Not Refundable')(L.refundable), pad(i))
       };
       return `<div data-act="${bs?'bulkSelToggle':'rowDetails'}" data-arg="${r.id}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);cursor:pointer" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background=''">
         ${selCell(r)}${keys.map((k, i) => render[k] ? render[k](i) : cell('—')).join('')}${kebab}</div>`;

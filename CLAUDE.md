@@ -1004,7 +1004,9 @@ wraps like a sentence in a narrow column. `resolvedListing`
 returns `'One-Time'` for a one-time charge rather than nothing, so wherever a schedule is read it
 says what that charge's schedule is instead of sitting blank beside the recurring ones. The Charges
 register's optional **Charge Schedule** column (off by default, on through Column Setup) is where
-that shows.
+that shows. Every other Charge Marketing field is an optional column too (2026-10-15): **Name, Marketing
+Description, Charge Category, Charge Requirement, Fee Due, Refundability** — all off by default, offered
+under Available in Column Setup; Fee Due and Refundability read `—` on a recurring charge.
 
 **`ctmEditHTML()` is the property's own Default Charge Marketing, and it has the checkbox again** —
 Figma `3591:138722`, exactly, at the user's request on 2026-09-30, replacing the grey *Inherited
