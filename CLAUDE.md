@@ -418,7 +418,7 @@ this?" for all three sources, but offers no chevron, because opening nothing is 
 card's own colour, so a third copy of it was decoration. **A section is always titled for its
 source**, with its count in brackets; **what state it is in sits on the right**, where the eye is
 already going. Rent Manager's and the provider's carry the
-**Missing Information** lozenge there; Charge Marketing Errors carries the words
+**Missing Information** lozenge there; Charge Marketing Errors carries
 a **Not Sent** lozenge (2026-10-15: white, the filled `error` glyph in red beside regular navy text,
 built like *Sent, Incomplete*'s; it was red SemiBold words, earlier *Action Required: Listing Not Sent*) instead, needing no tint of its own because
 the header it sits in is already red. Only that one is ever red — a red border and a `#fdecee`
