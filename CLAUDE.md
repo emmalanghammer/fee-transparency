@@ -1502,7 +1502,8 @@ canvas *Confirm Base Rent & Deposit*).
   in navy by **floor plan** (2026-10-14, `missingHTML`): *Missing: Studio* then RMX's dropdown **Pill**
   counting the rest — brand *+1* and an `arrow_drop_down` caret in a brand outline, h20, 12px radius, white
   (the user's reference) — which opens a small panel listing every floor plan with a unit left uncovered
-  (`window.__rolePill`, DOM-only; the sections no longer clip, so it can overhang); a unit on no floor plan is named *Unit 1A*
+  (`window.__rolePill`, DOM-only; the panel is `position:fixed`, placed under the Pill and flipped above
+  when there's no room, so the overlay's scrolling body can't cut it off — 2026-10-15); a unit on no floor plan is named *Unit 1A*
   and **+ Add Base Rent** / **+ Add Security Deposit** on the right. Rows are 52px with `#cedbe7` rules:
   Charge Level cell (260) · coverage (190, grey, *Used by n units*) · the charge as **`roleShort`** —
   *RC Rent: Unit Market Rent*, *DP Security Deposit: $600.00* — and the actions. The property's row is white,
