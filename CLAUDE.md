@@ -968,8 +968,8 @@ describes the design before that tag; the code for most of it is still in the fi
   its options already open under it, led by a blank option that clears the field (not on Charge Role), the current value in the primary blue with white text (`#me-pnl`, fixed, kept inside the window), a pick closing it. Enter or
   a click elsewhere in the register keeps the value, Escape drops it, scrolling closes it. What is kept
   lives in `this._meVals[code][field]` and the cell reads it back as text. A navy bar floats over the register — *"You are in Mass Edit mode for marketing details.
-  Select any field to update its value."*, *n charge types changed*, white Save and outlined Cancel —
-  and the footer repeats Save / Cancel. **Save** (`ctMassSave`) writes `_meVals` into
+  Select any field to update its value."*, *n charge types changed* (its own Save / Cancel came off on
+  2026-10-15; the footer's are the ones). **Save** (`ctMassSave`) writes `_meVals` into
   `mktDef`, so every charge of those types changes at once, and flashes *Marketing details saved for n
   charge types*.
 - **Listing ready has two causes, and each goes to its own fix** (2026-10-15, after a critique of the whole
