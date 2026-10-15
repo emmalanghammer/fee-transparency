@@ -399,7 +399,7 @@ Listing Ready Charges column still reports how far along the charges are — tha
 error.
 
 `ltFeedState(l)` decides it and `ltFeedLoz(l)` draws it: RMX's Lozenge at 24px with 8px sides, a
-16px icon 8px from 14/16 label text. A grey **`+1`** follows **only when a second status applies** — Action
+16px **filled** icon (`filledIco`: Material's filled `check_circle`, `warning` and `error`, 2026-10-15) 8px from 14/16 label text. A grey **`+1`** follows **only when a second status applies** — Action
 Required leading, Missing Information also true (2026-10-08). Rent Manager and provider issues
 together are one status, Missing Information, so they no longer count as `+1`; the worst status is
 always the one named. The overlay behind it is

@@ -5417,11 +5417,23 @@ class Component extends DCLogic {
   // RMX Lozenge as the Errors cell draws it: 24px, 8px sides, a 16px icon 8px from 14px label text.
   // A listing with something to read wears a trailing chevron and darkens on hover (`.lt-st`), and the
   // cell's tooltip says what opening it shows. Sent has nothing behind it, so it is a plain lozenge.
+  // Material's filled check_circle, warning and error, for status lozenges (2026-10-15): the `ico` map
+  // carries the outlined set, which reads as a drawing at 16px. Anything else falls back to `ico`.
+  filledIco(name, size, style){
+    const P = {
+      check_circle: 'm424-296 282-282-56-56-226 226-114-114-56 56 170 170Zm56 216q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z',
+      error: 'M480-280q17 0 28.5-11.5T520-320q0-17-11.5-28.5T480-360q-17 0-28.5 11.5T440-320q0 17 11.5 28.5T480-280Zm-40-160h80v-240h-80v240Zm40 360q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z',
+      warning: 'm40-120 440-760 440 760H40Zm440-120q17 0 28.5-11.5T520-280q0-17-11.5-28.5T480-320q-17 0-28.5 11.5T440-280q0 17 11.5 28.5T480-240Zm-40-120h80v-200h-80v200Z'
+    };
+    if (!P[name]) return this.ico(name, size, style);
+    const n = size || 20;
+    return `<svg class="ico" width="${n}" height="${n}" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="${style || ''}"><path d="${P[name]}"/></svg>`;
+  }
   ltFeedLoz(l){
     const f = this.ltFeedState(l);
     const go = f.key !== 'sent';
     return `<span class="${go ? 'lt-st' : ''}" style="display:inline-flex;align-items:center;gap:8px;height:24px;box-sizing:border-box;padding:0 ${go ? '4px' : '8px'} 0 8px;border-radius:4px;background:${f.bg};white-space:nowrap;flex:none;transition:box-shadow .12s">`
-      + this.ico(f.ico, 16, 'color:' + f.fg + ';flex:none')
+      + this.filledIco(f.ico, 16, 'color:' + f.fg + ';flex:none')
       + `<span class="lt-st-l" style="font-size:14px;line-height:16px;color:var(--rmx-brand-dark, #13314c)">${f.label}</span>`
       + (go ? this.ico('chevron_right', 16, 'color:var(--rmx-brand-dark, #13314c);flex:none;margin-left:-4px') : '')
       + `</span>`
