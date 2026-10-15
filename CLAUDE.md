@@ -891,6 +891,10 @@ to keep in view.
 
 ## Charge marketing is the charge type's alone (2026-10-15)
 
+**Fee Due is called Charge Timing** everywhere it shows (2026-10-15): Charge Type Details (*Charge Timing*
+*One-Time Charges Only*), the charge form, Column Setup, Bulk Update and the missing-field lists. The
+stored key is still `feeDue`, and older notes below still say Fee Due.
+
 **Overrides are gone.** Since the `checkpoint-2026-10-15` tag, charge marketing is set in one place — the
 **Charge Marketing** tile on Charge Type Details (renamed from *Default Charge Marketing*) — and every
 charge of that type, at every property, shows exactly that. Much of what follows below (property

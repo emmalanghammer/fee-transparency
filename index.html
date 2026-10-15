@@ -334,7 +334,7 @@ class Component extends DCLogic {
       { key:'name',        label:'Name' },                                 // MITS: Name
       { key:'category',    label:'Charge Category' },                      // MITS: Code
       { key:'requirement', label:'Charge Requirement' },                   // MITS: Requirement
-      { key:'feeDue',      label:'Fee Due', oneTimeOnly:true },            // MITS: Lifecycle
+      { key:'feeDue',      label:'Charge Timing', oneTimeOnly:true },            // MITS: Lifecycle
       { key:'schedule',    label:'Charge Schedule', recurringOnly:true }   // MITS: Payment Frequency
     ];
   }
@@ -407,7 +407,7 @@ class Component extends DCLogic {
     cmp('Name', la.name, lb.name);
     cmp('Marketing Description', la.marketing, lb.marketing);
     cmp('Charge Requirement', la.requirement, lb.requirement);
-    cmp('Fee Due', la.feeDue, lb.feeDue);
+    cmp('Charge Timing', la.feeDue, lb.feeDue);
     cmp('Charge Schedule', la.schedule, lb.schedule);
     cmp('Situational Description', a.cond, b.cond);
     cmp('Amount Distribution', a.creDist, b.creDist);
@@ -697,7 +697,7 @@ class Component extends DCLogic {
       <div style="display:flex;flex-wrap:wrap;gap:12px 16px">
         ${f('Charge Category', this.chargeCategoryFor(c), true)}
         ${f('Charge Requirement', D.requirement, true)}
-        ${isOne ? f('Fee Due', DUE[D.feeDue] || D.feeDue, true) + f('Refundability (Optional)', ref) : f('Charge Schedule', D.schedule, true)}
+        ${isOne ? f('Charge Timing', DUE[D.feeDue] || D.feeDue, true) + f('Refundability (Optional)', ref) : f('Charge Schedule', D.schedule, true)}
       </div>
     </div>`;
   }
@@ -6117,7 +6117,7 @@ class Component extends DCLogic {
   // In Text/text-disabled grey, so the qualifier reads as a footnote to the label rather than part of it.
   mktOnly(t){ return ` <em style="font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">${t}</em>`; }
   schedOnly(){ return 'Charge Schedule' + this.mktOnly('Recurring Charges Only'); }
-  dueOnly(){ return 'Fee Due' + this.mktOnly('One-Time Charges Only'); }
+  dueOnly(){ return 'Charge Timing' + this.mktOnly('One-Time Charges Only'); }
   refundOnly(){ return 'Refundability (Optional)' + this.mktOnly('One-Time Charges Only'); }
   ctFieldBits(){
     const esc = v => ('' + (v == null ? '' : v)).replace(/"/g, '&quot;');
@@ -6786,7 +6786,7 @@ class Component extends DCLogic {
       { key:'mktdesc',  label:'Marketing Description', w:'220px' },
       { key:'category', label:'Charge Category',       w:'140px' },
       { key:'req',      label:'Charge Requirement',    w:'160px' },
-      { key:'due',      label:'Fee Due',               w:'130px' },
+      { key:'due',      label:'Charge Timing',               w:'130px' },
       { key:'refund',   label:'Refundability',         w:'140px' }
     ];
   }
@@ -7183,7 +7183,7 @@ class Component extends DCLogic {
       ['req', 'Charge Requirement', () => dd('bu-req', ['Required','Optional','Situational']), true],
       // A recurring charge is collected across the term by definition, so Fee Due is only a question
       // when every selected charge is one-time.
-      allOne ? ['due', 'Fee Due', () => dd('bu-due', [{value:'At Application',label:'At Application'},{value:'Move-In',label:'At Move-In'},{value:'During Term',label:'During Term'},{value:'Move-Out',label:'At Move-Out'}]), true] : null,
+      allOne ? ['due', 'Charge Timing', () => dd('bu-due', [{value:'At Application',label:'At Application'},{value:'Move-In',label:'At Move-In'},{value:'During Term',label:'During Term'},{value:'Move-Out',label:'At Move-Out'}]), true] : null,
       allRec ? ['sched', 'Charge Schedule', () => dd('bu-sched', ['Weekly','Monthly','Annually']), true] : null,
       ['refund', 'Refundable', () => dd('bu-refund', [{value:'yes',label:'Refundable'},{value:'no',label:'Not Refundable'}]), false]
     ].filter(Boolean);
@@ -10114,7 +10114,7 @@ class Component extends DCLogic {
         <!-- A recurring charge is collected across the term by definition, so it carries During Term
              without asking. Only a one-time charge has a question to answer here. -->
         ${isOne
-          ? `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Fee Due', '', 'due')}${dd('m-due',['At Application','Move-In','During Term','Move-Out'],(ed&&ed.listing&&ed.listing.feeDue)||(ed?(INH.feeDue||''):''),{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`
+          ? `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Timing', '', 'due')}${dd('m-due',['At Application','Move-In','During Term','Move-Out'],(ed&&ed.listing&&ed.listing.feeDue)||(ed?(INH.feeDue||''):''),{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`
           : `<input type="hidden" id="m-due" value="During Term">`}
         ${isOne?'':`<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Schedule', '', 'sched')}${dd('m-sched',['Weekly','Monthly','Annually'],(ed&&ed.listing&&ed.listing.schedule)||(ed?(INH.schedule||''):''),{noSearch:true,blank:true,placeholder:' ',js:"if(window.__mitsRecheck)window.__mitsRecheck()"})}</div>`}
         <!-- Only a one-time charge is handed back or not: a recurring one is paid for the period it
@@ -10162,7 +10162,7 @@ class Component extends DCLogic {
       if (!g('m-name')) need.push('Name');
       if (!g('m-cat')) need.push('Charge Category');
       if (!g('m-req')) need.push('Charge Requirement');
-      if (!g('m-due')) need.push('Fee Due');
+      if (!g('m-due')) need.push('Charge Timing');
       if (!isOne && !g('m-sched')) need.push('Charge Schedule');
       const msg = this.q('#m-ils-msg'), sw = this.q('#m-ils-sw'), lbl = this.q('#m-ils-lbl'),
             st = this.q('#m-lr-status'), note = this.q('#m-ils-warn');
@@ -10201,7 +10201,7 @@ class Component extends DCLogic {
       // — the field is the same field either way; what differs is the tone, amber while the feed is
       // still publishing rent and red once a listing is actually being held back.
       const NEEDK = { 'Name':'name', 'Charge Category':'category', 'Charge Requirement':'req',
-        'Fee Due':'due', 'Charge Schedule':'sched' };
+        'Charge Timing':'due', 'Charge Schedule':'sched' };
       Object.keys(NEEDK).forEach((l) => {
         const el = this.q('#m-need-' + NEEDK[l]); if (!el) return;
         const on = live && need.indexOf(l) >= 0;
@@ -10862,7 +10862,7 @@ class Component extends DCLogic {
           ${fld('Charge Category', dd('mp-category-' + r.id, this.chargeCategoryOptions(), e.category),
             this.infoTip(`<span style="display:block;white-space:normal">Listing sites group fees by category.${e.inherited ? ' This charge’s type is set to <strong style="color:var(--rmx-brand-dark, #13314c)">' + esc(e.inherited) + '</strong>, but listings need the category chosen for the charge itself.' : ''}</span>`))}
           ${fld('Charge Requirement', dd('mp-requirement-' + r.id, REQ, e.requirement))}
-          ${one ? fld('Fee Due', dd('mp-feeDue-' + r.id, DUE, e.feeDue)) : fld('Fee Due', `<span style="display:flex;align-items:center;height:36px;font-size:14px;color:var(--rmx-text, #666666)">Collected across the term</span>`)}
+          ${one ? fld('Charge Timing', dd('mp-feeDue-' + r.id, DUE, e.feeDue)) : fld('Charge Timing', `<span style="display:flex;align-items:center;height:36px;font-size:14px;color:var(--rmx-text, #666666)">Collected across the term</span>`)}
           ${one ? '<div></div>' : fld('Charge Schedule', dd('mp-schedule-' + r.id, SCHED, e.schedule), schedHelp)}
         </div>
         <div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:12px 16px;display:flex;align-items:center;gap:12px">
