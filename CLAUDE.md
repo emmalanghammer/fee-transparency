@@ -1010,7 +1010,21 @@ describes the design before that tag; the code for most of it is still in the fi
   and removed the same day at the user's request; Not Sent shows in the Feed Status column and the
   Listing Errors overlay. `dupLabelAt(g)` (*2 RC charges at The Berkshires*) came with it and stays, for the
   Resolve dialog's intro.
-- **Charge Types has a Marketing Details column and callout** (2026-10-15). `ctMissingAll()` is each type's
+- **One Listing Ready pill everywhere** (2026-10-15, the user's call: "more similar to the existing warning
+  system of charges"). `lrPill(code, missing, act, dup)` is the Charges register's own status — a
+  **Duplicate** pill that opens Resolve; a **Missing Details** pill whose hover (the RMX Tooltip, header
+  *Required for listings, missing on the GARBAG charge type:*, wrapping) lists the fields; or the green
+  filled check — amber before activation, red after. `mitsStatusCell` (after its Excluded case), the
+  Charge Types page's **Listing Ready** column (below; red once any property using the type has activated,
+  a grey *Not on Listings* pill for a type no listed charge uses) and the Listings Charge Types overlay's
+  Listing Ready column all draw it, so the overlay no longer spells the fields out inline.
+- **Charge Type Details outlines what's still required in red** (2026-10-15): each Marketing Details field
+  the type's listed charges are missing (`ctMissingAll()`, mapped to keys through `mitsFields()`) gets the
+  `ctd-need` class on its field wrapper, and the head stylesheet turns that field's own box (input,
+  textarea or the `singleSelect` box) `--rmx-error`. GARBAG in On Rollout: Charge Requirement and Charge
+  Schedule. It clears once the type is saved complete.
+- **Charge Types has a Listing Ready column and callout** (2026-10-15; the column was headed *Marketing
+  Details* with *Ready* / *n Missing* text for a few hours). `ctMissingAll()` is each type's
   missing fields across the listed charges at applicable properties (absent for a type no listed charge
   uses). After Description (`colTracks` key `ctypes2`, register min-width 1370): filled green `check_circle`
   **Ready**, amber filled `error` **n Missing** (title lists the fields), or grey *Not on listings*. Above
