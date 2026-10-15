@@ -889,6 +889,45 @@ of its own, so the grey runs edge to edge under the blue bar and nothing is pinn
 leaving the screen is the trade, and it is deliberate — with the tabs gone there is no second thing
 to keep in view.
 
+## Charge marketing is the charge type's alone (2026-10-15)
+
+**Overrides are gone.** Since the `checkpoint-2026-10-15` tag, charge marketing is set in one place — the
+**Charge Marketing** tile on Charge Type Details (renamed from *Default Charge Marketing*) — and every
+charge of that type, at every property, shows exactly that. Much of what follows below (property
+overrides, `ctmEdit` / `ctmAsk`, `noInherit` / `noProp` / `cleared`, the Update Default Charge Marketing
+dialog, per-charge editing, the Base Rent / Security Deposit radios on a charge, the Review overlay)
+describes the design before that tag; the code for most of it is still in the file but unreachable.
+
+- **`resolvedListing(r)` reads the charge type only** (`mktDefFor(r.mits)`); whatever a charge or a
+  property stored is ignored. `ctmOwn` returns null and `chargeInherits` returns the charge type's values.
+- **Charge Type Details' Charge Marketing** gains *Charges using this charge type are* **Base Rent /
+  Security Deposit / Additional Charge** radios (`ctd-mkt-role` → `mktDef[CODE].role`; `mktDefSeed`
+  makes RC `rent` and DP `deposit`). **Save commits straight away** — no Update Default Charge Marketing
+  question, since there are no overrides for it to reach.
+- **The role is the charge type's:** `leaseRoleKind(code)` and `leaseRoleOf(r)` read `mktDef[CODE].role`.
+  Every charge of a Base Rent type is a Base Rent, everywhere; `roleGroups` treats every group as set
+  (`marked`, never declined), the highest standing for a level with several. Properties never pick or
+  confirm a Base Rent or Security Deposit. The Rent / Security Deposit Charge Types lists stay as
+  production settings but no longer decide roles (their removal guards still test `roleHolds`).
+- **The charge form's Charge Marketing is read-only** (`chargeMktStaticHTML(code, isOne)` in
+  `#m-mkt-static`, refreshed by `__attrCheck` when the charge type changes): *Set on the CODE charge type
+  for every charge that uses it.* with **Edit Charge Type** (`ctOpen`), then Listings Treat It As, Name,
+  Marketing Description, Charge Category, Charge Requirement and Charge Schedule or Fee Due /
+  Refundability — `—` with a **Required for Listings** lozenge where a required one is empty. The old
+  editable fields and the role card stay in the DOM, hidden, so `__mitsRecheck`, the header status and
+  `saveFee` keep working; they are filled from the charge type (the form strips `ed.listing`). The
+  Include on listings toggle stays per charge.
+- **Marketing Setup has no Default Charge Marketing tile**; Floor Plans spans its two columns.
+- **Activation needs a Base Rent on every unit, nothing confirmed** (`roleRentReady` is coverage only).
+  The Setup row's Base Rent sub-row appears only when it's missing (*Base Rent missing: n units* /
+  *no Base Rent charge*, **View Charges**); *Set Property Defaults* is gone. Listing Details and Edit
+  Floor Plan's Callout shows the Base Rent and Security Deposit boxes with no action, or the red *Base
+  Rent Missing* / *Base Rent* Callout with **View Charges**. `pubOpen` flashes instead of opening a
+  review; `ftStatus`'s `rentPending` reads *Base Rent Missing* → **View Charges**.
+- **Scenarios pick their short type** (`mktDefShort`): Happy Path and Post Conversion none; Mid
+  Conversion **DOGFEE** (Riverview activated and drifted, The Estates short, The Windermere complete, The
+  Hamptons ready); On Rollout and No ILS **GARBAG**.
+
 ## Marketing details inherit: charge type → property → charge
 
 **`resolvedListing(r)` is the one place the chain is walked**: the charge's own value, then the

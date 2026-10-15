@@ -496,24 +496,15 @@ class Component extends DCLogic {
   // deposit charge type, else ''. Only those charges are asked the question — and the Base Rent is
   // only ever a recurring charge, the Security Deposit only ever a one-time one (2026-10-12), so a
   // one-time rent charge (FMR) or a recurring deposit charge isn't asked at all.
-  leaseRoleKind(code, prop, isOne){ const c = String(code || '').toUpperCase(); if (!c) return '';
-    if (!isOne && this.rentTypesFor(prop).indexOf(c) >= 0) return 'rent';
-    if (isOne && this.depTypesFor(prop).indexOf(c) >= 0) return 'deposit';
-    return ''; }
+  // Since 2026-10-15 the role is the charge type's (`mktDef[CODE].role`, set on Charge Type Details):
+  // every charge of a Base Rent type is a Base Rent, of a Security Deposit type a Security Deposit, at
+  // every property. Nothing is asked per charge or per property.
+  leaseRoleKind(code){ const d = this.mktDefFor(code); return (d && d.role) || ''; }
   // A charge on a rent charge type is the Base Rent or an additional charge; on a deposit charge
   // type, the Security Deposit or an additional charge. What the charge stored wins; one that has
   // never been asked reads the obvious answer only for the property-level RC and DP, so a portfolio
   // opens with its rent and deposit already named.
-  leaseRoleOf(r){
-    if (!r) return '';
-    const kind = this.leaseRoleKind(r.mits, r._prop, /-one$/.test(String(r.group || '')));
-    if (!kind) return '';
-    // At rollout every charge that could be either starts as an additional charge (2026-10-13): nothing
-    // is the Base Rent or Security Deposit until someone sets it, or activates. Properties a scenario
-    // opens already activated have theirs written by `roleSeedActivated`.
-    const L = r.listing || {};
-    return L.leaseRole === kind ? kind : '';
-  }
+  leaseRoleOf(r){ return r ? this.leaseRoleKind(r.mits) : ''; }
   leaseRoleLabel(k){ return k === 'rent' ? 'Base Rent' : k === 'deposit' ? 'Security Deposit' : ''; }
   // The charge form's answer: the role card's checked radio, or '' (an additional charge).
   leaseRoleVal(){ const w = this.q('#m-role-wrap'); if (!w || w.style.display === 'none') return '';
@@ -543,13 +534,11 @@ class Component extends DCLogic {
     // `cleared` lists the fields someone emptied on this charge by hand. An empty field otherwise
     // means "follow the tier", so without it a cleared requirement would quietly come back from the
     // charge type and the charge would read listing ready over a field that is blank.
-    const CL = L.cleared || [];
-    const pick = (k) => {
-      const v = L[k]; if (v != null && v !== '') return v;
-      if (CL.indexOf(k) >= 0) return '';
-      const p = P[k]; if (p != null && p !== '') return p;
-      return T[k] || '';
-    };
+    // No overrides (2026-10-15): a charge's marketing is its charge type's, read straight through. What a
+    // charge or a property stored before (`L`, `P`, `cleared`) is no longer read.
+    void L; void P;
+    const T2 = this.mktDefFor(r && r.mits) || {};
+    const pick = (k) => T2[k] || '';
     return {
       leaseRole: this.leaseRoleOf(r),
       // A Base Rent or Security Deposit charge is advertised under that name, whatever it was called.
@@ -610,9 +599,14 @@ class Component extends DCLogic {
   //     a property with work outstanding.
   mktDefShort(){
     const k = this.scenarioKey();
-    if (k === 'happy') return {};
-    // One type, used by one charge on each property, so a property still working on its charges is
-    // short exactly one: Garbage.
+    // Marketing is the charge type's alone (2026-10-15), so a type that is short is short at every
+    // property using it — the scenarios pick their short type for that:
+    //   · Happy Path and Post Conversion: nothing short.
+    //   · Mid Conversion: Dog Rent, which only Riverview (activated, so it has drifted) and The Estates
+    //     (still working) run; The Windermere is activated and complete, The Hamptons ready.
+    //   · On Rollout (and No ILS): Garbage, which every property runs.
+    if (k === 'happy' || k === 'post') return {};
+    if (k === 'mid') return { DOGFEE:1 };
     return { GARBAG:1 };
   }
   mktDefAll(){
@@ -626,7 +620,7 @@ class Component extends DCLogic {
       // A charge type's default carries the sentence a listing would say about it, from the one
       // map the finished worked example reads too.
       const d = { name: desc, category: raw[code] || '', marketing: (copy[code] || [])[1] || '',
-        requirement: '', schedule: '', feeDue: '', refundable: seed.refundable };
+        requirement: '', schedule: '', feeDue: '', refundable: seed.refundable, role: seed.role };
       if (!SHORT[code]) {
         // A property specific charge is by definition situational — it lands only when something
         // happens — so its type says so rather than leaving `inferRequirement` to guess.
@@ -650,7 +644,8 @@ class Component extends DCLogic {
     const rent = !deposit && (/^(RC|RENT|LMR|PRORATE)/.test(c) || /\brent\b/.test(text));
     // First month's rent is rent, but it is collected once, at move-in.
     return { name: desc, refundable: deposit ? 'yes' : '',
-      feeDue: (deposit || c === 'FMR') ? 'Move-In' : rent ? 'During Term' : '' };
+      feeDue: (deposit || c === 'FMR') ? 'Move-In' : rent ? 'During Term' : '',
+      role: c === 'RC' ? 'rent' : (c === 'DP' ? 'deposit' : '') };
   }
   // What a charge of this type starts with **at this property**: the property's own override of the
   // charge type when it has one, otherwise the charge type's default. One function, so the chain is
@@ -658,6 +653,7 @@ class Component extends DCLogic {
   // The property's own override of a charge type, or null. Kept apart from the charge type's
   // default because a charge can refuse one without refusing the other — see `noInherit`.
   ctmOwn(prop, code){
+    return null; // property overrides are gone (2026-10-15)
     const own = ((this.state.propDef || {})[prop || this.state.property] || {})[String(code || '').toUpperCase()];
     if (!(own && own.on)) return null;
     // An override saved before Charge Category became the charge type's alone may still carry one;
@@ -673,7 +669,40 @@ class Component extends DCLogic {
   // charge type's, and they are independent — refusing one was never an answer about the other.
   // The charge form fills from this rather than `ctmFor`, so what it shows and what
   // `resolvedListing` would publish cannot disagree.
+  // The charge form's Charge Marketing, read-only (2026-10-15): the charge type's values, a dash and the
+  // Required for Listings lozenge where a required one is empty, and a link to where they are set.
+  chargeMktStaticHTML(code, isOne){
+    const c = String(code || '').toUpperCase();
+    const INK = 'color:var(--rmx-brand-dark, #13314c)';
+    if (!c) return `<span style="font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">Select a charge type to see its charge marketing.</span>`;
+    const D = this.mktDefFor(c) || {};
+    const act = !!this.state.publishedProps[this.state.property];
+    const need = `<span style="display:inline-flex;align-items:center;height:19px;box-sizing:border-box;padding:0 7px;border-radius:4px;background:${act ? '#fdecee' : '#fdf3e7'};font-size:12px;color:${act ? '#a3252c' : '#7a5a2a'};white-space:nowrap">Required for Listings</span>`;
+    const DUE = { 'At Application':'At Application', 'Move-In':'At Move-In', 'During Term':'During Term', 'Move-Out':'At Move-Out' };
+    const role = this.leaseRoleKind(c);
+    const f = (label, val, required, wide) => `<div style="flex:${wide ? '2' : '1'} 1 ${wide ? '320px' : '160px'};min-width:0;display:flex;flex-direction:column;gap:4px">
+        <span style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">${label}${!val && required ? need : ''}</span>
+        <span style="font-size:14px;line-height:20px;${INK};overflow-wrap:anywhere">${val ? String(val).replace(/&/g,'&amp;').replace(/</g,'&lt;') : '—'}</span></div>`;
+    const ref = D.refundable === 'yes' || D.refundable === true ? 'Refundable' : D.refundable === 'no' || D.refundable === false ? 'Not Refundable' : '';
+    return `<div style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 16px">
+        <span style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">Set on the <strong style="font-weight:600;${INK}">${c}</strong> charge type for every charge that uses it.</span>
+        <a data-act="ctOpen" data-arg="${c}" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Edit Charge Type</a>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:12px 16px">
+        ${f('Listings Treat It As', role ? this.leaseRoleLabel(role) : 'Additional Charge')}
+        ${f('Name', role ? this.leaseRoleLabel(role) : D.name, true)}
+        ${f('Marketing Description (Optional)', D.marketing, false, true)}
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:12px 16px">
+        ${f('Charge Category', this.chargeCategoryFor(c), true)}
+        ${f('Charge Requirement', D.requirement, true)}
+        ${isOne ? f('Fee Due', DUE[D.feeDue] || D.feeDue, true) + f('Refundability (Optional)', ref) : f('Charge Schedule', D.schedule, true)}
+      </div>
+    </div>`;
+  }
   chargeInherits(prop, code, listing){
+    return this.mktDefFor(code) || {}; // no overrides (2026-10-15)
     const L = listing || {};
     const c = String(code || '').toUpperCase();
     const P = L.noProp ? null : this.ctmOwn(prop, c);
@@ -1351,21 +1380,16 @@ class Component extends DCLogic {
         const newCode = v('ctd-name').toUpperCase() || code;
         const mk = { name: v('ctd-mkt-name'), marketing: v('ctd-mkt-marketing'), category: v('ctd-mkt-category'),
           requirement: v('ctd-mkt-requirement'), schedule: v('ctd-mkt-schedule'),
-          feeDue: v('ctd-mkt-feeDue'), refundable: v('ctd-mkt-refundable') };
+          feeDue: v('ctd-mkt-feeDue'), refundable: v('ctd-mkt-refundable'),
+          role: ((this.q('input[name="ctd-mkt-role"]:checked') || {}).value) || '' };
         // Storage and Parking Details ride along for a charge type of that category.
         const mkAttrs = this.attrRead('ctd', mk.category);
         if (mkAttrs) mk.attrs = mkAttrs;
         const defs = Object.assign({}, this.mktDefs());
         if (newCode !== code) delete defs[code];
         if (Object.keys(mk).some(k => mk[k])) defs[newCode] = mk; else delete defs[newCode];
-        // Changing the details on a type that charges already run on is the one case where how far
-        // the change reaches is the user's call — so `mktDefApply` commits them, not this.
-        const reaches = this.mktDefChanged(defs).length > 0 && this.mktDefChargeCount([newCode]) > 0;
-        if (reaches) {
-          this.setState({ chargeTypes: next, ctDetail: arg === 'close' ? null : newCode,
-            mktDefDraft: defs, mktDefAsk: true, mktDefMode: 'inherit' });
-          break;
-        }
+        // No overrides any more (2026-10-15): what the charge type says is what every charge of it says,
+        // so saving commits straight away — there is no Update Default Charge Marketing question to ask.
         this.setState({ chargeTypes: next, mktDef: defs, ctDetail: arg === 'close' ? null : newCode });
         this.flash('Charge type saved'); break; }
       case 'ctDelete': { const code = this.state.ctDetail; if (!code) break;
@@ -1738,7 +1762,7 @@ class Component extends DCLogic {
         // charges have to be finished first.
         if (st.issues) { this.flash(st.issues + ' charge' + (st.issues===1?'':'s') + ' still need details before fee transparency can be activated'); break; }
         // No Activate without a confirmed Base Rent on every unit (2026-10-15): take them to confirm it.
-        if (!this.roleRentReady(arg)) { this._roleDraft = Object.assign({}, this._roleDraft, { review: {} }); this._roleNew = []; this.setState({ roleReview: { prop: arg } }); break; }
+        if (!this.roleRentReady(arg)) { this.flash('Every unit needs a Base Rent before fee transparency can be activated'); break; }
         this._rolePick = {}; this.setState({ pubModal: { prop: arg } }); break; }
       case 'pubCancel': this.setState({ pubModal: null }); break;
       case 'pubConfirm': { const m = this.state.pubModal; const props = m.props || [m.prop];
@@ -3235,7 +3259,7 @@ class Component extends DCLogic {
           act:'mcOpenProp', issues:short, ft:false }
       // Charges done but the Base Rent not yet confirmed on every unit: the next step is the Review.
       : !this.roleRentReady(p)
-      ? { key:'ready', order:2, status:'Confirm Base Rent', loz:'amber', next:'Confirm Charges', act:'roleReviewOpen', ft:false, rentPending:true }
+      ? { key:'ready', order:2, status:'Base Rent Missing', loz:'amber', next:'View Charges', act:'openFeeProfile', ft:false, rentPending:true }
       : { key:'ready', order:2, status:'Ready to Activate', loz:'blue',
           next:'Activate Fee Transparency', act:'pubOpen', ft:false };
   }
@@ -4505,12 +4529,11 @@ class Component extends DCLogic {
     return Object.keys(G).map(k => G[k])
       .sort((a, b) => (lv[a.level] - lv[b.level]) || String(a.target).localeCompare(String(b.target)))
       .map(g => {
-        const marked = g.assigned || g.rows.filter(r => written(r, g) && (r.listing || {}).leaseRole === kind)[0];
-        // The suggestion keeps the rule it always had: the highest current charge in the group.
+        // The role is the charge type's (2026-10-15), so every group is set: nothing to confirm or decline.
+        // Where a level has several charges of the role, the highest stands for the group.
         const suggested = g.rows.slice().sort((a, b) => this.roleAmt(b) - this.roleAmt(a))[0];
-        // "Use the property's" marks every charge in a unit type's or unit's group `roleDeclined`: that
-        // level has no Base Rent / Security Deposit of its own, so its units read the property's.
-        const declined = !marked && g.rows.every(r => (r.listing || {}).roleDeclined === kind);
+        const marked = suggested;
+        const declined = false;
         return Object.assign(g, { chosen: marked || suggested, suggested, marked: !!marked, declined, name: g.level === 'Property' ? prop : g.target });
       })
       // A declined group is dropped — its units fall back to the property's charge and it isn't
@@ -4692,7 +4715,8 @@ class Component extends DCLogic {
   // Deposit is recommended and holds nothing up.
   roleRentReady(prop){
     const gs = this.roleGroups(prop, 'rent', { all: true });
-    return gs.length > 0 && this.roleRentGap(prop) === 0 && gs.every(g => g.marked || g.declined);
+    // Nothing to confirm since 2026-10-15 — the role is the charge type's — so it is coverage alone.
+    return gs.length > 0 && this.roleRentGap(prop) === 0;
   }
   // Setup's sub-row: no rent candidate, units left without a Base Rent, every group answered, or still
   // suggested.
@@ -4833,22 +4857,24 @@ class Component extends DCLogic {
     // (8px sides). No icon. It wraps under the text where the tile is narrow.
     const head = (title, txt, act, label) => `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px 16px">
         <div style="flex:1 1 200px;min-width:0;display:flex;flex-direction:column;gap:4px;font-size:14px;line-height:20px;${INK}"><strong style="font-weight:600">${title}</strong><span>${txt}</span></div>
-        <a data-act="${act}" data-arg="${P}" style="flex:none;display:inline-flex;align-items:center;padding:4px 8px;margin-left:-8px;border-radius:4px;background:#fff;font-size:14px;line-height:normal;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${label}</a></div>`;
+        ${!act ? '' : `<a data-act="${act}" data-arg="${P}" style="flex:none;display:inline-flex;align-items:center;padding:4px 8px;margin-left:-8px;border-radius:4px;background:#fff;font-size:14px;line-height:normal;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${label}</a>`}</div>`;
     const box = (border, inner) => `<div style="display:flex;flex-direction:column;gap:16px;padding:12px;border:1px solid ${border};border-radius:4px;background:#fff">${inner}</div>`;
     const BRAND = 'var(--ac,var(--rmx-brand, #008dd5))', ERR = 'var(--rmx-error, #eb343c)';
     // One sentence of what to do, one of when it reaches a listing (2026-10-14): until activation the
     // listing still advertises Price and Deposit Fee(s), and these wait.
     const WHY = 'Choose which charges are the Base Rent and Security Deposit. They’ll only show on listings once fee transparency is activated.';
     const SET = 'These will only show on listings once fee transparency is activated.';
-    if (st === 'none') return box(ERR, head('Base Rent', 'Add a rent charge before activating fee transparency.', 'openFeeProfile', 'View Charges'));
+    // The role is the charge type's (2026-10-15), so there is nothing to choose or confirm here: the
+    // Callout shows what the charge types make the Base Rent and Security Deposit, or what's missing.
+    if (st === 'none') return box(ERR, head('Base Rent', 'Add a charge on a Base Rent charge type before activating fee transparency.', 'openFeeProfile', 'View Charges'));
     if (st === 'gap') { const n = this.roleRentGap(prop);
-      return box(ERR, head('Base Rent Missing', `Every unit needs a Base Rent before fee transparency can be activated. ${n} unit${n === 1 ? ' has' : 's have'} none.`, 'roleReviewOpen', 'Confirm Charges')); }
-    if (st !== 'done') return box(BRAND, head('Base Rent &amp; Security Deposit', WHY, 'roleReviewOpen', 'Confirm Charges'));
+      return box(ERR, head('Base Rent Missing', `Every unit needs a Base Rent before fee transparency can be activated. ${n} unit${n === 1 ? ' has' : 's have'} none.`, 'openFeeProfile', 'View Charges')); }
+    void WHY;
     // Confirmed: the same Callout, its action now Review Charges, over the two fields as they will read
     // after activation — so they sit apart from the Price and Deposit Fee(s) the listing still uses.
     const lab = (t) => `<span style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">${t}</span>`;
     const ut = o.unitType ? { unitType: o.unitType, bare: true } : { bare: true };
-    return box(BRAND, head('Base Rent &amp; Security Deposit', SET, 'roleReviewOpen', 'Review Charges')
+    return box(BRAND, head('Base Rent &amp; Security Deposit', SET)
       + `<div style="display:flex;flex-direction:column;gap:4px">${lab('Base Rent')}${this.roleBoxHTML(prop, 'rent', ut)}</div>
       <div style="display:flex;flex-direction:column;gap:4px">${lab('Security Deposit')}${this.roleBoxHTML(prop, 'deposit', ut)}</div>`);
   }
@@ -5086,15 +5112,11 @@ class Component extends DCLogic {
       ${open ? `<div>
         ${sub(tick, 'Listing Ready Charges:', `${r.ch.ready}/${r.onList}`, link(r.whole ? 'View Charges' : 'Add Charge Marketing', 'openFeeProfile', r.p))}
         ${r.converted ? '' : (() => { const rs = this.roleSetupState(r.p);
-          return rule + (rs === 'none'
-            ? sub(this.ico('error', 20, 'color:var(--rmx-error, #eb343c);flex:none'), 'Confirm Base Rent &amp; Security Deposit', '', link('View Charges', 'openFeeProfile', r.p))
-            : rs === 'gap'
-            ? sub(this.ico('error', 20, 'color:var(--rmx-error, #eb343c);flex:none'), 'Confirm Base Rent &amp; Security Deposit', '', link('Confirm Charges', 'roleReviewOpen', r.p))
-            : rs === 'done'
-            ? sub(this.ico('check_circle', 20, 'color:var(--rmx-success, #6eb744);flex:none'), 'Confirm Base Rent &amp; Security Deposit', '', link('Review', 'roleReviewOpen', r.p))
-            : sub(this.ico('info', 20, 'color:var(--rmx-brand-dark, #13314c);flex:none'), 'Confirm Base Rent &amp; Security Deposit', '', link('Confirm Charges', 'roleReviewOpen', r.p))); })()}
-        ${o.noDefaults ? '' : `${rule}
-        ${sub(this.ico('info', 20, 'color:var(--rmx-text, #666666);flex:none'), 'Set Property Defaults', '', link('Edit Defaults', 'mcOpenProp', r.p))}`}
+          // Nothing to confirm (2026-10-15): the row only appears when some unit has no Base Rent — no
+          // charge on a Base Rent charge type reaches it — and points to the charges.
+          if (rs !== 'none' && rs !== 'gap') return '';
+          const n = this.roleRentGap(r.p);
+          return rule + sub(this.filledIco('error', 20, 'color:var(--rmx-error, #eb343c);flex:none'), 'Base Rent missing:', rs === 'none' ? 'no Base Rent charge' : n + ' unit' + (n === 1 ? '' : 's'), link('View Charges', 'openFeeProfile', r.p)); })()}
       </div>` : ''}
     </div>`;
   }
@@ -5168,7 +5190,7 @@ class Component extends DCLogic {
       <div data-act="ftSetupSec" data-arg="def" style="display:flex;align-items:center;gap:8px;cursor:pointer">
         ${H('Set Defaults')}${loz('Recommended', 'var(--rmx-brand-tint-bg, #ebf1f5)', 'var(--rmx-brand-hover, #0071aa)')}<div style="flex:1"></div>${chev(defOpen)}
       </div>
-      ${defOpen ? `${DESC('Fill in marketing details once per charge type, and every charge of that type inherits them. You can still override on any property or charge.')}
+      ${defOpen ? `${DESC('Fill in charge marketing once per charge type, and every charge of that type uses it, at every property — including whether its charges are the Base Rent, the Security Deposit or an additional charge.')}
       <span data-act="navChargeTypes" style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;color:var(--ac,var(--rmx-brand, #008dd5))">${SETTINGS}<span style="font-size:14px">Set Defaults on Charge Types</span></span>` : ''}
     </div>`;
 
@@ -5230,7 +5252,7 @@ class Component extends DCLogic {
     const blocked = props.some(p => !this.roleRentReady(p));
     // The review happens before this (2026-10-13): the dialog only says what activating does. A property
     // with no rent or deposit candidate can't activate, and that is the one thing it adds.
-    const roles = blocked ? `<span style="font-size:14px;line-height:20px;color:var(--rmx-error, #eb343c)">Confirm a Base Rent for every unit before activating.</span>` : '';
+    const roles = blocked ? `<span style="font-size:14px;line-height:20px;color:var(--rmx-error, #eb343c)">Every unit needs a Base Rent before activating.</span>` : '';
     return `<div data-act="pubCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:152">
       <div data-act="noop" style="width:640px;max-width:94vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
@@ -6217,8 +6239,16 @@ class Component extends DCLogic {
     // the field labels into one link in the header \u2014 the fields carry no help icons of their own.
     const whyTip = this.infoTip('<span style="display:block;white-space:normal">Listing sites need these fields before they will advertise a fee. Setting them on the charge type means every charge of that type starts complete, on every property, and a property or a single charge can still override any of them.</span>', undefined,
       { trigger: `<span style="display:inline-flex;align-items:center;gap:6px;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap">${this.ico('info', 20)}<span style="font-size:14px">Why is this important?</span></span>` });
-    const mktTile = tile('Default Charge Marketing', whyTip,
-      `<span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.45">Set default marketing information for every charge that uses this charge type.</span>
+    // The role a charge of this type plays on a listing (2026-10-15): set here, once, for every charge of
+    // the type at every property — properties no longer pick their Base Rent or Security Deposit.
+    const role0 = d.role != null ? d.role : (seed.role || '');
+    const roleRadio = (val, label) => `<label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;white-space:nowrap"><input type="radio" name="ctd-mkt-role" value="${val}" ${role0 === val ? 'checked' : ''} style="width:18px;height:18px;margin:0;flex:none"><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${label}</span></label>`;
+    const mktTile = tile('Charge Marketing', whyTip,
+      `<span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.45">Set the marketing information for every charge that uses this charge type. Charges show it as it is set here.</span>
+       <div style="display:flex;flex-direction:column;gap:8px">
+         <span style="font-size:14px;color:var(--rmx-text, #666666)">Charges using this charge type are</span>
+         <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">${roleRadio('rent', 'Base Rent')}${roleRadio('deposit', 'Security Deposit')}${roleRadio('', 'Additional Charge')}</div>
+       </div>
        <div style="display:flex;gap:16px">
          ${mfld('Name', F.txt('ctd-mkt-name', d.name || seed.name))}
          ${mfld('Charge Category', this.singleSelect('ctd-mkt-category', this.chargeCategoryOptions(), d.category || '', { noSearch:true, blank:true, placeholder:'\u00a0', js:"if(window.__attrDefShow)window.__attrDefShow('ctd',_v)" }), H.category)}
@@ -9375,7 +9405,9 @@ class Component extends DCLogic {
   // The charge form itself — General Details, the CRE sections and Marketing Details — shared by the
   // Charge Details overlay and by Bulk Update Charges, which frames it differently.
   chargeForm(m){
-    const ed = m.edit || null;
+    // Charge marketing is the charge type's alone (2026-10-15), so whatever a charge stored of its own is
+    // left out of the form: its hidden marketing fields hold the charge type's values.
+    const ed = m.edit ? Object.assign({}, m.edit, { listing: {} }) : null;
     const isOne = /-one$/.test(m.group);
     // Property specific charges (NSF, late fees) pull every non-marketing field from the property,
     // so General Details renders locked and only the marketing details are editable.
@@ -9539,6 +9571,8 @@ class Component extends DCLogic {
     // Storage / Parking categories reveal their optional attribute sections.
     window.__attrCheck = () => {
       const cc = ((this.q('#m-cat') || {}).value) || '';
+      // The read-only Charge Marketing follows the charge type as it is picked.
+      const ms = this.q('#m-mkt-static'); if (ms) ms.innerHTML = this.chargeMktStaticHTML(((this.q('#m-ctype') || {}).value) || '', isOne);
       const rh = this.q('#m-ref');
       if (rh && rh.getAttribute('data-auto') && window.__ddSet) { const d = this.refDefault(((this.q('#m-ctype') || {}).value) || '');
         if (rh.value !== d) { window.__ddSet('m-ref', d, d); rh.setAttribute('data-auto', '1'); } }
@@ -10291,9 +10325,10 @@ class Component extends DCLogic {
         </div>
         <div id="m-mkt-body" style="display:none;flex-direction:column;gap:14px">
           ${amtNote}
-          ${roleCard}
+          <div style="display:none">${roleCard}</div>
           <div id="m-mkt-card" style="display:flex;flex-direction:column;gap:14px;padding:14px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px">
-            <div id="m-mkt-fields" style="display:flex;flex-direction:column;gap:12px">${listing}</div>
+            <div id="m-mkt-static">${this.chargeMktStaticHTML((ed && ed.mits) || '', isOne)}</div>
+            <div id="m-mkt-fields" style="display:none;flex-direction:column;gap:12px">${listing}</div>
             ${missingMsg}
           </div>
           ${ilsBox}
@@ -11107,7 +11142,8 @@ class Component extends DCLogic {
             <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);flex:none">Occupied Units: <strong>${P.occupied != null ? P.occupied : 30}</strong></span>
           </div>
           <div style="display:grid;grid-template-columns:repeat(3, minmax(0,1fr));gap:16px;align-items:stretch;align-content:start">
-            ${contact1}${contact2}${listing}${features}${floor}${ctm}
+            ${contact1}${contact2}${listing}${features}<div style="grid-column:span 2;min-width:0;display:grid">${floor}</div>
+            ${'' /* Default Charge Marketing came off (2026-10-15): a property no longer overrides its charge types. */}${void ctm || ''}
           </div>
         </div>
       </div>`;
@@ -11158,8 +11194,8 @@ class Component extends DCLogic {
           // Charges done but the Base Rent not confirmed on every unit: no Activate yet (2026-10-15).
           if (!need && !this.roleRentReady(prop2)) return `<div style="display:flex;align-items:flex-start;gap:10px;background:#fef4e8;border:1px solid #f6d9ac;border-radius:4px;padding:11px 14px">
                 ${this.filledIco('warning', 18, 'color:var(--rmx-attention, #f58220);flex:none;margin-top:1px')}
-                <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Fee transparency can be activated once a Base Rent is confirmed for every unit.</span>
-                <a data-act="roleReviewOpen" data-arg="${prop2}" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Confirm Charges</a>
+                <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Fee transparency can be activated once every unit has a Base Rent.</span>
+                <a data-act="openFeeProfile" data-arg="${prop2}" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">View Charges</a>
               </div>`;
           // Publishing waits until every charge has the fields listings require.
           return need
