@@ -683,7 +683,10 @@ Type Details overlay (`ctDetailHTML`, ids `ctd-mkt-*`, saved by `ctSave`), match
 `3582:1667`: *“Set default marketing information for every charge that uses this charge type”* over
 Name, Charge Category, Marketing Description, Charge Requirement, Charge Schedule, Fee Due and
 Refundable. The case for filling it in is one **Why is this important?** link in the tile header
-(an `infoTip` with a custom `trigger`), not a help icon on each field.
+(an `infoTip` with a custom `trigger`), not a help icon on each field. Its text (2026-10-15, after overrides
+went): *"Listing sites need these details before they'll advertise a fee. They're set once here and used by
+every charge of this charge type, at every property. After a property activates fee transparency, its
+listings that use this charge type won't be sent until every required field is filled in."*
 
 **The tile opens on three guesses** (`mktDefSeed`): the **Name** is the charge type's own
 description, a **deposit** is Refundable, and **rent** is due During Term. Deposit is tested first,
