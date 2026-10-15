@@ -37,29 +37,27 @@ screen (2026-10-07; it used to wait on every listing advertising a complete pric
 - **What is Fee Transparency?** — collapsed by default. Open, it carries one line of what changes
   on a listing, then three notes with tinted 33px icon tiles: *Required in More States* (*A growing number of states require advertised rent to include mandatory fees, and Zillow flags listings that don't.*, 2026-10-15; amber
   `error`), *Streamlined Process* (grey `settings`), *Applicable Properties* (brand `apartment`).
-- **1. Add Marketing Details to Charge Types** + a `Required` lozenge (`#fbd6d8`, navy text) — numbered
-  steps and the layout since 2026-10-15 match Figma `3991:162248`. Always open: one line saying a charge
-  type's details, role included, apply to every charge that uses it, then a grey status strip. While any
-  charge type used on listings at a property in scope is short (`ftShortTypes()`), an amber outlined
-  `warning` and *Charge Types missing marketing details: **GARBAG*** with **Mass Edit Marketing Details**
-  (`ftMassEdit`: closes the overlay, goes to Charge Types and opens Mass Edit); once none is, a green
-  `check_circle` and **View Charge Types**. The *What is Fee Transparency?* note *Streamlined Process* says
-  details are set once on each charge type and every charge of it, at every property, uses them.
-- **2. Activate Properties** — *"A property can activate once every charge it shows on listings has
-  marketing details and every unit has a Base Rent."*, then the green *Ready to display all charges?*
-  strip (below) **inside the step**, then a register — one CSS grid, so every row shares the column
-  widths: **status · Property · Listing Ready Charges · next step**. Status is a Ready / Not Ready lozenge
-  with a dot, or italic *Fee Transparent*; the count is a green or red dot and *n/n*. **The last column
-  names what the property is waiting for, in step 1's words** — *Add GARBAG marketing details*
-  (`ftMassEdit`), *Add Base Rent to 2 units* / *Add a Base Rent charge* (`openFeeProfile`) — or
-  **Activate Fee Transparency** (`pubOpen`) once ready. It is how the overlay ties a property's *8/9* to
-  the charge type above it (the user's question, 2026-10-15). An activated property whose charges have
-  since gone short keeps its *Add … marketing details* link. `ftSetupRows()` carries each property's
-  `short` charge types. The rows no longer expand, so `ftPropRow` is no longer drawn.
+- **Revised to Figma `3991:162248` again on 2026-10-15** (the frame was updated): *What is Fee
+  Transparency?* is a compact card with a 1px **brand** border, 8px/16px padding, a brand `help` glyph and
+  the title at 14px Regular navy, then the chevron (open, it keeps its notes). The steps carry **no
+  numbers**.
+- **Add Marketing Details to Charge Types** + the `Required` lozenge (`#fbd6d8`, navy text), with a
+  **Charge Types** link on the right (`navChargeTypes`), over *"Edit each charge type's marketing
+  information, so any charge that uses that charge type will be advertised with those details. You can do
+  this individually or in bulk on the charge types register."* No status strip (`ftShortDetail` /
+  `ftShortTypes` are no longer drawn here).
+- **Activate Properties**, with **Bulk Activate Fee Transparency** (`ftActivateReady`, green) on the
+  header's right only while `ftReadyProps()` has something, over *"A property can activate fee transparency
+  once all marketing details are filled out on any charge types used on the property."*, then a register —
+  one CSS grid — **Property · Listing Ready Charge Types · (action) · (status)**: the count is a green or
+  red dot and the property's charge types ready of those it lists (`ftPropTypes(p)`, with a `title` naming
+  the short ones); the action is **Activate Fee Transparency** (`pubOpen`) on a ready row and empty
+  otherwise; the status is last — a Ready / Not Ready lozenge with a dot, or italic *Fee Transparent*. The
+  separate green *Ready to display all charges?* strip and the *Add GARBAG marketing details* next steps
+  are gone with this revision.
 
-**The green banner is conditional, and that is the point.** *Ready to display all charges?* with
-**Bulk Activate Fee Transparency** (`ftActivateReady`; an 8px-padded strip with a round green check badge,
-inside step 2 since 2026-10-15) renders only when `ftReadyProps()` is non-empty —
+**Bulk Activate is conditional, and that is the point.** **Bulk Activate Fee Transparency**
+(`ftActivateReady`; the header button of Activate Properties since 2026-10-15) renders only when `ftReadyProps()` is non-empty —
 properties that are applicable, carry charges, have none outstanding and haven't converted. That
 one helper is also what the button acts on and what the picker lists, so the three cannot disagree.
 
@@ -398,6 +396,10 @@ Marketing Errors** section, so the dialog was a second door onto the same list. 
 `ltReadyOpen`/`ltReadyClose` and `state.ltReady` are gone from C; the cell keeps a `title` saying
 how many charges still need details. **A still has them**, because its Overview register has no
 Errors column to carry the itemisation.
+
+**The Listing Errors sections are *Charge Errors*, *Marketing Errors* and the provider's** (2026-10-15,
+the user's names; they were *Marketing Details Errors* and *Rent Manager Errors*). Older notes below use
+the old names.
 
 **Errors is a lozenge naming the worst thing wrong**, to Figma `3640:5054`, and the line between
 its three states is **whether the listing goes out at all**:
