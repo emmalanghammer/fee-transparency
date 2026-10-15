@@ -4797,14 +4797,7 @@ class Component extends DCLogic {
     // listing every floor plan still missing the charge (DOM-only, `window.__rolePill`).
     // The panel is fixed to the window rather than absolute in its section, so the overlay's scrolling
     // body can't clip it; it sits under the Pill, flips above when there's no room, and stays on screen.
-    if (!window.__rolePill) window.__rolePill = (btn, ev) => { if (ev) ev.stopPropagation();
-      const pnl = btn.parentNode.querySelector('[data-pillpnl]'); if (!pnl) return;
-      const on = pnl.style.display === 'none'; pnl.style.display = on ? 'block' : 'none'; btn.setAttribute('aria-expanded', on);
-      if (!on) return;
-      const r = btn.getBoundingClientRect(), w = pnl.offsetWidth, h = pnl.offsetHeight;
-      let l = r.left; if (l + w > window.innerWidth - 8) l = window.innerWidth - 8 - w; if (l < 8) l = 8;
-      let t = r.bottom + 4; if (t + h > window.innerHeight - 8) t = r.top - h - 4; if (t < 8) t = 8;
-      pnl.style.left = l + 'px'; pnl.style.top = t + 'px'; };
+    this.pillInstall();
     const missingHTML = !fps.length ? '' : `<span style="position:relative;display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap">Missing: ${e(fps[0])}${fps.length > 1
       ? `<button type="button" aria-expanded="false" aria-label="${e(fps.length - 1 + ' more floor plans missing')}" onclick="window.__rolePill(this, event)" style="display:inline-flex;align-items:center;gap:2px;height:20px;box-sizing:border-box;padding:0 4px 0 8px;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:12px;background:#fff;font:400 14px/16px Roboto,sans-serif;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap;cursor:pointer">+${fps.length - 1}${this.ico('arrow_drop_down', 20, 'flex:none;margin:0 -2px')}</button>
         <div data-pillpnl style="display:none;position:fixed;top:0;left:0;z-index:400;min-width:180px;padding:4px 0;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.12)">
@@ -6042,6 +6035,28 @@ class Component extends DCLogic {
   petTypesFor(prop){ const p = prop || this.state.property;
     return this.state.petTypes.filter(t => !t.props || t.props.indexOf(p) >= 0); }
   // ---------- Charge Types register (mock 2219-2405) ----------
+  // RMX's dropdown Pill (*+n* and a caret in a brand outline) opens a small panel of everything it
+  // stands for. One handler, `window.__rolePill`, for the Review overlay's missing floor plans and Mass
+  // Edit's Properties column.
+  pillInstall(){
+    if (!window.__rolePill) window.__rolePill = (btn, ev) => { if (ev) ev.stopPropagation();
+      const pnl = btn.parentNode.querySelector('[data-pillpnl]'); if (!pnl) return;
+      const on = pnl.style.display === 'none'; pnl.style.display = on ? 'block' : 'none'; btn.setAttribute('aria-expanded', on);
+      if (!on) return;
+      const r = btn.getBoundingClientRect(), w = pnl.offsetWidth, h = pnl.offsetHeight;
+      let l = r.left; if (l + w > window.innerWidth - 8) l = window.innerWidth - 8 - w; if (l < 8) l = 8;
+      let t = r.bottom + 4; if (t + h > window.innerHeight - 8) t = r.top - h - 4; if (t < 8) t = 8;
+      pnl.style.left = l + 'px'; pnl.style.top = t + 'px'; };
+  }
+  // `first` shown as text, then the Pill counting the rest; the panel lists them all.
+  morePill(first, all, label){
+    const e = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    this.pillInstall();
+    if (all.length < 2) return e(first);
+    return `<span style="display:inline-flex;align-items:center;gap:8px;min-width:0">${e(first)}<button type="button" aria-expanded="false" aria-label="${e(label)}" onmousedown="event.stopPropagation()" onclick="window.__rolePill(this, event)" style="display:inline-flex;align-items:center;gap:2px;height:20px;box-sizing:border-box;padding:0 4px 0 8px;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:12px;background:#fff;font:400 14px/16px Roboto,sans-serif;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap;cursor:pointer;flex:none">+${all.length - 1}${this.ico('arrow_drop_down', 20, 'flex:none;margin:0 -2px')}</button>
+      <div data-pillpnl style="display:none;position:fixed;top:0;left:0;z-index:400;min-width:180px;padding:8px 0;background:#fff;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.12)">
+        ${all.map(n => `<div style="padding:10px 16px;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${e(n)}</div>`).join('')}</div></span>`;
+  }
   ctMassHTML(){
     if (!this.state.ctMass) return '';
     const INK = 'color:var(--rmx-brand-dark, #13314c)';
@@ -6116,14 +6131,21 @@ class Component extends DCLogic {
       pnl.style.left = Math.max(8, Math.min(r.left + 4, window.innerWidth - pnl.offsetWidth - 8)) + 'px'; pnl.style.top = Math.max(8, top) + 'px';
     };
     // A click anywhere in the overlay that isn't the open cell or its options closes it, keeping the value.
-    window.__meOutside = (e) => { if (e.target.closest('[data-editing]') || e.target.closest('#me-pnl')) return;
+    window.__meOutside = (e) => { document.querySelectorAll('[data-pillpnl]').forEach(p => { if (!p.contains(e.target)) p.style.display = 'none'; });
+      if (e.target.closest('[data-editing]') || e.target.closest('#me-pnl')) return;
       if (e.target.closest('[data-f]')) return; window.__meClose(true); };
-    const props = (r) => !r.props || !r.props.length ? 'All Properties' : this.propInfo(r.props[0]).short + (r.props.length > 1 ? ' +' + (r.props.length - 1) : '');
+    // One property reads as its code; several read the first, then the Pill counting the rest (2026-10-15).
+    // Only properties in the scenario's portfolio are named, since propInfo falls back to the first for any other.
+    const PD = this.propertiesData();
+    const props = (r) => { if (!r.props || !r.props.length) return 'All Properties';
+      const all = r.props.map(n => PD.find(p => p.name === n)).filter(Boolean).map(p => p.short);
+      if (!all.length) return '-';
+      return this.morePill(all[0], all, (all.length - 1) + ' more properties'); };
     const body = rows.map((r, i) => {
       const bg = i % 2 ? '#fff' : 'var(--rmx-bg-subtle, #f5f8fa)';
       const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:36px;box-sizing:border-box;padding:0 8px;font-size:14px;${INK};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra || ''}">${t}</span>`;
       return `<div onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background='${bg}'" style="display:grid;grid-template-columns:${tracks};align-items:center;background:${bg};border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)">
-        ${cell(esc(r.code))}${cell(esc(props(r)))}
+        ${cell(esc(r.code))}${cell(props(r), 'overflow:visible')}
         ${COLS.map(c => `<span data-code="${esc(r.code)}" data-f="${c.f}" onclick="window.__meEdit(this)" title="Select to edit" style="display:flex;align-items:center;min-height:36px;min-width:0;box-sizing:border-box;padding:2px 8px;font-size:14px;${INK};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer">${show(c, V(r.code, c.f))}</span>`).join('')}
       </div>`;
     }).join('');
@@ -6139,7 +6161,7 @@ class Component extends DCLogic {
         </div>
         <div style="flex:1;min-height:0;display:flex;flex-direction:column;gap:16px;padding:16px;position:relative">
           <span style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">Set the marketing information for every charge that uses this charge type. Charges will display on listings as they are here.</span>
-          <div data-rreg-me onmousedown="window.__meOutside(event)" onscroll="window.__meClose(true)" style="flex:1;min-height:0;overflow:auto;border:1px solid var(--rmx-line, #cedbe7)">
+          <div data-rreg-me onmousedown="window.__meOutside(event)" onscroll="window.__meClose(true);this.querySelectorAll('[data-pillpnl]').forEach(p=>p.style.display='none')" style="flex:1;min-height:0;overflow:auto;border:1px solid var(--rmx-line, #cedbe7)">
             <div style="min-width:1400px">
               <div style="display:grid;grid-template-columns:${tracks};background:var(--rmx-register-header, #737373);position:sticky;top:0;z-index:1">
                 ${head('Charge Type')}${head('Properties')}${COLS.map(c => head(c.h)).join('')}

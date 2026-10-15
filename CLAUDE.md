@@ -933,7 +933,10 @@ describes the design before that tag; the code for most of it is still in the fi
   uses this charge type. Charges will display on listings as they are here."*, then one register row per
   active charge type — **Charge Type · Properties · Charge Role · Name · Charge Category · Marketing
   Description · Charge Requirement · Charge Schedule · Charge Timing · Refundability** — grey Register
-  header, striped rows that tint `#ebf1f5` on hover. An empty required field reads an amber **Missing**
+  header, striped rows that tint `#ebf1f5` on hover. **Properties** reads *All Properties*, one property's
+  code, or the first code then RMX's dropdown Pill *+n* (`morePill`, 2026-10-15) whose panel lists every
+  one — only properties in the scenario's portfolio. The Pill's handler is shared with the Review
+  overlay's missing floor plans (`pillInstall` / `window.__rolePill`). An empty required field reads an amber **Missing**
   lozenge, an optional one `-`. **One cell is edited at a time, as production's mass edit does**
   (2026-10-15, DOM-only): clicking a cell (`window.__meEdit`) closes whichever was open, keeping its
   value (`window.__meClose`), and opens this one — Name and Marketing Description as a white input with a
