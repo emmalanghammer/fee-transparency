@@ -522,6 +522,11 @@ Header + Cell, and fields are `Input Field`. Page `3465:40468` ("V2") holds the 
 ## Branches
 
 - **`experiment`** is where the work happens, and it is what GitHub Pages serves.
+- **`checkpoint-2026-10-15`** is a tag on `experiment` (`9c7c889`) marking the prototype the user wanted to
+  be able to come back to before a round of changes: Base Rent & Security Deposit confirmed before
+  activation, the Review overlay, per-unit Not Sent and Listing Ready, most-specific charge pricing. It
+  matches the experiment artifact's **Version 11**. `git checkout checkpoint-2026-10-15 -- index.html`
+  restores that page; `git diff checkpoint-2026-10-15` shows what has changed since.
 - **`main`** is a frozen snapshot of the prototype as it stood on 2026-09-17, kept so the
   version demoed up to then can still be read. Don't commit to it, and don't merge
   `experiment` into it, unless the user asks.
