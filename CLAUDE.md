@@ -905,8 +905,9 @@ describes the design before that tag; the code for most of it is still in the fi
 - **`resolvedListing(r)` reads the charge type only** (`mktDefFor(r.mits)`); whatever a charge or a
   property stored is ignored. `ctmOwn` returns null and `chargeInherits` returns the charge type's values.
 - **Charge Type Details' Charge Marketing** gains *Charges using this charge type are:* (label and radios on one line) **Base Rent /
-  Security Deposit / Additional Charge** radios (`ctd-mkt-role` → `mktDef[CODE].role`; `mktDefSeed`
-  makes RC `rent` and DP `deposit`). **Save commits straight away** — no Update Default Charge Marketing
+  Security Deposit / Additional Charge** radios (`ctd-mkt-role` → `mktDef[CODE].role`; `mktDefAll`
+  makes the portfolio's RC `rent` and DP `deposit`; any charge type added later starts as **Additional
+  Charge**, whatever its code). **Save commits straight away** — no Update Default Charge Marketing
   question, since there are no overrides for it to reach.
 - **The role is the charge type's:** `leaseRoleKind(code)` and `leaseRoleOf(r)` read `mktDef[CODE].role`.
   Every charge of a Base Rent type is a Base Rent, everywhere; `roleGroups` treats every group as set
