@@ -37,28 +37,29 @@ screen (2026-10-07; it used to wait on every listing advertising a complete pric
 - **What is Fee Transparency?** — collapsed by default. Open, it carries one line of what changes
   on a listing, then three notes with tinted 33px icon tiles: *Required in More States* (*A growing number of states require advertised rent to include mandatory fees, and Zillow flags listings that don't.*, 2026-10-15; amber
   `error`), *Streamlined Process* (grey `settings`), *Applicable Properties* (brand `apartment`).
-- **Add Marketing Details to Charge Types** + a red `Required` lozenge (2026-10-15, replacing *Set
-  Defaults* now that marketing details live only on the charge type) — always open: one line saying a
-  charge type's details, role included, apply to every charge that uses it, then a grey status strip.
-  While any charge type used on listings at a property in scope is short (`ftShortTypes()`), an amber
-  filled `error` and *Missing marketing details: **GARBAG*** with **Mass Edit Marketing Details**
+- **1. Add Marketing Details to Charge Types** + a `Required` lozenge (`#fbd6d8`, navy text) — numbered
+  steps and the layout since 2026-10-15 match Figma `3991:162248`. Always open: one line saying a charge
+  type's details, role included, apply to every charge that uses it, then a grey status strip. While any
+  charge type used on listings at a property in scope is short (`ftShortTypes()`), an amber outlined
+  `warning` and *Charge Types missing marketing details: **GARBAG*** with **Mass Edit Marketing Details**
   (`ftMassEdit`: closes the overlay, goes to Charge Types and opens Mass Edit); once none is, a green
-  `check_circle` and **View Charge Types**. The *What is Fee Transparency?* note *Streamlined Process* now
-  says details are set once on each charge type and every charge of it, at every property, uses them.
-- **Activate Properties** (was *Add Marketing Details* + Required) — always open, *"A property can
-  activate once every charge it shows on listings has marketing details and every unit has a Base
-  Rent."* One row per property fee transparency can apply to
-  (`ftApplicable`, and only where listings carry charges at all): a home icon, the name, a status
-  and a chevron. **Where a property stands reads in one column down the right**, whichever of the
-  three states it is in — a **Ready** / **Not Ready** lozenge, or, for one that has already
-  activated, *Fee Transparent*. That last one stays italic rather than becoming a lozenge. A ready
-  property's row offers **Activate Fee Transparency** (`pubOpen`) immediately left of its status.
-  Expanded, it shows *Listing Ready Charges: n/n* with **Mass Edit Marketing Details** (`ftMassEdit`)
-  while short, **View Charges** (`openFeeProfile`) once whole, and the *Base Rent missing* sub-row
-  where a unit has none.
+  `check_circle` and **View Charge Types**. The *What is Fee Transparency?* note *Streamlined Process* says
+  details are set once on each charge type and every charge of it, at every property, uses them.
+- **2. Activate Properties** — *"A property can activate once every charge it shows on listings has
+  marketing details and every unit has a Base Rent."*, then the green *Ready to display all charges?*
+  strip (below) **inside the step**, then a register — one CSS grid, so every row shares the column
+  widths: **status · Property · Listing Ready Charges · next step**. Status is a Ready / Not Ready lozenge
+  with a dot, or italic *Fee Transparent*; the count is a green or red dot and *n/n*. **The last column
+  names what the property is waiting for, in step 1's words** — *Add GARBAG marketing details*
+  (`ftMassEdit`), *Add Base Rent to 2 units* / *Add a Base Rent charge* (`openFeeProfile`) — or
+  **Activate Fee Transparency** (`pubOpen`) once ready. It is how the overlay ties a property's *8/9* to
+  the charge type above it (the user's question, 2026-10-15). An activated property whose charges have
+  since gone short keeps its *Add … marketing details* link. `ftSetupRows()` carries each property's
+  `short` charge types. The rows no longer expand, so `ftPropRow` is no longer drawn.
 
 **The green banner is conditional, and that is the point.** *Ready to display all charges?* with
-**Activate Fee Transparency** (`ftActivateReady`) renders only when `ftReadyProps()` is non-empty —
+**Bulk Activate Fee Transparency** (`ftActivateReady`; an 8px-padded strip with a round green check badge,
+inside step 2 since 2026-10-15) renders only when `ftReadyProps()` is non-empty —
 properties that are applicable, carry charges, have none outstanding and haven't converted. That
 one helper is also what the button acts on and what the picker lists, so the three cannot disagree.
 
