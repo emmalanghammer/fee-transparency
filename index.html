@@ -6365,7 +6365,7 @@ class Component extends DCLogic {
       { f:'refundable', h:'Refundability', opts: REF, req:false, w:'130px' }
     ];
     const tracks = '100px 120px ' + COLS.map(c => c.w).join(' ');
-    const head = (t) => `<span style="display:flex;align-items:center;height:28px;box-sizing:border-box;padding:0 8px;font:500 12.6px Roboto,sans-serif;letter-spacing:1.134px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>`;
+    const head = (t, extra) => `<span style="${extra || ''}display:flex;align-items:center;height:28px;box-sizing:border-box;padding:0 8px;font:500 12.6px Roboto,sans-serif;letter-spacing:1.134px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>`;
     // An empty required field (2026-10-15, the user's call; it was an amber *Missing* lozenge, then the
     // glyph with red words): the filled red error glyph alone, *Required for listings* on hover.
     const MISSING = `<span title="Required for listings" aria-label="Required for listings" role="img" style="display:inline-flex;align-items:center;gap:6px;min-width:0;font:400 14px/16px Roboto,sans-serif;color:var(--rmx-error, #eb343c);white-space:nowrap">${this.filledIco('error', 16, 'color:var(--rmx-error, #eb343c);flex:none')}</span>`;
@@ -6444,7 +6444,7 @@ class Component extends DCLogic {
       const bg = i % 2 ? '#fff' : 'var(--rmx-bg-subtle, #f5f8fa)';
       const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:36px;box-sizing:border-box;padding:0 8px;font-size:14px;${INK};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra || ''}">${t}</span>`;
       return `<div onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background='${bg}'" style="display:grid;grid-template-columns:${tracks};align-items:center;background:${bg};border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)">
-        ${cell(esc(r.code))}${cell(props(r), 'overflow:visible')}
+        ${cell(esc(r.code))}${cell(props(r), 'overflow:visible;align-self:stretch;border-right:1px solid var(--rmx-line, #cedbe7)')}
         ${COLS.map(c => `<span data-code="${esc(r.code)}" data-f="${c.f}" onclick="window.__meEdit(this)" title="Select to edit" style="display:flex;align-items:center;min-height:36px;min-width:0;box-sizing:border-box;padding:2px 8px;font-size:14px;${INK};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer">${show(c, V(r.code, c.f), r.code)}</span>`).join('')}
       </div>`;
     }).join('');
@@ -6464,7 +6464,7 @@ class Component extends DCLogic {
           <div data-rreg-me onmousedown="window.__meOutside(event)" onscroll="window.__meClose(true);this.querySelectorAll('[data-pillpnl]').forEach(p=>p.style.display='none')" style="flex:1;min-height:0;overflow:auto;border:1px solid var(--rmx-line, #cedbe7)">
             <div style="min-width:1400px">
               <div style="display:grid;grid-template-columns:${tracks};background:var(--rmx-register-header, #737373);position:sticky;top:0;z-index:1">
-                ${head('Charge Type')}${head('Properties')}${COLS.map(c => head(c.h)).join('')}
+                ${head('Charge Type')}${head('Properties', 'border-right:1px solid rgba(255,255,255,0.7);')}${COLS.map(c => head(c.h)).join('')}
               </div>
               ${body}
               <div style="height:72px"></div>
