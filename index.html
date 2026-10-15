@@ -1350,21 +1350,15 @@ class Component extends DCLogic {
       case 'regInactiveToggle': this.setState(s => ({ regShowInactive: !s.regShowInactive })); break;
       // Mass Edit Marketing Details (Figma 3980:160947, 2026-10-15): every charge type's marketing details
       // in one register. Cells edit in place, DOM-only, and Save writes them all to the charge types.
-      case 'ctMassOpen': this._meDirty = {}; this.setState({ ctMass: true }); break;
-      case 'ctMassClose': this._meDirty = {}; this.setState({ ctMass: false }); break;
+      case 'ctMassOpen': this._meVals = {}; this.setState({ ctMass: true }); break;
+      case 'ctMassClose': { const pn = document.getElementById('me-pnl'); if (pn) pn.remove(); this._meVals = {}; this.setState({ ctMass: false }); break; }
       case 'ctMassSave': {
-        const dirty = this._meDirty || {};
+        if (window.__meClose) window.__meClose(true);
+        const vals = this._meVals || {};
         const defs = Object.assign({}, this.mktDefs());
-        const codes = Object.keys(dirty);
-        codes.forEach(code => {
-          const d = Object.assign({}, defs[code] || {});
-          Object.keys(dirty[code]).forEach(f => {
-            const el = this.q('#me-' + code + '-' + f);
-            if (el) d[f] = String(el.value || '').trim();
-          });
-          defs[code] = d;
-        });
-        this._meDirty = {};
+        const codes = Object.keys(vals);
+        codes.forEach(code => { defs[code] = Object.assign({}, defs[code] || {}, vals[code]); });
+        this._meVals = {};
         this.setState({ mktDef: defs, ctMass: false });
         if (codes.length) this.flash('Marketing details saved for ' + codes.length + ' charge type' + (codes.length === 1 ? '' : 's'));
         break; }
@@ -6072,32 +6066,65 @@ class Component extends DCLogic {
     const tracks = '100px 120px ' + COLS.map(c => c.w).join(' ');
     const head = (t) => `<span style="display:flex;align-items:center;height:28px;box-sizing:border-box;padding:0 8px;font:500 12.6px Roboto,sans-serif;letter-spacing:1.134px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>`;
     const MISSING = `<span style="display:inline-flex;align-items:center;height:24px;padding:0 8px;border-radius:4px;background:var(--rmx-notice-bg, #feedd2);font:400 14px/16px Roboto,sans-serif;${INK}">Missing</span>`;
+    const V = (code, f) => { const dv = ((this._meVals || {})[code] || {})[f]; if (dv !== undefined) return dv;
+      const d = this.mktDefFor(code) || {}; return f === 'role' ? (d.role || '') : (d[f] || ''); };
     const show = (c, v) => c.f === 'role' ? esc(lbl(ROLE, v || '')) : v ? esc(c.opts ? lbl(c.opts, v) : v) : (c.req ? MISSING : '-');
-    // Clicking a cell turns it into its field — a dropdown, or a text input — and remembers that the
-    // charge type changed (`this._meDirty`), so Save writes only what was touched.
-    if (!window.__meEdit) window.__meEdit = (el) => {
+    // One cell at a time, as production's mass edit does (2026-10-15): clicking a cell closes the one
+    // that was open — keeping what was typed or picked in `this._meVals` — and opens this one. A text
+    // field becomes a blue-edged input with its text selected; a field with choices opens straight onto
+    // its options. Enter or a click elsewhere keeps the value, Escape drops it. All DOM-only.
+    const BRAND = 'var(--ac,var(--rmx-brand, #008dd5))';
+    const paint = (el) => { const c = COLS.filter(x => x.f === el.getAttribute('data-f'))[0];
+      el.innerHTML = show(c, V(el.getAttribute('data-code'), c.f)); el.removeAttribute('data-editing'); };
+    const count = () => { const n = Object.keys(this._meVals || {}).length, t = document.getElementById('me-count');
+      if (t) t.textContent = n ? n + ' charge type' + (n === 1 ? '' : 's') + ' changed' : ''; };
+    const keep = (code, f, v) => { ((this._meVals || (this._meVals = {}))[code] || (this._meVals[code] = {}))[f] = v; count(); };
+    window.__meClose = (save) => {
+      const pnl = document.getElementById('me-pnl'); if (pnl) pnl.remove();
+      const el = document.querySelector('[data-rreg-me] [data-editing]'); if (!el) return;
+      const inp = el.querySelector('input');
+      if (save && inp) { const code = el.getAttribute('data-code'), f = el.getAttribute('data-f'), v = inp.value.trim();
+        if (v !== V(code, f)) keep(code, f, v); }
+      paint(el);
+    };
+    window.__meEdit = (el) => {
       if (el.getAttribute('data-editing')) return;
+      window.__meClose(true);
       const code = el.getAttribute('data-code'), f = el.getAttribute('data-f');
       const c = COLS.filter(x => x.f === f)[0]; if (!c) return;
-      const d = this.mktDefFor(code) || {};
-      const cur = f === 'role' ? (d.role || '') : (d[f] || '');
+      const cur = V(code, f);
       el.setAttribute('data-editing', '1');
-      ((this._meDirty || (this._meDirty = {}))[code] || (this._meDirty[code] = {}))[f] = true;
-      el.innerHTML = '<div style="flex:1;min-width:0">' + (c.opts
-        ? this.singleSelect('me-' + code + '-' + f, c.opts, cur, { noSearch: true, blank: f !== 'role', placeholder: f === 'role' ? 'Additional Charge' : c.req ? 'Missing' : '-' })
-        : `<input id="me-${code}-${f}" class="fld" value="${esc(cur)}" placeholder="${c.req ? 'Missing' : '-'}" style="height:32px;box-sizing:border-box">`) + '</div>';
-      const inp = el.querySelector('input:not([type=hidden])'); if (inp) inp.focus();
-      const n = Object.keys(this._meDirty).length, t = document.getElementById('me-count');
-      if (t) t.textContent = n ? n + ' charge type' + (n === 1 ? '' : 's') + ' changed' : '';
+      const box = 'display:flex;align-items:center;width:100%;height:28px;box-sizing:border-box;padding:0 8px;border:1px solid ' + BRAND + ';border-radius:4px;background:#fff;font:400 14px Roboto,sans-serif;' + INK;
+      if (!c.opts) {
+        el.innerHTML = `<input value="${esc(cur)}" onkeydown="if(event.key==='Enter'){window.__meClose(true)}else if(event.key==='Escape'){window.__meClose(false)}" style="${box};outline:none">`;
+        const inp = el.querySelector('input'); inp.focus(); inp.select();
+        return;
+      }
+      // A choice field: the cell shows the current value in the blue-edged box, and its options open
+      // under it at once, fixed to the window so the register's scroll can't clip them.
+      el.innerHTML = `<span style="${box};justify-content:space-between;gap:4px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${cur || c.f === 'role' ? esc(lbl(c.opts, cur) || (c.f === 'role' ? 'Additional Charge' : '')) : ''}</span>${this.ico('arrow_drop_down', 20, 'color:var(--rmx-text, #666666);flex:none')}</span>`;
+      const r = el.getBoundingClientRect();
+      const opts = c.opts.map(o => typeof o === 'object' ? o : { value: o, label: o });
+      const pnl = document.createElement('div');
+      pnl.id = 'me-pnl';
+      pnl.style.cssText = 'position:fixed;z-index:1000;min-width:' + Math.max(160, r.width - 8) + 'px;max-height:260px;overflow-y:auto;padding:4px 0;background:#fff;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18)';
+      pnl.innerHTML = opts.map(o => `<div data-v="${esc(o.value)}" onmouseenter="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseleave="this.style.background=this.getAttribute('data-sel')?'var(--rmx-brand-tint-bg, #ebf1f5)':'#fff'" ${o.value === cur ? 'data-sel="1"' : ''} style="padding:8px 14px;font-size:14px;cursor:pointer;white-space:nowrap;${INK};background:${o.value === cur ? 'var(--rmx-brand-tint-bg, #ebf1f5)' : '#fff'}">${esc(o.label)}</div>`).join('');
+      pnl.addEventListener('mousedown', (e) => { const it = e.target.closest('[data-v]'); if (!it) return; e.preventDefault(); e.stopPropagation();
+        const v = it.getAttribute('data-v'); if (v !== V(code, f)) keep(code, f, v); pnl.remove(); paint(el); });
+      document.body.appendChild(pnl);
+      const h = pnl.offsetHeight; let top = r.bottom + 2; if (top + h > window.innerHeight - 8) top = r.top - h - 2;
+      pnl.style.left = Math.max(8, Math.min(r.left + 4, window.innerWidth - pnl.offsetWidth - 8)) + 'px'; pnl.style.top = Math.max(8, top) + 'px';
     };
+    // A click anywhere in the overlay that isn't the open cell or its options closes it, keeping the value.
+    window.__meOutside = (e) => { if (e.target.closest('[data-editing]') || e.target.closest('#me-pnl')) return;
+      if (e.target.closest('[data-f]')) return; window.__meClose(true); };
     const props = (r) => !r.props || !r.props.length ? 'All Properties' : this.propInfo(r.props[0]).short + (r.props.length > 1 ? ' +' + (r.props.length - 1) : '');
     const body = rows.map((r, i) => {
-      const d = this.mktDefFor(r.code) || {};
       const bg = i % 2 ? '#fff' : 'var(--rmx-bg-subtle, #f5f8fa)';
       const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:36px;box-sizing:border-box;padding:0 8px;font-size:14px;${INK};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra || ''}">${t}</span>`;
-      return `<div style="display:grid;grid-template-columns:${tracks};align-items:center;background:${bg};border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)">
+      return `<div onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background='${bg}'" style="display:grid;grid-template-columns:${tracks};align-items:center;background:${bg};border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)">
         ${cell(esc(r.code))}${cell(esc(props(r)))}
-        ${COLS.map(c => `<span data-code="${esc(r.code)}" data-f="${c.f}" onclick="window.__meEdit(this)" title="Select to edit" style="display:flex;align-items:center;min-height:36px;min-width:0;box-sizing:border-box;padding:2px 8px;font-size:14px;${INK};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer">${show(c, c.f === 'role' ? (d.role || '') : d[c.f])}</span>`).join('')}
+        ${COLS.map(c => `<span data-code="${esc(r.code)}" data-f="${c.f}" onclick="window.__meEdit(this)" title="Select to edit" style="display:flex;align-items:center;min-height:36px;min-width:0;box-sizing:border-box;padding:2px 8px;font-size:14px;${INK};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer">${show(c, V(r.code, c.f))}</span>`).join('')}
       </div>`;
     }).join('');
     const PEN = this.ico('edit_square', 20, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none');
@@ -6112,7 +6139,7 @@ class Component extends DCLogic {
         </div>
         <div style="flex:1;min-height:0;display:flex;flex-direction:column;gap:16px;padding:16px;position:relative">
           <span style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">Set the marketing information for every charge that uses this charge type. Charges will display on listings as they are here.</span>
-          <div style="flex:1;min-height:0;overflow:auto;border:1px solid var(--rmx-line, #cedbe7)">
+          <div data-rreg-me onmousedown="window.__meOutside(event)" onscroll="window.__meClose(true)" style="flex:1;min-height:0;overflow:auto;border:1px solid var(--rmx-line, #cedbe7)">
             <div style="min-width:1400px">
               <div style="display:grid;grid-template-columns:${tracks};background:var(--rmx-register-header, #737373);position:sticky;top:0;z-index:1">
                 ${head('Charge Type')}${head('Properties')}${COLS.map(c => head(c.h)).join('')}

@@ -933,12 +933,16 @@ describes the design before that tag; the code for most of it is still in the fi
   uses this charge type. Charges will display on listings as they are here."*, then one register row per
   active charge type — **Charge Type · Properties · Charge Role · Name · Charge Category · Marketing
   Description · Charge Requirement · Charge Schedule · Charge Timing · Refundability** — grey Register
-  header, striped rows. An empty required field reads an amber **Missing** lozenge, an optional one `-`.
-  **Clicking a cell makes it its field** (DOM-only, `window.__meEdit`): a `singleSelect` for the choices,
-  a text input for Name and Marketing Description; `this._meDirty` remembers which charge types were
-  touched. A navy bar floats over the register — *"You are in Mass Edit mode for marketing details.
+  header, striped rows that tint `#ebf1f5` on hover. An empty required field reads an amber **Missing**
+  lozenge, an optional one `-`. **One cell is edited at a time, as production's mass edit does**
+  (2026-10-15, DOM-only): clicking a cell (`window.__meEdit`) closes whichever was open, keeping its
+  value (`window.__meClose`), and opens this one — Name and Marketing Description as a white input with a
+  1px brand border, focused with its text selected; a field with choices as the same blue-edged box with
+  its options already open under it (`#me-pnl`, fixed, kept inside the window), a pick closing it. Enter or
+  a click elsewhere in the register keeps the value, Escape drops it, scrolling closes it. What is kept
+  lives in `this._meVals[code][field]` and the cell reads it back as text. A navy bar floats over the register — *"You are in Mass Edit mode for marketing details.
   Select any field to update its value."*, *n charge types changed*, white Save and outlined Cancel —
-  and the footer repeats Save / Cancel. **Save** (`ctMassSave`) writes every touched field into
+  and the footer repeats Save / Cancel. **Save** (`ctMassSave`) writes `_meVals` into
   `mktDef`, so every charge of those types changes at once, and flashes *Marketing details saved for n
   charge types*.
 - **Marketing Setup has no Default Charge Marketing tile**; Floor Plans spans its two columns.
