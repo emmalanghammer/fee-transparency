@@ -5310,42 +5310,6 @@ class Component extends DCLogic {
   // The invitation into Setup, on Listings and on a property's own Marketing Setup. Figma
   // 3980:158106 (2026-10-15): the attention-orange surface — a pale orange ground, a 1px
   // border-attention edge, the filled navy campaign glyph beside the copy, and an orange View Setup.
-  // Listings that aren't being sent (2026-10-15). The Setup banner goes once every property has
-  // activated, so without this a charge type that goes short afterwards only shows as scattered Not
-  // Sent lozenges. Red, like every after-activation problem; it names the causes and routes each to its
-  // fix — the charge types to Mass Edit, a duplicate pair to Resolve. Portfolio-wide, whatever the
-  // Property filter says.
-  ltNotSentHTML(){
-    const notSent = this.listingsData().filter(l => this.ltFeedState(l).key === 'action');
-    if (!notSent.length) return '';
-    const esc = t => String(t).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
-    const codes = [], dups = [];
-    notSent.forEach(l => this.ltIssues(l).charges.forEach(c => {
-      if (c.dup) { if (!dups.some(d => d.prop === c.dup.prop && d.key === c.dup.key)) dups.push(c.dup); }
-      else if (c.code && codes.indexOf(c.code) < 0) codes.push(c.code); }));
-    codes.sort();
-    const list = a => a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1];
-    const causes = [];
-    if (codes.length) causes.push(list(codes) + (codes.length === 1 ? ' is' : ' are') + ' missing marketing details');
-    dups.forEach(g => causes.push(this.dupLabelAt(g) + ' would show as the same fee'));
-    const body = causes.join('; ');
-    const n = notSent.length;
-    const ERR = this.filledIco('error', 32, 'color:var(--rmx-error, #eb343c);flex:none');
-    const btn = (t, act, arg, primary) => `<button data-act="${act}" data-arg="${esc(arg)}" style="display:inline-flex;align-items:center;height:36px;min-height:36px;padding:0 16px;border-radius:4px;border:1px solid var(--rmx-error, #eb343c);background:${primary ? 'var(--rmx-error, #eb343c)' : '#fff'};color:${primary ? '#fff' : 'var(--rmx-error, #eb343c)'};font:400 14px Roboto,sans-serif;flex:none;white-space:nowrap;cursor:pointer">${t}</button>`;
-    return `<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:#fdecee;border:1px solid var(--rmx-error, #eb343c);border-radius:4px;padding:16px">
-      <div style="display:flex;align-items:center;gap:8px;flex:1 1 360px;min-width:0">
-        ${ERR}
-        <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
-          <span style="font-size:16px;line-height:24px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${n} Listing${n === 1 ? ' Isn’t' : 's Aren’t'} Being Sent</span>
-          <span style="font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">${esc(body.charAt(0).toUpperCase() + body.slice(1))}.</span>
-        </div>
-      </div>
-      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-        ${codes.length ? btn('Mass Edit Marketing Details', 'ftMassEdit', codes.join(','), true) : ''}
-        ${dups.length ? btn(dups.length === 1 ? 'Resolve Duplicate' : 'Resolve Duplicates', 'dupOpen', dups[0].prop + '::' + dups[0].key, !codes.length) : ''}
-      </div>
-    </div>`;
-  }
   ftBannerHTML(only){
     const CHECKLIST = `<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="flex:none"><path d="M3.55 17.5375L0 13.9875L1.4 12.5875L3.525 14.7125L7.775 10.4625L9.175 11.8875L3.55 17.5375ZM3.55 9.5375L0 5.9875L1.4 4.5875L3.525 6.7125L7.775 2.4625L9.175 3.8875L3.55 9.5375ZM11 15.5375V13.5375H20V15.5375H11ZM11 7.5375V5.5375H20V7.5375H11Z"/></svg>`;
     const CAMPAIGN = `<svg width="32" height="32" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true" style="flex:none;color:var(--rmx-brand-dark, #13314c)"><path d="M24 17.2V14.8H28.8V17.2H24ZM25.3667 26.4L21.4333 23.6667L22.8333 21.7L26.7667 24.4333L25.3667 26.4ZM22.8 10.3L21.4333 8.33333L25.3667 5.6L26.7333 7.56667L22.8 10.3ZM6.4 25.6V19.2H5.6C4.93333 19.2 4.36667 18.9667 3.9 18.5C3.43333 18.0333 3.2 17.4667 3.2 16.8V15.2C3.2 14.5333 3.43333 13.9667 3.9 13.5C4.36667 13.0333 4.93333 12.8 5.6 12.8H10.2333L17.6 8.4V23.6L10.4333 19.2H9.6V25.6H6.4ZM19.2 19.9V12.1C19.7111 12.5889 20.1056 13.1778 20.3833 13.8667C20.6611 14.5556 20.8 15.2667 20.8 16C20.8 16.7333 20.6611 17.4444 20.3833 18.1333C20.1056 18.8222 19.7111 19.4111 19.2 19.9Z"/></svg>`;
@@ -6080,7 +6044,7 @@ class Component extends DCLogic {
     // `flex:1;min-height:0` inside the scroller, so its own bottom padding lands at the fold
     // rather than after the content and reads as no padding at all.
     return `<div style="padding:16px 24px 0;display:flex;flex-direction:column;gap:16px;flex:1;min-height:0">
-      ${this.ltNotSentHTML()}${needsFT ? banner : ''}
+      ${needsFT ? banner : ''}
       ${toolbar}
       <div style="display:flex;flex-direction:column;gap:16px;padding-bottom:24px">
         ${grouped ? (groups.length ? groups.map(group).join('') : empty) : flat()}

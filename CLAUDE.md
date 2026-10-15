@@ -990,15 +990,10 @@ describes the design before that tag; the code for most of it is still in the fi
     once activated) that opens Resolve. Setup's step 1 strip names each type's missing fields
     (`ftShortDetail`), and a property row's next step is *Add GARBAG marketing details*, else *Resolve
     duplicate RC charges*, else the Base Rent link.
-- **A red Listings banner for what isn't being sent** (2026-10-15, `ltNotSentHTML`), above the orange Setup
-  banner and independent of it, so a charge type that goes short after every property has activated still
-  shows on Listings. It appears whenever any listing's `ltFeedState(l).key` is `action` (portfolio-wide,
-  whatever the Property filter says): `#fdecee`, 1px `--rmx-error`, a filled 32px red `error`, *n Listings
-  Aren't Being Sent* (16/24 SemiBold) over the causes in one sentence — *DOGFEE is missing marketing
-  details; 2 RC charges at The Berkshires would show as the same fee.* — and a filled red **Mass Edit
-  Marketing Details** (the short codes) and/or **Resolve Duplicate(s)** (the first pair; filled when it is
-  the only cause). `dupLabelAt(g)` names the property once (*2 RC charges at The Berkshires*), and the
-  Resolve dialog's intro uses it too.
+- **There is no red "not being sent" banner on Listings.** One (`ltNotSentHTML`) was built on 2026-10-15
+  and removed the same day at the user's request; Not Sent shows in the Feed Status column and the
+  Listing Errors overlay. `dupLabelAt(g)` (*2 RC charges at The Berkshires*) came with it and stays, for the
+  Resolve dialog's intro.
 - **Charge Types has a Marketing Details column and callout** (2026-10-15). `ctMissingAll()` is each type's
   missing fields across the listed charges at applicable properties (absent for a type no listed charge
   uses). After Description (`colTracks` key `ctypes2`, register min-width 1370): filled green `check_circle`
