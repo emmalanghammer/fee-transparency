@@ -1519,7 +1519,8 @@ canvas *Confirm Base Rent & Deposit*).
   rebuilt each time the form opens, and a removed row frees its place): choosing where fills Charge (DOM-only, `window.__roleNewTarget`)
   with only the charges of that role **written exactly there** — the property's own, that unit type's, or
   that unit's (`roleWrittenAt`, 2026-10-14; it used to offer everything that reached it) — labelled
-  *RC Rent: $150.00*, or *No charges at this level*. Errors *Choose where it applies.*,
+  *RC Rent: $150.00*. Charge is the RMX disabled field (`roleChargeOff`) until Applies to is chosen, and
+  reads *No charges at this level*, still disabled, where nothing is written there (2026-10-15). Errors *Choose where it applies.*,
   *Choose a charge.*, *`<x>` already has its own Base Rent.* An addition is a row like a confirmed one — the edit
   pencil and a close (2026-10-14; it wore a green *Added* lozenge). The pencil swaps the charge for a
   dropdown of what reaches that target (`window.__roleNewEdit` / `__roleNewPick`) (`this._roleNew`). Save writes it onto the charge: `leaseRole` where the charge is
