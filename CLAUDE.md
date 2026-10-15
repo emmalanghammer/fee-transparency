@@ -1487,7 +1487,7 @@ canvas *Confirm Base Rent & Deposit*).
   with **Review**, Figma `3930:1701`);
   every group confirmed, a green `check_circle` with
   **Review**; units without a Base Rent (`gap`), a red `error` with **Confirm Charges** (Marketing
-  Setup's panel spells it out in a red Callout, *Base Rent missing*); no rent charge at all (`none`,
+  Setup's panel spells it out in a red Callout, *Base Rent Missing*); no rent charge at all (`none`,
   `roleGroups(…, { all: true })` empty), a red `error` with **View Charges**. **The label is always
   *Confirm Base Rent & Security Deposit*** (2026-10-14, the user's call): the icon and the action say which
   state it is in. A deposit with no charge doesn't count against either.
@@ -1555,7 +1555,7 @@ canvas *Confirm Base Rent & Deposit*).
     activated."*, its action **Review Charges**, over **Base Rent** and **Security
     Deposit** labels and the collapsed `roleBoxHTML(…, { bare: true })` tables — apart from the Price and
     Deposit Fee(s) the listing still uses until activation.
-  - Units without a Base Rent (`gap`): red border, *Base Rent missing*, **Confirm Charges**; no rent charge
+  - Units without a Base Rent (`gap`): red border, *Base Rent Missing*, **Confirm Charges**; no rent charge
     (`none`): red, *Base Rent*, **View Charges**.
   Listing Details puts it above Price; Edit Floor Plan under the Price dropdown, scoped to that unit type
   (its own charge, else the property's).
