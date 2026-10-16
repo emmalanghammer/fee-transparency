@@ -800,8 +800,10 @@ class Component extends DCLogic {
     const D = this.mktDefFor(c) || {};
     const act = !!o.act;
     const role = this.leaseRoleKind(c);
+    // An empty required field: the icon and *Missing* in red, no box (2026-10-16, the user's call). The icon
+    // keeps the charge's tone — amber before the property activates, red after.
     const miss = (field) => o.live
-      ? `<span title="Required for listings: set ${field} on the ${c} charge type" style="display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;box-sizing:border-box;white-space:nowrap;color:var(--rmx-text, #666666);border:1px dashed ${act ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-notice, #faa61c)'};border-radius:4px;background:var(--rmx-bg-subtle, #f5f8fa)">${this.filledIco(act ? 'error' : 'warning', 16, 'flex:none;color:' + (act ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-notice, #faa61c)'))}<span>Missing</span></span>`
+      ? `<span title="Required for listings: set ${field} on the ${c} charge type" style="display:inline-flex;align-items:center;gap:4px;font-size:14px;line-height:20px;white-space:nowrap;color:var(--rmx-error, #eb343c)">${this.filledIco(act ? 'error' : 'warning', 20, 'flex:none;color:' + (act ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-notice, #faa61c)'))}<span>Missing</span></span>`
       : `<span style="white-space:nowrap;color:var(--rmx-text-muted, #b3b3b3)">—</span>`;
     // RMX Input Field, Style=Read-only (2026-10-16, the user's call): no box, the label in grey over the
     // value in SemiBold navy. A required field that's empty keeps the dashed Missing box in its place.

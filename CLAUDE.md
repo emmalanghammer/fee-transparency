@@ -957,7 +957,8 @@ describes the design before that tag; the code for most of it is still in the fi
   RMX Input Field *Style=Read-only* — a grey 14px label over the value in SemiBold navy, no box, nothing italic: **Name · Marketing Description** (two thirds) with *Edit Details on <a>Charge Type</a>*
   at the right of that row (`ctOpen`), then **Charge
   Requirement · Charge Schedule** (recurring) or **Charge Timing · Refundability** (one-time) **· Charge Category** last. A
-  required field that's empty keeps the dashed amber / red box, now reading just *Missing* (the label names the field); an
+  required field that's empty reads the outlined icon (amber before activation, red after) and *Missing* in red, no box
+  (the label names the field); an
   empty optional one, or any empty field where nothing is asked, is a grey `—`. The note below describes the version before.
 - **That read-only section is drawn the way a listing names the fee** (2026-10-16, board E of the design
   canvas *Marketing Details as Listing Fees*, <https://claude.ai/artifact/7tZkDzGSh5gTgc5wRXPozV>, from
