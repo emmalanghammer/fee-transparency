@@ -932,8 +932,20 @@ overrides, `ctmEdit` / `ctmAsk`, `noInherit` / `noProp` / `cleared`, the Update 
 dialog, per-charge editing, the Base Rent / Security Deposit radios on a charge, the Review overlay)
 describes the design before that tag; the code for most of it is still in the file but unreachable.
 
-- **`resolvedListing(r)` reads the charge type only** (`mktDefFor(r.mits)`); whatever a charge or a
-  property stored is ignored. `ctmOwn` returns null and `chargeInherits` returns the charge type's values.
+- **The property override is back** (2026-10-16, the user's call; everything else stays as it was). `resolvedListing(r)` reads
+  `ctmFor(r._prop, r.mits)`: the property's override of the charge type when its **Override Charge Type Defaults** box is
+  ticked (`ctmOwn`, `state.propDef[prop][CODE]` with `on:true`), else the charge type. A charge still has no values of its
+  own (`listing`, `noProp`, `noInherit`, `cleared` stay unread); Charge Category and Charge Role stay the charge type's.
+  `chargeInherits` returns `ctmFor` too. Marketing Setup's **Default Marketing Details** tile is back in the grid (Floor
+  Plans one column again): Charge Type · Charges · Property Override (a green tick) · the edit pencil (`ctmOpen` →
+  `ctmEditHTML`, unchanged). `ctmSave` commits straight away — no Update Default Marketing Details question, since no
+  charge has values for it to reach — and flashes *DOGFEE marketing details overridden at Riverview Apartments* / *…
+  follows the DOGFEE charge type*. On the charge form the card shows the override's values, and when the type is
+  overridden its link reads *Edit Details on <a>Property Override</a>* (`ctmOpen`, which banks the form like `ctOpen`).
+  Readiness follows: Mid Conversion, override DOGFEE at Riverview → its three listings go Sent, while the DOGFEE charge
+  type still reads Missing Required Fields (The Estates). No scenario seeds an override, so every baseline is unchanged.
+- *(Before 2026-10-16)* **`resolvedListing(r)` read the charge type only** (`mktDefFor(r.mits)`); whatever a charge or a
+  property stored was ignored. `ctmOwn` returned null and `chargeInherits` returned the charge type's values.
 - **Charge Type Details' Save closes the overlay** (`ctSave` with `close`, 2026-10-15; it stayed open before).
 - **Charge Type Details' Charge Marketing** gains *Charge Role:* (it read *Charges using this charge type are:* until 2026-10-15; label and radios on one line) **Base Rent /
   Security Deposit / Additional Charge** radios (`ctd-mkt-role` → `mktDef[CODE].role`; `mktDefAll`
@@ -1145,7 +1157,7 @@ describes the design before that tag; the code for most of it is still in the fi
     Berkshires in On Rollout: 302 (1BR/1BA, inheriting) is pulled; 214 (2BR/2BA, its own) isn't.
   - Unchanged: no Base Rent means the unit can't list and the property can't activate (P-01); no deposit
     pulls nothing (P-06); a more specific scope is always allowed (B-03, B-06, A-03, A-06).
-- **Marketing Setup has no Default Charge Marketing tile**; Floor Plans spans its two columns.
+- *(Until 2026-10-16)* Marketing Setup had no Default Charge Marketing tile; Floor Plans spanned its two columns. It is back (above).
 - **Activation needs a Base Rent on every unit, nothing confirmed** (`roleRentReady` is coverage only).
   The Setup row's Base Rent sub-row appears only when it's missing (*Base Rent missing: n units* /
   *no Base Rent charge*, **View Charges**); *Set Property Defaults* is gone. Listing Details and Edit

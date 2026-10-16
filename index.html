@@ -538,10 +538,11 @@ class Component extends DCLogic {
     // `cleared` lists the fields someone emptied on this charge by hand. An empty field otherwise
     // means "follow the tier", so without it a cleared requirement would quietly come back from the
     // charge type and the charge would read listing ready over a field that is blank.
-    // No overrides (2026-10-15): a charge's marketing is its charge type's, read straight through. What a
-    // charge or a property stored before (`L`, `P`, `cleared`) is no longer read.
+    // A charge's marketing is its property's override of its charge type, else the charge type's
+    // (2026-10-16: the property override is back; a charge still has no values of its own, so `L`,
+    // `noProp` / `noInherit` and `cleared` are not read).
     void L; void P;
-    const T2 = this.mktDefFor(r && r.mits) || {};
+    const T2 = this.ctmFor(r && r._prop, r && r.mits);
     const pick = (k) => T2[k] || '';
     return {
       leaseRole: this.leaseRoleOf(r),
@@ -767,7 +768,6 @@ class Component extends DCLogic {
   // The property's own override of a charge type, or null. Kept apart from the charge type's
   // default because a charge can refuse one without refusing the other — see `noInherit`.
   ctmOwn(prop, code){
-    return null; // property overrides are gone (2026-10-15)
     const own = ((this.state.propDef || {})[prop || this.state.property] || {})[String(code || '').toUpperCase()];
     if (!(own && own.on)) return null;
     // An override saved before Charge Category became the charge type's alone may still carry one;
@@ -797,7 +797,8 @@ class Component extends DCLogic {
     const INK = 'color:var(--rmx-brand-dark, #13314c)';
     if (!c) return `<span style="font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">Select a charge type to see its marketing details.</span>`;
     const esc = (t) => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
-    const D = this.mktDefFor(c) || {};
+    const D = this.ctmFor(this.state.property, c);
+    const ovr = this.ctmOverridden(this.state.property, c);
     const act = !!o.act;
     const role = this.leaseRoleKind(c);
     // An empty required field: the icon and *Missing* in red, no box (2026-10-16, the user's call). The icon
@@ -821,7 +822,10 @@ class Component extends DCLogic {
       <div style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:16px">
         ${ro('Name', name, true)}
         ${ro('Marketing Description', D.marketing, false, true)}
-        <span style="flex:none;margin-left:auto;font-size:14px;line-height:20px;white-space:nowrap;color:var(--rmx-text, #666666)">Edit Details on <a data-act="ctOpen" data-arg="${c}" title="Open the ${c} charge type" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Charge Type</a></span>
+        ${ovr
+          // Overridden at this property: the values are the property's, so that is where they are edited.
+          ? `<span style="flex:none;margin-left:auto;font-size:14px;line-height:20px;white-space:nowrap;color:var(--rmx-text, #666666)">Edit Details on <a data-act="ctmOpen" data-arg="${c}" title="Open ${esc(this.state.property)}'s override of ${c}" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Property Override</a></span>`
+          : `<span style="flex:none;margin-left:auto;font-size:14px;line-height:20px;white-space:nowrap;color:var(--rmx-text, #666666)">Edit Details on <a data-act="ctOpen" data-arg="${c}" title="Open the ${c} charge type" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Charge Type</a></span>`}
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:16px">
         ${ro('Charge Requirement', D.requirement, true)}
@@ -831,7 +835,7 @@ class Component extends DCLogic {
     </div>`;
   }
   chargeInherits(prop, code, listing){
-    return this.mktDefFor(code) || {}; // no overrides (2026-10-15)
+    return this.ctmFor(prop, code); // the property's override, else the charge type (2026-10-16)
     const L = listing || {};
     const c = String(code || '').toUpperCase();
     const P = L.noProp ? null : this.ctmOwn(prop, c);
@@ -1802,6 +1806,7 @@ class Component extends DCLogic {
       // A property's override of one charge type. The dialog holds a draft so ticking the box
       // doesn't commit anything until Save.
       case 'ctmOpen': { const prop = this.state.property; this._catAdds = {};
+        if (this.q('#m-ctype')) { this._chgKeep = this.chgFormSnap(); this._chgKeepModal = this.state.modal; this.chgKeepWatch(); }
         const code = String(arg || '').toUpperCase();
         const own = ((this.state.propDef || {})[prop] || {})[code];
         // `on` is the Override Charge Type Defaults box. The values are seeded from whatever the
@@ -1899,10 +1904,11 @@ class Component extends DCLogic {
         const moved = K.some(k => String(after[k] || '') !== String(before[k] || ''))
           || JSON.stringify((e.on ? vals.attrs : base.attrs) || {}) !== JSON.stringify((was ? was.attrs : base.attrs) || {});
         const users = this.appliedRows(e.prop).filter(r => String(r.mits || '').toUpperCase() === e.code).length;
-        if (moved && users) { this.setState(s2 => ({
+        if (false && moved && users) { this.setState(s2 => ({
           ctmEdit: Object.assign({}, s2.ctmEdit, { vals: vals }),
           ctmAsk: { prop: e.prop, code: e.code, vals: vals, on: e.on, users: users }, ctmMode: 'inherit' })); break; }
         this.ctmCommit(e.prop, e.code, vals, e.on, null); this.catAddCommit();
+        this.flash(e.on ? `${e.code} marketing details overridden at ${e.prop}` : `${e.prop} follows the ${e.code} charge type`);
         break; }
       case 'ctmMode': this.setState({ ctmMode: arg || 'inherit' }); break;
       case 'ctmAskCancel': this.setState({ ctmAsk: null }); break;
@@ -11886,8 +11892,7 @@ class Component extends DCLogic {
             <span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);flex:none">Occupied Units: <strong>${P.occupied != null ? P.occupied : 30}</strong></span>
           </div>
           <div style="display:grid;grid-template-columns:repeat(3, minmax(0,1fr));gap:16px;align-items:stretch;align-content:start">
-            ${contact1}${contact2}${listing}${features}<div style="grid-column:span 2;min-width:0;display:grid">${floor}</div>
-            ${'' /* Default Marketing Details came off (2026-10-15): a property no longer overrides its charge types. */}${void ctm || ''}
+            ${contact1}${contact2}${listing}${features}${floor}${ctm}
           </div>
         </div>
       </div>`;
