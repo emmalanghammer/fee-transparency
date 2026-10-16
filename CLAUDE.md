@@ -953,6 +953,16 @@ describes the design before that tag; the code for most of it is still in the fi
   editable fields and the role card stay in the DOM, hidden, so `__mitsRecheck`, the header status and
   `saveFee` keep working; they are filled from the charge type (the form strips `ed.listing`). The
   Include on listings toggle stays per charge.
+- **Opening a charge type from a charge form keeps the form** (2026-10-16, the user's bug: saving the charge type cleared a new
+  charge's Charge Type). `ctOpen` banks the form (`chgFormSnap`: every `m-` input, its dropdowns' `-disp` text and the
+  Include on listings switch) in `this._chgKeep`, and `componentDidUpdate` puts it back (`chgFormRestore`) after every
+  render until that charge form closes (`_chgKeepModal`), re-running `__attrCheck` once Charge Type Details closes so the
+  card shows the saved details. `chgKeepWatch` re-banks on input, change and click, so a later restore is what's on screen.
+- **The charge form's red *…is fee transparent, so any listings using this charge will not be sent…* callout is gone**
+  (2026-10-16): `__mitsRecheck` keeps `#m-ils-msg` hidden; the header's Not Sent count and the Missing fields carry it.
+- **Listing Details after activation shows a figure, not the charge boxes** (2026-10-16): Base Rent and Security Deposit are
+  read-only SemiBold values from `roleAmountRange(prop, kind)` — the figure the property's listings advertise (`l.base`,
+  `ltDeposit`), or *$985.00 – $1,040.00* across them; `—` with none.
 - **Then as RMX read-only fields** (2026-10-16, later the same day, the user's call): `chargeMktStaticHTML` draws each value as
   RMX Input Field *Style=Read-only* — a grey 14px label over the value in SemiBold navy, no box, nothing italic: **Name · Marketing Description** (two thirds) with *Edit Details on <a>Charge Type</a>*
   at the right of that row (`ctOpen`), then **Charge

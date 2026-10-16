@@ -1381,6 +1381,11 @@ class Component extends DCLogic {
   }
   componentDidUpdate() {
     this.applyVars();
+    // Kept until that charge form closes: a later re-render (the save's toast clearing) would wipe it again.
+    if (this._chgKeep) {
+      if (!this.state.modal || this.state.modal !== this._chgKeepModal) this._chgKeep = null;
+      else if (this.q('#m-ctype')) { this.chgFormRestore(this._chgKeep); if (!this.state.ctDetail && window.__attrCheck) window.__attrCheck(); }
+    }
     // A charge that already follows a pet type opens with its amount locked, not just after a change.
     // Reopening applies the kind already saved on the charge — it must not re-ask.
     if (window.__petApply) { const pk = this.q('#m-at-petkind'); if (pk) window.__petApply(pk.value); }
@@ -1541,7 +1546,10 @@ class Component extends DCLogic {
           category: v('ct-cat'), active: chk2('ct-active'), prorate:false, cre:false, inv:[] };
         this.setState(s => ({ chargeTypes: this.chargeTypeRows().concat([row]), ctAdd: null }));
         this.flash(code + ' added'); break; }
-      case 'ctOpen': this.setState({ ctDetail: arg }); break;
+      // Opened from a charge form (its Edit Details on Charge Type link), the form underneath is redrawn on
+      // every render, so what's typed on it — a new charge's Charge Type included — is banked first and put
+      // back after each render until Charge Type Details closes (2026-10-16, the user's bug).
+      case 'ctOpen': this._chgKeep = this.q('#m-ctype') ? this.chgFormSnap() : null; this._chgKeepModal = this.state.modal; this.chgKeepWatch(); this.setState({ ctDetail: arg }); break;
       case 'ctDetClose': this.setState({ ctDetail: null }); break;
       case 'ctSave': { const code = this.state.ctDetail; if (!code) break;
         const v = id => ((this.q('#' + id) || {}).value || '').trim();
@@ -5236,6 +5244,15 @@ class Component extends DCLogic {
   }
   // What an advertised unit of this type totals: its Base Rent plus the required monthly charges.
   // `rentOnly`: the Base Rent alone, without the required monthly fees (the floor plan's Base Rent row).
+  // What the property's listings advertise as their Base Rent or Security Deposit — the same figures the
+  // Listings register shows (`l.base`, `ltDeposit`) — as one figure, or the range across them.
+  roleAmountRange(prop, kind){
+    const vals = this.listingsData().filter(l => l.prop === prop)
+      .map(l => kind === 'deposit' ? this.ltDeposit(l) : l.base).filter(v => v != null && v > 0);
+    if (!vals.length) return '';
+    const lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+    return lo === hi ? this.money(lo) : this.money(lo) + ' – ' + this.money(hi);
+  }
   roleTotalRange(prop, unitType, rentOnly){
     const g = (() => { const gs = this.roleGroups(prop, 'rent'); return gs.filter(x => x.level === 'Unit Type' && x.target === unitType)[0] || gs.filter(x => x.level === 'Property')[0]; })();
     if (!g) return '';
@@ -6701,6 +6718,39 @@ class Component extends DCLogic {
   // Setting a `singleSelect` from code: hidden input, display text and colour, row selection —
   // what the row click does. Every surface that fills a dropdown without a re-render needs it, so
   // it is installed rather than written twice.
+  // The charge form's values, read off the page: every `m-` input, the text of its dropdowns' displays,
+  // and the Include on listings switch. `chgFormRestore` puts them back after a re-render.
+  chgFormSnap(){
+    const out = { v: {}, d: {}, sw: null };
+    document.querySelectorAll('input[id^="m-"], textarea[id^="m-"]').forEach(e => {
+      out.v[e.id] = (e.type === 'checkbox' || e.type === 'radio') ? { c: e.checked } : { x: e.value }; });
+    document.querySelectorAll('[id^="m-"][id$="-disp"]').forEach(e => { out.d[e.id] = { t: e.textContent, c: e.style.color, f: e.style.fontStyle }; });
+    const sw = this.q('#m-ils-sw'); if (sw) out.sw = sw.getAttribute('data-on');
+    return out;
+  }
+  // While a banked charge form is open, typing on it re-banks it, so a later restore puts back what is on
+  // screen now rather than what was there when Charge Type Details opened.
+  chgKeepWatch(){
+    if (this._chgKeepOn) return; this._chgKeepOn = true;
+    const re = () => { if (this._chgKeep && !this.state.ctDetail && this.q('#m-ctype')) this._chgKeep = this.chgFormSnap(); };
+    document.addEventListener('input', re, true);
+    document.addEventListener('change', re, true);
+    document.addEventListener('click', () => setTimeout(re, 0), true);
+  }
+  chgFormRestore(k){
+    Object.keys(k.v).forEach(id => { const e = document.getElementById(id); if (!e) return;
+      if ('c' in k.v[id]) e.checked = k.v[id].c; else e.value = k.v[id].x; });
+    Object.keys(k.d).forEach(id => { const e = document.getElementById(id); if (!e) return;
+      e.textContent = k.d[id].t; e.style.color = k.d[id].c; e.style.fontStyle = k.d[id].f; });
+    const sw = this.q('#m-ils-sw');
+    if (sw && k.sw != null && sw.getAttribute('data-on') !== k.sw) {
+      const on = k.sw === '1'; sw.setAttribute('data-on', k.sw);
+      sw.style.background = on ? 'var(--ac,var(--rmx-brand, #008dd5))' : 'var(--rmx-line, #cedbe7)';
+      if (sw.firstElementChild) { sw.firstElementChild.style.left = on ? '16px' : '2px';
+        if (sw.firstElementChild.firstElementChild) sw.firstElementChild.firstElementChild.style.display = on ? 'block' : 'none'; }
+    }
+    if (window.__mitsRecheck) window.__mitsRecheck();
+  }
   ddSetInstall(){
     window.__ddSet = (id, val, label) => {
       const h = this.q('#' + id); if (!h) return;
@@ -10869,7 +10919,10 @@ class Component extends DCLogic {
         cnt.style.display = u.length ? 'inline-flex' : 'none';
       }
       const mico = this.q('#m-ils-ico'), mtxt = this.q('#m-ils-txt');
-      if (msg && mico && mtxt) {
+      // The *…is fee transparent, so any listings using this charge will not be sent…* callout came off
+      // (2026-10-16, the user's call): the header's Not Sent count and the Missing fields say it.
+      if (msg) msg.style.display = 'none';
+      if (false && msg && mico && mtxt) {
         if (!live) msg.style.display = 'none';
         else if (down) {
           const u = affectedUnits();
@@ -11661,6 +11714,9 @@ class Component extends DCLogic {
     // where fee transparency applies (2026-10-16, the user's call): activating is what swaps it for the
     // charges set as the Base Rent and Security Deposit at the property. The confirm-charges callout
     // that sat above it is gone.
+    // After activation Base Rent and Security Deposit read just the figure the units are charged, or its range
+    // across them (2026-10-16, the user's call; they were the charge boxes), as an RMX read-only value.
+    const roVal = (t) => `<span style="font-size:14px;line-height:20px;font-weight:600;color:${t ? 'var(--rmx-brand-dark, #13314c)' : 'var(--rmx-text-muted, #b3b3b3)'}">${t || '—'}</span>`;
     const listingInner = preFT ? `
       ${excl}
       <div style="display:flex;flex-direction:column;gap:4px">${lab(ftOn ? 'Base Rent' : 'Price')}<span style="font-size:14px;line-height:20px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${ftOn ? 'Base Rent' : 'Price'} is derived from the floor plan for properties set to Multi Family feed type.</span></div>
@@ -11670,8 +11726,8 @@ class Component extends DCLogic {
       ${field('Unit Images', { t:'2 Selected' })}
       ${field('Availability Date', { t:'' })}` : `
       ${excl}
-      ${ftOn ? `<div style="display:flex;flex-direction:column;gap:4px">${lab('Base Rent')}${this.roleBoxHTML(P.name, 'rent', { bare: true })}</div>
-      <div style="display:flex;flex-direction:column;gap:4px">${lab('Security Deposit')}${this.roleBoxHTML(P.name, 'deposit', { bare: true })}</div>`
+      ${ftOn ? `<div style="display:flex;flex-direction:column;gap:4px">${lab('Base Rent')}${roVal(this.roleAmountRange(P.name, 'rent'))}</div>
+      <div style="display:flex;flex-direction:column;gap:4px">${lab('Security Deposit')}${roVal(this.roleAmountRange(P.name, 'deposit'))}</div>`
       : `<div style="display:flex;flex-direction:column;gap:4px">${lab('Price')}<span style="font-size:14px;line-height:20px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Price is derived from the floor plan for properties set to Multi Family feed type.</span></div>
       ${field('Deposit Fee(s)', { t:'' })}`}
       ${field('Lease Terms', { t:'' })}
