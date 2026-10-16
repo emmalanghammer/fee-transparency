@@ -1050,6 +1050,32 @@ describes the design before that tag; the code for most of it is still in the fi
   charges*; `ftStatus`'s flash → *n charges can't be listed yet, so fee transparency can't be activated*;
   the Charges banner's *will not post* → *won't be sent*. Notes elsewhere in this file still quote the old
   strings.
+- **Base Rent and Security Deposit conflicts follow the user's scenarios** (2026-10-16, from
+  *MultipleBaseRents_SecurityDeposit_Scenarios.csv*: B-01–06, A-01–06, P-01–06, D-01–04). `chargeDupes`
+  now buckets by `chargeScopeKey(r)`: **by role** for a Base Rent (recurring charge on a Base Rent charge
+  type) or Security Deposit (one-time charge on a Security Deposit type) — `chargeRole(r)` — so two Base
+  Rents at one scope conflict even on different charge types; **by charge type** for everything else (the
+  user kept that rule). Within a bucket, charges conflict only when their **[From, To) windows overlap**
+  (`chargeOverlap`, To exclusive; a one-time charge always overlaps), so *$1,000 to 1/1/27* and *$1,050 from
+  1/1/27* are fine. Charges excluded from listings or ended (`chargeEnded`: To on or before today) don't
+  count. Groups gain `role` and `codes`; `dupLabel` reads *2 Base Rent charges at the property*, and
+  `dupWhy(g)` *can't both be the Base Rent for the same units at the same time* (Resolve, Listing Errors,
+  the Charges banner, the pill's title). The cache also watches `mktDef`, since marking a type changes roles.
+  - **Creating a conflicting charge is blocked; editing into one is allowed** (the user's call):
+    `saveFee` runs `chargeConflictFor(row, prop)` only for a new charge — *"RC – Base rent is already the
+    Base Rent at the property for these dates. Only one Base Rent can apply there at a time: end the other
+    charge first, change these dates, or add this charge to a unit type or unit."* (the ordinary-type message
+    keeps its own wording). Editing a charge, or **marking a charge type** Base Rent / Security Deposit in
+    Charge Type Details or Mass Edit, saves and flags the conflict; both saves' toasts add *"n scopes now
+    have more than one Base Rent or Security Deposit; see the Duplicate status on those charges."*
+    (`roleConflictCount`).
+  - **Before activation** a conflict makes the charges not listing ready, so the property can't activate
+    (B-02, B-05). **After activation** it pulls down only the units that use that scope (A-02, A-05,
+    P-02–05): `mostSpecific` now keys Base Rent / Security Deposit charges by role, so a unit with its own
+    Base Rent (or its unit type's) — on any Base Rent type — doesn't reach the property's pair. The
+    Berkshires in On Rollout: 302 (1BR/1BA, inheriting) is pulled; 214 (2BR/2BA, its own) isn't.
+  - Unchanged: no Base Rent means the unit can't list and the property can't activate (P-01); no deposit
+    pulls nothing (P-06); a more specific scope is always allowed (B-03, B-06, A-03, A-06).
 - **Marketing Setup has no Default Charge Marketing tile**; Floor Plans spans its two columns.
 - **Activation needs a Base Rent on every unit, nothing confirmed** (`roleRentReady` is coverage only).
   The Setup row's Base Rent sub-row appears only when it's missing (*Base Rent missing: n units* /

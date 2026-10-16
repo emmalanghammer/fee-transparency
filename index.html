@@ -584,24 +584,69 @@ class Component extends DCLogic {
   // level on the same target, both current and both on listings, would show on a listing as the same
   // fee, so neither can be sent. A recurring and a one-time charge of one type are not duplicates. A
   // recurring charge ending today no longer counts. Cached per property until the charges change.
+  // Conflicts (2026-10-16, the user's MultipleBaseRents_SecurityDeposit scenarios). Two rules, both
+  // per scope (the property, one unit type, one unit) and both by date: charges conflict only when their
+  // From–To windows overlap (To exclusive; a one-time charge has no window, so it always overlaps).
+  //   · Role: two Base Rent charges (recurring, on Base Rent charge types, whichever types) or two
+  //     Security Deposit charges (one-time, on Security Deposit types) — B-/A-/P-/D- rows.
+  //   · Same charge type: two charges of one ordinary type, as before (kept at the user's call).
+  // Only charges on listings count: excluding one resolves it. A charge that has ended doesn't.
+  // Groups are `{ key, prop, code, codes, role, level, target, kind, rows, ids }`, cached per property.
   chargeDupes(prop){
-    if (this._dupFees !== this.state.profileFees || this._dupScen !== this.state.scenario) {
-      this._dupCache = {}; this._dupFees = this.state.profileFees; this._dupScen = this.state.scenario; }
+    if (this._dupFees !== this.state.profileFees || this._dupScen !== this.state.scenario || this._dupDef !== this.state.mktDef) {
+      this._dupCache = {}; this._dupFees = this.state.profileFees; this._dupScen = this.state.scenario; this._dupDef = this.state.mktDef; }
     const p = prop || this.state.property;
     if (this._dupCache[p]) return this._dupCache[p];
     const G = {};
     this.appliedRows(p).forEach(r => {
-      if (!r.ils || !r.mits || r.propSpecific || !this.chargeLive(r)) return;
-      const one = /-one$/.test(r.group || '');
-      const k = [String(r.mits).toUpperCase(), String(r.level || 'Property'), String(r.target || ''), one ? 'one' : 'rec'].join('|');
+      if (!r.ils || !r.mits || r.propSpecific || r.excluded || this.chargeEnded(r)) return;
+      const k = this.chargeScopeKey(r);
       (G[k] = G[k] || []).push(r);
     });
-    const out = Object.keys(G).filter(k => G[k].length > 1).map(k => { const a = k.split('|');
-      return { key: k, prop: p, code: a[0], level: a[1], target: a[2], kind: a[3], rows: G[k], ids: G[k].map(r => String(r.id)) }; });
+    const out = [];
+    Object.keys(G).forEach(k => {
+      const rows = G[k].filter(a => G[k].some(b => b !== a && this.chargeOverlap(a, b)));
+      if (rows.length < 2) return;
+      const a = k.split('|'), role = a[0] === 'role' ? a[1] : '';
+      const codes = rows.map(r => String(r.mits).toUpperCase()).filter((c, i, x) => x.indexOf(c) === i);
+      out.push({ key: k, prop: p, code: codes[0], codes, role, level: a[2], target: a[3], kind: role ? (role === 'deposit' ? 'one' : 'rec') : a[4],
+        rows, ids: rows.map(r => String(r.id)) });
+    });
     this._dupCache[p] = out;
     return out;
   }
-  // Current, and not ending today: the test both duplicate detection and the charge form's save use.
+  // The role a charge plays on listings: Base Rent only on a recurring charge, Security Deposit only on
+  // a one-time one, both from the charge type (`mktDef[CODE].role`); '' for an additional charge.
+  chargeRole(r){ const k = this.leaseRoleOf(r), one = /-one$/.test(r.group || '');
+    return k === 'rent' && !one ? 'rent' : k === 'deposit' && one ? 'deposit' : ''; }
+  // The bucket two charges must share to conflict: their role, else their charge type and frequency,
+  // plus the level and target.
+  chargeScopeKey(r){
+    const lvl = String(r.level || 'Property'), tgt = String(r.target || ''), role = this.chargeRole(r);
+    return role ? ['role', role, lvl, tgt].join('|')
+      : ['type', String(r.mits || '').toUpperCase(), lvl, tgt, /-one$/.test(r.group || '') ? 'one' : 'rec'].join('|');
+  }
+  dayOf(v){ const m = String(v || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/); if (!m) return null;
+    let y = +m[3]; if (y < 100) y += 2000; return new Date(y, +m[1] - 1, +m[2]).getTime(); }
+  // A recurring charge whose To date (exclusive) is today or earlier no longer applies.
+  chargeEnded(r){ if (/-one$/.test(r.group || '')) return false; const t = this.dayOf(r.to); if (t == null) return false;
+    const today = new Date(); today.setHours(0, 0, 0, 0); return t <= today.getTime(); }
+  // [From, To) windows overlap; a missing From is open to the past, a missing To to the future.
+  chargeOverlap(a, b){
+    if (/-one$/.test(a.group || '') || /-one$/.test(b.group || '')) return true;
+    const fa = this.dayOf(a.from), ta = this.dayOf(a.to), fb = this.dayOf(b.from), tb = this.dayOf(b.to);
+    return (fa == null || tb == null || fa < tb) && (fb == null || ta == null || fb < ta);
+  }
+  // A charge being created that would conflict with one already there: the first such charge, or null.
+  chargeConflictFor(row, prop){
+    if (!row.ils || row.propSpecific || this.chargeEnded(row)) return null;
+    const k = this.chargeScopeKey(row);
+    return this.appliedRows(prop).find(r => r.ils && r.mits && !r.propSpecific && !r.excluded && !this.chargeEnded(r)
+      && this.chargeScopeKey(r) === k && this.chargeOverlap(r, row)) || null;
+  }
+  // How many role conflicts the portfolio carries, so marking a charge type can say it made one.
+  roleConflictCount(){ return this.propNames().reduce((n, p) => n + this.chargeDupes(p).filter(g => g.role).length, 0); }
+  // Current, and not ending today (kept for callers outside conflict detection).
   chargeLive(r){
     if (!this.chargeCurrent(r)) return false;
     if (/-one$/.test(r.group || '')) return true;
@@ -613,9 +658,12 @@ class Component extends DCLogic {
   chargeDupeOf(r){ if (!r) return null; return this.chargeDupes(r._prop).filter(g => g.ids.indexOf(String(r.id)) >= 0)[0] || null; }
   dupWhere(level, target){ return level === 'Property' ? 'at the property' : level === 'Unit Type' ? 'on ' + target
     : level === 'Unit' ? 'on unit ' + target : 'on ' + (target || this.levelLabel(level)); }
-  dupLabel(g){ return g.rows.length + ' ' + g.code + ' charges ' + this.dupWhere(g.level, g.target); }
-  // The same, naming the property: *2 RC charges at The Berkshires*, *2 RC charges on 2BR/2BA at The Berkshires*.
-  dupLabelAt(g){ return g.level === 'Property' ? g.rows.length + ' ' + g.code + ' charges at ' + g.prop : this.dupLabel(g) + ' at ' + g.prop; }
+  dupWhat(g){ return g.role ? this.leaseRoleLabel(g.role) : g.code; }
+  dupLabel(g){ return g.rows.length + ' ' + this.dupWhat(g) + ' charges ' + this.dupWhere(g.level, g.target); }
+  // The same, naming the property: *2 Base Rent charges at The Berkshires*, *2 RC charges on 2BR/2BA at The Berkshires*.
+  dupLabelAt(g){ return g.level === 'Property' ? g.rows.length + ' ' + this.dupWhat(g) + ' charges at ' + g.prop : this.dupLabel(g) + ' at ' + g.prop; }
+  // Why the pair can't both list, in a sentence's middle.
+  dupWhy(g){ return g.role ? 'can’t both be the ' + this.leaseRoleLabel(g.role) + ' for the same units at the same time' : 'would show on listings as the same fee'; }
   // How a charge type is used on listings, across the properties fee transparency applies to: how many
   // recurring and one-time charges of it are included. Which of Charge Schedule and Charge Timing it
   // needs follows from this (2026-10-15): a field no charge of the type uses is not missing.
@@ -1455,8 +1503,12 @@ class Component extends DCLogic {
         const codes = Object.keys(vals);
         codes.forEach(code => { defs[code] = Object.assign({}, defs[code] || {}, vals[code]); });
         this._meVals = {};
-        this.setState({ mktDef: defs, ctMass: false });
-        if (codes.length) this.flash('Marketing details saved for ' + codes.length + ' charge type' + (codes.length === 1 ? '' : 's'));
+        const confBefore = this.roleConflictCount();
+        this.setState({ mktDef: defs, ctMass: false }, () => {
+          if (!codes.length) return;
+          const made = this.roleConflictCount() - confBefore;
+          this.flash('Marketing details saved for ' + codes.length + ' charge type' + (codes.length === 1 ? '' : 's')
+            + (made > 0 ? '. ' + made + ' scope' + (made === 1 ? ' now has' : 's now have') + ' more than one Base Rent or Security Deposit; see the Duplicate status on those charges.' : '')); });
         break; }
       case 'ctAddOpen': this.setState({ ctAdd: { code:'', desc:'', gl:'', amount:'0.00', props:null, category:'', active:true } }); break;
       case 'ctAddClose': this.setState({ ctAdd: null }); break;
@@ -1500,8 +1552,13 @@ class Component extends DCLogic {
         if (Object.keys(mk).some(k => mk[k])) defs[newCode] = mk; else delete defs[newCode];
         // No overrides any more (2026-10-15): what the charge type says is what every charge of it says,
         // so saving commits straight away — there is no Update Default Marketing Details question to ask.
-        this.setState({ chargeTypes: next, mktDef: defs, ctDetail: arg === 'close' ? null : newCode });
-        this.flash('Charge type saved'); break; }
+        // Marking a type Base Rent or Security Deposit is allowed even when it gives a scope two of them
+        // (scenarios B-02, B-05, A-02, A-05): the conflict is flagged on the charges, and the toast says so.
+        const confBefore = this.roleConflictCount();
+        this.setState({ chargeTypes: next, mktDef: defs, ctDetail: arg === 'close' ? null : newCode }, () => {
+          const made = this.roleConflictCount() - confBefore;
+          this.flash(made > 0 ? 'Charge type saved. ' + made + ' scope' + (made === 1 ? ' now has' : 's now have') + ' more than one Base Rent or Security Deposit; see the Duplicate status on those charges.' : 'Charge type saved'); });
+        break; }
       case 'ctDelete': { const code = this.state.ctDetail; if (!code) break;
         this.setState({ chargeTypes: this.chargeTypeRows().filter(r => r.code !== code), ctDetail: null });
         this.flash(code + ' deleted'); break; }
@@ -2330,21 +2387,23 @@ class Component extends DCLogic {
     if (!/-one$/.test(m.group || '')) { const f = v('m-freq'); mark(this.q('#m-freq'), !f); if (!f) errs.push('Frequency'); }
     const ils = v('m-ils') === '1';
     if (errs.length) { const b = this.q('#m-err'); if (b) { const t = b.querySelector('#m-err-txt'); if (t) t.textContent = 'Complete required fields: ' + errs.join(', '); b.style.display = 'inline-flex'; } return false; }
-    // A second current charge of one charge type at the same level on the same target, on listings,
-    // would advertise as the same fee as the first (2026-10-15), so it can't be saved on listings. A
-    // recurring and a one-time charge of one type don't conflict. (It replaced a rule about two
-    // charges sharing a name, which a charge no longer has: names come from the charge type.)
+    // Creating a charge that would conflict is blocked (2026-10-16, scenarios B-01, B-04, A-01, A-04): a
+    // second Base Rent or Security Deposit at a scope that already has one for overlapping dates, or a
+    // second charge of one ordinary charge type there. Editing an existing charge into a conflict is
+    // allowed (A-02): the conflict is flagged where the charges are read, and after activation pulls the
+    // units under that scope off the feed. A charge kept off listings never conflicts.
     const isOneNow = /-one$/.test(m.group || '');
-    const liveNow = this.chargeLive({ group: m.group, from: isOneNow ? '' : v('m-from'), to: isOneNow ? '' : v('m-to') });
-    const dup = ils && liveNow && !(m.edit && m.edit.propSpecific) && this.profileRows().find(r => (!m.edit || String(r.id) !== String(m.edit.id))
-      && r.ils && !r.propSpecific && this.chargeLive(r)
-      && String(r.mits || '').toUpperCase() === code.toUpperCase()
-      && String(r.level || 'Property') === app && String(r.target || '') === String(target || '')
-      && /-one$/.test(r.group || '') === isOneNow);
+    const dup = !m.edit && this.chargeConflictFor({ mits: code, group: m.group, level: app, target: target || '', ils,
+      from: isOneNow ? '' : v('m-from'), to: isOneNow ? '' : v('m-to') }, this.state.property);
     if (dup) {
+      const role = this.chargeRole({ mits: code, group: m.group });
+      const where = this.dupWhere(app, target);
       const b = this.q('#m-err'); if (b) { const t = b.querySelector('#m-err-txt');
-        if (t) t.textContent = code + (dup.desc ? ' – ' + dup.desc : '') + ' is already on listings ' + this.dupWhere(app, target)
-          + '. Two ' + code + ' charges there would show as the same fee. Turn off Include on listings, or end or exclude the other charge first.';
+        if (t) t.textContent = role
+          ? String(dup.mits || '').toUpperCase() + (dup.desc ? ' – ' + dup.desc : '') + ' is already the ' + this.leaseRoleLabel(role) + ' ' + where
+            + ' for these dates. Only one ' + this.leaseRoleLabel(role) + ' can apply there at a time: end the other charge first, change these dates, or add this charge to a unit type or unit.'
+          : code + (dup.desc ? ' – ' + dup.desc : '') + ' is already on listings ' + where
+            + ' for these dates. Two ' + code + ' charges there would show as the same fee. Turn off Include on listings, or end or exclude the other charge first.';
         b.style.display = 'inline-flex'; }
       return false; }
     const eb = this.q('#m-err'); if (eb) eb.style.display = 'none';
@@ -2484,7 +2543,9 @@ class Component extends DCLogic {
   // share the most specific level — the one holding that type's Base Rent / Security Deposit, else the
   // highest for the unit (`o.unit`), the same rule the role suggestion uses.
   mostSpecific(rows, o){
-    const key = r => r.mits + (/-one$/.test(r.group || '') ? '|one' : '|rec');
+    // Base Rent and Security Deposit charges compete by role, whatever their charge type (2026-10-16): a
+    // unit's own Base Rent replaces the property's even on a different Base Rent type.
+    const key = r => { const role = this.chargeRole(r); return role ? 'role|' + role : r.mits + (/-one$/.test(r.group || '') ? '|one' : '|rec'); };
     const best = {};
     rows.forEach(r => { const k = this.chargeRank(r); if (k != null && (best[key(r)] == null || k > best[key(r)])) best[key(r)] = k; });
     const out = rows.filter(r => { const k = this.chargeRank(r); return k == null || k === best[key(r)]; });
@@ -5195,7 +5256,7 @@ class Component extends DCLogic {
       return `<div style="display:flex;flex-direction:column;gap:12px;padding:12px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;background:#fff">
         <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
           <span style="flex:1;min-width:200px;display:flex;flex-direction:column;gap:4px">
-            <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${esc(g.code + ' – ' + (names[g.code] || r.name || ''))}${r.desc ? ` · ${esc(r.desc)}` : ''}</span>
+            <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${esc(String(r.mits || '').toUpperCase() + ' – ' + (names[String(r.mits || '').toUpperCase()] || r.name || ''))}${r.desc ? ` · ${esc(r.desc)}` : ''}</span>
             <span style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:14px;color:var(--rmx-text, #666666)">${this.chargeLevelCell(g.level, lvlName)}<span>${esc(r.amount || '')}</span><span>${esc(when)}</span></span>
           </span>
           <span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -5219,7 +5280,7 @@ class Component extends DCLogic {
           <span data-act="dupClose" style="display:flex;cursor:pointer" aria-label="Close">${this.ico('close', 24, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
         </div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;background:var(--rmx-bg-subtle, #f5f8fa)">
-          <span style="font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)"><strong style="font-weight:600">${esc(this.dupLabelAt(g))}</strong> would show on listings as the same fee, so neither can be sent. Keep one on listings, and for ${g.rows.length === 2 ? 'the other' : 'the others'}:</span>
+          <span style="font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)"><strong style="font-weight:600">${esc(this.dupLabelAt(g))}</strong> ${this.dupWhy(g)}, so ${g.rows.length === 2 ? 'neither' : 'none'} can be sent. Keep one on listings, and for ${g.rows.length === 2 ? 'the other' : 'the others'}:</span>
           ${g.rows.map(card).join('')}
         </div>
         <div style="display:flex;justify-content:flex-end;gap:10px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:12px 16px;flex:none">
@@ -5869,7 +5930,7 @@ class Component extends DCLogic {
     const itemLink = (t, act, arg) => `<a data-act="${act}" data-arg="${escA(arg)}" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${t}</a>`;
     const itemRow = (main, sub, action) => `<span style="display:flex;align-items:flex-start;gap:14px"><span style="flex:1;min-width:0"><strong style="font-weight:600">${main}</strong><br><span style="color:var(--rmx-text, #666666)">${sub}</span></span>${action}</span>`;
     const chargeItem = (c) => c.dup
-      ? itemRow(c.name, 'They would show as the same fee.', itemLink('Resolve', 'dupOpen', c.dup.prop + '::' + c.dup.key))
+      ? itemRow(c.name, 'They ' + this.dupWhy(c.dup) + '.', itemLink('Resolve', 'dupOpen', c.dup.prop + '::' + c.dup.key))
       : itemRow(c.name, `Missing on the ${c.code} charge type: ${c.missing.join(', ')}`, itemLink('Edit Charge Type', 'ctOpen', c.code));
     return `<div data-act="ltErrClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:150">
       <div data-act="noop" style="width:714px;max-width:94vw;max-height:90vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
@@ -7136,7 +7197,7 @@ class Component extends DCLogic {
     const tone = act ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-attention, #f58220)';
     // No fill (2026-10-15, the user's call): the icon and the words, aligned with the bare check on ready rows.
     const pill = (t, extra) => `<span ${extra || ''} style="display:inline-flex;align-items:center;gap:5px;padding:2px 0;cursor:${extra ? 'pointer' : 'default'}">${this.filledIco('error', 14, 'color:' + tone + ';flex:none')}<span style="font-size:14px;color:${act ? '#a3252c' : '#7a5a2a'};white-space:nowrap">${t}</span></span>`;
-    if (dup) return pill('Duplicate', `data-act="dupOpen" data-arg="${String(dup.prop + '::' + dup.key).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" title="${this.dupLabelAt(dup)} would show as the same fee. Select to resolve."`);
+    if (dup) return pill('Duplicate', `data-act="dupOpen" data-arg="${String(dup.prop + '::' + dup.key).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" title="${this.dupLabelAt(dup)} ${this.dupWhy(dup)}. Select to resolve."`);
     if (missing && missing.length) return this.infoTip(
       `<span style="display:block;white-space:normal;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);padding-bottom:9px;border-bottom:1px solid var(--rmx-line, #cedbe7)">Required for listings, missing on the ${String(code || '').toUpperCase()} charge type:</span>`
       + `<span style="display:flex;flex-direction:column;gap:10px;padding-top:11px">${missing.map(n => `<span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${n}</span>`).join('')}</span>`, undefined, { trigger: pill('Missing Details') });
@@ -7542,7 +7603,7 @@ class Component extends DCLogic {
       `Fee transparency is active on ${esc(p)}, so listings using ${n === 1 ? 'this charge' : 'these charges'} won’t be sent until the ${codes.join(', ')} charge type${codes.length === 1 ? ' has' : 's have'} every required field.`,
       link('Mass Edit Marketing Details', 'ftMassEdit', codes.join(','))));
     dupes.forEach(g => parts.push(line(`${this.dupLabel(g)[0].toUpperCase() + this.dupLabel(g).slice(1)} can’t both show on listings`,
-      'They would show as the same fee, so listings using them won’t be sent until one is excluded, ended or changed to another charge type.',
+      'They ' + this.dupWhy(g) + ', so listings using them won’t be sent until one is excluded, ended or changed to another charge type.',
       link('Resolve', 'dupOpen', g.prop + '::' + g.key))));
     return `<div style="flex:none;display:flex;align-items:flex-start;gap:12px;padding:14px 16px;background:#fdecee;border:1px solid var(--rmx-error, #eb343c);border-radius:4px">
       ${this.ico('error', 20, 'color:var(--rmx-error, #eb343c);flex:none;margin-top:1px')}
