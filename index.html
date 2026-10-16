@@ -783,36 +783,51 @@ class Component extends DCLogic {
   // charge type's, and they are independent — refusing one was never an answer about the other.
   // The charge form fills from this rather than `ctmFor`, so what it shows and what
   // `resolvedListing` would publish cannot disagree.
-  // The charge form's Marketing Details, read-only (2026-10-15): the charge type's values, a dash and the
-  // Required for Listings lozenge where a required one is empty, and a link to where they are set.
-  chargeMktStaticHTML(code, isOne){
+  // The charge form's Marketing Details, read-only, drawn the way a listing names the fee (2026-10-16,
+  // the design canvas *Marketing Details as Listing Fees*, board E, from Figma `4013:164963`): *Listed as*
+  // the Name and the description over a rule, then the terms in italics — Charge Requirement, Charge
+  // Schedule or Charge Timing, Refundability on a one-time charge, and Charge Category always last as
+  // *<Category> Charge*. A required field that's empty sits where its value would be, as a dashed box
+  // reading *Missing: <field>* in grey, the outline and icon amber before the property activates and red
+  // after. `o.live` (fee transparency applies and the charge is on listings) is what asks for them at
+  // all; otherwise an empty field is just a grey *No <field>*. `o.dim` fades an excluded charge.
+  chargeMktStaticHTML(code, isOne, o){
+    o = o || {};
     const c = String(code || '').toUpperCase();
     const INK = 'color:var(--rmx-brand-dark, #13314c)';
     if (!c) return `<span style="font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">Select a charge type to see its marketing details.</span>`;
+    const esc = (t) => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
     const D = this.mktDefFor(c) || {};
-    const act = !!this.state.publishedProps[this.state.property];
-    const need = `<span style="display:inline-flex;align-items:center;height:19px;box-sizing:border-box;padding:0 7px;border-radius:4px;background:${act ? '#fdecee' : '#fdf3e7'};font-size:12px;color:${act ? '#a3252c' : '#7a5a2a'};white-space:nowrap">Required for Listings</span>`;
-    const DUE = { 'At Application':'At Application', 'Move-In':'At Move-In', 'During Term':'During Term', 'Move-Out':'At Move-Out' };
+    const act = !!o.act;
     const role = this.leaseRoleKind(c);
-    const f = (label, val, required, wide) => `<div style="flex:${wide ? '2' : '1'} 1 ${wide ? '320px' : '160px'};min-width:0;display:flex;flex-direction:column;gap:4px">
-        <span style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">${label}${!val && required ? need : ''}</span>
-        <span style="font-size:14px;line-height:20px;${INK};overflow-wrap:anywhere">${val ? String(val).replace(/&/g,'&amp;').replace(/</g,'&lt;') : '—'}</span></div>`;
+    const miss = (field) => o.live
+      ? `<span title="Required for listings: set ${field} on the ${c} charge type" style="display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;box-sizing:border-box;white-space:nowrap;font-style:italic;color:var(--rmx-text, #666666);border:1px dashed ${act ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-notice, #faa61c)'};border-radius:4px;background:var(--rmx-bg-subtle, #f5f8fa)">${this.filledIco(act ? 'error' : 'warning', 16, 'flex:none;color:' + (act ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-notice, #faa61c)'))}<span>Missing: ${field}</span></span>`
+      : `<span style="white-space:nowrap;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No ${field}</span>`;
+    const term = (t) => `<span style="white-space:nowrap">${esc(t)}</span>`;
+    const name = role ? this.leaseRoleLabel(role) : D.name;
+    const REQ = { Required:'Required Fee', Optional:'Optional Fee', Situational:'Situational Fee' };
+    const DUE = { 'At Application':'Due at Application', 'Move-In':'Due at Move-In', 'During Term':'Due During Lease Term', 'Move-Out':'Due at Move-Out' };
+    const cat = this.chargeCategoryFor(c);
     const ref = D.refundable === 'yes' || D.refundable === true ? 'Refundable' : D.refundable === 'no' || D.refundable === false ? 'Not Refundable' : '';
-    return `<div style="display:flex;flex-direction:column;gap:12px">
-      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 16px">
-        <span style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">Set on the <strong style="font-weight:600;${INK}">${c}</strong> charge type for every charge that uses it.</span>
-        <a data-act="ctOpen" data-arg="${c}" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Edit Charge Type</a>
+    const terms = [
+      D.requirement ? term(REQ[D.requirement] || D.requirement) : miss('Charge Requirement'),
+      isOne ? (D.feeDue ? term(DUE[D.feeDue] || 'Due ' + D.feeDue) : miss('Charge Timing'))
+            : (D.schedule ? term('Due ' + D.schedule + ', During Lease Term') : miss('Charge Schedule')),
+      isOne && ref ? term(ref) : '',
+      cat ? term(/charge$/i.test(cat) ? cat : cat + ' Charge') : miss('Charge Category')
+    ].filter(Boolean);
+    return `<div style="display:flex;flex-direction:column;gap:16px;${o.dim ? 'opacity:.5;' : ''}">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;font-size:14px;line-height:20px">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;min-width:0;flex:1 1 320px">
+          <span style="color:var(--rmx-text, #666666);white-space:nowrap">Listed as</span>
+          ${name ? `<span style="font-weight:600;${INK};white-space:nowrap">${esc(name)}</span>` : miss('Name')}
+          ${D.marketing ? `<span style="font-style:italic;${INK};min-width:0;overflow-wrap:anywhere">${esc(D.marketing)}</span>`
+            : `<span style="font-style:italic;color:var(--rmx-text-muted, #b3b3b3);white-space:nowrap">No marketing description</span>`}
+        </div>
+        <span style="white-space:nowrap;color:var(--rmx-text, #666666)">Edit Marketing Details on <a data-act="ctOpen" data-arg="${c}" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">${c} Charge Type</a></span>
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:12px 16px">
-        ${f('Listings Treat It As', role ? this.leaseRoleLabel(role) : 'Additional Charge')}
-        ${f('Name', role ? this.leaseRoleLabel(role) : D.name, true)}
-        ${f('Marketing Description (Optional)', D.marketing, false, true)}
-      </div>
-      <div style="display:flex;flex-wrap:wrap;gap:12px 16px">
-        ${f('Charge Category', this.chargeCategoryFor(c), true)}
-        ${f('Charge Requirement', D.requirement, true)}
-        ${isOne ? f('Charge Timing', DUE[D.feeDue] || D.feeDue, true) + f('Refundability (Optional)', ref) : f('Charge Schedule', D.schedule, true)}
-      </div>
+      <div style="height:1px;background:var(--rmx-line, #cedbe7)"></div>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;font-size:14px;line-height:20px;font-style:italic;${INK}">${terms.join('')}</div>
     </div>`;
   }
   chargeInherits(prop, code, listing){
@@ -10712,10 +10727,12 @@ class Component extends DCLogic {
     // Amber until the property has activated, red after — the same line the four states draw. Before
     // activation the feed still publishes rent, so a short charge is a plan; once fee transparency
     // is live it is holding a listing off the feed, and only then has red been earned.
-    const lrMarkup = (need, on, act) => !need
-      ? (on ? lrDot('var(--rmx-success, #6eb744)') + '<span>Listing Ready</span>'
-            : lrDot('var(--rmx-text-muted, #b3b3b3)') + '<span>Excluded from listings</span>')
-      : lrDot(act ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-notice, #faa61c)') + '<span>Missing Marketing Details</span>';
+    // RMX's Lozenge with no background (Figma `4013:164963`): the dot, then the label in italic navy.
+    // Missing fields lead; a duplicate only shows once the fields are whole.
+    const lrMarkup = (need, on, act, dup) => !on ? lrDot('var(--rmx-text-muted, #b3b3b3)') + '<span>Excluded from listings</span>'
+      : need ? lrDot(act ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-notice, #faa61c)') + '<span>Missing Required Fields</span>'
+      : dup ? lrDot(act ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-notice, #faa61c)') + '<span>Duplicate Charge</span>'
+      : lrDot('var(--rmx-success, #6eb744)') + '<span>Listing Ready</span>';
     // Live re-check: unlocks the toggle as fields are filled, and keeps the heading status, the
     // missing-field chips and the Required callout in step with whatever is on screen.
     const dateNoteHTML = (d) => d.expired
@@ -10748,7 +10765,14 @@ class Component extends DCLogic {
         }
       }
       const onIls = ((this.q('#m-ils') || {}).value) === '1';
-      if (st) st.innerHTML = lrMarkup(this.ftApplicable(this.state.property) && onIls ? need.length : 0, onIls, !!this.state.publishedProps[this.state.property]);
+      if (st) st.innerHTML = lrMarkup(this.ftApplicable(this.state.property) && onIls ? need.length : 0, onIls, !!this.state.publishedProps[this.state.property], !!dupG);
+      // The card is the charge type's details as a listing names them, redrawn here so its Missing
+      // boxes follow the Include on listings toggle and the property's activation.
+      { const live0 = this.ftApplicable(this.state.property) && onIls;
+        const ms = this.q('#m-mkt-static');
+        if (ms) ms.innerHTML = this.chargeMktStaticHTML(((this.q('#m-ctype') || {}).value) || (ed && ed.mits) || '', isOne,
+          { live: live0, act: !!this.state.publishedProps[this.state.property], dim: this.ftApplicable(this.state.property) && !onIls });
+        const dm = this.q('#m-dup-msg'); if (dm) dm.style.display = dupG && live0 ? 'flex' : 'none'; }
       if (note) note.style.display = onIls ? 'none' : 'inline-flex';
       // Which of the four states this section is in is decided by the property, not the charge:
       // whether it advertises online at all, and whether fee transparency is already active on it.
@@ -10777,11 +10801,9 @@ class Component extends DCLogic {
       // listings off the feed right now. Before activation the feed still publishes rent, so the
       // same shortfall is amber — a plan, not an outage.
       const down = live && act && !!need.length;
-      const card = this.q('#m-mkt-card');
-      if (card) card.style.borderColor = down ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-line, #cedbe7)';
       const cnt = this.q('#m-mkt-count');
       if (cnt) {
-        const u = down ? affectedUnits() : [];
+        const u = down || (live && act && dupG) ? affectedUnits() : [];
         // The one state that has to be legible without opening the section, because it is costing
         // something today.
         cnt.textContent = u.length ? (u.length === 1 ? '1 Listing Not Sent' : u.length + ' Listings Not Sent') : '';
@@ -10792,8 +10814,8 @@ class Component extends DCLogic {
         if (!live) msg.style.display = 'none';
         else if (down) {
           const u = affectedUnits();
-          msg.style.display = 'flex'; msg.style.background = '#fdecee';
-          mico.innerHTML = this.ico('error', 20, 'color:var(--rmx-error, #eb343c)');
+          msg.style.display = 'flex';
+          mico.innerHTML = this.filledIco('error', 20, 'color:var(--rmx-error, #eb343c)');
           mtxt.innerHTML = `${e2(this.state.property)} is fee transparent, so any listings using this charge will not be sent until every required field is filled in or the charge is excluded.`;
         // The only thing this block still says is state 4, where a listing is actually being held
         // off the feed. Before activation the header's amber **Not Ready for Listings** and the
@@ -10823,15 +10845,26 @@ class Component extends DCLogic {
       ? `<span id="m-ils-warn" onclick="event.stopPropagation()" style="display:${swOn ? 'none' : 'inline-flex'};align-items:center;margin-right:10px">${ilsWarnTip}</span>`
         + `<label onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:10px;cursor:${swLive?'pointer':'default'}"><span id="m-ils-sw" data-dis="${swLive?'0':'1'}" onclick="${swJs}" data-on="${swOn?'1':'0'}" style="display:inline-block;width:32px;height:18px;border-radius:999px;background:${!swLive?'#dfe6ec':(swOn?'var(--ac,var(--rmx-brand, #008dd5))':'var(--rmx-line, #cedbe7)')};position:relative;flex:none;cursor:${swLive?'pointer':'default'}">${knob}</span><span id="m-ils-lbl" style="font-size:14px;color:${swLive?'var(--rmx-brand-dark, #13314c)':'var(--rmx-text-muted, #b3b3b3)'}">Include on listings</span></label>`
       : '';
+    // A charge that would show as the same fee as another (or a second Base Rent / Security Deposit for
+    // the same units) says so in the card, as RMX's Callout — Warning before the property activates,
+    // Error after — with Resolve on the right (2026-10-16, board E).
+    const dupG = m.edit ? (this.chargeDupes(this.state.property).find(g => g.ids.indexOf(String(m.edit.id)) >= 0) || null) : null;
+    const dupAct = !!this.state.publishedProps[this.state.property];
+    const dupMsg = !dupG ? '' : `
+        <div id="m-dup-msg" style="display:none;align-items:center;gap:8px;padding:12px 8px;border:1px solid ${dupAct ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-notice, #faa61c)'};border-radius:4px;background:#fff">
+          ${this.filledIco(dupAct ? 'error' : 'warning', 20, 'flex:none;color:' + (dupAct ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-notice, #faa61c)'))}
+          <span style="flex:1;min-width:0;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">${esc(this.dupLabel(dupG))} ${this.dupWhy(dupG)}, so neither is listed.</span>
+          <a data-act="dupOpen" data-arg="${esc(dupG.prop)}::${esc(dupG.key)}" style="flex:none;padding:0 8px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Resolve</a>
+        </div>`;
     // One block inside the card, written live by `__mitsRecheck`, carrying whichever of the four
     // states this property is in. It sits with the fields because it is about them — it read as a
     // separate warning when it sat outside. What is short is marked on the fields themselves now,
     // so this says what it costs rather than listing names to match back up.
     const missingMsg = `
-        <div id="m-ils-msg" style="display:none;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:4px">
-          <span id="m-ils-ico" style="display:inline-flex;flex:none;margin-top:1px"></span>
+        <div id="m-ils-msg" style="display:none;align-items:flex-start;gap:8px;padding:12px 8px;border:1px solid var(--rmx-error, #eb343c);border-radius:4px;background:#fff">
+          <span id="m-ils-ico" style="display:inline-flex;flex:none"></span>
           <span id="m-ils-txt" style="flex:1;min-width:0;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)"></span>
-        </div>`;
+        </div>${dupMsg}`;
     // State 4 names the listings that are actually held back. A charge written at unit level only
     // affects its own unit; anything wider affects everything the property advertises.
     const propUnits = this.listingsData().filter(l => l.prop === this.state.property).map(l => l.unit || l.prop);
@@ -10882,16 +10915,16 @@ class Component extends DCLogic {
           <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" id="m-mkt-caret" style="color:var(--rmx-text, #666666)"><path d="M530-481 332-679l43-43 241 241-241 241-43-43 198-198Z"/></svg>
           <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Marketing Details</span>
           ${!offTip ? '' : `<span onclick="event.stopPropagation()" style="display:inline-flex;align-items:center">${offTip}</span>`}
-          ${!this.ftApplicable(this.state.property) ? '' : `<span id="m-lr-status" style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap"></span>`}
-          <span id="m-mkt-count" style="display:none;align-items:center;height:22px;box-sizing:border-box;padding:0 9px;border-radius:4px;background:#fdecee;font-size:13px;color:#a3252c;white-space:nowrap"></span>
+          ${!this.ftApplicable(this.state.property) ? '' : `<span id="m-lr-status" style="display:inline-flex;align-items:center;gap:8px;height:24px;padding:0 8px;font-size:14px;font-style:italic;color:var(--rmx-brand-dark, #13314c);white-space:nowrap"></span>`}
+          <span id="m-mkt-count" style="display:none;align-items:center;height:24px;box-sizing:border-box;padding:0 8px;border-radius:4px;background:#fdecee;font-size:14px;color:#a3252c;white-space:nowrap"></span>
           <div style="flex:1"></div>
           ${mktNote}
         </div>
         <div id="m-mkt-body" style="display:none;flex-direction:column;gap:14px">
           ${amtNote}
           <div style="display:none">${roleCard}</div>
-          <div id="m-mkt-card" style="display:flex;flex-direction:column;gap:14px;padding:14px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px">
-            <div id="m-mkt-static">${this.chargeMktStaticHTML((ed && ed.mits) || '', isOne)}</div>
+          <div id="m-mkt-card" style="display:flex;flex-direction:column;gap:12px;padding:16px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px">
+            <div id="m-mkt-static">${this.chargeMktStaticHTML((ed && ed.mits) || '', isOne, { live: this.ftApplicable(this.state.property) && swOn, act: !!this.state.publishedProps[this.state.property], dim: this.ftApplicable(this.state.property) && !swOn })}</div>
             <div id="m-mkt-fields" style="display:none;flex-direction:column;gap:12px">${listing}</div>
             ${missingMsg}
           </div>

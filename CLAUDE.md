@@ -951,6 +951,23 @@ describes the design before that tag; the code for most of it is still in the fi
   editable fields and the role card stay in the DOM, hidden, so `__mitsRecheck`, the header status and
   `saveFee` keep working; they are filled from the charge type (the form strips `ed.listing`). The
   Include on listings toggle stays per charge.
+- **That read-only section is drawn the way a listing names the fee** (2026-10-16, board E of the design
+  canvas *Marketing Details as Listing Fees*, <https://claude.ai/artifact/7tZkDzGSh5gTgc5wRXPozV>, from
+  Figma `4013:164963`). `chargeMktStaticHTML(code, isOne, { live, act, dim })`: *Listed as* **Name** and the
+  italic description (grey italic *No marketing description* when empty), *Edit Marketing Details on
+  <a>CODE Charge Type</a>* on the right (`ctOpen`), a rule, then the terms in italics — *Required / Optional /
+  Situational Fee*, *Due Monthly, During Lease Term* (recurring) or *Due at Move-In* etc. (one-time),
+  Refundability on a one-time charge when set, and **Charge Category last** as *<Category> Charge*. A required
+  field that's empty is a dashed box *Missing: Charge Requirement* in grey on `--rmx-bg-subtle`, outline and
+  filled icon amber before activation, red after; where nothing is asked (excluded, or `ftApplicable` false)
+  it's a grey *No Charge Requirement*, and an excluded charge's card is at half opacity. No role lozenge.
+  `__mitsRecheck` redraws it, so it follows the toggle. The header status is RMX's Lozenge with no
+  background — the dot and an italic navy label: **Listing Ready**, **Missing Required Fields**, **Duplicate
+  Charge**, **Excluded from listings** — and after activation the red *n Listings Not Sent* lozenge (now also
+  for a duplicate). The card never takes a red border; the after-activation note is an RMX Error Callout
+  (white, 1px red outline, filled `error`), and a duplicate (`dupG`, from `chargeDupes`) adds `#m-dup-msg`, a
+  Warning Callout before activation / Error after — *2 Base Rent charges at the property can’t both be…, so
+  neither is listed.* — with **Resolve** (`dupOpen`) on the right.
 - **Mass Edit Marketing Details** (Figma `3980:160947`, 2026-10-15): an action link (`edit_square`) beside
   Add Charge Type on the Charge Types page opens `ctMassHTML` (`state.ctMass`, z-index 150, 1572px wide):
   the 48px header with a help (`todo`) and close, *"Set the marketing information for every charge that
