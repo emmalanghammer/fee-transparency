@@ -954,8 +954,8 @@ describes the design before that tag; the code for most of it is still in the fi
   `saveFee` keep working; they are filled from the charge type (the form strips `ed.listing`). The
   Include on listings toggle stays per charge.
 - **Then as RMX read-only fields** (2026-10-16, later the same day, the user's call): `chargeMktStaticHTML` draws each value as
-  RMX Input Field *Style=Read-only* — a grey 14px label over the value in SemiBold navy, no box, nothing italic — under *Edit
-  Marketing Details on <a>CODE Charge Type</a>* (right-aligned): **Name · Marketing Description** (two thirds), then **Charge
+  RMX Input Field *Style=Read-only* — a grey 14px label over the value in SemiBold navy, no box, nothing italic: **Name · Marketing Description** (two thirds) with *Edit Details on <a>Charge Type</a>*
+  at the right of that row (`ctOpen`), then **Charge
   Requirement · Charge Schedule** (recurring) or **Charge Timing · Refundability** (one-time) **· Charge Category** last. A
   required field that's empty keeps the dashed amber / red box, now reading just *Missing* (the label names the field); an
   empty optional one, or any empty field where nothing is asked, is a grey `—`. The note below describes the version before.
