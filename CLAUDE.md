@@ -1067,7 +1067,7 @@ describes the design before that tag; the code for most of it is still in the fi
 - **No listing status on a charges tile or overlay** (2026-10-16, the user's call): the unit / unit type Charges overlay
   (`recViewHTML`) no longer passes `ready` to `chargeRegisterHTML`, so it has no Listing Ready column (the Charges tile
   never had one). Listing status lives on the charge type (tile, register) and the charge form. The property Charges
-  overlay's `mitsBanner` is an alert, not a row status, and stays.
+  overlay's `mitsBanner` is no longer drawn either (2026-10-16, the user's call); the method is left in the file.
 - **Charge Type Details' Marketing Details, to canvas board G** (2026-10-16,
   <https://claude.ai/artifact/7tZkDzGSh5gTgc5wRXPozV>). The tile header carries the charge's status as RMX's
   Lozenge with no background (dot + italic navy): **Listing Ready**, **Missing Required Fields** (red) or
