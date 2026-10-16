@@ -1053,7 +1053,7 @@ describes the design before that tag; the code for most of it is still in the fi
   type). A missing field is **always** marked the after-activation way, since one type can serve activated
   and non-activated properties at once: the field outlined red (`ctd-need`, no longer gated on activation)
   and under it a red filled `error` with *This field is required.* — the *Required for Listings* lozenge is
-  gone from the labels. The Charge Types register's **Listing Ready** column draws the same status (`ctStatusHTML(code)`, shared with the tile; its `title` lists the missing fields), replacing `lrPill` there. Charge Category is marked too (its `mfld` call used to pass no key, so it never was). `tile()` takes a fifth `extra` argument for what follows the title. The note below
+  gone from the labels. The Charge Types register's **Listing Status** column (*Listing Ready* until 2026-10-16) draws the same status (`ctStatusHTML(code)`, shared with the tile; its `title` lists the missing fields), replacing `lrPill` there. Charge Category is marked too (its `mfld` call used to pass no key, so it never was). `tile()` takes a fifth `extra` argument for what follows the title. The note below
   describes the earlier version.
 - **Charge Type Details marks what's still required** (2026-10-15): each Marketing Details field
   the type's listed charges are missing (`ctMissingAll()`, mapped to keys through `mitsFields()`) gets the
