@@ -6859,7 +6859,20 @@ class Component extends DCLogic {
     // state any one property is in — the field outlined red, and under it a red filled `error` with
     // *This field is required.*
     const NEED_MSG = `<span title="Required for listings" style="display:inline-flex;align-items:center;gap:4px;font-size:14px;line-height:20px;color:var(--rmx-error, #eb343c)">${this.filledIco('error', 20, 'flex:none;color:var(--rmx-error, #eb343c)')}This field is required.</span>`;
-    const mfld = (label, ctl, help, key) => `<div ${key && NEED[key] ? 'class="ctd-need" ' : ''}style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0"><span style="display:inline-flex;align-items:center;flex-wrap:wrap;gap:6px;font-size:14px;color:var(--rmx-text, #666666)">${label}${help || ''}</span>${ctl}${key && NEED[key] ? NEED_MSG : ''}</div>`;
+    const mfld = (label, ctl, help, key) => `<div ${key && NEED[key] ? 'class="ctd-need" data-need="1" ' : ''}style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0"><span style="display:inline-flex;align-items:center;flex-wrap:wrap;gap:6px;font-size:14px;color:var(--rmx-text, #666666)">${label}${help || ''}</span>${ctl}${key && NEED[key] ? `<span class="ctd-need-msg">${NEED_MSG}</span>` : ''}</div>`;
+    // Filling a marked field clears its red outline and message as soon as it has a value, DOM-only
+    // (2026-10-16, the user's call); emptying it again puts them back. Picks in a dropdown set its hidden
+    // input without an event, so a click re-checks on the next tick.
+    window.__ctdNeedCheck = () => document.querySelectorAll('[data-need="1"]').forEach(w => {
+      const f = w.querySelector('textarea, input:not([type="checkbox"]):not([type="radio"])');
+      const has = !!(f && String(f.value || '').trim());
+      w.classList.toggle('ctd-need', !has);
+      const m = w.querySelector('.ctd-need-msg'); if (m) m.style.display = has ? 'none' : '';
+    });
+    if (!this._ctdNeedOn) { this._ctdNeedOn = true;
+      const chk = () => { if (window.__ctdNeedCheck && document.querySelector('[data-need="1"]')) window.__ctdNeedCheck(); };
+      document.addEventListener('input', chk, true); document.addEventListener('change', chk, true);
+      document.addEventListener('click', () => setTimeout(chk, 0), true); }
     // The tile's status, as on a charge (2026-10-16): **Listing Ready**, **Missing Required Fields** (red,
     // for the reason above) or **Not on Listings** when no listed charge uses the type — RMX's Lozenge
     // with no background. Nothing that belongs to one property (a duplicate) shows here. Once the type is
