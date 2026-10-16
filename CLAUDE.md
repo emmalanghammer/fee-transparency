@@ -953,7 +953,7 @@ describes the design before that tag; the code for most of it is still in the fi
   Include on listings toggle stays per charge.
 - **That read-only section is drawn the way a listing names the fee** (2026-10-16, board E of the design
   canvas *Marketing Details as Listing Fees*, <https://claude.ai/artifact/7tZkDzGSh5gTgc5wRXPozV>, from
-  Figma `4013:164963`). `chargeMktStaticHTML(code, isOne, { live, act, dim })`: *Listed as* **Name** and the
+  Figma `4013:164963`). `chargeMktStaticHTML(code, isOne, { live, act, dim })`: **Name** (no *Listed as* lead since 2026-10-16) and the
   italic description (grey italic *No marketing description* when empty), *Edit Marketing Details on
   <a>CODE Charge Type</a>* on the right (`ctOpen`), a rule, then the terms in italics — *Required / Optional /
   Situational Fee*, *Due Monthly, During Lease Term* (recurring) or *Due at Move-In* etc. (one-time),
