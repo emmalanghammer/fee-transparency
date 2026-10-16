@@ -5847,7 +5847,12 @@ class Component extends DCLogic {
     const act = !!this.state.publishedProps[l.prop];
     const bad = types.filter(t => t.missing.length || t.dup);
     const link = (t, a, arg) => `<a data-act="${a}"${arg != null ? ` data-arg="${esc(arg)}"` : ''} style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${t}</a>`;
-    const status = (t) => this.lrPill(t.code, t.missing, act, t.dup);
+    // The listing status the Charge Type Details tile and the Charge Types register draw (2026-10-16, canvas
+    // board H 1a): a dot and an italic navy label. Missing fields are always red (a charge type's rule); a
+    // duplicate belongs to this property, so it is amber until the property activates.
+    const status = (t) => this.statusDot(t.missing.length ? 'Missing Required Fields' : t.dup ? 'Duplicate Charge' : 'Listing Ready',
+      t.missing.length || (t.dup && act) ? 'var(--rmx-error, #eb343c)' : t.dup ? 'var(--rmx-notice, #faa61c)' : 'var(--rmx-success, #6eb744)',
+      t.missing.length ? 'Required for listings: ' + t.missing.join(', ') : t.dup ? this.dupLabel(t.dup) + ' ' + this.dupWhy(t.dup) : '');
     const TR = 'display:grid;grid-template-columns:minmax(150px,1fr) minmax(200px,1.4fr) max-content;align-items:center';
     const head = (t) => `<div title="${t}" style="display:flex;align-items:center;height:32px;box-sizing:border-box;padding:0 12px;border-bottom:1px solid var(--rmx-line, #cedbe7);font:500 12.6px Roboto,sans-serif;letter-spacing:1.134px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</div>`;
     const c = (inner, extra) => `<div style="display:flex;align-items:center;gap:8px;min-width:0;min-height:44px;box-sizing:border-box;padding:6px 12px;border-top:1px solid var(--rmx-brand-tint-bg, #ebf1f5);font-size:14px;color:var(--rmx-brand-dark, #13314c);${extra || ''}">${inner}</div>`;
@@ -5868,7 +5873,7 @@ class Component extends DCLogic {
             ${bad.length > 1 ? link('Mass Edit Marketing Details', 'ftMassEdit') : ''}
           </div>
           <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow-x:auto">
-            <div style="${TR};min-width:600px">${head('Charge Type')}${head('Listing Ready')}${head('')}${rows}</div>
+            <div style="${TR};min-width:600px">${head('Charge Type')}${head('Listing Status')}${head('')}${rows}</div>
           </div>
         </div>
         <div style="flex:none;display:flex;align-items:center;justify-content:flex-end;padding:14px 20px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7)">
@@ -5902,9 +5907,9 @@ class Component extends DCLogic {
     const fill = (d, col, sz) => `<svg class="ico" width="${sz || 20}" height="${sz || 20}" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:${col};flex:none"><path d="${d}"/></svg>`;
     const D_ERR = 'M503.5-289.48q9.5-9.48 9.5-23.5t-9.48-23.52q-9.48-9.5-23.5-9.5t-23.52 9.48q-9.5 9.48-9.5 23.5t9.48 23.52q9.48 9.5 23.5 9.5t23.52-9.48ZM453-433h60v-253h-60v253Zm27.27 353q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z';
     const D_WARN = 'm40-120 440-760 440 760H40Zm104-60h672L480-760 144-180Zm361.5-65.68q8.5-8.67 8.5-21.5 0-12.82-8.68-21.32-8.67-8.5-21.5-8.5-12.82 0-21.32 8.68-8.5 8.67-8.5 21.5 0 12.82 8.68 21.32 8.67 8.5 21.5 8.5 12.82 0 21.32-8.68ZM454-348h60v-224h-60v224Zm26-122Z';
-    const loz = (label, fg, bg) => `<span style="display:inline-flex;align-items:center;gap:8px;height:24px;box-sizing:border-box;padding:0 8px;border-radius:4px;background:${bg};white-space:nowrap;flex:none">`
+    const loz = (label, fg, bg, bold) => `<span style="display:inline-flex;align-items:center;gap:8px;height:24px;box-sizing:border-box;padding:0 8px;border-radius:4px;background:${bg};white-space:nowrap;flex:none">`
       + fill(label === 'Sent, Incomplete' ? D_WARN : D_ERR, fg, 16)
-      + `<span style="font-size:14px;line-height:16px;color:var(--rmx-brand-dark, #13314c)">${label}</span></span>`;
+      + `<span style="font-size:14px;line-height:16px;${bold ? 'font-weight:600;' : ''}color:var(--rmx-brand-dark, #13314c)">${label}</span></span>`;
     // `tone` is the section's own severity, and it is what makes the card look different rather than
     // a second colour inside it: the one that is stopping the listing takes a red border and a
     // tinted header, so the eye lands on it before reading a word. **Only Marketing Details Errors
@@ -5921,7 +5926,7 @@ class Component extends DCLogic {
             // The one section that stops a listing carries the Not Sent lozenge, built like Sent,
             // Incomplete's: the filled error glyph in red beside regular navy text (2026-10-15; it was
             // red SemiBold words). No fill of its own: the header it sits in is already red.
-            ? loz('Not Sent', 'var(--rmx-error, #eb343c)', 'transparent')
+            ? loz('Not Sent', 'var(--rmx-error, #eb343c)', 'transparent', true)
             : loz('Sent, Incomplete', 'var(--rmx-notice, #faa61c)', '#fdf3e7')}
           ${n?`${this.ico(open[key]?'keyboard_arrow_up':'keyboard_arrow_down', 20, 'color:var(--rmx-text, #666666);flex:none')}`:''}
         </div>
@@ -5939,17 +5944,27 @@ class Component extends DCLogic {
     // charge types; a duplicate pair to its Resolve dialog.
     const escA = t => String(t).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
     const mdCodes = is.charges.filter(c => !c.dup).map(c => c.code).filter((c, i, a) => c && a.indexOf(c) === i);
-    const chargeLead = `<div style="display:flex;align-items:flex-start;gap:14px">
-        <span style="flex:1;min-width:0;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">These charges are keeping this listing from being sent to providers.</span>
-        ${mdCodes.length > 1 ? `<a data-act="ftMassEdit" data-arg="${escA(mdCodes.join(','))}" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Mass Edit Marketing Details</a>` : ''}
-      </div>`;
+    // No helper sentence (2026-10-16, canvas board H 1b); Mass Edit stays, on the right, when more than one
+    // charge type is short.
+    const chargeLead = mdCodes.length > 1 ? `<div style="display:flex;justify-content:flex-end">
+        <a data-act="ftMassEdit" data-arg="${escA(mdCodes.join(','))}" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Mass Edit Marketing Details</a>
+      </div>` : '';
     // Each item carries its own fix on the right (2026-10-15): Edit Charge Type for missing details,
     // Resolve for a duplicate pair. Mass Edit sits in the lead only when more than one type is short.
     const itemLink = (t, act, arg) => `<a data-act="${act}" data-arg="${escA(arg)}" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${t}</a>`;
-    const itemRow = (main, sub, action) => `<span style="display:flex;align-items:flex-start;gap:14px"><span style="flex:1;min-width:0"><strong style="font-weight:600">${main}</strong><br><span style="color:var(--rmx-text, #666666)">${sub}</span></span>${action}</span>`;
+    // An item is titled by what gets fixed — the charge type, *DOGFEE – Dog Rent* — with the shared status
+    // beside it (2026-10-16, board H 1b); several short charges of one type are one item.
+    const itemRow = (main, stat, sub, action) => `<span style="display:flex;align-items:flex-start;gap:14px"><span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px"><span style="display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px"><strong style="font-weight:600">${main}</strong>${stat}</span><span style="color:var(--rmx-text, #666666)">${sub}</span></span>${action}</span>`;
+    const ctNames = {}; this.chargeTypeListAll().forEach(t => { ctNames[t[0]] = t[1]; });
+    const errItems = []; const byCode = {};
+    is.charges.forEach(c => {
+      if (c.dup) { errItems.push(c); return; }
+      if (byCode[c.code]) { c.missing.forEach(x => { if (byCode[c.code].missing.indexOf(x) < 0) byCode[c.code].missing.push(x); }); return; }
+      byCode[c.code] = { code: c.code, missing: c.missing.slice() }; errItems.push(byCode[c.code]);
+    });
     const chargeItem = (c) => c.dup
-      ? itemRow(c.name, 'They ' + this.dupWhy(c.dup) + '.', itemLink('Resolve', 'dupOpen', c.dup.prop + '::' + c.dup.key))
-      : itemRow(c.name, `Missing on the ${c.code} charge type: ${c.missing.join(', ')}`, itemLink('Edit Charge Type', 'ctOpen', c.code));
+      ? itemRow(c.name, this.statusDot('Duplicate Charge', 'var(--rmx-error, #eb343c)'), 'They ' + this.dupWhy(c.dup) + '.', itemLink('Resolve', 'dupOpen', c.dup.prop + '::' + c.dup.key))
+      : itemRow(`${c.code}${ctNames[c.code] ? ' – ' + ctNames[c.code] : ''}`, this.statusDot('Missing Required Fields', 'var(--rmx-error, #eb343c)'), `Missing: ${c.missing.join(', ')}`, itemLink('Edit Charge Type', 'ctOpen', c.code));
     return `<div data-act="ltErrClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:150">
       <div data-act="noop" style="width:714px;max-width:94vw;max-height:90vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="flex:none;display:flex;align-items:center;gap:12px;height:48px;box-sizing:border-box;padding:0 16px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
@@ -5957,8 +5972,8 @@ class Component extends DCLogic {
           <svg class="ico" width="24" height="24" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="ltErrClose" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;flex:none"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
         </div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px">
-          ${!this.state.publishedProps[l.prop] ? '' : sect('charges', 'Charge Errors', 'red', is.charges.length,
-            chargeLead + numbered(is.charges.map(chargeItem)))}
+          ${!this.state.publishedProps[l.prop] ? '' : sect('charges', 'Charge Errors', 'red', errItems.length,
+            chargeLead + numbered(errItems.map(chargeItem)))}
           ${sect('rm', 'Marketing Errors', 'amber', is.rm.length, numbered(is.rm))}
           ${sect('prov', provTitle, 'amber', is.prov.length, numbered(is.prov))}
         </div>
@@ -7232,6 +7247,11 @@ class Component extends DCLogic {
   // **Listing Ready**, **Missing Required Fields** (always red: one type can serve activated and
   // non-activated properties at once) or **Not on Listings** when no listed charge uses it. Drawn on
   // Charge Type Details' Marketing Details tile and in the Charge Types register (2026-10-16).
+  // RMX's Lozenge with no background: a dot and an italic navy label (2026-10-16) — the one listing status,
+  // read by `ctStatusHTML`, the Listings Charge Types dialog and the Listing Errors dialog.
+  statusDot(label, color, tip){
+    return `<span ${tip ? `title="${String(tip).replace(/"/g, '&quot;')}" ` : ''}style="display:inline-flex;align-items:center;gap:8px;height:24px;padding:0 8px;font-size:14px;font-style:italic;font-weight:400;color:var(--rmx-brand-dark, #13314c);white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:${color};flex:none"></span>${label}</span>`;
+  }
   ctStatusHTML(code){
     const c = String(code || '').toUpperCase();
     const m = this.ctMissingAll()[c];

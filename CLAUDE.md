@@ -1056,6 +1056,14 @@ describes the design before that tag; the code for most of it is still in the fi
   saved one it opens on the pet type its charges name (`ctAttrs`; DOGFEE reads *Dog*).
 - **The property Charges register no longer shows Listing Ready by default** (2026-10-16, "for now"): the `ready`
   column lost its `base:'ft'`, so it is off and offered in Column Setup like the other optional columns.
+- **The Listings dialogs use the shared status** (2026-10-16, canvas board H 1a / 1b). `statusDot(label, color, tip)` is the
+  one dot-and-italic-label status (RMX Lozenge, no background). **Charge Types** (`ltTypesHTML`): the column is **Listing
+  Status**; a row reads *Missing Required Fields* (red, always), *Duplicate Charge* (amber, red once the property has
+  activated) or *Listing Ready*, the missing fields in its `title` only, with Edit Charge Type / Resolve. **Listing Errors ›
+  Charge Errors** (`ltErrHTML`): no helper sentence (Mass Edit alone on the right when more than one type is short); each
+  item is titled by its charge type (*DOGFEE – Dog Rent*, several short charges of a type merged into one, `errItems`)
+  with the red status beside it, *Missing: Charge Requirement, Charge Schedule* under it, and Edit Charge Type; a
+  duplicate item reads *Duplicate Charge* with Resolve. The section's *Not Sent* is SemiBold.
 - **No listing status on a charges tile or overlay** (2026-10-16, the user's call): the unit / unit type Charges overlay
   (`recViewHTML`) no longer passes `ready` to `chargeRegisterHTML`, so it has no Listing Ready column (the Charges tile
   never had one). Listing status lives on the charge type (tile, register) and the charge form. The property Charges
