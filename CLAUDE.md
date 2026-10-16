@@ -938,7 +938,7 @@ describes the design before that tag; the code for most of it is still in the fi
   own (`listing`, `noProp`, `noInherit`, `cleared` stay unread); Charge Category and Charge Role stay the charge type's.
   `chargeInherits` returns `ctmFor` too. Marketing Setup's **Default Marketing Details** tile is back in the grid (Floor
   Plans one column again): Charge Type · Charges · Property Override (a green tick) · the edit pencil (`ctmOpen` →
-  `ctmEditHTML`, unchanged). `ctmSave` commits straight away — no Update Default Marketing Details question, since no
+  `ctmEditHTML`, unchanged). The dialog shows **Charge Role** read-only at the top of its fields card (*Charge Role:* + `fieldHelp` tooltip + the role in SemiBold, like Charge Category; 2026-10-16). `ctmSave` commits straight away — no Update Default Marketing Details question, since no
   charge has values for it to reach — and flashes *DOGFEE marketing details overridden at Riverview Apartments* / *…
   follows the DOGFEE charge type*. On the charge form the card shows the override's values, and when the type is
   overridden its link reads *Edit Details on <a>Property Override</a>* (`ctmOpen`, which banks the form like `ctOpen`).

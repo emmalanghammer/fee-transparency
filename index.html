@@ -4412,7 +4412,15 @@ class Component extends DCLogic {
       <span id="ctm-cat-disp" style="display:${cat ? 'block' : 'none'};font-size:14px;line-height:20px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${esc(cat)}</span>
       <div id="ctm-cat-err" style="display:${cat ? 'none' : 'flex'};flex-wrap:wrap;align-items:flex-start;column-gap:10px;row-gap:6px;background:#fff;border:1px solid var(--rmx-error, #eb343c);border-radius:4px;padding:8px 12px">${ERR}<span style="flex:1 1 0;min-width:0;font-size:12px;color:var(--rmx-ink-2, #424e5b);line-height:1.4">You don't have a charge category assigned to this charge type.</span><a onclick="document.getElementById('ctm-catadd').style.display='flex'" style="flex-basis:100%;padding-left:28px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));white-space:nowrap;cursor:pointer">Add Category</a></div>
     </div>`;
-    const body = pair(fld('Name', txt('ctm-name', v('name'))), catBlock)
+    // Charge Role is the charge type's too (2026-10-16, the user's call): shown, never edited here, the way
+    // Charge Category is — a label over the value in SemiBold, its tooltip saying where it is changed.
+    const roleKind = this.leaseRoleKind(code);
+    const roleTip = this.fieldHelp('Charge Role', 'Whether listings treat this charge as the Base Rent, the Security Deposit or an additional charge. Charge roles are specific to each charge type, so this can only be changed on the charge type.');
+    const roleBlock = `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="display:inline-flex;align-items:center;gap:6px;min-height:20px;line-height:20px;white-space:nowrap">${lab('Charge Role:')}${roleTip}</span>
+      <span style="font-size:14px;line-height:20px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${roleKind ? this.leaseRoleLabel(roleKind) : 'Additional Charge'}</span>
+    </div>`;
+    const body = roleBlock + pair(fld('Name', txt('ctm-name', v('name'))), catBlock)
       + fld('Marketing Description (Optional)', area('ctm-marketing', v('marketing')))
       + pair(fld('Charge Requirement', dd('ctm-requirement', REQ, v('requirement')), H.requirement), fld(this.schedOnly(), dd('ctm-schedule', SCHED, v('schedule'))))
       + pair(fld(this.dueOnly(), dd('ctm-feeDue', DUE, v('feeDue'))), fld(this.refundOnly(), dd('ctm-refundable', REF, v('refundable'))))
