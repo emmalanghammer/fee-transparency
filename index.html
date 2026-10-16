@@ -801,32 +801,33 @@ class Component extends DCLogic {
     const act = !!o.act;
     const role = this.leaseRoleKind(c);
     const miss = (field) => o.live
-      ? `<span title="Required for listings: set ${field} on the ${c} charge type" style="display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;box-sizing:border-box;white-space:nowrap;font-style:italic;color:var(--rmx-text, #666666);border:1px dashed ${act ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-notice, #faa61c)'};border-radius:4px;background:var(--rmx-bg-subtle, #f5f8fa)">${this.filledIco(act ? 'error' : 'warning', 16, 'flex:none;color:' + (act ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-notice, #faa61c)'))}<span>Missing: ${field}</span></span>`
-      : `<span style="white-space:nowrap;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No ${field}</span>`;
-    const term = (t) => `<span style="white-space:nowrap">${esc(t)}</span>`;
+      ? `<span title="Required for listings: set ${field} on the ${c} charge type" style="display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;box-sizing:border-box;white-space:nowrap;color:var(--rmx-text, #666666);border:1px dashed ${act ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-notice, #faa61c)'};border-radius:4px;background:var(--rmx-bg-subtle, #f5f8fa)">${this.filledIco(act ? 'error' : 'warning', 16, 'flex:none;color:' + (act ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-notice, #faa61c)'))}<span>Missing</span></span>`
+      : `<span style="white-space:nowrap;color:var(--rmx-text-muted, #b3b3b3)">—</span>`;
+    // RMX Input Field, Style=Read-only (2026-10-16, the user's call): no box, the label in grey over the
+    // value in SemiBold navy. A required field that's empty keeps the dashed Missing box in its place.
+    const ro = (label, val, missing, wide) => `<div style="flex:${wide ? '2' : '1'} 1 ${wide ? '300px' : '150px'};min-width:0;display:flex;flex-direction:column;gap:4px">
+        <span style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">${label}</span>
+        ${val ? `<span style="font-size:14px;line-height:20px;font-weight:600;color:var(--rmx-brand-dark, #13314c);overflow-wrap:anywhere">${esc(val)}</span>`
+          : missing ? `<span style="align-self:flex-start">${miss(label)}</span>`
+          : `<span style="font-size:14px;line-height:20px;color:var(--rmx-text-muted, #b3b3b3)">—</span>`}
+      </div>`;
     const name = role ? this.leaseRoleLabel(role) : D.name;
-    const REQ = { Required:'Required Fee', Optional:'Optional Fee', Situational:'Situational Fee' };
-    const DUE = { 'At Application':'Due at Application', 'Move-In':'Due at Move-In', 'During Term':'Due During Lease Term', 'Move-Out':'Due at Move-Out' };
+    const DUE = { 'At Application':'At Application', 'Move-In':'At Move-In', 'During Term':'During Term', 'Move-Out':'At Move-Out' };
     const cat = this.chargeCategoryFor(c);
     const ref = D.refundable === 'yes' || D.refundable === true ? 'Refundable' : D.refundable === 'no' || D.refundable === false ? 'Not Refundable' : '';
-    const terms = [
-      D.requirement ? term(REQ[D.requirement] || D.requirement) : miss('Charge Requirement'),
-      isOne ? (D.feeDue ? term(DUE[D.feeDue] || 'Due ' + D.feeDue) : miss('Charge Timing'))
-            : (D.schedule ? term('Due ' + D.schedule + ', During Lease Term') : miss('Charge Schedule')),
-      isOne && ref ? term(ref) : '',
-      cat ? term(/charge$/i.test(cat) ? cat : cat + ' Charge') : miss('Charge Category')
-    ].filter(Boolean);
     return `<div style="display:flex;flex-direction:column;gap:16px;${o.dim ? 'opacity:.5;' : ''}">
-      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;font-size:14px;line-height:20px">
-        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;min-width:0;flex:1 1 320px">
-          ${name ? `<span style="font-weight:600;${INK};white-space:nowrap">${esc(name)}</span>` : miss('Name')}
-          ${D.marketing ? `<span style="font-style:italic;${INK};min-width:0;overflow-wrap:anywhere">${esc(D.marketing)}</span>`
-            : `<span style="font-style:italic;color:var(--rmx-text-muted, #b3b3b3);white-space:nowrap">No marketing description</span>`}
-        </div>
+      <div style="display:flex;justify-content:flex-end;font-size:14px;line-height:20px">
         <span style="white-space:nowrap;color:var(--rmx-text, #666666)">Edit Marketing Details on <a data-act="ctOpen" data-arg="${c}" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">${c} Charge Type</a></span>
       </div>
-      <div style="height:1px;background:var(--rmx-line, #cedbe7)"></div>
-      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;font-size:14px;line-height:20px;font-style:italic;${INK}">${terms.join('')}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:16px">
+        ${ro('Name', name, true)}
+        ${ro('Marketing Description', D.marketing, false, true)}
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:16px">
+        ${ro('Charge Requirement', D.requirement, true)}
+        ${isOne ? ro('Charge Timing', DUE[D.feeDue] || D.feeDue, true) + ro('Refundability', ref, false) : ro('Charge Schedule', D.schedule, true)}
+        ${ro('Charge Category', cat, true)}
+      </div>
     </div>`;
   }
   chargeInherits(prop, code, listing){

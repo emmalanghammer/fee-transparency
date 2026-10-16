@@ -953,6 +953,12 @@ describes the design before that tag; the code for most of it is still in the fi
   editable fields and the role card stay in the DOM, hidden, so `__mitsRecheck`, the header status and
   `saveFee` keep working; they are filled from the charge type (the form strips `ed.listing`). The
   Include on listings toggle stays per charge.
+- **Then as RMX read-only fields** (2026-10-16, later the same day, the user's call): `chargeMktStaticHTML` draws each value as
+  RMX Input Field *Style=Read-only* — a grey 14px label over the value in SemiBold navy, no box, nothing italic — under *Edit
+  Marketing Details on <a>CODE Charge Type</a>* (right-aligned): **Name · Marketing Description** (two thirds), then **Charge
+  Requirement · Charge Schedule** (recurring) or **Charge Timing · Refundability** (one-time) **· Charge Category** last. A
+  required field that's empty keeps the dashed amber / red box, now reading just *Missing* (the label names the field); an
+  empty optional one, or any empty field where nothing is asked, is a grey `—`. The note below describes the version before.
 - **That read-only section is drawn the way a listing names the fee** (2026-10-16, board E of the design
   canvas *Marketing Details as Listing Fees*, <https://claude.ai/artifact/7tZkDzGSh5gTgc5wRXPozV>, from
   Figma `4013:164963`). `chargeMktStaticHTML(code, isOne, { live, act, dim })`: **Name** (no *Listed as* lead since 2026-10-16) and the
