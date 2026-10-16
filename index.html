@@ -6868,7 +6868,13 @@ class Component extends DCLogic {
       const has = !!(f && String(f.value || '').trim());
       w.classList.toggle('ctd-need', !has);
       const m = w.querySelector('.ctd-need-msg'); if (m) m.style.display = has ? 'none' : '';
-    });
+    }) || (() => {
+      // …and the tile's status follows: Listing Ready (with no Not Sent count) once nothing marked is empty.
+      const st = document.getElementById('ctd-status'); if (!st) return;
+      if (st.getAttribute('data-orig') == null) st.setAttribute('data-orig', st.innerHTML);
+      const left = document.querySelectorAll('[data-need="1"].ctd-need').length;
+      st.innerHTML = left ? st.getAttribute('data-orig') : this.statusDot('Listing Ready', 'var(--rmx-success, #6eb744)');
+    })();
     if (!this._ctdNeedOn) { this._ctdNeedOn = true;
       const chk = () => { if (window.__ctdNeedCheck && document.querySelector('[data-need="1"]')) window.__ctdNeedCheck(); };
       document.addEventListener('input', chk, true); document.addEventListener('change', chk, true);
@@ -6880,8 +6886,8 @@ class Component extends DCLogic {
     const MISS_ALL = this.ctMissingAll()[String(code || '').toUpperCase()];
     const ctNotSent = !(MISS_ALL && MISS_ALL.length) ? 0 : this.listingsData().filter(l => this.state.publishedProps[l.prop] && this.ftApplicable(l.prop)
       && this.ltChargeHits(l).some(x => x.ils && String(x.mits || '').toUpperCase() === String(code || '').toUpperCase() && !this.mitsComplete(x))).length;
-    const ctStatus = this.ctStatusHTML(code)
-      + (ctNotSent ? `<span style="display:inline-flex;align-items:center;height:24px;box-sizing:border-box;padding:0 8px;border-radius:4px;background:#fdecee;font-size:14px;color:#a3252c;white-space:nowrap">${ctNotSent === 1 ? '1 Listing Not Sent' : ctNotSent + ' Listings Not Sent'}</span>` : '');
+    const ctStatus = `<span id="ctd-status" style="display:inline-flex;align-items:center;gap:8px 12px;flex-wrap:wrap">${this.ctStatusHTML(code)}`
+      + (ctNotSent ? `<span style="display:inline-flex;align-items:center;height:24px;box-sizing:border-box;padding:0 8px;border-radius:4px;background:#fdecee;font-size:14px;color:#a3252c;white-space:nowrap">${ctNotSent === 1 ? '1 Listing Not Sent' : ctNotSent + ' Listings Not Sent'}</span>` : '') + '</span>';
     // Figma 3582:1667. The tile is named for what it sets, and the case for setting it moved out of
     // the field labels into one link in the header \u2014 the fields carry no help icons of their own.
     const whyTip = this.infoTip('<span style="display:block;white-space:normal">Listing sites need these details before they’ll advertise a fee. They’re set once here and used by every charge of this charge type, at every property. After a property activates fee transparency, its listings that use this charge type won’t be sent until every required field is filled in.</span>', undefined,
