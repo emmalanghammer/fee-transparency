@@ -1605,6 +1605,19 @@ only when `ftApplicable(state.property)` — whether a charge is ready to advert
 advertised price would look like, are not questions a property that doesn't list online is being
 asked. `chargeColsDefault()` is what honours the gate, beside the existing `base:'ils'` one.
 
+## The launch announcement
+
+**`announceHTML()`, three steps, follows the charge-type model** (2026-10-16). Step 2, *How it works*, shows a
+miniature of the **Charge Types** register (Name · Description · Listing Status with the dot statuses, and
+*Mass Edit Marketing Details* above it) over two numbered steps: **1 Add Marketing Details to Charge Types**
+(*set once on the charge type; every charge of it, at every property, is advertised with them; one at a time
+or with Mass Edit*) then **2 Activate Fee Transparency** (*once every charge type a property lists is ready,
+from Fee Transparency Setup on Listings*), still carrying the *If you list online & fee transparency is
+available* pill. Step 3's *Where to Start* says Charge Types first, then Listings › View Setup; *What to
+Expect* adds that changing a charge type's details updates every charge of it. Its button is **Go to Charge
+Types** (`announceCT`) — Happy Path keeps *Go to Properties*. Both later steps are 625px tall. Charge Type
+Details' Marketing Details intro is the first sentence alone (*Charges show it as it is set here.* came off).
+
 ## Tenant Charge Setup
 
 **Rent Charge Types on the property's General tab is a real checklist** (2026-10-09). It was a static

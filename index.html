@@ -2070,6 +2070,10 @@ class Component extends DCLogic {
       case 'announceProps':
         this.go('register', { announce: false });
         break;
+      // Marketing details are set on the charge type first (2026-10-16), so that is where it hands you.
+      case 'announceCT':
+        this.go('chargetypes', { announce: false, ftSetup: null });
+        break;
 
       // ---- Copy Charges from Property ----
       case 'copyOpen': this.setState({ profMenu: null, copyFees: { from: '', dup: 'skip', sel: {} } }); break;
@@ -6810,7 +6814,7 @@ class Component extends DCLogic {
     const role0 = d.role != null ? d.role : '';
     const roleRadio = (val, label) => `<label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap"><input type="radio" name="ctd-mkt-role" value="${val}" ${role0 === val ? 'checked' : ''} style="width:18px;height:18px;margin:0;flex:none"><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${label}</span></label>`;
     const mktTile = tile('Marketing Details', whyTip,
-      `<span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.45">Set the marketing information for every charge that uses this charge type. Charges show it as it is set here.</span>
+      `<span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.45">Set the marketing information for every charge that uses this charge type.</span>
        <div style="display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap">
          <span style="font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap">Charge Role:</span>
          ${roleRadio('rent', 'Base Rent')}${roleRadio('deposit', 'Security Deposit')}${roleRadio('', 'Additional Charge')}
@@ -11298,13 +11302,23 @@ class Component extends DCLogic {
     const miniAdd = () => `<div style="padding:5px 9px;border-top:1px solid var(--rmx-bg-subtle, #f5f8fa)"><span style="display:inline-flex;align-items:center;gap:3px;font-size:${MINI.cell};color:var(--ac,var(--rmx-brand, #008dd5))"><span style="font-size:9px">+</span>Add New Charge</span></div>`;
     // Section header: caret + title on the left, the italic descriptor on the right.
     const miniSect = (title, note, top) => `<div style="display:flex;align-items:center;gap:6px;padding:5px 9px;${top?'border-top:1px solid var(--rmx-line, #cedbe7)':''}">${caret}<span style="font-size:${MINI.head};font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title}</span><div style="flex:1"></div><span style="font-size:${MINI.note};font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">${note}</span></div>`;
+    // A likeness of the Charge Types register (2026-10-16): marketing details are set on the charge type,
+    // so that is the screen to recognise later — its Listing Status column, and Mass Edit above it.
+    const miniCtCols = 'grid-template-columns:62px 1fr 128px 70px';
+    const miniCtStatus = (t, c) => `<span style="display:inline-flex;align-items:center;gap:4px;font-size:${MINI.cell};font-style:italic;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${miniDot(c)}${t}</span>`;
+    const miniCtRow = (code, name, st, c) => `<div style="display:grid;${miniCtCols};align-items:center;gap:6px;padding:4px 9px;border-top:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff">
+      <span style="font-size:${MINI.cell};color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${code}</span>
+      <span style="font-size:${MINI.cell};color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${name}</span>
+      ${miniCtStatus(st, c)}${skel(44)}
+    </div>`;
     const preview = `<div style="background:#f2f6f9;border-radius:4px;padding:8px 10px;zoom:0.82">
+      <div style="display:flex;align-items:center;justify-content:flex-end;gap:4px;padding:0 2px 6px;font-size:${MINI.cell};color:var(--ac,var(--rmx-brand, #008dd5))">${this.ico('edit_square', 11)}Mass Edit Marketing Details</div>
       <div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
-        ${miniSect('Recurring Charges (9)', 'System and landlord mandated fees')}
-        ${miniHead()}
-        ${miniRow('RC','3 needed','warn')}${miniRow('WATER','Ready','ok','2B/2B')}${miniRow('GARBAGEFEE','Ready','ok','4C')}
-        ${miniAdd()}
-        ${miniSect('One-Time Charges (4)', 'Tenant selected add-ons (amenities, storage, etc.)', true)}
+        <div style="display:grid;${miniCtCols};gap:6px;padding:4px 9px;background:var(--rmx-register-header, #737373)">${['Name','Description','Listing Status','GL Account'].map(h=>`<span style="font-size:${MINI.col};color:#fff;white-space:nowrap;overflow:hidden">${h}</span>`).join('')}</div>
+        ${miniCtRow('APPFEE','Application Fee','Listing Ready','#6eb744')}
+        ${miniCtRow('GARBAG','Garbage Fee','Missing Required Fields','#eb343c')}
+        ${miniCtRow('RC','Rent','Listing Ready','#6eb744')}
+        ${miniCtRow('SF','Storage Fee','Not on Listings','#b3b3b3')}
       </div>
     </div>`;
     // Step 3 only applies to properties that list online, so it carries a pill and a lighter number,
@@ -11321,8 +11335,8 @@ class Component extends DCLogic {
     const body2 = `<div style="display:flex;flex-direction:column;gap:16px">
       ${preview}
       <div style="display:flex;flex-direction:column">
-        ${stepRow(1,'Add Charge Details','Fill in more details that describe each charge.')}
-        ${stepRow(2,'Activate Fee Transparency','Listings show a total monthly price.','If you list online &amp; fee transparency is available',true)}
+        ${stepRow(1,'Add Marketing Details to Charge Types','Set each charge type&#39;s marketing details once, and every charge that uses it, at every property, is advertised with them. Edit one at a time, or several at once with Mass Edit.')}
+        ${stepRow(2,'Activate Fee Transparency','Once every charge type a property lists is ready, activate it from Fee Transparency Setup on Listings. Its listings then show a Total Monthly Price.','If you list online &amp; fee transparency is available',true)}
       </div>
       <div style="height:1px;background:var(--rmx-line, #cedbe7)"></div>
       <div style="display:flex;align-items:center;gap:10px">
@@ -11339,23 +11353,24 @@ class Component extends DCLogic {
     const body3 = `<div style="display:flex;flex-direction:column;gap:16px">
       <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:14px 16px;display:flex;flex-direction:column;gap:12px">
         <span style="text-align:center;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Where to Start</span>
-        <div style="background:#f2f6f9;border-radius:4px;padding:14px 16px;font-size:14px;color:var(--rmx-text, #666666);line-height:1.55">Open <strong style="color:var(--rmx-brand-dark, #13314c)">Listings</strong> to see every property's status, or work through a single property from its <strong style="color:var(--rmx-brand-dark, #13314c)">Charges</strong>.</div>
+        <div style="background:#f2f6f9;border-radius:4px;padding:14px 16px;font-size:14px;color:var(--rmx-text, #666666);line-height:1.55">Start in <strong style="color:var(--rmx-brand-dark, #13314c)">Charge Types</strong>: fill in the marketing details on any type marked <strong style="color:var(--rmx-brand-dark, #13314c)">Missing Required Fields</strong>. Then open <strong style="color:var(--rmx-brand-dark, #13314c)">Listings</strong> › <strong style="color:var(--rmx-brand-dark, #13314c)">View Setup</strong> to activate each property that's ready.</div>
       </div>
       <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:16px 18px;display:flex;flex-direction:column;gap:14px">
         <span style="text-align:center;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">What to Expect</span>
-        ${expect('Tenant-level charges stay where they are.')}
         ${expect('Listings keep displaying as they do now until you activate fee transparency.')}
+        ${expect('Marketing details belong to the charge type, so changing one updates every charge of that type at once.')}
+        ${expect('Tenant-level charges stay where they are.')}
         ${expect('Late and NSF fees are displayed with the property\'s charges. How they work doesn\'t change.')}
       </div>
     </div>`;
 
     const done = this.scenarioKey() === 'happy'
-      ? ['announceProps', 'Go to Properties'] : ['announceSetup', 'Go to Listings'];
+      ? ['announceProps', 'Go to Properties'] : ['announceCT', 'Go to Charge Types'];
     const cta = step < 3
       ? `<button data-act="announceNext" class="btn-pri" style="height:34px;min-height:34px;padding:0 20px;border-radius:4px;font-size:14px">Next</button>`
       : `<button data-act="${done[0]}" class="btn-pri" style="height:34px;min-height:34px;padding:0 20px;border-radius:4px;font-size:14px">${done[1]}</button>`;
     return `<div data-act="announceClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:145">
-      <div data-act="noop" style="width:660px;max-width:96vw;height:${step === 3 ? 525 : 625}px;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+      <div data-act="noop" style="width:660px;max-width:96vw;height:625px;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         ${step === 1 ? head1 : head(step === 2 ? 'How it works' : 'What happens next')}
         <div style="flex:1;min-height:0;overflow-y:auto;padding:22px 32px 6px">${step === 1 ? body1 : step === 2 ? body2 : body3}</div>
         <div style="position:relative;flex:none;display:flex;align-items:center;justify-content:space-between;padding:16px 32px 22px">
