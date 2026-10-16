@@ -1046,6 +1046,11 @@ describes the design before that tag; the code for most of it is still in the fi
   Charge Types page's **Listing Ready** column (below; red once any property using the type has activated,
   italic grey *Not on Listings* text (no pill, 2026-10-15) for a type no listed charge uses) and the Listings Charge Types overlay's
   Listing Ready column all draw it, so the overlay no longer spells the fields out inline.
+- **Charge Type Details shows Pet Details** when the category is Pet (2026-10-16): `attrDefSections('ctd', …, { pet: true })`, a
+  **Pet Type** dropdown saved as `mktDef[CODE].attrs.petType` by `ctSave` (`attrRead` already read it). Until the type has
+  saved one it opens on the pet type its charges name (`ctAttrs`; DOGFEE reads *Dog*).
+- **The property Charges register no longer shows Listing Ready by default** (2026-10-16, "for now"): the `ready`
+  column lost its `base:'ft'`, so it is off and offered in Column Setup like the other optional columns.
 - **Charge Type Details' Marketing Details, to canvas board G** (2026-10-16,
   <https://claude.ai/artifact/7tZkDzGSh5gTgc5wRXPozV>). The tile header carries the charge's status as RMX's
   Lozenge with no background (dot + italic navy): **Listing Ready**, **Missing Required Fields** (red) or

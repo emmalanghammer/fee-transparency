@@ -6813,6 +6813,16 @@ class Component extends DCLogic {
     // portfolio's own RC and DP arrive as Base Rent and Security Deposit, through `mktDefAll`.
     const role0 = d.role != null ? d.role : '';
     const roleRadio = (val, label) => `<label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap"><input type="radio" name="ctd-mkt-role" value="${val}" ${role0 === val ? 'checked' : ''} style="width:18px;height:18px;margin:0;flex:none"><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${label}</span></label>`;
+    // A Pet category shows Pet Details with its Pet Type here too (2026-10-16), as Storage and Parking show
+    // theirs. Until the charge type has saved one, it opens on the pet type its charges already name.
+    const ctAttrs = (() => {
+      if (d.attrs && Object.keys(d.attrs).length) return d.attrs;
+      const c = String(code || '').toUpperCase(), seen = {};
+      this.propNames().forEach(p => this.profileRows(p).forEach(x => {
+        const t = String(x.mits || '').toUpperCase() === c && x.attrs && x.attrs.petType; if (t) seen[t] = (seen[t] || 0) + 1; }));
+      const top = Object.keys(seen).sort((a, b) => seen[b] - seen[a])[0];
+      return top ? Object.assign({}, d.attrs || {}, { petType: top }) : d.attrs;
+    })();
     const mktTile = tile('Marketing Details', whyTip,
       `<span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.45">Set the marketing information for every charge that uses this charge type.</span>
        <div style="display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap">
@@ -6832,7 +6842,7 @@ class Component extends DCLogic {
          ${mfld(this.dueOnly(code), mdd('ctd-mkt-feeDue', DUE, d.feeDue || seed.feeDue), '', 'feeDue')}
          ${mfld(this.refundOnly(), mdd('ctd-mkt-refundable', REF, d.refundable || seed.refundable))}
        </div>
-       ${this.attrDefSections('ctd', d.attrs, String(d.category || ''))}`, true, ctStatus);
+       ${this.attrDefSections('ctd', ctAttrs, String(d.category || ''), { pet: true })}`, true, ctStatus);
     const invTile = tile('Inventory Items',
       `<span data-act="todo" data-arg="Link Existing Inventory Item" style="display:inline-flex;align-items:center;gap:4px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Link Existing Inventory Item<svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M480-360 280-559h400L480-360Z"/></svg></span>`,
       `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
@@ -7367,7 +7377,8 @@ class Component extends DCLogic {
       { key:'from',     label:'From',                  w:'100px', base:true, recOnly:true },
       { key:'to',       label:'To',                    w:'90px',  base:true, recOnly:true },
       { key:'amount',   label:'Amount',                w:'140px', base:true },
-      { key:'ready',    label:'Listing Ready',         w:'150px', base:'ft' },
+      // Off by default for now (2026-10-16, the user's call); still offered in Column Setup.
+      { key:'ready',    label:'Listing Ready',         w:'150px' },
       { key:'method',   label:'Amount Method',         w:'130px' },
       // Off by default, on through Column Setup. It reads the resolved schedule, so a one-time
       // charge shows One-Time here rather than sitting blank beside the recurring ones.
