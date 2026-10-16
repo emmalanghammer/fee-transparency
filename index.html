@@ -6585,9 +6585,8 @@ class Component extends DCLogic {
     // has activated. A type no listed charge uses isn't measured, the way an excluded charge isn't.
     const mkCell = (code) => {
       const m = MK[code];
-      if (!m) return cell(`<span style="font-size:14px;font-style:italic;color:var(--rmx-text, #666666);white-space:nowrap" title="No charge of this type is on listings, so it isn&#39;t measured for listing readiness">Not on Listings</span>`);
-      const act = this.ctUsage(code).props.some(p => this.state.publishedProps[p]);
-      return cell(this.lrPill(code, m, act), 'overflow:visible');
+      // The same status the Marketing Details tile carries (2026-10-16).
+      return cell(this.ctStatusHTML(code), 'padding:0 0 0 0');
     };
     // Company-wide types say so; the rest name a property and count the others.
     const propCell = (r) => {
@@ -6798,11 +6797,7 @@ class Component extends DCLogic {
     const MISS_ALL = this.ctMissingAll()[String(code || '').toUpperCase()];
     const ctNotSent = !(MISS_ALL && MISS_ALL.length) ? 0 : this.listingsData().filter(l => this.state.publishedProps[l.prop] && this.ftApplicable(l.prop)
       && this.ltChargeHits(l).some(x => x.ils && String(x.mits || '').toUpperCase() === String(code || '').toUpperCase() && !this.mitsComplete(x))).length;
-    const ctDot = (c) => `<span style="width:8px;height:8px;border-radius:50%;background:${c};flex:none"></span>`;
-    const ctStatus = `<span style="display:inline-flex;align-items:center;gap:8px;height:24px;padding:0 8px;font-size:14px;font-style:italic;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${
-      !MISS_ALL ? ctDot('var(--rmx-text-muted, #b3b3b3)') + 'Not on Listings'
-      : MISS_ALL.length ? ctDot('var(--rmx-error, #eb343c)') + 'Missing Required Fields'
-      : ctDot('var(--rmx-success, #6eb744)') + 'Listing Ready'}</span>`
+    const ctStatus = this.ctStatusHTML(code)
       + (ctNotSent ? `<span style="display:inline-flex;align-items:center;height:24px;box-sizing:border-box;padding:0 8px;border-radius:4px;background:#fdecee;font-size:14px;color:#a3252c;white-space:nowrap">${ctNotSent === 1 ? '1 Listing Not Sent' : ctNotSent + ' Listings Not Sent'}</span>` : '');
     // Figma 3582:1667. The tile is named for what it sets, and the case for setting it moved out of
     // the field labels into one link in the header \u2014 the fields carry no help icons of their own.
@@ -7219,6 +7214,21 @@ class Component extends DCLogic {
   // register, a charge type on the Charge Types page and in a listing's Charge Types overlay. A duplicate
   // pair opens Resolve; missing details are a pill whose hover lists the fields still required on the
   // charge type; ready is the green check. Amber before activation, red after (`act`).
+  // A charge type's listing status, as RMX's Lozenge with no background — the dot and an italic navy label:
+  // **Listing Ready**, **Missing Required Fields** (always red: one type can serve activated and
+  // non-activated properties at once) or **Not on Listings** when no listed charge uses it. Drawn on
+  // Charge Type Details' Marketing Details tile and in the Charge Types register (2026-10-16).
+  ctStatusHTML(code){
+    const c = String(code || '').toUpperCase();
+    const m = this.ctMissingAll()[c];
+    const dot = (col) => `<span style="width:8px;height:8px;border-radius:50%;background:${col};flex:none"></span>`;
+    const tip = !m ? 'No charge of this type is on listings, so it isn&#39;t measured for listing readiness'
+      : m.length ? 'Required for listings: ' + m.join(', ') : 'Every required field is set';
+    return `<span title="${tip}" style="display:inline-flex;align-items:center;gap:8px;height:24px;padding:0 8px;font-size:14px;font-style:italic;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${
+      !m ? dot('var(--rmx-text-muted, #b3b3b3)') + 'Not on Listings'
+      : m.length ? dot('var(--rmx-error, #eb343c)') + 'Missing Required Fields'
+      : dot('var(--rmx-success, #6eb744)') + 'Listing Ready'}</span>`;
+  }
   lrPill(code, missing, act, dup){
     const tone = act ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-attention, #f58220)';
     // No fill (2026-10-15, the user's call): the icon and the words, aligned with the bare check on ready rows.
