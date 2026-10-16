@@ -1044,6 +1044,17 @@ describes the design before that tag; the code for most of it is still in the fi
   Charge Types page's **Listing Ready** column (below; red once any property using the type has activated,
   italic grey *Not on Listings* text (no pill, 2026-10-15) for a type no listed charge uses) and the Listings Charge Types overlay's
   Listing Ready column all draw it, so the overlay no longer spells the fields out inline.
+- **Charge Type Details' Marketing Details, to canvas board G** (2026-10-16,
+  <https://claude.ai/artifact/7tZkDzGSh5gTgc5wRXPozV>). The tile header carries the charge's status as RMX's
+  Lozenge with no background (dot + italic navy): **Listing Ready**, **Missing Required Fields** (red) or
+  **Not on Listings** (grey, no listed charge uses the type) — never a duplicate, which belongs to one
+  property — then, while the type holds listings back at an activated property, the red *n Listings Not
+  Sent* lozenge (`ctNotSent`: listings at published properties whose reach includes a short charge of the
+  type). A missing field is **always** marked the after-activation way, since one type can serve activated
+  and non-activated properties at once: the field outlined red (`ctd-need`, no longer gated on activation)
+  and under it a red filled `error` with *This field is required.* — the *Required for Listings* lozenge is
+  gone from the labels. `tile()` takes a fifth `extra` argument for what follows the title. The note below
+  describes the earlier version.
 - **Charge Type Details marks what's still required** (2026-10-15): each Marketing Details field
   the type's listed charges are missing (`ctMissingAll()`, mapped to keys through `mitsFields()`) gets the
   **Required for Listings** lozenge always, and — only once a property using the type has activated —

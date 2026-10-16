@@ -6743,9 +6743,9 @@ class Component extends DCLogic {
     const r = this.chargeTypeRow(code); if (!r) return '';
     const F = this.ctFieldBits();
     const money = n => (n || 0).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
-    const tile = (title, right, inner, wide) => `<div style="${wide ? 'flex:1 1 100%;' : 'flex:1;'}min-width:320px;display:flex;flex-direction:column;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
-      <div style="display:flex;align-items:center;gap:12px;padding:9px 14px;border-bottom:2px solid var(--ac,var(--rmx-brand, #008dd5))">
-        <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title}</span><div style="flex:1"></div>${right || ''}
+    const tile = (title, right, inner, wide, extra) => `<div style="${wide ? 'flex:1 1 100%;' : 'flex:1;'}min-width:320px;display:flex;flex-direction:column;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
+      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;padding:9px 14px;border-bottom:2px solid var(--ac,var(--rmx-brand, #008dd5))">
+        <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title}</span>${extra || ''}<div style="flex:1"></div>${right || ''}
       </div>
       <div style="flex:1;min-height:0;padding:14px;display:flex;flex-direction:column;gap:12px">${inner}</div></div>`;
     const pair = (a, b) => `<div style="display:flex;gap:16px;align-items:flex-start"><div style="flex:1;min-width:0">${a}</div><div style="flex:1;min-width:0">${b}</div></div>`;
@@ -6785,13 +6785,25 @@ class Component extends DCLogic {
     // Listing Ready pill's hover lists, from `ctMissingAll()`. The class only colours the field's own box.
     const NEED = (() => { const m = (this.ctMissingAll()[String(code || '').toUpperCase()]) || [];
       const o = {}; this.mitsFields().forEach(f => { if (m.indexOf(f.label) >= 0) o[f.key] = true; }); return o; })();
-    // …and its label carries the charge form's own *Required for Listings* lozenge, amber until a property
-    // using the type has activated, red after.
-    const NEED_ACT = this.ctUsage(code).props.some(p => this.state.publishedProps[p]);
-    const NEED_LOZ = `<span style="display:inline-flex;align-items:center;height:19px;box-sizing:border-box;padding:0 7px;border-radius:4px;background:${NEED_ACT ? '#fdecee' : '#fdf3e7'};font-size:12px;color:${NEED_ACT ? '#a3252c' : '#7a5a2a'};white-space:nowrap">Required for Listings</span>`;
-    // The red outline only once a property using the type has activated (2026-10-15, the user's call);
-    // before that the lozenge alone marks the field.
-    const mfld = (label, ctl, help, key) => `<div ${key && NEED[key] && NEED_ACT ? 'class="ctd-need" ' : ''}style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0"><span style="display:inline-flex;align-items:center;flex-wrap:wrap;gap:6px;font-size:14px;color:var(--rmx-text, #666666)">${label}${help || ''}${key && NEED[key] ? NEED_LOZ : ''}</span>${ctl}</div>`;
+    // A missing field is always marked the after-activation way (2026-10-16, canvas board G): one charge
+    // type can be used by properties that have activated and ones that haven't, so it's red whatever
+    // state any one property is in — the field outlined red, and under it a red filled `error` with
+    // *This field is required.*
+    const NEED_MSG = `<span title="Required for listings" style="display:inline-flex;align-items:center;gap:4px;font-size:14px;line-height:20px;color:var(--rmx-error, #eb343c)">${this.filledIco('error', 20, 'flex:none;color:var(--rmx-error, #eb343c)')}This field is required.</span>`;
+    const mfld = (label, ctl, help, key) => `<div ${key && NEED[key] ? 'class="ctd-need" ' : ''}style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0"><span style="display:inline-flex;align-items:center;flex-wrap:wrap;gap:6px;font-size:14px;color:var(--rmx-text, #666666)">${label}${help || ''}</span>${ctl}${key && NEED[key] ? NEED_MSG : ''}</div>`;
+    // The tile's status, as on a charge (2026-10-16): **Listing Ready**, **Missing Required Fields** (red,
+    // for the reason above) or **Not on Listings** when no listed charge uses the type — RMX's Lozenge
+    // with no background. Nothing that belongs to one property (a duplicate) shows here. Once the type is
+    // holding listings back at a property that has activated, the red *n Listings Not Sent* lozenge too.
+    const MISS_ALL = this.ctMissingAll()[String(code || '').toUpperCase()];
+    const ctNotSent = !(MISS_ALL && MISS_ALL.length) ? 0 : this.listingsData().filter(l => this.state.publishedProps[l.prop] && this.ftApplicable(l.prop)
+      && this.ltChargeHits(l).some(x => x.ils && String(x.mits || '').toUpperCase() === String(code || '').toUpperCase() && !this.mitsComplete(x))).length;
+    const ctDot = (c) => `<span style="width:8px;height:8px;border-radius:50%;background:${c};flex:none"></span>`;
+    const ctStatus = `<span style="display:inline-flex;align-items:center;gap:8px;height:24px;padding:0 8px;font-size:14px;font-style:italic;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${
+      !MISS_ALL ? ctDot('var(--rmx-text-muted, #b3b3b3)') + 'Not on Listings'
+      : MISS_ALL.length ? ctDot('var(--rmx-error, #eb343c)') + 'Missing Required Fields'
+      : ctDot('var(--rmx-success, #6eb744)') + 'Listing Ready'}</span>`
+      + (ctNotSent ? `<span style="display:inline-flex;align-items:center;height:24px;box-sizing:border-box;padding:0 8px;border-radius:4px;background:#fdecee;font-size:14px;color:#a3252c;white-space:nowrap">${ctNotSent === 1 ? '1 Listing Not Sent' : ctNotSent + ' Listings Not Sent'}</span>` : '');
     // Figma 3582:1667. The tile is named for what it sets, and the case for setting it moved out of
     // the field labels into one link in the header \u2014 the fields carry no help icons of their own.
     const whyTip = this.infoTip('<span style="display:block;white-space:normal">Listing sites need these details before they’ll advertise a fee. They’re set once here and used by every charge of this charge type, at every property. After a property activates fee transparency, its listings that use this charge type won’t be sent until every required field is filled in.</span>', undefined,
@@ -6821,7 +6833,7 @@ class Component extends DCLogic {
          ${mfld(this.dueOnly(code), mdd('ctd-mkt-feeDue', DUE, d.feeDue || seed.feeDue), '', 'feeDue')}
          ${mfld(this.refundOnly(), mdd('ctd-mkt-refundable', REF, d.refundable || seed.refundable))}
        </div>
-       ${this.attrDefSections('ctd', d.attrs, String(d.category || ''))}`, true);
+       ${this.attrDefSections('ctd', d.attrs, String(d.category || ''))}`, true, ctStatus);
     const invTile = tile('Inventory Items',
       `<span data-act="todo" data-arg="Link Existing Inventory Item" style="display:inline-flex;align-items:center;gap:4px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Link Existing Inventory Item<svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M480-360 280-559h400L480-360Z"/></svg></span>`,
       `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
