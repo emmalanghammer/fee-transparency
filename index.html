@@ -9142,7 +9142,9 @@ class Component extends DCLogic {
       </span>`;
     const filters = `<div style="display:flex;align-items:center;gap:16px">${scope('Past')}${scope('Future')}${scope('Exceptions')}</div>`;
     const card = (id, title, list, addLabel, group) => {
-      const reg = this.chargeRegisterHTML('vchg', list, { chk: true, ready: ft, kebab: true, striped: false, open: unitScope || utScope, tiers: [1080, 760, 520] });
+      // No Listing Ready column on a charges tile or overlay (2026-10-16, the user's call): listing status lives on
+      // the charge type and the charge form.
+      const reg = this.chargeRegisterHTML('vchg', list, { chk: true, kebab: true, striped: false, open: unitScope || utScope, tiers: [1080, 760, 520] });
       return `<section style="flex:none;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
         <div onclick="var b=this.nextElementSibling,o=b.style.display!=='none';b.style.display=o?'none':'block';this.querySelector('[data-secchev]').style.transform='rotate('+(o?-90:0)+'deg)'" style="display:flex;align-items:center;gap:8px;height:48px;padding:0 12px;cursor:pointer">
           <span data-secchev style="display:inline-flex;transition:transform .15s;color:var(--ac,var(--rmx-brand, #008dd5))">${this.ico('keyboard_arrow_down', 22)}</span>

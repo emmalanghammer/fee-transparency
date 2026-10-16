@@ -1056,6 +1056,10 @@ describes the design before that tag; the code for most of it is still in the fi
   saved one it opens on the pet type its charges name (`ctAttrs`; DOGFEE reads *Dog*).
 - **The property Charges register no longer shows Listing Ready by default** (2026-10-16, "for now"): the `ready`
   column lost its `base:'ft'`, so it is off and offered in Column Setup like the other optional columns.
+- **No listing status on a charges tile or overlay** (2026-10-16, the user's call): the unit / unit type Charges overlay
+  (`recViewHTML`) no longer passes `ready` to `chargeRegisterHTML`, so it has no Listing Ready column (the Charges tile
+  never had one). Listing status lives on the charge type (tile, register) and the charge form. The property Charges
+  overlay's `mitsBanner` is an alert, not a row status, and stays.
 - **Charge Type Details' Marketing Details, to canvas board G** (2026-10-16,
   <https://claude.ai/artifact/7tZkDzGSh5gTgc5wRXPozV>). The tile header carries the charge's status as RMX's
   Lozenge with no background (dot + italic navy): **Listing Ready**, **Missing Required Fields** (red) or
