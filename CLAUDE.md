@@ -1050,7 +1050,7 @@ describes the design before that tag; the code for most of it is still in the fi
   (2026-10-16, the user's call): `roleBoxPanelHTML` is no longer drawn by either. Where fee transparency applies the
   price field is named **Base Rent** before activation too (Listing Details' floor-plan note, Edit Floor Plan's
   price mapping); on activation the charges set as the property's Base Rent and Security Deposit are what it reads.
-  A property fee transparency can't apply to keeps *Price*. Deposit Fee(s) keeps its name until activation.
+  Listing Details' **Deposit Fee(s)** reads **Security Deposit** the same way. A property fee transparency can't apply to keeps *Price* and *Deposit Fee(s)*.
 - **Charge Type Details shows Pet Details** when the category is Pet (2026-10-16): `attrDefSections('ctd', …, { pet: true })`, a
   **Pet Type** dropdown saved as `mktDef[CODE].attrs.petType` by `ctSave` (`attrRead` already read it). Until the type has
   saved one it opens on the pet type its charges name (`ctAttrs`; DOGFEE reads *Dog*).
