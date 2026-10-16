@@ -190,6 +190,8 @@ charge's draft and collapses. `mktPricingSave` is `mpCapture()` + `mpCommit()` w
 the overlay's own Save. Because a charge lands in state the moment it is saved, its Listing Ready
 badge, the banner above and the strip's Convert button all move while the overlay is still open.
 
+**Error and warning glyphs are outlined everywhere** (2026-10-16, the user's call): `filledIco` draws only `check_circle` filled now, and `error` / `warning` fall through to the outlined `ico` glyphs, as do the Listing Errors lozenge's `D_ERR` / `D_WARN`. Notes below that say *filled* `error` or `warning` predate this.
+
 **Text buttons never underline** (2026-10-14, the user's rule). Links and text buttons say they're
 clickable by colour alone: `a:hover` and the design system's `.rmx a:hover` (which underlines, and lives in
 `ds/`, so it is overridden in `index.html`'s head) only darken to `--rmx-brand-hover`; breadcrumbs do the
