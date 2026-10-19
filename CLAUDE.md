@@ -1185,7 +1185,14 @@ describes the design before that tag; the code for most of it is still in the fi
   count. Groups gain `role` and `codes`; `dupLabel` reads *2 Base Rent charges at the property*, and
   `dupWhy(g)` *can't both be the Base Rent for the same units at the same time* (Resolve, Listing Errors,
   the Charges banner, the pill's title). The cache also watches `mktDef`, since marking a type changes roles.
-  - **Creating a conflicting charge is blocked; editing into one is allowed** (the user's call):
+  - **Saving a charge into a role conflict depends on activation** (2026-10-19, brief item 3; replaces the rule below):
+    on add **and** edit, once the property has activated (`publishedProps`) the save is blocked with the existing
+    *…is already the Base Rent on unit 1A for these dates…* error; before activation it saves, both charges read
+    *Duplicate Charge*, the property drops out of `ftReadyProps` (Setup row **Not Ready**), and the toast says so
+    (`roleFlagNote`: *Charge added. RC – Unit rent is also the Base Rent on unit 1A, so both read Duplicate Charge and
+    fee transparency can’t be activated until one is resolved.*). Checked in Mid Conversion: a second unit-level RC on
+    1A is blocked at Riverview and flagged at The Hamptons.
+  - *(Until 2026-10-19)* **Creating a conflicting charge is blocked; editing into one is allowed** (the user's call):
     `saveFee` runs `chargeConflictFor(row, prop)` only for a new charge — *"RC – Base rent is already the
     Base Rent at the property for these dates. Only one Base Rent can apply there at a time: end the other
     charge first, change these dates, or add this charge to a unit type or unit."* (the ordinary-type message

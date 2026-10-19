@@ -2474,10 +2474,16 @@ class Component extends DCLogic {
     // units under that scope off the feed. A charge kept off listings never conflicts.
     // An additional charge is blocked on add and on edit when another of its charge type and name (Comment)
     // already sits at that level and target, on listings or not, whatever the dates (2026-10-19).
+    // A Base Rent / Security Deposit conflict (2026-10-19, brief item 3), on add and on edit alike: once the
+    // property has activated fee transparency it is blocked; before that it saves, both charges read
+    // Duplicate Charge, and the property can't activate until it's resolved.
     const isOneNow = /-one$/.test(m.group || '');
     const roleNow = this.chargeRole({ mits: code, group: m.group });
-    const dup = (!m.edit || !roleNow) && this.chargeConflictFor({ mits: code, group: m.group, level: app, target: target || '', ils,
+    const activated = !!(this.state.publishedProps || {})[this.state.property];
+    const hit = this.chargeConflictFor({ mits: code, group: m.group, level: app, target: target || '', ils,
       desc: v('m-comment'), from: isOneNow ? '' : v('m-from'), to: isOneNow ? '' : v('m-to') }, this.state.property, m.edit ? m.edit.id : null);
+    const dup = hit && (!roleNow || activated) ? hit : null;
+    this._roleFlag = hit && roleNow && !activated ? { dup: hit, role: roleNow, where: this.dupWhere(app, target) } : null;
     if (dup) {
       const role = roleNow;
       const where = this.dupWhere(app, target);
@@ -2591,7 +2597,7 @@ class Component extends DCLogic {
       this.logChargeEdit(m.edit, Object.assign({}, m.edit, row));
       if (keep) return true;
       this.catAddCommit();
-      this.setState({ modal: null }); this.flash('Charge updated'); return true;
+      this.setState({ modal: null }); this.flash('Charge updated' + this.roleFlagNote()); return true;
     }
     const id = this.state.nextFeeId;
     this.setProfileRows(rows => rows.map(f => take && String(f.id) === String(take) ? unRent(f) : f)
@@ -2601,8 +2607,15 @@ class Component extends DCLogic {
     if (keep) { this.setState(s => ({ nextFeeId: s.nextFeeId + 1 })); return true; }
     this.catAddCommit();
     this.setState(s => ({ modal: null, nextFeeId: s.nextFeeId + 1 }));
-    this.flash('Charge added');
+    this.flash('Charge added' + this.roleFlagNote());
     return true;
+  }
+  // What a save that made a Base Rent / Security Deposit conflict before activation adds to its toast.
+  roleFlagNote(){
+    const f = this._roleFlag; this._roleFlag = null; if (!f) return '';
+    const L = this.leaseRoleLabel(f.role);
+    return '. ' + String(f.dup.mits || '').toUpperCase() + (f.dup.desc ? ' – ' + f.dup.desc : '') + ' is also the ' + L + ' ' + f.where
+      + ', so both read Duplicate Charge and fee transparency can’t be activated until one is resolved.';
   }
   tog(def, id){
     id = id || ('t' + (this._tid++));
