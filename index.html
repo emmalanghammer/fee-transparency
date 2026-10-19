@@ -8289,7 +8289,7 @@ class Component extends DCLogic {
   // choices pull in. Step two only ever shows charges for what step one actually named.
   rqBlank(){
     return { step:1, prop:'Riverview Apartments', unit:'', quoted:'08/20/2026', exp:'09/20/2026',
-      moveIn:'', term:'', ctype:'', rent:'500.00', comment:'',
+      moveIn:'', term:'', ctype:'', rent:'', comment:'',
       oris:[],
       sel:{}, closed:{}, qty:{}, extra:[] };
   }
@@ -8315,8 +8315,10 @@ class Component extends DCLogic {
     const q = this.state.rq || {};
     const unit = q.unit ? this.unitInfo(q.unit) : null;
     const base = (r) => unit ? this.chargeAmt(r, q.unit) : (this.parseAmt(r.amount) || (r.est != null ? r.est : 0));
-    // The rent on the quote is the one typed in step one; everything else prices off the charge.
-    const amount = (r) => (r.mits === 'RC' && this.rqAmt(q.rent)) ? this.rqAmt(q.rent) : base(r);
+    // Every charge prices off itself for the unit being quoted (2026-10-19, brief item 5) — the Base Rent
+    // included, so the quote's Base Rent and Total Monthly Price match that unit's listing. A hard-coded
+    // $500.00 rent used to override RC here; step one has no rent field to type one into.
+    const amount = (r) => base(r);
     // A charge only reaches this quote if its level points at the unit being quoted. ORI charges are
     // handled per rentable item, so they stay out of the primary unit's list.
     const applies = (r) => {

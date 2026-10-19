@@ -852,6 +852,12 @@ get started.* over **+ Add Rent Quote**, centred text, sitting near the top of t
 rather than in the middle of however tall the row makes it — `empty(t, extra, top)`. The tile's 4px
 corners and SemiBold title stay on the RMX tokens; production's 6px and bold are its own drift.
 
+**A rent quote prices the Base Rent from the unit's own charge** (2026-10-19, brief item 5). `rqBlank()` carried a
+hard-coded `rent:'500.00'` that `rqRows` used to override every RC — and step one has no rent field to change it. It
+is `''` now and every row prices through `chargeAmt(r, unit)`, so the quote's Base Rent and Total Monthly Price match
+that unit's listing: Post Conversion › Prospect › Add Rent Quote › 3B reads Base rent $1,375.00 and **$1,403.00/mo**,
+as Listings does. The no-RC fallback row still only appears if a rent is set.
+
 **The rent quote's charge step takes pets the way the Pricing Preview does** (2026-10-07): a ticked
 pet charge (`chargeCategoryFor` is *Pet*) shows the preview's − n/max + stepper (`rqQty`, held in
 `rq.qty`), capped at the pet type's Max Allowed (`ppPetMax`), and the line costs amount × pets held
