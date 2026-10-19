@@ -512,7 +512,7 @@ class Component extends DCLogic {
   leaseRoleLabel(k){ return k === 'rent' ? 'Base Rent' : k === 'deposit' ? 'Security Deposit' : ''; }
   // A Base Rent or Security Deposit charge type's Name and Charge Category are fixed (2026-10-19, the user's
   // spec): *Rent* / *Security Deposit*, both *Lease*. Set the moment the role is picked and shown read-only.
-  roleFixed(k){ return k === 'rent' ? { name: 'Rent', category: 'Lease' } : k === 'deposit' ? { name: 'Security Deposit', category: 'Lease' } : null; }
+  roleFixed(k){ return k === 'rent' ? { name: 'Base Rent', category: 'Lease' } : k === 'deposit' ? { name: 'Security Deposit', category: 'Lease' } : null; }
   // The charge form's answer: the role card's checked radio, or '' (an additional charge).
   leaseRoleVal(){ const w = this.q('#m-role-wrap'); if (!w || w.style.display === 'none') return '';
     const r = this.q('input[name="m-lease-role"]:checked'); return r ? r.value : ''; }
@@ -695,7 +695,9 @@ class Component extends DCLogic {
   // What a charge of a given type should start with. One set of values for the whole portfolio: they
   // fill the blank marketing fields on charges that already exist, and seed every charge made after.
   mktDefs(){ return this.state.mktDef || {}; }
-  mktDefFor(code){ return this.mktDefs()[String(code || '').toUpperCase()] || null; }
+  // A role type always reads its fixed Name and Category, whatever was stored before the role was set.
+  mktDefFor(code){ const d = this.mktDefs()[String(code || '').toUpperCase()] || null;
+    const fx = d && this.roleFixed(d.role); return fx ? Object.assign({}, d, fx) : d; }
   // What a charge type's Default Marketing Details opens on before anyone has set it. Three guesses
   // that are almost always right and are always editable: the Name is the charge type's own
   // description, a deposit is Refundable, and rent is due During Term. It is read **only** when the
