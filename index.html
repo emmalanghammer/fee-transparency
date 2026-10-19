@@ -658,6 +658,38 @@ class Component extends DCLogic {
   }
   // How many role conflicts the portfolio carries, so marking a charge type can say it made one.
   roleConflictCount(){ return this.propNames().reduce((n, p) => n + this.chargeDupes(p).filter(g => g.role).length, 0); }
+  // What a charge type save did to Base Rent / Security Deposit across the portfolio (2026-10-19, brief item 4):
+  // the conflicts there are, the units no Base Rent reaches, and the listings Not Sent — taken before and after
+  // the save so its notice can name what it created. The save itself never blocks.
+  roleImpactSnap(){
+    const out = { conf: {}, gap: {}, ns: {} };
+    const lst = this.listingsData();
+    this.propNames().filter(p => this.ftApplicable(p)).forEach(p => {
+      this.chargeDupes(p).forEach(g => { out.conf[p + '||' + g.key] = { p, role: g.role, where: g.level === 'Property' ? 'the property' : g.level === 'Unit' ? 'unit ' + g.target : g.target }; });
+      const mine = lst.filter(l => l.prop === p);
+      // A listed unit no Base Rent on listings reaches — the same test that makes it Not Sent once activated.
+      out.gap[p] = mine.filter(l => !this.ltChargeHits(l).some(r => r.ils && this.chargeRole(r) === 'rent')).map(l => l.unit);
+      out.ns[p] = mine.filter(l => this.ltFeedState(l).key === 'action').map(l => l.unit);
+    });
+    return out;
+  }
+  roleImpactNote(b, a){
+    const fresh = (now, was) => now.filter(x => (was || []).indexOf(x) < 0);
+    const units = (u) => u.length > 4 ? u.length + ' units' : (u.length === 1 ? 'unit ' : 'units ') + u.join(', ');
+    const bits = [];
+    const conf = Object.keys(a.conf).filter(k => !b.conf[k]).map(k => a.conf[k]);
+    ['rent', 'deposit'].forEach(k => { const c = conf.filter(x => x.role === k); if (!c.length) return;
+      bits.push('More than one ' + this.leaseRoleLabel(k) + ' now at ' + c.map(x => x.p + ' (' + x.where + ')').join(', ')); });
+    const nsNew = {}; Object.keys(a.ns).forEach(p => { nsNew[p] = fresh(a.ns[p], b.ns[p]); });
+    const gap = Object.keys(a.gap).map(p => ({ p, u: fresh(a.gap[p], b.gap[p]) })).filter(x => x.u.length);
+    // Units left without a Base Rent at an activated property say Not Sent in the same breath.
+    if (gap.length) bits.push('No Base Rent now on ' + gap.map(x => x.p + ' ' + units(x.u)
+      + (x.u.every(u => (nsNew[x.p] || []).indexOf(u) >= 0) ? ' (Not Sent until resolved)' : '')).join(', '));
+    const said = {}; gap.forEach(x => { said[x.p] = x.u; });
+    const ns = Object.keys(a.ns).map(p => ({ p, u: fresh(nsNew[p], said[p]) })).filter(x => x.u.length);
+    if (ns.length) bits.push('Not Sent until resolved: ' + ns.map(x => x.p + ' ' + units(x.u)).join(', '));
+    return bits.length ? '. ' + bits.join('. ') + '.' : '';
+  }
   // Current, and not ending today (kept for callers outside conflict detection).
   chargeLive(r){
     if (!this.chargeCurrent(r)) return false;
@@ -1570,12 +1602,11 @@ class Component extends DCLogic {
         codes.forEach(code => { defs[code] = Object.assign({}, defs[code] || {}, vals[code]);
           const fx = this.roleFixed(defs[code].role); if (fx) Object.assign(defs[code], fx); });
         this._meVals = {};
-        const confBefore = this.roleConflictCount();
+        const before = this.roleImpactSnap();
         this.setState({ mktDef: defs, ctMass: false }, () => {
           if (!codes.length) return;
-          const made = this.roleConflictCount() - confBefore;
           this.flash('Marketing details saved for ' + codes.length + ' charge type' + (codes.length === 1 ? '' : 's')
-            + (made > 0 ? '. ' + made + ' scope' + (made === 1 ? ' now has' : 's now have') + ' more than one Base Rent or Security Deposit; see the Duplicate status on those charges.' : '')); });
+            + this.roleImpactNote(before, this.roleImpactSnap())); });
         break; }
       case 'ctAddOpen': this.setState({ ctAdd: { code:'', desc:'', gl:'', amount:'0.00', props:null, category:'', active:true } }); break;
       case 'ctAddClose': this.setState({ ctAdd: null }); break;
@@ -1625,10 +1656,9 @@ class Component extends DCLogic {
         // so saving commits straight away — there is no Update Default Marketing Details question to ask.
         // Marking a type Base Rent or Security Deposit is allowed even when it gives a scope two of them
         // (scenarios B-02, B-05, A-02, A-05): the conflict is flagged on the charges, and the toast says so.
-        const confBefore = this.roleConflictCount();
+        const before = this.roleImpactSnap();
         this.setState({ chargeTypes: next, mktDef: defs, ctDetail: arg === 'close' ? null : newCode }, () => {
-          const made = this.roleConflictCount() - confBefore;
-          this.flash(made > 0 ? 'Charge type saved. ' + made + ' scope' + (made === 1 ? ' now has' : 's now have') + ' more than one Base Rent or Security Deposit; see the Duplicate status on those charges.' : 'Charge type saved'); });
+          this.flash('Charge type saved' + this.roleImpactNote(before, this.roleImpactSnap())); });
         break; }
       case 'ctDelete': { const code = this.state.ctDetail; if (!code) break;
         this.setState({ chargeTypes: this.chargeTypeRows().filter(r => r.code !== code), ctDetail: null });
@@ -5073,7 +5103,7 @@ class Component extends DCLogic {
         <div data-pillpnl style="display:none;position:fixed;top:0;left:0;z-index:400;min-width:180px;padding:4px 0;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.12)">
           <div style="padding:6px 12px;font-size:12px;line-height:16px;color:var(--rmx-text, #666666)">Missing ${kind === 'rent' ? 'Base Rent' : 'Security Deposit'}</div>
           ${fps.map(n => `<div style="padding:6px 12px;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${e(n)}</div>`).join('')}</div>` : ''}</span>`;
-    return { by, total: units.length, covered: units.length - missing.length, missingHTML, missingText: names.length ? names.join(', ') + ' missing ' + (kind === 'rent' ? 'base rent' : 'security deposit') : '' };
+    return { by, total: units.length, covered: units.length - missing.length, missing: missing.map(u => u.u), missingHTML, missingText: names.length ? names.join(', ') + ' missing ' + (kind === 'rent' ? 'base rent' : 'security deposit') : '' };
   }
   // One row renderer for the Review overlay (a 52px register row) and the two boxes (`o.stacked`).
   // Suggested: the charge, then a brand check and a grey close, 24px, 16px apart. Confirmed: the charge,
@@ -5867,6 +5897,9 @@ class Component extends DCLogic {
     const seen = {};
     rows.forEach(r => { if (!r.ils) return; const g = this.chargeDupeOf(r); if (!g || seen[g.key]) return; seen[g.key] = 1;
       out.push({ name: this.dupLabel(g), dup: g, missing: [] }); });
+    // A unit no Base Rent reaches has no price to send (2026-10-19, brief item 4): taking the Base Rent role
+    // off a charge type leaves its units here, and at an activated property they go Not Sent.
+    if (l && !rows.some(r => r.ils && this.chargeRole(r) === 'rent')) out.push({ name: 'No Base Rent', noRent: true, missing: [] });
     return out;
   }
   // Which providers rejected this listing. The feed errors are held on the listing as one count, so
@@ -6091,11 +6124,13 @@ class Component extends DCLogic {
     const ctNames = {}; this.chargeTypeListAll().forEach(t => { ctNames[t[0]] = t[1]; });
     const errItems = []; const byCode = {};
     is.charges.forEach(c => {
-      if (c.dup) { errItems.push(c); return; }
+      if (c.dup || c.noRent) { errItems.push(c); return; }
       if (byCode[c.code]) { c.missing.forEach(x => { if (byCode[c.code].missing.indexOf(x) < 0) byCode[c.code].missing.push(x); }); return; }
       byCode[c.code] = { code: c.code, missing: c.missing.slice() }; errItems.push(byCode[c.code]);
     });
-    const chargeItem = (c) => c.dup
+    const chargeItem = (c) => c.noRent
+      ? itemRow('No Base Rent', this.statusDot('Missing Base Rent', 'var(--rmx-error, #eb343c)'), 'No charge on a Base Rent charge type reaches unit ' + escA(l.unit) + ', so the listing has no rent to send.', itemLink('View Charges', 'openFeeProfile', l.prop))
+      : c.dup
       ? itemRow(c.name, this.statusDot('Duplicate Charge', 'var(--rmx-error, #eb343c)'), 'They ' + this.dupWhy(c.dup) + '.', itemLink('Resolve', 'dupOpen', c.dup.prop + '::' + c.dup.key))
       : itemRow(`${c.code}${ctNames[c.code] ? ' – ' + ctNames[c.code] : ''}`, this.statusDot('Missing Required Fields', 'var(--rmx-error, #eb343c)'), `Missing: ${c.missing.join(', ')}`, this.ctmOverridden(l.prop, c.code) ? itemLink('Edit Override', 'ctmOpen', l.prop + '::' + c.code) : itemLink('Edit Charge Type', 'ctOpen', c.code));
     return `<div data-act="ltErrClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:150">

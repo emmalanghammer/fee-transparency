@@ -1192,6 +1192,17 @@ describes the design before that tag; the code for most of it is still in the fi
     (`roleFlagNote`: *Charge added. RC – Unit rent is also the Base Rent on unit 1A, so both read Duplicate Charge and
     fee transparency can’t be activated until one is resolved.*). Checked in Mid Conversion: a second unit-level RC on
     1A is blocked at Riverview and flagged at The Hamptons.
+  - **A charge type save says what it did** (2026-10-19, brief item 4). It still never blocks. `ctSave` and `ctMassSave`
+    take `roleImpactSnap()` before and after — per applicable property, the role conflicts, the listed units no Base
+    Rent on listings reaches, and the listings Not Sent — and `roleImpactNote` adds what's new to the toast: *Charge type
+    saved. More than one Base Rent now at Riverview Apartments (the property), …. Not Sent until resolved: Riverview
+    Apartments units 3B, 5A, 4C, The Berkshires unit 302, …* (more than four units read as a count). **Taking the Base
+    Rent role off a type flags the units it leaves without one**: `ltChargeIssues(prop, l)` adds a `noRent` issue when no
+    Base Rent on listings reaches the listing, so at an activated property it goes **Not Sent** and Listing Errors ›
+    Charge Errors reads *No Base Rent* · red *Missing Base Rent* · *No charge on a Base Rent charge type reaches unit 3B,
+    so the listing has no rent to send.* · **View Charges**; the toast reads *No Base Rent now on Riverview Apartments
+    units 3B, 5A, 4C (Not Sent until resolved), …*. Before activation the property's Setup row goes Not Ready, as the
+    coverage gap already did. Baselines are unchanged (Mid Conversion still 3 Not Sent).
   - *(Until 2026-10-19)* **Creating a conflicting charge is blocked; editing into one is allowed** (the user's call):
     `saveFee` runs `chargeConflictFor(row, prop)` only for a new charge — *"RC – Base rent is already the
     Base Rent at the property for these dates. Only one Base Rent can apply there at a time: end the other
