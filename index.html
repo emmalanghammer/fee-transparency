@@ -510,6 +510,9 @@ class Component extends DCLogic {
   // opens with its rent and deposit already named.
   leaseRoleOf(r){ return r ? this.leaseRoleKind(r.mits) : ''; }
   leaseRoleLabel(k){ return k === 'rent' ? 'Base Rent' : k === 'deposit' ? 'Security Deposit' : ''; }
+  // A Base Rent or Security Deposit charge type's Name and Charge Category are fixed (2026-10-19, the user's
+  // spec): *Rent* / *Security Deposit*, both *Lease*. Set the moment the role is picked and shown read-only.
+  roleFixed(k){ return k === 'rent' ? { name: 'Rent', category: 'Lease' } : k === 'deposit' ? { name: 'Security Deposit', category: 'Lease' } : null; }
   // The charge form's answer: the role card's checked radio, or '' (an additional charge).
   leaseRoleVal(){ const w = this.q('#m-role-wrap'); if (!w || w.style.display === 'none') return '';
     const r = this.q('input[name="m-lease-role"]:checked'); return r ? r.value : ''; }
@@ -547,7 +550,7 @@ class Component extends DCLogic {
     return {
       leaseRole: this.leaseRoleOf(r),
       // A Base Rent or Security Deposit charge is advertised under that name, whatever it was called.
-      name: this.leaseRoleOf(r) ? this.leaseRoleLabel(this.leaseRoleOf(r)) : pick('name'),
+      name: this.roleFixed(this.leaseRoleOf(r)) ? this.roleFixed(this.leaseRoleOf(r)).name : pick('name'),
       // Neither a charge nor a property can set a category — it is the charge type's alone, so
       // changing it there moves every charge of the type, everywhere.
       category: this.chargeCategoryFor(r.mits),
@@ -817,7 +820,7 @@ class Component extends DCLogic {
           : missing ? `<span style="align-self:flex-start">${miss(label)}</span>`
           : `<span style="font-size:14px;line-height:20px;color:var(--rmx-text-muted, #b3b3b3)">—</span>`}
       </div>`;
-    const name = role ? this.leaseRoleLabel(role) : D.name;
+    const name = this.roleFixed(role) ? this.roleFixed(role).name : D.name;
     const DUE = { 'At Application':'At Application', 'Move-In':'At Move-In', 'During Term':'During Term', 'Move-Out':'At Move-Out' };
     const cat = this.chargeCategoryFor(c);
     const ref = D.refundable === 'yes' || D.refundable === true ? 'Refundable' : D.refundable === 'no' || D.refundable === false ? 'Not Refundable' : '';
@@ -1526,7 +1529,8 @@ class Component extends DCLogic {
         const vals = this._meVals || {};
         const defs = Object.assign({}, this.mktDefs());
         const codes = Object.keys(vals);
-        codes.forEach(code => { defs[code] = Object.assign({}, defs[code] || {}, vals[code]); });
+        codes.forEach(code => { defs[code] = Object.assign({}, defs[code] || {}, vals[code]);
+          const fx = this.roleFixed(defs[code].role); if (fx) Object.assign(defs[code], fx); });
         this._meVals = {};
         const confBefore = this.roleConflictCount();
         this.setState({ mktDef: defs, ctMass: false }, () => {
@@ -1572,6 +1576,7 @@ class Component extends DCLogic {
           requirement: v('ctd-mkt-requirement'), schedule: v('ctd-mkt-schedule'),
           feeDue: v('ctd-mkt-feeDue'), refundable: v('ctd-mkt-refundable'),
           role: ((this.q('input[name="ctd-mkt-role"]:checked') || {}).value) || '' };
+        if (this.roleFixed(mk.role)) Object.assign(mk, this.roleFixed(mk.role));
         // Storage and Parking Details ride along for a charge type of that category.
         const mkAttrs = this.attrRead('ctd', mk.category);
         if (mkAttrs) mk.attrs = mkAttrs;
@@ -4423,7 +4428,9 @@ class Component extends DCLogic {
       <span style="display:inline-flex;align-items:center;gap:6px;min-height:20px;line-height:20px;white-space:nowrap">${lab('Charge Role:')}${roleTip}</span>
       <span style="font-size:14px;line-height:20px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${roleKind ? this.leaseRoleLabel(roleKind) : 'Additional Charge'}</span>
     </div>`;
-    const body = roleBlock + pair(fld('Name', txt('ctm-name', v('name'))), catBlock)
+    // The role fixes the Name too (2026-10-19), so an override can't change it.
+    const roleFx = this.roleFixed(roleKind);
+    const body = roleBlock + pair(fld('Name', roleFx ? off(roleFx.name, false) : txt('ctm-name', v('name'))), catBlock)
       + fld('Marketing Description (Optional)', area('ctm-marketing', v('marketing')))
       + pair(fld('Charge Requirement', dd('ctm-requirement', REQ, v('requirement')), H.requirement), fld(this.schedOnly(), dd('ctm-schedule', SCHED, v('schedule'))))
       + pair(fld(this.dueOnly(), dd('ctm-feeDue', DUE, v('feeDue'))), fld(this.refundOnly(), dd('ctm-refundable', REF, v('refundable'))))
@@ -6501,7 +6508,9 @@ class Component extends DCLogic {
     // An empty required field (2026-10-15, the user's call; it was an amber *Missing* lozenge, then the
     // glyph with red words): the filled red error glyph alone, *Required for listings* on hover.
     const MISSING = `<span title="Required for listings" aria-label="Required for listings" role="img" style="display:inline-flex;align-items:center;gap:6px;min-width:0;font:400 14px/16px Roboto,sans-serif;color:var(--rmx-error, #eb343c);white-space:nowrap">${this.filledIco('error', 16, 'color:var(--rmx-error, #eb343c);flex:none')}</span>`;
-    const V = (code, f) => { const dv = ((this._meVals || {})[code] || {})[f]; if (dv !== undefined) return dv;
+    const V = (code, f) => {
+      if (f === 'name' || f === 'category') { const fx = this.roleFixed(V(code, 'role')); if (fx) return fx[f]; }
+      const dv = ((this._meVals || {})[code] || {})[f]; if (dv !== undefined) return dv;
       const d = this.mktDefFor(code) || {}; return f === 'role' ? (d.role || '') : (d[f] || ''); };
     const NA = `<span style="color:var(--rmx-text-muted, #b3b3b3)" title="No charge of this type needs it">—</span>`;
     const show = (c, v, code) => { if (c.f === 'role') return esc(lbl(ROLE, v || '')); if (v) return esc(c.opts ? lbl(c.opts, v) : v);
@@ -6533,6 +6542,8 @@ class Component extends DCLogic {
       window.__meClose(true);
       const code = el.getAttribute('data-code'), f = el.getAttribute('data-f');
       const c = COLS.filter(x => x.f === f)[0]; if (!c) return;
+      // A Base Rent / Security Deposit type's Name and Category are fixed by its role, so not editable here.
+      if ((f === 'name' || f === 'category') && this.roleFixed(V(code, 'role'))) return;
       const cur = V(code, f);
       el.setAttribute('data-editing', '1');
       const box = 'display:flex;align-items:center;width:100%;height:28px;box-sizing:border-box;padding:0 8px;border:1px solid ' + BRAND + ';border-radius:4px;background:#fff;font:400 14px Roboto,sans-serif;' + INK;
@@ -6556,7 +6567,9 @@ class Component extends DCLogic {
         return on ? `<div data-v="${esc(o.value)}" data-sel="1" style="padding:8px 14px;font-size:14px;cursor:pointer;white-space:nowrap;color:#fff;background:var(--ac,var(--rmx-brand, #008dd5))">${esc(o.label)}</div>`
           : `<div data-v="${esc(o.value)}" onmouseenter="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseleave="this.style.background='#fff'" style="padding:8px 14px;font-size:14px;cursor:pointer;white-space:nowrap;${INK};background:#fff">${esc(o.label)}</div>`; }).join('');
       pnl.addEventListener('mousedown', (e) => { const it = e.target.closest('[data-v]'); if (!it) return; e.preventDefault(); e.stopPropagation();
-        const v = it.getAttribute('data-v'); if (v !== V(code, f)) keep(code, f, v); pnl.remove(); paint(el); });
+        const v = it.getAttribute('data-v'); if (v !== V(code, f)) keep(code, f, v); pnl.remove(); paint(el);
+        // Picking a role repaints that row's Name and Category, which it fixes (or frees).
+        if (f === 'role') document.querySelectorAll('[data-rreg-me] [data-code="' + code + '"][data-f="name"], [data-rreg-me] [data-code="' + code + '"][data-f="category"]').forEach(paint); });
       document.body.appendChild(pnl);
       const h = pnl.offsetHeight; let top = r.bottom + 2; if (top + h > window.innerHeight - 8) top = r.top - h - 2;
       pnl.style.left = Math.max(8, Math.min(r.left + 4, window.innerWidth - pnl.offsetWidth - 8)) + 'px'; pnl.style.top = Math.max(8, top) + 'px';
@@ -6917,7 +6930,32 @@ class Component extends DCLogic {
     // A charge type nobody has set yet — a newly added one — is an Additional Charge (2026-10-15); only the
     // portfolio's own RC and DP arrive as Base Rent and Security Deposit, through `mktDefAll`.
     const role0 = d.role != null ? d.role : '';
-    const roleRadio = (val, label) => `<label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap"><input type="radio" name="ctd-mkt-role" value="${val}" ${role0 === val ? 'checked' : ''} style="width:18px;height:18px;margin:0;flex:none"><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${label}</span></label>`;
+    // A Base Rent or Security Deposit type's Name and Charge Category are fixed by the role (2026-10-19):
+    // the live control stays in the DOM (hidden) carrying the fixed value, so ctSave reads it, and a disabled
+    // RMX field shows it. Picking the role swaps them DOM-only (`__ctdRole`); going back to Additional Charge
+    // restores what the fields held before.
+    const FX = this.roleFixed(role0);
+    const LOCKBOX = 'display:flex;align-items:center;box-sizing:border-box;width:100%;height:36px;padding:0 10px;background:#f9f9f9;border:1px solid #ebf1f5;border-radius:4px;font-size:14px;color:var(--rmx-text-muted, #b3b3b3)';
+    const lockWrap = (k, live, fixed) => `<div id="ctd-${k}-live" style="display:${fixed ? 'none' : 'block'}">${live}</div>`
+      + `<div id="ctd-${k}-lock" title="Set by the charge role" style="display:${fixed ? 'flex' : 'none'};${LOCKBOX.replace('display:flex;', '')}">${fixed || ''}</div>`;
+    window.__ctdRole = (v) => {
+      const fx = this.roleFixed(v);
+      [['name', 'ctd-mkt-name'], ['category', 'ctd-mkt-category']].forEach(([k, id]) => {
+        const inp = document.getElementById(id), live = document.getElementById('ctd-' + k + '-live'), lock = document.getElementById('ctd-' + k + '-lock');
+        if (!inp || !live || !lock) return;
+        if (fx) {
+          if (inp.getAttribute('data-prev') == null) inp.setAttribute('data-prev', inp.value);
+          inp.value = fx[k]; lock.textContent = fx[k]; live.style.display = 'none'; lock.style.display = 'flex';
+        } else {
+          const prev = inp.getAttribute('data-prev'); if (prev != null) { inp.value = prev; inp.removeAttribute('data-prev'); }
+          live.style.display = 'block'; lock.style.display = 'none';
+        }
+        if (k === 'category') { const disp = document.getElementById(id + '-disp'); if (disp) disp.textContent = inp.value || '\u00a0';
+          if (window.__attrDefShow) window.__attrDefShow('ctd', inp.value); }
+      });
+      if (window.__ctdNeedCheck) window.__ctdNeedCheck();
+    };
+    const roleRadio = (val, label) => `<label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap"><input type="radio" name="ctd-mkt-role" value="${val}" ${role0 === val ? 'checked' : ''} onchange="if(window.__ctdRole)window.__ctdRole(this.value)" style="width:18px;height:18px;margin:0;flex:none"><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${label}</span></label>`;
     // A Pet category shows Pet Details with its Pet Type here too (2026-10-16), as Storage and Parking show
     // theirs. Until the charge type has saved one, it opens on the pet type its charges already name.
     const ctAttrs = (() => {
@@ -6935,8 +6973,8 @@ class Component extends DCLogic {
          ${roleRadio('rent', 'Base Rent')}${roleRadio('deposit', 'Security Deposit')}${roleRadio('', 'Additional Charge')}
        </div>
        <div style="display:flex;gap:16px">
-         ${mfld('Name', F.txt('ctd-mkt-name', d.name || seed.name), '', 'name')}
-         ${mfld('Charge Category', this.singleSelect('ctd-mkt-category', this.chargeCategoryOptions(), d.category || '', { noSearch:true, blank:true, placeholder:'\u00a0', js:"if(window.__attrDefShow)window.__attrDefShow('ctd',_v)" }), H.category, 'category')}
+         ${mfld('Name', lockWrap('name', F.txt('ctd-mkt-name', FX ? FX.name : (d.name || seed.name)), FX && FX.name), '', 'name')}
+         ${mfld('Charge Category', lockWrap('category', this.singleSelect('ctd-mkt-category', this.chargeCategoryOptions(), FX ? FX.category : (d.category || ''), { noSearch:true, blank:true, placeholder:'\u00a0', js:"if(window.__attrDefShow)window.__attrDefShow('ctd',_v)" }), FX && FX.category), H.category, 'category')}
        </div>
        ${mfld('Marketing Description (Optional)', marea('ctd-mkt-marketing', d.marketing || ''))}
        <div style="display:flex;gap:16px">

@@ -944,6 +944,13 @@ describes the design before that tag; the code for most of it is still in the fi
   overridden its link reads *Edit Details on <a>Property Override</a>* (`ctmOpen`, which banks the form like `ctOpen`).
   Readiness follows: Mid Conversion, override DOGFEE at Riverview → its three listings go Sent, while the DOGFEE charge
   type still reads Missing Required Fields (The Estates). No scenario seeds an override, so every baseline is unchanged.
+- **A Base Rent or Security Deposit charge type's Name and Charge Category are fixed** (2026-10-19, the user's spec):
+  `roleFixed(kind)` — *Rent* / *Lease* for Base Rent, *Security Deposit* / *Lease* for Security Deposit. On Charge Type
+  Details, picking the role (`__ctdRole`, DOM-only) sets both and shows them as RMX disabled fields (`ctd-name-lock` /
+  `ctd-category-lock`; the live controls stay hidden, carrying the value, so `ctSave` reads it); going back to Additional
+  Charge restores what they held. `ctSave` and `ctMassSave` enforce them; Mass Edit reads them for role types and won't
+  open those two cells; a role pick there repaints them. The property override dialog shows the Name disabled for these
+  types. `resolvedListing` and the charge form's card name a Base Rent charge **Rent** (it was *Base Rent*).
 - **The Listings dialogs offer Edit Override where the listing's property overrides the type** (2026-10-19): the Charge
   Types dialog's row action and a Charge Errors item's link read **Edit Override** (`ctmOpen` with `PROP::CODE`, which
   opens that property's override without moving `state.property`) instead of Edit Charge Type. `ctmEditHTML` sits at
