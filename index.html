@@ -593,7 +593,8 @@ class Component extends DCLogic {
   // From–To windows overlap (To exclusive; a one-time charge has no window, so it always overlaps).
   //   · Role: two Base Rent charges (recurring, on Base Rent charge types, whichever types) or two
   //     Security Deposit charges (one-time, on Security Deposit types) — B-/A-/P-/D- rows.
-  //   · Same charge type: two charges of one ordinary type, as before (kept at the user's call).
+  //   · Additional charges are never flagged here (2026-10-19, fixes brief item 2): a duplicate of one is
+  //     blocked when it is saved (`chargeConflictFor`), so it can't exist to be resolved.
   // Only charges on listings count: excluding one resolves it. A charge that has ended doesn't.
   // Groups are `{ key, prop, code, codes, role, level, target, kind, rows, ids }`, cached per property.
   chargeDupes(prop){
@@ -603,7 +604,7 @@ class Component extends DCLogic {
     if (this._dupCache[p]) return this._dupCache[p];
     const G = {};
     this.appliedRows(p).forEach(r => {
-      if (!r.ils || !r.mits || r.propSpecific || r.excluded || this.chargeEnded(r)) return;
+      if (!r.ils || !r.mits || r.propSpecific || r.excluded || this.chargeEnded(r) || !this.chargeRole(r)) return;
       const k = this.chargeScopeKey(r);
       (G[k] = G[k] || []).push(r);
     });
@@ -11252,7 +11253,7 @@ class Component extends DCLogic {
     const picked = rows.filter(r => c.sel[r.id]).length;
     const box = on => `<span style="width:18px;height:18px;border-radius:2px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${on?'background:var(--rmx-attention, #f58220);border:1px solid var(--rmx-attention, #f58220)':'background:#fff;border:1px solid var(--rmx-text-muted, #b3b3b3)'}">${on?'<svg class="ico" width="14" height="14" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:#fff"><path d="M378-246 154-470l43-43 181 181 384-384 43 43-427 427Z"/></svg>':''}</span>`;
     const radio = (val, label, em) => `<label data-act="copyDup" data-arg="${val}" style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;color:var(--rmx-brand-dark, #13314c)"><span style="width:18px;height:18px;border-radius:50%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;border:1px solid ${c.dup===val?'var(--ac,var(--rmx-brand, #008dd5))':'var(--rmx-text-muted, #b3b3b3)'}">${c.dup===val?'<span style="width:10px;height:10px;border-radius:50%;background:var(--ac,var(--rmx-brand, #008dd5))"></span>':''}</span><span>${label}<i style="color:var(--rmx-ink-2, #424e5b)"> ${em}</i></span></label>`;
-    const dupTip = this.infoTip(`<span style="display:block;white-space:normal">A duplicate is a charge matching one this profile already has; same charge type, frequency, and name, at the same level (property, unit type, or unit). For example, if both profiles have a recurring property Rent charge, that's a duplicate.</span>`);
+    const dupTip = this.infoTip(`<span style="display:block;white-space:normal">A duplicate is a charge matching one this property already has: the same charge type and comment, at the same level and on the same unit type or unit. For example, if both properties have a property-level APPFEE charge commented “Application fee”, that's a duplicate.</span>`);
     const table = (label, list, isRec) => {
       const colK = 'copy-' + (isRec ? 'rec' : 'one');
       const cols = this.colTracks(colK, isRec ? '44px 200px 120px minmax(150px,1fr) 90px 100px 90px 110px'

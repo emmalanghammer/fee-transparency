@@ -1056,6 +1056,11 @@ describes the design before that tag; the code for most of it is still in the fi
     filters for these; inline `#m-err`: *APPFEE charge “Pet application” already exists on unit 1A. Give this charge a
     different comment, or edit the other one.*), Bulk Update (`#bu-err`, same key) and Copy (`sameCharge` is the same
     key, so the dialog's skip / replace handles it). Base Rent / Security Deposit keep the rule below.
+  - **Only Base Rent / Security Deposit conflicts are ever flagged** (2026-10-19, brief item 2): `chargeDupes` skips any
+    charge without a role, so an additional charge never reads *Duplicate Charge*, never reaches Resolve, the Listing
+    Errors or Charge Types overlays, and `chargeReady` never fails on one — a duplicate of one is blocked at save
+    instead. The seeded non-role pair (the $150 RC *Short-term premium*) had already become the MTM Base Rent example.
+    Where the notes below talk about a duplicate of one ordinary charge type, read it as a role conflict.
   - **Duplicates** (the user's rule): two charges of one charge type, at the same level on the same
     target, both live (`chargeLive`: current and not ending today) and both on listings, would show as
     the same fee, so neither is sent. A recurring and a one-time charge of one type are **not**
