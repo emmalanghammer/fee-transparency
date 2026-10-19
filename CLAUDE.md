@@ -991,8 +991,10 @@ describes the design before that tag; the code for most of it is still in the fi
   RMX Input Field *Style=Read-only* — a grey 14px label over the value in SemiBold navy, no box, nothing italic: **Name · Marketing Description** with *Edit Details on <a>Charge Type</a>*
   at the right end of the description's label row (`ctOpen`). Both rows are **one CSS grid** (2026-10-19), a column per
   field of the second row (three recurring, four one-time), and Marketing Description spans `2 / -1`, so it always starts
-  over the second field below, then **Charge
-  Requirement · Charge Schedule** (recurring) or **Charge Timing · Refundability** (one-time) **· Charge Category** last. A
+  over the second field below, then **Charge Role · Charge Category · Charge
+  Requirement · Charge Schedule** (recurring) or **· Charge Timing · Refundability** (one-time) (2026-10-19: Charge Role
+  added first, read-only — *Base Rent*, *Security Deposit* or *Additional Charge* — and Category moved up beside it; the grid is
+  four columns recurring, five one-time). A
   required field that's empty reads the outlined icon (amber before activation, red after) and *Missing* in red, no box
   (the label names the field); an
   empty optional one, or any empty field where nothing is asked, is a grey `—`. The note below describes the version before.
