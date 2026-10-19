@@ -1064,7 +1064,7 @@ describes the design before that tag; the code for most of it is still in the fi
     listing name) with the comment in grey, then Charge Type · Charge Level · From - To · Amount. **Step 2** — *What
     should happen to the unselected charge?*, the unselected charge(s) drawn the same way without a card, then **Exclude
     from listings** or **End the charge** (recurring only; `dupAct`), End showing an **End Date** field (today) inside its
-    card. Footer: Back (step 2) · two progress dots · **Next** (disabled until a charge is picked) / **Save** (disabled
+    card, to the right of the option's text (2026-10-19; it wraps under on a narrow pane). Footer: Back (step 2) · two progress dots · **Next** (disabled until a charge is picked) / **Save** (disabled
     until a choice). `dupSave` applies the choice to every unselected charge in one write and flashes. State is
     `{ prop, key, step, keep, act }`; `dupExclude` / `dupEnd` / `dupChangeType` are no longer reached from it. What follows
     is the earlier version.

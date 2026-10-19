@@ -5379,10 +5379,13 @@ class Component extends DCLogic {
     } else {
       desc = others.length === 1 ? 'What should happen to the unselected charge?' : 'What should happen to the unselected charges?';
       const endIn = this._dupEndVal || (() => { const d = new Date(), p2 = n => String(n).padStart(2, '0'); return p2(d.getMonth() + 1) + '/' + p2(d.getDate()) + '/' + d.getFullYear(); })();
-      const optBody = (t, d, extra) => `<div style="flex:1;min-width:0;display:flex;flex-direction:column;padding:4px 0">
-          <span style="font-size:14px;line-height:20px;font-weight:600;color:${INK}">${t}</span>
-          <span style="font-size:14px;line-height:20px;color:${GREY}">${d}</span>${extra || ''}</div>`;
-      const dateField = `<label data-act="noop" style="display:flex;flex-direction:column;gap:4px;width:248px;margin-top:0;font-size:14px;color:${GREY};cursor:default">End Date
+      // The End Date field sits to the right of the option's text (2026-10-19, the user's call).
+      const optBody = (t, d, extra) => `<div style="flex:1;min-width:0;display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:4px 0">
+          <span style="flex:1 1 240px;min-width:0;display:flex;flex-direction:column">
+            <span style="font-size:14px;line-height:20px;font-weight:600;color:${INK}">${t}</span>
+            <span style="font-size:14px;line-height:20px;color:${GREY}">${d}</span>
+          </span>${extra || ''}</div>`;
+      const dateField = `<label data-act="noop" style="flex:none;display:flex;flex-direction:column;gap:4px;width:248px;margin-top:0;font-size:14px;color:${GREY};cursor:default">End Date
           <span style="display:flex;align-items:center;gap:8px;height:36px;box-sizing:border-box;padding:8px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;background:var(--rmx-bg-subtle, #f5f8fa)">
             <input id="dup-end-in" value="${esc(endIn)}" oninput="this.closest('label').querySelector('span').style.borderColor='';window.__C_dupEnd&&window.__C_dupEnd(this.value)" style="flex:1;min-width:0;border:0;outline:0;background:transparent;font:400 14px Roboto,sans-serif;color:${INK}">
             ${this.ico('calendar_today', 20, 'color:' + GREY + ';flex:none')}
