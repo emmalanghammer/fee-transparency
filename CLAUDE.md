@@ -1052,8 +1052,10 @@ describes the design before that tag; the code for most of it is still in the fi
     the same fee, so neither is sent. A recurring and a one-time charge of one type are **not**
     duplicates. `chargeDupes(prop)` (cached on `profileFees` + scenario) returns `{ key, prop, code,
     level, target, kind, rows, ids }`; `dupLabel(g)` reads *2 RC charges at the property*. **The
-    Berkshires' $150 Short-term premium (id 30) is the example**: on listings in On Rollout / No ILS, so
-    it reads 8/11 there; excluded in Happy Path and Post Conversion (and `listingReadyRows` now keeps an
+    Berkshires' id 30 is the example** — since 2026-10-19 an **MTM – Month-to-Month Rent** charge at the property
+    ($1,475.00), MTM being a second charge type marked Base Rent (`mktDefSeed`, `chargeTypeList` always lists it), so
+    it conflicts with the property's RC by role, not by type (it was a $150 RC *Short-term premium*): on listings in
+    On Rollout / No ILS / Mid Conversion, so The Berkshires reads 5/8 charge types there; excluded in Happy Path and Post Conversion (and `listingReadyRows` now keeps an
     excluded reference charge off listings), so those stay finished.
   - **Resolve Duplicate Charges is a two-step RMX Task Overlay** (2026-10-19, the user's Figma flow `4054:91161`,
     built from canvas <https://claude.ai/artifact/BkcxqtD2jnM3Epsdwso6NR>): 769px, 24px padding, centred 24/32 SemiBold

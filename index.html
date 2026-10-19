@@ -765,7 +765,7 @@ class Component extends DCLogic {
     // First month's rent is rent, but it is collected once, at move-in.
     return { name: desc, refundable: deposit ? 'yes' : '',
       feeDue: (deposit || c === 'FMR') ? 'Move-In' : rent ? 'During Term' : '',
-      role: c === 'RC' ? 'rent' : (c === 'DP' ? 'deposit' : '') };
+      role: (c === 'RC' || c === 'MTM') ? 'rent' : (c === 'DP' ? 'deposit' : '') };
   }
   // What a charge of this type starts with **at this property**: the property's own override of the
   // charge type when it has one, otherwise the charge type's default. One function, so the chain is
@@ -953,6 +953,7 @@ class Component extends DCLogic {
   mktCopy(){
     return {
       RC:         ['Rent', 'Base monthly rent for the unit.'],
+      MTM:        ['Month-to-Month Rent', 'Monthly rent for a month-to-month lease.'],
       GARBAG:     ['Trash Collection', 'Weekly curbside trash and recycling pickup.'],
       WATER:      ['Water & Sewer', 'Water and sewer, billed monthly based on the unit’s share of the property total.'],
       GARBAGEFEE: ['Trash Valet', 'Door-to-door trash pickup five nights a week.'],
@@ -1109,9 +1110,11 @@ class Component extends DCLogic {
     // (2026-10-12): two unit types carry their own rent, one its own deposit, and the property a
     // second, smaller rent charge — so its activation dialog has a level to choose at.
     const extra = prop !== 'The Berkshires' ? [] : [
-      // The duplicate example (2026-10-15): a second property RC on listings. Happy Path and Post
-      // Conversion are the finished stories, so there it is excluded from listings.
-      { id:30, group:'opt-rec', mits:'RC', name:'Rent', desc:'Short-term premium', freq:'Every Month', from:'01/01/2026', to:'', amount:'$150.00', amtMethod:'Flat', ils:!/^(happy|post)$/.test(this.scenarioKey()), level:'Property', target:'' },
+      // The duplicate example (2026-10-15): a second property Base Rent on listings — since 2026-10-19 on a
+      // different charge type, MTM (Month-to-Month Rent), which is also marked Base Rent, so the two
+      // conflict by role at the same level. Happy Path and Post Conversion are the finished stories, so
+      // there it is excluded from listings.
+      { id:30, group:'req-rec', mits:'MTM', name:'Month-to-Month Rent', desc:'Month-to-month rent', freq:'Every Month', from:'01/01/2026', to:'', amount:'$1,475.00', amtMethod:'Flat', ils:!/^(happy|post)$/.test(this.scenarioKey()), level:'Property', target:'' },
       { id:31, group:'req-rec', mits:'RC', name:'Rent', desc:'2BR/2BA rent', freq:'Every Month', from:'01/01/2026', to:'', amount:'$1,600.00', amtMethod:'Flat', ils:true, level:'Unit Type', target:'2BR/2BA' },
       { id:32, group:'req-rec', mits:'RC', name:'Rent', desc:'3BR/2BA rent', freq:'Every Month', from:'01/01/2026', to:'', amount:'$2,050.00', amtMethod:'Flat', ils:true, level:'Unit Type', target:'3BR/2BA' },
       { id:33, group:'req-one', mits:'DP', name:'Security deposit', desc:'3BR/2BA deposit', from:'01/01/2026', to:'', amount:'$750.00', amtMethod:'Flat', ils:true, level:'Unit Type', target:'3BR/2BA' }
@@ -1175,7 +1178,7 @@ class Component extends DCLogic {
     const base = { ADMIN:'Admin', AMENFEE:'Amenity', AMENITY:'Amenity', APPFEE:'Application', APPLICATION:'Application',
       CABLE:'Tech', CAM:'Service', CAMTAX:'Govt', CLEAN:'Clean', COVPARK:'Parking', DAMAGE:'Damage', DP:'Lease',
       ELEC:'Utility', GARAGE:'Parking', GARBAG:'Service', GARBAGEFEE:'Service', GAS:'Utility', H2O:'Utility',
-      HO4:'Insurance', HOA:'Service', HOLD:'Admin', KEY:'Key', LATE:'Violation', LC:'Violation', FMR:'Lease', LMR:'Lease',
+      HO4:'Insurance', HOA:'Service', HOLD:'Admin', KEY:'Key', LATE:'Violation', LC:'Violation', FMR:'Lease', LMR:'Lease', MTM:'Lease',
       NSF:'Violation', NSFFEE:'Violation', PARK:'Parking', PETDP:'Pet',
       DOGFEE:'Pet', PET:'Pet', RC:'Lease', RUBS:'Utility', SEWER:'Utility', SF:'Storage', STORAGE:'Storage',
       TRANSFER:'Transfer', TRASH:'Service', UTIL:'Utility', WATER:'Utility' };
@@ -1288,6 +1291,9 @@ class Component extends DCLogic {
     // SF (Storage) is on the list in every scenario with no charges on it and no default charge
     // marketing at all (2026-10-08), so a charge type starting from nothing is there to look at.
     use.SF = 1;
+    // MTM (Month-to-Month Rent) is the second Base Rent charge type, carried by The Berkshires' duplicate
+    // example (2026-10-19).
+    use.MTM = 1;
     return this.chargeTypeListAll().filter(([code]) => use[code]);
   }
   chargeTypeListAll(){
@@ -1297,7 +1303,7 @@ class Component extends DCLogic {
       ['EPD','Early Payment Discount'],['GARAGE','Garage Fee'],['GARBAG','Garbage Fee'],['GARBAGEFEE','Additional Trash Valet'],
       ['EVCHG','EV Charging Station'],['FMR',"First Month's Rent"],
       ['GAS','Gas Utility'],['H2O','Water Utility'],['HO4','Renters Insurance'],['HOA','HOA Fee'],['HOLD','Hold Fee'],
-      ['KEY','Key & Fob Deposit'],['LATE','Late Fee'],['LMR',"Last Month's Rent"],['NSF','NSF Fee'],['PARK','Parking'],
+      ['KEY','Key & Fob Deposit'],['LATE','Late Fee'],['LMR',"Last Month's Rent"],['MTM','Month-to-Month Rent'],['NSF','NSF Fee'],['PARK','Parking'],
       ['PETDP','Pet Deposit'],['RC','Rent'],['REKEY','Rekey Fee'],['RUBS','Flat Bill for All Utilities'],['SEWER','Sewer Utility'],
       ['SF','Storage Fee'],['STORAGE','Storage Fee'],['TRANSFER','Transfer Fee'],['TRASH','Trash Valet'],['WATER','Water Service']];
   }
@@ -5340,7 +5346,7 @@ class Component extends DCLogic {
     const roleName = g.role ? this.leaseRoleLabel(g.role) : '';
     const lvlName = g.level === 'Property' ? g.prop : g.target;
     const title = (r) => roleName || (this.resolvedListing(Object.assign({ _prop: g.prop }, r)).name) || names[String(r.mits || '').toUpperCase()] || r.desc || '';
-    const col = (label, value, bold) => `<div style="flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:2px;overflow:hidden">
+    const col = (label, value, bold, grow) => `<div style="flex:${grow || 1} 1 0;min-width:0;display:flex;flex-direction:column;gap:2px;overflow:hidden">
         <span style="font-size:12px;line-height:normal;color:${GREY};white-space:nowrap">${label}</span>
         <span style="font-size:14px;line-height:20px;color:${INK};${bold ? 'font-weight:600;' : ''}white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${value}</span>
       </div>`;
@@ -5351,7 +5357,7 @@ class Component extends DCLogic {
       return `<div style="flex:1;min-width:0;display:flex;flex-direction:column;padding:4px 0">
         <span style="font-size:14px;line-height:20px;font-weight:600;color:${INK}">${esc(title(r))}${r.desc ? `<span style="font-weight:400;color:${GREY}"> · ${esc(r.desc)}</span>` : ''}</span>
         <div style="display:flex;align-items:flex-start;gap:24px;padding-top:8px">
-          ${col('Charge Type', esc(code + ' – ' + (names[code] || r.name || '')))}
+          ${col('Charge Type', esc(code + ' – ' + (names[code] || r.name || '')), false, 1.5)}
           ${col('Charge Level', `<span style="display:inline-flex;align-items:center;gap:8px;max-width:100%">${this.chargeLevelCell(g.level, lvlName)}</span>`)}
           ${col('From - To', dates)}
           ${col('Amount', esc(r.amount || ''), true)}
