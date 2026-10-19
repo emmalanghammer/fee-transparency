@@ -1047,6 +1047,14 @@ describes the design before that tag; the code for most of it is still in the fi
     fields *Recurring Charges Only* / *One-Time Charges Only* (it read *Required: used by 2 recurring charges*
     / *Not needed: …* from `mktUse` briefly; the user asked for the static qualifiers back), and Mass Edit shows a grey dash (not Missing) for a field no charge of the type needs, and
     `-` rather than Missing on a type no listed charge uses (SF).
+  - **Additional charges are duplicates on type + name** (2026-10-19, the fixes brief, item 1): two charges with no
+    Base Rent / Security Deposit role conflict when they share charge type, **name — the charge's Comment**
+    (`chargeNameKey`: trimmed, spaces collapsed, case-blind) — level and target (`chargeScopeKey`'s non-role key; no
+    frequency). Different comments are fine. It is **blocked on every save**, on listings or not and whatever the dates:
+    the charge form on add **and edit** (`chargeConflictFor(row, prop, exceptId)` skips the `ils` / excluded / date
+    filters for these; inline `#m-err`: *APPFEE charge “Pet application” already exists on unit 1A. Give this charge a
+    different comment, or edit the other one.*), Bulk Update (`#bu-err`, same key) and Copy (`sameCharge` is the same
+    key, so the dialog's skip / replace handles it). Base Rent / Security Deposit keep the rule below.
   - **Duplicates** (the user's rule): two charges of one charge type, at the same level on the same
     target, both live (`chargeLive`: current and not ending today) and both on listings, would show as
     the same fee, so neither is sent. A recurring and a one-time charge of one type are **not**
@@ -1055,7 +1063,7 @@ describes the design before that tag; the code for most of it is still in the fi
     Berkshires' id 30 is the example** — since 2026-10-19 an **MTM – Month-to-Month Rent** charge at the property
     ($1,475.00), MTM being a second charge type marked Base Rent (`mktDefSeed`, `chargeTypeList` always lists it), so
     it conflicts with the property's RC by role, not by type (it was a $150 RC *Short-term premium*): on listings in
-    On Rollout / No ILS / Mid Conversion, so The Berkshires reads 5/8 charge types there; excluded in Happy Path and Post Conversion (and `listingReadyRows` now keeps an
+    On Rollout / No ILS (The Berkshires isn't in Mid Conversion), so it reads 5/8 charge types there; excluded in Happy Path and Post Conversion (and `listingReadyRows` now keeps an
     excluded reference charge off listings), so those stay finished.
   - **Resolve Duplicate Charges is a two-step RMX Task Overlay** (2026-10-19, the user's Figma flow `4054:91161`,
     built from canvas <https://claude.ai/artifact/BkcxqtD2jnM3Epsdwso6NR>): 769px, 24px padding, centred 24/32 SemiBold

@@ -613,7 +613,7 @@ class Component extends DCLogic {
       if (rows.length < 2) return;
       const a = k.split('|'), role = a[0] === 'role' ? a[1] : '';
       const codes = rows.map(r => String(r.mits).toUpperCase()).filter((c, i, x) => x.indexOf(c) === i);
-      out.push({ key: k, prop: p, code: codes[0], codes, role, level: a[2], target: a[3], kind: role ? (role === 'deposit' ? 'one' : 'rec') : a[4],
+      out.push({ key: k, prop: p, code: codes[0], codes, role, level: a[2], target: a[3], kind: role ? (role === 'deposit' ? 'one' : 'rec') : (/-one$/.test(rows[0].group || '') ? 'one' : 'rec'),
         rows, ids: rows.map(r => String(r.id)) });
     });
     this._dupCache[p] = out;
@@ -623,13 +623,14 @@ class Component extends DCLogic {
   // a one-time one, both from the charge type (`mktDef[CODE].role`); '' for an additional charge.
   chargeRole(r){ const k = this.leaseRoleOf(r), one = /-one$/.test(r.group || '');
     return k === 'rent' && !one ? 'rent' : k === 'deposit' && one ? 'deposit' : ''; }
-  // The bucket two charges must share to conflict: their role, else their charge type and frequency,
-  // plus the level and target.
+  // The bucket two charges must share to conflict: their role, else (an additional charge, 2026-10-19)
+  // their charge type and name — the charge's Comment, trimmed and case-blind — plus the level and target.
   chargeScopeKey(r){
     const lvl = String(r.level || 'Property'), tgt = String(r.target || ''), role = this.chargeRole(r);
     return role ? ['role', role, lvl, tgt].join('|')
-      : ['type', String(r.mits || '').toUpperCase(), lvl, tgt, /-one$/.test(r.group || '') ? 'one' : 'rec'].join('|');
+      : ['type', String(r.mits || '').toUpperCase(), lvl, tgt, this.chargeNameKey(r)].join('|');
   }
+  chargeNameKey(r){ return String((r && r.desc) || '').trim().replace(/\s+/g, ' ').toLowerCase(); }
   dayOf(v){ const m = String(v || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/); if (!m) return null;
     let y = +m[3]; if (y < 100) y += 2000; return new Date(y, +m[1] - 1, +m[2]).getTime(); }
   // A recurring charge whose To date (exclusive) is today or earlier no longer applies.
@@ -641,11 +642,17 @@ class Component extends DCLogic {
     const fa = this.dayOf(a.from), ta = this.dayOf(a.to), fb = this.dayOf(b.from), tb = this.dayOf(b.to);
     return (fa == null || tb == null || fa < tb) && (fb == null || ta == null || fb < ta);
   }
-  // A charge being created that would conflict with one already there: the first such charge, or null.
-  chargeConflictFor(row, prop){
-    if (!row.ils || row.propSpecific || this.chargeEnded(row)) return null;
+  // A charge being saved that would conflict with one already there: the first such charge, or null.
+  // `exceptId` is the charge being edited. An additional charge (no role) conflicts with another of the
+  // same charge type and name at the same level and target — on listings or not, whatever the dates
+  // (2026-10-19). A Base Rent / Security Deposit conflicts by role, on listings, for overlapping dates.
+  chargeConflictFor(row, prop, exceptId){
+    if (row.propSpecific) return null;
     const k = this.chargeScopeKey(row);
-    return this.appliedRows(prop).find(r => r.ils && r.mits && !r.propSpecific && !r.excluded && !this.chargeEnded(r)
+    const others = this.appliedRows(prop).filter(r => r.mits && !r.propSpecific && (exceptId == null || String(r.id) !== String(exceptId)));
+    if (!this.chargeRole(row)) return others.find(r => !this.chargeRole(r) && this.chargeScopeKey(r) === k) || null;
+    if (!row.ils || this.chargeEnded(row)) return null;
+    return others.find(r => r.ils && !r.excluded && !this.chargeEnded(r)
       && this.chargeScopeKey(r) === k && this.chargeOverlap(r, row)) || null;
   }
   // How many role conflicts the portfolio carries, so marking a charge type can say it made one.
@@ -2224,26 +2231,27 @@ class Component extends DCLogic {
           const nm = nameFor(r); if (nm) nr.listing.name = nm;
           return nr;
         };
-        const key = r => [String(r.mits || '').toUpperCase(), String(r.level || 'Property'),
-          String((r.listing && r.listing.name) || '').trim().toLowerCase()].join('|');
+        // The charge form's rule (2026-10-19): two additional charges of one charge type can't share a
+        // name (Comment) at the same level and target.
+        const key = r => (r.propSpecific || this.chargeRole(r)) ? null : this.chargeScopeKey(r);
         const clash = (() => {
           const seen = {};
-          this.profileRows().forEach(r => { if (picked.indexOf(r.id) < 0) seen[key(r)] = r; });
+          this.profileRows().forEach(r => { if (picked.indexOf(r.id) < 0 && key(r)) seen[key(r)] = r; });
           let hit = null;
           this.profileRows().filter(r => picked.indexOf(r.id) >= 0).map(applied).forEach(nr => {
-            const k = key(nr);
+            const k = key(nr); if (!k) return;
             if (!hit && seen[k]) hit = nr;
             seen[k] = nr;
           });
           return hit;
         })();
         if (clash) {
-          const nm = (clash.listing && clash.listing.name || '').trim();
+          const nm = String(clash.desc || '').trim();
           const eb = this.q('#bu-err');
           if (eb) { const t = eb.querySelector('#bu-err-txt');
             if (t) t.textContent = 'That would leave more than one ' + clash.mits + ' charge '
-              + (nm ? 'named "' + nm + '"' : 'with no name') + ' at the ' + (clash.level || 'Property')
-              + ' level. Give them different names, or update fewer charges at once.';
+              + (nm ? 'named “' + nm + '”' : 'with no comment') + ' ' + this.dupWhere(clash.level || 'Property', clash.target)
+              + '. Give them different comments, or update fewer charges at once.';
             eb.style.display = 'flex'; }
           else this.flash('That would create duplicate charges');
           break;
@@ -2463,18 +2471,22 @@ class Component extends DCLogic {
     // second charge of one ordinary charge type there. Editing an existing charge into a conflict is
     // allowed (A-02): the conflict is flagged where the charges are read, and after activation pulls the
     // units under that scope off the feed. A charge kept off listings never conflicts.
+    // An additional charge is blocked on add and on edit when another of its charge type and name (Comment)
+    // already sits at that level and target, on listings or not, whatever the dates (2026-10-19).
     const isOneNow = /-one$/.test(m.group || '');
-    const dup = !m.edit && this.chargeConflictFor({ mits: code, group: m.group, level: app, target: target || '', ils,
-      from: isOneNow ? '' : v('m-from'), to: isOneNow ? '' : v('m-to') }, this.state.property);
+    const roleNow = this.chargeRole({ mits: code, group: m.group });
+    const dup = (!m.edit || !roleNow) && this.chargeConflictFor({ mits: code, group: m.group, level: app, target: target || '', ils,
+      desc: v('m-comment'), from: isOneNow ? '' : v('m-from'), to: isOneNow ? '' : v('m-to') }, this.state.property, m.edit ? m.edit.id : null);
     if (dup) {
-      const role = this.chargeRole({ mits: code, group: m.group });
+      const role = roleNow;
       const where = this.dupWhere(app, target);
+      const cm = String(v('m-comment') || '').trim();
       const b = this.q('#m-err'); if (b) { const t = b.querySelector('#m-err-txt');
         if (t) t.textContent = role
           ? String(dup.mits || '').toUpperCase() + (dup.desc ? ' – ' + dup.desc : '') + ' is already the ' + this.leaseRoleLabel(role) + ' ' + where
             + ' for these dates. Only one ' + this.leaseRoleLabel(role) + ' can apply there at a time: end the other charge first, change these dates, or add this charge to a unit type or unit.'
-          : code + (dup.desc ? ' – ' + dup.desc : '') + ' is already on listings ' + where
-            + ' for these dates. Two ' + code + ' charges there would show as the same fee. Turn off Include on listings, or end or exclude the other charge first.';
+          : code + ' charge ' + (cm ? '“' + String(dup.desc || cm).trim() + '”' : 'with no comment') + ' already exists ' + where
+            + '. Give this charge a different comment, or edit the other one.';
         b.style.display = 'inline-flex'; }
       return false; }
     const eb = this.q('#m-err'); if (eb) eb.style.display = 'none';
@@ -11220,12 +11232,12 @@ class Component extends DCLogic {
   }
   // Two charges are the same charge for copy purposes when they share charge type, frequency and
   // name at the same level — the definition the Copy Charges from Property tooltip gives.
+  // Copy's duplicate test is the charge form's (2026-10-19): one charge type, one name (Comment), one level
+  // and target. Copy skips or replaces a match, as the dialog asks, so it never creates a second.
   sameCharge(a, b){
-    const fq = v => { const s = String(v || ''); const m = s.match(/\d+/); return s ? (m ? m[0] : '1') : ''; };
     return String(a.mits || '').toUpperCase() === String(b.mits || '').toUpperCase()
-      && fq(a.freq) === fq(b.freq)
-      && String(a.name || '') === String(b.name || '')
-      && String(a.level || '') === String(b.level || '')
+      && this.chargeNameKey(a) === this.chargeNameKey(b)
+      && String(a.level || 'Property') === String(b.level || 'Property')
       && String(a.target || '') === String(b.target || '');
   }
   // Copy Charges from Property (mock 2575-81218). Pick a property with a profile, decide what happens to
