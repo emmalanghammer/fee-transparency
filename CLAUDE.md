@@ -1055,7 +1055,18 @@ describes the design before that tag; the code for most of it is still in the fi
     Berkshires' $150 Short-term premium (id 30) is the example**: on listings in On Rollout / No ILS, so
     it reads 8/11 there; excluded in Happy Path and Post Conversion (and `listingReadyRows` now keeps an
     excluded reference charge off listings), so those stay finished.
-  - **Resolve Duplicate Charges** (`dupResolveHTML`, `state.dupResolve = { prop, key }`, z-index 160,
+  - **Resolve Duplicate Charges is a two-step RMX Task Overlay** (2026-10-19, the user's Figma flow `4054:91161`,
+    built from canvas <https://claude.ai/artifact/BkcxqtD2jnM3Epsdwso6NR>): 769px, 24px padding, centred 24/32 SemiBold
+    grey title, close X top right. **Step 1** — *Only one Base Rent charge can display on listing provider sites. Select
+    the charge you want to display.* over one Radio Selector card per charge (`dupKeep`): its name (the role, else the
+    listing name) with the comment in grey, then Charge Type · Charge Level · From - To · Amount. **Step 2** — *What
+    should happen to the unselected charge?*, the unselected charge(s) drawn the same way without a card, then **Exclude
+    from listings** or **End the charge** (recurring only; `dupAct`), End showing an **End Date** field (today) inside its
+    card. Footer: Back (step 2) · two progress dots · **Next** (disabled until a charge is picked) / **Save** (disabled
+    until a choice). `dupSave` applies the choice to every unselected charge in one write and flashes. State is
+    `{ prop, key, step, keep, act }`; `dupExclude` / `dupEnd` / `dupChangeType` are no longer reached from it. What follows
+    is the earlier version.
+  - *(Before 2026-10-19)* **Resolve Duplicate Charges** (`dupResolveHTML`, `state.dupResolve = { prop, key }`, z-index 160,
     `dupOpen` with `prop::key`): each charge as a card — code, description, Charge Level tag, amount,
     dates — with **Exclude from Listings** (`dupExclude`), **End Charge** (recurring only; reveals an End
     date, today by default, and **Save End Date** → `dupEnd`; ending today resolves it now, a later date
