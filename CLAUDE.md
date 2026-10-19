@@ -976,8 +976,10 @@ describes the design before that tag; the code for most of it is still in the fi
   read-only SemiBold values from `roleAmountRange(prop, kind)` — the figure the property's listings advertise (`l.base`,
   `ltDeposit`), or *$985.00 – $1,040.00* across them; `—` with none.
 - **Then as RMX read-only fields** (2026-10-16, later the same day, the user's call): `chargeMktStaticHTML` draws each value as
-  RMX Input Field *Style=Read-only* — a grey 14px label over the value in SemiBold navy, no box, nothing italic: **Name · Marketing Description** (two thirds) with *Edit Details on <a>Charge Type</a>*
-  at the right of that row (`ctOpen`), then **Charge
+  RMX Input Field *Style=Read-only* — a grey 14px label over the value in SemiBold navy, no box, nothing italic: **Name · Marketing Description** with *Edit Details on <a>Charge Type</a>*
+  at the right end of the description's label row (`ctOpen`). Both rows are **one CSS grid** (2026-10-19), a column per
+  field of the second row (three recurring, four one-time), and Marketing Description spans `2 / -1`, so it always starts
+  over the second field below, then **Charge
   Requirement · Charge Schedule** (recurring) or **Charge Timing · Refundability** (one-time) **· Charge Category** last. A
   required field that's empty reads the outlined icon (amber before activation, red after) and *Missing* in red, no box
   (the label names the field); an
