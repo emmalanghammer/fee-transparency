@@ -48,8 +48,8 @@ screen (2026-10-07; it used to wait on every listing advertising a complete pric
   this individually or in bulk on the charge types register."* No status strip (`ftShortDetail` /
   `ftShortTypes` are no longer drawn here).
 - **Activate Properties**, with **Bulk Activate Fee Transparency** (`ftActivateReady`, the blue primary `.btn-pri`; green until the user's call on 2026-10-15) on the
-  header's right only while `ftReadyProps()` has something, over *"A property can activate fee transparency
-  once all marketing details are filled out on any charge types used on the property."*, then a register —
+  header's right only while `ftReadyProps()` has something, over *"A property can activate once every unit has a Base Rent
+  and every charge type it uses has its marketing details filled in."* (2026-10-19, brief item 6: both conditions), then a register —
   one CSS grid — **Property · Listing Ready Charge Types · (action) · (status)**: the count is a green or
   red dot and the property's charge types ready of those it lists (`ftPropTypes(p)`, with a `title` naming
   the short ones); the action is **Activate Fee Transparency** (`pubOpen`) on a ready row and empty
