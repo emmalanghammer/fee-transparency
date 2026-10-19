@@ -1806,9 +1806,11 @@ class Component extends DCLogic {
         : { sec: {}, props: {} } }); break;
       // A property's override of one charge type. The dialog holds a draft so ticking the box
       // doesn't commit anything until Save.
-      case 'ctmOpen': { const prop = this.state.property; this._catAdds = {};
+      // `PROP::CODE` opens another property's override — the Listings dialogs name the listing's property.
+      case 'ctmOpen': { const two = String(arg || '').indexOf('::') >= 0;
+        const prop = two ? String(arg).split('::')[0] : this.state.property; this._catAdds = {};
         if (this.q('#m-ctype')) { this._chgKeep = this.chgFormSnap(); this._chgKeepModal = this.state.modal; this.chgKeepWatch(); }
-        const code = String(arg || '').toUpperCase();
+        const code = String(two ? String(arg).split('::')[1] : (arg || '')).toUpperCase();
         const own = ((this.state.propDef || {})[prop] || {})[code];
         // `on` is the Override Charge Type Defaults box. The values are seeded from whatever the
         // property has stored even when it is off, so ticking it back brings them back.
@@ -4435,7 +4437,8 @@ class Component extends DCLogic {
     // The same count the Default Marketing Details register shows, read from the same place.
     const nCharges = this.appliedRows(prop).filter(r => String(r.mits || '').toUpperCase() === code).length;
 
-    return `<div data-act="ctmCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:150">
+    // 158: over Marketing Setup (145) and the Listings dialogs (150) it can be opened from, under Charge Type Details (160).
+    return `<div data-act="ctmCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:158">
       <div data-act="noop" style="width:700px;max-width:94vw;max-height:92vh;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;height:48px;box-sizing:border-box;padding:8px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
           <span style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">Default Marketing Details</span>
@@ -5890,7 +5893,9 @@ class Component extends DCLogic {
     const head = (t) => `<div title="${t}" style="display:flex;align-items:center;height:32px;box-sizing:border-box;padding:0 12px;border-bottom:1px solid var(--rmx-line, #cedbe7);font:500 12.6px Roboto,sans-serif;letter-spacing:1.134px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</div>`;
     const c = (inner, extra) => `<div style="display:flex;align-items:center;gap:8px;min-width:0;min-height:44px;box-sizing:border-box;padding:6px 12px;border-top:1px solid var(--rmx-brand-tint-bg, #ebf1f5);font-size:14px;color:var(--rmx-brand-dark, #13314c);${extra || ''}">${inner}</div>`;
     const rows = types.map(t => c(`<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><strong style="font-weight:600">${esc(t.code)}</strong> – ${esc(t.desc)}</span>`)
-      + c(status(t)) + c(t.dup ? link('Resolve', 'dupOpen', t.dup.prop + '::' + t.dup.key) : link('Edit Charge Type', 'ctOpen', t.code), 'justify-content:flex-end')).join('');
+      // Where this property overrides the charge type, its listings read the override, so that is what's edited.
+      + c(status(t)) + c(t.dup ? link('Resolve', 'dupOpen', t.dup.prop + '::' + t.dup.key)
+        : this.ctmOverridden(l.prop, t.code) ? link('Edit Override', 'ctmOpen', l.prop + '::' + t.code) : link('Edit Charge Type', 'ctOpen', t.code), 'justify-content:flex-end')).join('');
     const lead = bad.length
       ? `${bad.length} of ${types.length} charge type${types.length === 1 ? '' : 's'} on this listing ${bad.length === 1 ? 'isn’t' : 'aren’t'} listing ready.`
       : `Every charge type on this listing is listing ready.`;
@@ -5997,7 +6002,7 @@ class Component extends DCLogic {
     });
     const chargeItem = (c) => c.dup
       ? itemRow(c.name, this.statusDot('Duplicate Charge', 'var(--rmx-error, #eb343c)'), 'They ' + this.dupWhy(c.dup) + '.', itemLink('Resolve', 'dupOpen', c.dup.prop + '::' + c.dup.key))
-      : itemRow(`${c.code}${ctNames[c.code] ? ' – ' + ctNames[c.code] : ''}`, this.statusDot('Missing Required Fields', 'var(--rmx-error, #eb343c)'), `Missing: ${c.missing.join(', ')}`, itemLink('Edit Charge Type', 'ctOpen', c.code));
+      : itemRow(`${c.code}${ctNames[c.code] ? ' – ' + ctNames[c.code] : ''}`, this.statusDot('Missing Required Fields', 'var(--rmx-error, #eb343c)'), `Missing: ${c.missing.join(', ')}`, this.ctmOverridden(l.prop, c.code) ? itemLink('Edit Override', 'ctmOpen', l.prop + '::' + c.code) : itemLink('Edit Charge Type', 'ctOpen', c.code));
     return `<div data-act="ltErrClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:150">
       <div data-act="noop" style="width:714px;max-width:94vw;max-height:90vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="flex:none;display:flex;align-items:center;gap:12px;height:48px;box-sizing:border-box;padding:0 16px;border-bottom:1px solid var(--rmx-line, #cedbe7)">

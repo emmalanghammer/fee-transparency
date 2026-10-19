@@ -944,6 +944,11 @@ describes the design before that tag; the code for most of it is still in the fi
   overridden its link reads *Edit Details on <a>Property Override</a>* (`ctmOpen`, which banks the form like `ctOpen`).
   Readiness follows: Mid Conversion, override DOGFEE at Riverview → its three listings go Sent, while the DOGFEE charge
   type still reads Missing Required Fields (The Estates). No scenario seeds an override, so every baseline is unchanged.
+- **The Listings dialogs offer Edit Override where the listing's property overrides the type** (2026-10-19): the Charge
+  Types dialog's row action and a Charge Errors item's link read **Edit Override** (`ctmOpen` with `PROP::CODE`, which
+  opens that property's override without moving `state.property`) instead of Edit Charge Type. `ctmEditHTML` sits at
+  z-index 158, over the Listings dialogs (150) and Marketing Setup (145), under Charge Type Details (160); Cancel returns
+  to the dialog behind it.
 - *(Before 2026-10-16)* **`resolvedListing(r)` read the charge type only** (`mktDefFor(r.mits)`); whatever a charge or a
   property stored was ignored. `ctmOwn` returned null and `chargeInherits` returned the charge type's values.
 - **Charge Type Details' Save closes the overlay** (`ctSave` with `close`, 2026-10-15; it stayed open before).
