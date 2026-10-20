@@ -2198,6 +2198,11 @@ strip and the all-converted strip are gone.
 
 ## Test feature states
 
+**There are three: On Rollout, Mid Conversion and On Rollout, No ILS** (2026-10-20, the user's call). Happy Path and
+Post Conversion came out of `scenarioList()`; their plans (`scenarioPlan`, `happyPathCharges`, the `happy` / `post`
+branches throughout) are still in the file but unreachable, and a `?scen=happy` or `?scen=post` link opens On Rollout.
+Notes below that describe either, or quote their baselines, are history.
+
 **Simple Demo was removed on 2026-09-30**, and Happy Path took its place as the one walkthrough.
 
 **Every Test Feature State shows five properties at most** (2026-09-30). Happy Path's four come from
