@@ -1780,6 +1780,9 @@ Expect* adds that changing a charge type's details updates every charge of it. I
 Types** (`announceCT`) — Happy Path keeps *Go to Properties*. Both later steps are 625px tall. Charge Type
 Details' Marketing Details intro is the first sentence alone (*Charges show it as it is set here.* came off).
 
+**Add Property › Copy From's two charge tables sit straight on the form** (2026-10-20, the user's call): no grey box, no
+260px inner scroll; their header cells ellipsize rather than overlap on a narrow pane.
+
 **Add Property's charges section is *Charges*** (2026-10-19, brief item 11; it was *Fee Transparency*), and its Blank
 option's hint reads *Start with no charges and add them after the property is created.*
 

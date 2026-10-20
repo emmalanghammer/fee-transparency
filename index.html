@@ -9868,7 +9868,7 @@ class Component extends DCLogic {
       const allOn = rows.length && rows.every(r => a.sel[r.id]);
       const hc = (t,i) => i === 0
         ? `<span data-act="addPropAll" data-arg="${rec?'rec':'one'}" title="${allOn?'Clear all':'Select all'}" style="display:flex;align-items:center;justify-content:center;padding:6px 8px;cursor:pointer">${chk(!!allOn,'')}</span>`
-        : `<span style="padding:6px 8px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;${/Amount/.test(t)?'display:flex;justify-content:flex-end;':''}">${t}</span>`;
+        : `<span style="padding:6px 8px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis;${/Amount/.test(t)?'display:flex;justify-content:flex-end;':''}">${t}</span>`;
       const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:34px;padding:5px 8px;font-size:14px;color:var(--rmx-brand-dark, #13314c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
       return `<div style="font-size:14px;color:var(--rmx-text, #666666);padding:8px 0 4px">${label} (${rows.length})</div>
         <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
@@ -9885,7 +9885,7 @@ class Component extends DCLogic {
         <span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">Copy recurring and one-time charges from another property.</span>
         ${srcRows.length?`<div style="margin-top:6px;display:flex;flex-direction:column;gap:2px">
           <div style="display:flex;align-items:baseline;gap:10px"><span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Select Recurring and One-Time Charges to Include</span><div style="flex:1"></div><span style="font-size:12px;color:var(--rmx-ink-2, #424e5b)">${srcRows.filter(r=>a.sel[r.id]).length} of ${srcRows.length} selected</span></div>
-          <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;background:var(--rmx-bg-subtle, #f5f8fa);padding:10px 12px;max-height:260px;overflow-y:auto">
+          <div>
             ${chargeTable('Recurring Charges', srcRows.filter(r=>!/-one$/.test(r.group)), true)}
             ${chargeTable('One-Time Charges', srcRows.filter(r=>/-one$/.test(r.group)), false)}
           </div></div>`:''}
