@@ -5274,7 +5274,8 @@ class Component extends DCLogic {
     const subs = [];
     r.dupes.forEach(g => subs.push([`Duplicate Charges: ${esc(this.dupWhat(g))}`, link('How do I resolve this?', 'dupOpen', r.p + '::' + g.key), esc(this.dupLabelAt(g))]));
     if (r.short.length) subs.push([`${r.short.length} Charge Type${r.short.length === 1 ? '' : 's'} Missing Required Fields`,
-      link('Mass Edit Marketing', 'ftMassEdit', r.short.join(',')), esc(r.short.join(', '))]);
+      // One charge type opens straight onto it; several go to Mass Edit (2026-10-20, the user's call).
+      r.short.length === 1 ? link('Edit Charge Type', 'ctOpen', r.short[0]) : link('Mass Edit Marketing', 'ftMassEdit', r.short.join(',')), esc(r.short.join(', '))]);
     { const rs = this.roleSetupState(r.p);
       if (rs === 'none' || rs === 'gap') { const n = this.roleRentGap(r.p);
         subs.push([rs === 'none' ? 'Base Rent Missing: no Base Rent charge' : `Base Rent Missing: ${n} unit${n === 1 ? '' : 's'}`, link('View Charges', 'openFeeProfile', r.p)]); } }
