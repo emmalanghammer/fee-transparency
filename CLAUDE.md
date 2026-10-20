@@ -1072,7 +1072,7 @@ describes the design before that tag; the code for most of it is still in the fi
   Requirement · Charge Schedule** (recurring) or **· Charge Timing · Refundability** (one-time) (2026-10-19: Charge Role
   added first, read-only — *Base Rent*, *Security Deposit* or *Additional Charge* — and Category moved up beside it; the grid is
   four columns recurring, five one-time). A
-  required field that's empty reads the outlined icon (amber before activation, red after) and *Missing* in red, no box
+  required field that's empty reads the outlined red `error` icon (it was an amber `warning` before activation until 2026-10-20) and *Missing* in red, no box
   (the label names the field); an
   empty optional one, or any empty field where nothing is asked, is a grey `—`. The note below describes the version before.
 - **Its labels carry Charge Type Details' help** (2026-10-20, the user's call): `chargeMktStaticHTML`'s `ro()` takes a
