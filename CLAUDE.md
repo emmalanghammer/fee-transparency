@@ -41,14 +41,23 @@ RMX Workflow Step avatar (grey number, brand pencil when current, green check wh
   properties (activated ones too, since their listings aren't sent), each charge type missing fields and
   each duplicate group. Open while anything is short: an amber *n of m Ready* lozenge, *Set once on the charge
   type, including whether it's the Base Rent or Security Deposit…*, a register **Charge Type · What's Left ·
-  action** (*Missing: …* with **Edit** → `ctOpen`; a duplicate's `dupLabelAt` with **Resolve** →
-  `dupOpen`), then **Mass Edit Marketing Details** (`ftMassEdit` filtered to the short types) and **Open
+  action** — duplicates first (`dupLabelAt`, **Resolve** → `dupOpen`), then *n fields missing* (the fields in
+  its `title`) with **Edit** → `ctOpen`. Only three rows show; *Show n more charge types* reveals the rest
+  DOM-only (`[data-ftmore]`), since listing every type was overwhelming (2026-10-20) — then **Mass Edit Marketing Details** (`ftMassEdit` filtered to the short types) and **Open
   Charge Types**. Done, it collapses to *All n charge types ready* with **Open Charge Types**.
 - **2 · Activate properties.** *n of m ready* (plus **Bulk Activate** → `ftActivateReady` when more than one
   is ready), then **Property · Charge Types · What's Left · Status**: the dot fraction (`ftPropTypes`); what's
   left — the short codes *(step 1)*, *n units with no Base Rent* with **View Charges**, *Nothing*, or on an
   activated property `—` / *GARBAG (step 1): listings not sent*; and an **Activate** button (`pubOpen`), a
   Not Ready lozenge, or italic *Fee Transparent*.
+- **After a critique (2026-10-20):** when no listed charge type has the Base Rent role (rollout),
+  `ftSetupSteps` sets `noRent` and step 1 leads with a **Base Rent** row, *No charge type is set as the Base
+  Rent*, **Edit RC** (`ctOpen`); step 2 then shows no *units with no Base Rent* (that appears only once a type
+  is the Base Rent and a unit still isn't reached). **Step 2 collapses to its header** — *0 of 3 ready ·
+  available once charge types are ready* — while step 1 has work and no property is ready or activated. Its
+  What's Left is a count, *2 charge types need details (step 1)*, the codes in a `title`; the column is
+  **Types Ready** (min 110px) and its dot is amber while setting up, red only on an activated property. The
+  progress reads *n of m charge types ready* beside a 160px bar, no percentage.
 - **Learning is the help panel, not a step.** The *What is Fee Transparency?* card is gone; its content moved
   into `ftHelpHTML` as a *What is fee transparency?* card above the steps. The panel sits at z-index 156 so it
   opens over the Setup overlay. The Base Rent is no longer its own sub-row; it is part of step 1.

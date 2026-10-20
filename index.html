@@ -5338,7 +5338,12 @@ class Component extends DCLogic {
     Object.keys(miss).forEach(c => { short[c] = 1; });
     dups.forEach(g => (g.codes || [g.code]).forEach(c => { short[String(c).toUpperCase()] = 1; }));
     const total = Object.keys(used).length, ready = total - Object.keys(short).filter(c => used[c]).length;
-    return { miss, dups, total, ready, done: !Object.keys(miss).length && !dups.length };
+    // No listed charge type carries the Base Rent role (as at rollout): every unit lacks one, and the fix
+    // is on a charge type, so it belongs to step 1, not to each property in step 2.
+    const usedCodes = Object.keys(used);
+    const noRent = usedCodes.length > 0 && !usedCodes.some(c => this.leaseRoleKind(c) === 'rent');
+    const rentCode = used.RC ? 'RC' : '';
+    return { miss, dups, total, ready, noRent, rentCode, done: !Object.keys(miss).length && !dups.length && !noRent };
   }
   ftSetupHTML(){
     const st = this.state.ftSetup; if (!st) return '';
@@ -5373,15 +5378,25 @@ class Component extends DCLogic {
 
     // ---- Step 1: marketing details on charge types (the Base Rent is set there too) ----
     const typeName = (c) => `${esc(c)} – ${esc(this.chargeTypeDesc(c) || '')}`;
-    const shortRows = Object.keys(S.miss).sort().map(c => [typeName(c), 'Missing: ' + S.miss[c].join(', '), link('Edit', 'ctOpen', c)])
-      .concat(S.dups.map(g => [typeName(String((g.codes || [g.code])[0]).toUpperCase()), esc(this.dupLabelAt(g)), link('Resolve', 'dupOpen', g.prop + '::' + g.key)]));
+    // Duplicates first (each needs its own Resolve), then the charge types missing fields. A missing row
+    // names the count, the fields on hover, so a long list stays one line a row. Only three show; the
+    // rest open with Show n more (DOM-only), since Mass Edit is the way through a long list anyway.
+    const shortRows = (S.noRent ? [[`<span style="font-weight:600">Base Rent</span>`, 'No charge type is set as the Base Rent',
+        S.rentCode ? link('Edit ' + S.rentCode, 'ctOpen', S.rentCode) : link('Charge Types', 'navChargeTypes')]] : []).concat(S.dups.map(g => [typeName(String((g.codes || [g.code])[0]).toUpperCase()), esc(this.dupLabelAt(g)), link('Resolve', 'dupOpen', g.prop + '::' + g.key)]))
+      .concat(Object.keys(S.miss).sort().map(c => { const n = S.miss[c].length;
+        return [typeName(c), `<span title="${esc('Missing: ' + S.miss[c].join(', '))}">${n} field${n === 1 ? '' : 's'} missing</span>`, link('Edit', 'ctOpen', c)]; }));
+    const SHOW = 3, more = Math.max(0, shortRows.length - SHOW);
+    const shortReg = `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow-x:auto">
+      <div id="ft-short" style="display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1.4fr) 90px;min-width:480px">${['Charge Type', 'What’s Left', ''].map(head).join('')}${shortRows.map((r, i) => r.map(c => i < SHOW ? cell(c, i) : cell(c, i).replace('<div style="display:flex;', '<div data-ftmore="1" style="display:none;')).join('')).join('')}</div>
+    </div>`
+      + (more ? `<span onclick="var g=document.getElementById('ft-short');var on=this.getAttribute('data-on')!=='1';g.querySelectorAll('[data-ftmore]').forEach(function(x){x.style.display=on?'flex':'none'});this.setAttribute('data-on',on?'1':'0');this.textContent=on?'Show fewer':'Show ${more} more charge type${more === 1 ? '' : 's'}'" style="align-self:flex-start;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Show ${more} more charge type${more === 1 ? '' : 's'}</span>` : '');
     const shortCodes = Object.keys(S.miss).sort();
     const s1State = S.done ? 'Complete' : 'Focused';
     const step1 = card(!S.done, stepHead(s1State, 1, 'Add marketing details to charge types',
         S.done ? `<span style="font-size:14px;${INK}">All ${S.total} charge types ready</span>${link('Open Charge Types', 'navChargeTypes')}`
           : lozDot(`${S.ready} of ${S.total} Ready`, '#feedd2', 'var(--rmx-notice, #faa61c)'))
       + (S.done ? '' : body(DESC('Set once on the charge type, including whether it’s the Base Rent or Security Deposit. Every charge that uses it, at every property, is advertised with those details.')
-        + reg('minmax(0,1.2fr) minmax(0,2fr) 90px', ['Charge Type', 'What’s Left', ''], shortRows)
+        + shortReg
         + `<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
             <button data-act="ftMassEdit" data-arg="${esc(shortCodes.join(','))}" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Mass Edit Marketing Details</button>
             <button data-act="navChargeTypes" class="btn-out" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Open Charge Types</button>
@@ -5391,39 +5406,50 @@ class Component extends DCLogic {
     const readyN = rows.filter(r => r.ready && !r.converted).length, doneN = rows.filter(r => r.converted).length;
     const left = (r) => {
       const t = this.ftPropTypes(r.p), parts = [];
+      // A count, never the codes (step 1 already lists them); the codes ride in the title.
+      const n = t.short.length, types = n ? `<span title="${esc(t.short.join(', '))}">${n} charge type${n === 1 ? '' : 's'} need${n === 1 ? 's' : ''} details (step 1)</span>` : '';
       // An activated property short of a charge type is holding listings back, so it says so.
-      if (r.converted) return t.short.length ? `${esc(t.short.join(', '))} (step 1): listings not sent` : '—';
-      if (t.short.length) parts.push(esc(t.short.join(', ')) + ' (step 1)');
-      const gap = this.roleRentGap(r.p);
+      if (r.converted) return n ? `${types}: listings not sent` : '—';
+      if (n) parts.push(types);
+      // Units without a Base Rent only once a charge type is the Base Rent: before that it's step 1's row.
+      const gap = S.noRent ? 0 : this.roleRentGap(r.p);
       if (gap) parts.push(`${gap} unit${gap === 1 ? '' : 's'} with no Base Rent ${link('View Charges', 'openFeeProfile', r.p)}`);
       return parts.length ? parts.join('; ') : 'Nothing';
     };
-    const frac = (p) => { const t = this.ftPropTypes(p);
-      return `<span title="${esc(t.short.length ? 'Not listing ready: ' + t.short.join(', ') : 'Every charge type is listing ready')}" style="display:inline-flex;align-items:center;gap:8px;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;flex:none;background:${t.ready === t.total ? 'var(--rmx-success, #6eb744)' : 'var(--rmx-error, #eb343c)'}"></span>${t.ready}/${t.total}</span>`; };
+    // One tone per state: amber while a property is still being set up, red only once it is activated
+    // (its listings are then held back), green when whole.
+    const frac = (r) => { const t = this.ftPropTypes(r.p);
+      const dot = t.ready === t.total ? 'var(--rmx-success, #6eb744)' : r.converted ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-notice, #faa61c)';
+      return `<span title="${esc(t.short.length ? 'Not listing ready: ' + t.short.join(', ') : 'Every charge type is listing ready')}" style="display:inline-flex;align-items:center;gap:8px;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;flex:none;background:${dot}"></span>${t.ready}/${t.total}</span>`; };
     const status = (r) => r.converted ? `<span style="font-style:italic;color:var(--rmx-text, #666666);white-space:nowrap">Fee Transparent</span>`
       : r.ready ? `<button data-act="pubOpen" data-arg="${esc(r.p)}" class="btn-pri" style="height:28px;min-height:28px;padding:0 12px;border-radius:4px;font-size:14px;white-space:nowrap">Activate</button>`
       : lozDot('Not Ready', '#feedd2', 'var(--rmx-notice, #faa61c)');
     const s2State = S.done ? (readyN || rows.some(r => !r.converted) ? 'Focused' : 'Complete') : 'Default';
-    const step2 = card(s2State === 'Focused', stepHead(s2State, 2, 'Activate properties',
-        `<span style="font-size:14px;${INK};white-space:nowrap">${doneN === rows.length && rows.length ? 'All fee transparent' : `${readyN} of ${rows.length - doneN} ready`}</span>`
-        + (canGo.length > 1 ? `<button data-act="ftActivateReady" class="btn-out" style="height:28px;min-height:28px;padding:0 12px;border-radius:4px;font-size:14px;white-space:nowrap">Bulk Activate</button>` : ''))
-      + body(DESC('A property can activate once every charge type it uses is ready and every unit has a Base Rent.')
-        + (rows.length ? reg('minmax(0,1.1fr) minmax(0,0.6fr) minmax(0,1.8fr) 150px', ['Property', 'Charge Types', 'What’s Left', 'Status'],
-            rows.map(r => [`<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.p)}</span>`, frac(r.p), `<span>${left(r)}</span>`, status(r)]))
-          : DESC('No properties are enabled for online listings yet.'))));
+    // Collapsed to its header while step 1 has work and nothing can activate yet: the register would only
+    // repeat step 1 property by property. Activated properties keep it open, since they may need attention.
+    const s2Open = S.done || readyN > 0 || doneN > 0;
+    const s2Right = !s2Open
+      ? `<span style="font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap">${readyN} of ${rows.length} ready · available once charge types are ready</span>`
+      : `<span style="font-size:14px;${INK};white-space:nowrap">${doneN === rows.length && rows.length ? 'All fee transparent' : `${readyN} of ${rows.length - doneN} ready`}</span>`
+        + (canGo.length > 1 ? `<button data-act="ftActivateReady" class="btn-out" style="height:28px;min-height:28px;padding:0 12px;border-radius:4px;font-size:14px;white-space:nowrap">Bulk Activate</button>` : '');
+    const step2 = card(s2State === 'Focused', stepHead(s2State, 2, 'Activate properties', s2Right)
+      + (!s2Open ? '' : body(DESC('A property can activate once every charge type it uses is ready and every unit has a Base Rent.')
+        + (rows.length ? reg('minmax(0,1.1fr) minmax(110px,0.6fr) minmax(0,1.8fr) 150px', ['Property', 'Types Ready', 'What’s Left', 'Status'],
+            rows.map(r => [`<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.p)}</span>`, frac(r), `<span>${left(r)}</span>`, status(r)]))
+          : DESC('No properties are enabled for online listings yet.')))));
 
     // Overall progress: the charge types, which is what the work is.
     const pct = S.total ? Math.round(S.ready / S.total * 100) : 100;
-    const bar = `<div role="progressbar" aria-label="Charge types ready" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" style="display:flex;align-items:center;gap:8px;width:240px;flex:none">
+    const bar = `<div role="progressbar" aria-label="Charge types ready" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" style="display:flex;align-items:center;gap:8px;width:160px;flex:none">
       <span style="flex:1;height:12px;border-radius:6px;background:var(--rmx-bg-muted, #f2f2f2);overflow:hidden"><span style="display:block;height:100%;width:${pct}%;border-radius:6px;background:${pct === 100 ? 'var(--rmx-success, #6eb744)' : 'var(--ac,var(--rmx-brand, #008dd5))'}"></span></span>
-      <span style="font-size:14px;${INK};min-width:36px;text-align:right">${pct}%</span>
     </div>`;
+    const barLabel = `<span style="font-size:14px;${INK};white-space:nowrap">${S.ready} of ${S.total} charge types ready</span>`;
     const intro = `<div style="flex:none;display:flex;align-items:center;gap:16px;padding:4px 0 8px;flex-wrap:wrap">
       <div style="flex:1;min-width:240px;display:flex;flex-direction:column;gap:4px">
         <span style="font-size:16px;line-height:24px;font-weight:600;${INK}">Two steps to fee transparent listings</span>
         <span style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">New to fee transparency? ${link('Read how it works', 'ftHelpOpen')}</span>
       </div>
-      ${bar}
+      <div style="display:flex;align-items:center;gap:12px;flex:none">${barLabel}${bar}</div>
     </div>`;
 
     return `<div data-act="ftSetupClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:150">
