@@ -1796,6 +1796,11 @@ bottom), up to 720px wide, and it stays `55ms × length` (2.6–9s) so a long ch
 calls: choose a unit / charge type / property to copy from, name required, select a column or a charge, fill in a
 field, duplicate charges, and activation refused (charges short, a unit with no Base Rent).
 
+**Bulk Update Charges is gone** (2026-10-20, round 2 item 3, a Phase 1 cut): the Charges ⋮ menu item, the selection mode
+(the register's checkbox column and the *Select charges to update* bar), the Update Charges dialog (`bulkUpdHTML`, its
+`#bu-err` duplicate check and *Fill in a field to change it*), `state.bulkSel` / `bulkUpd`, every `bulk*` case and the
+never-opened Bulk Update rail (`bulkHTML`). Notes elsewhere that mention Bulk Update describe what it did.
+
 **Charge History is gone** (2026-10-20, round 2 item 2, a Phase 1 cut): the Charges ⋮ menu's *Charge History*, its
 overlay (`profHistHTML`, *History by charge*), `state.profHist` and the `profHist*` cases were removed. `logChange` still
 records changes; nothing shows them.
