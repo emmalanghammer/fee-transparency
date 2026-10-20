@@ -1796,6 +1796,10 @@ bottom), up to 720px wide, and it stays `55ms × length` (2.6–9s) so a long ch
 calls: choose a unit / charge type / property to copy from, name required, select a column or a charge, fill in a
 field, duplicate charges, and activation refused (charges short, a unit with no Base Rent).
 
+**Charge History is gone** (2026-10-20, round 2 item 2, a Phase 1 cut): the Charges ⋮ menu's *Charge History*, its
+overlay (`profHistHTML`, *History by charge*), `state.profHist` and the `profHist*` cases were removed. `logChange` still
+records changes; nothing shows them.
+
 ## Tenant Charge Setup
 
 **Rent Charge Types on the property's General tab is a real checklist** (2026-10-09). It was a static
