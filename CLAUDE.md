@@ -39,8 +39,8 @@ at 12px; the whole setup — charge types ready plus properties activated, over 
 - **A step card** is a 1px border (brand on the **current** step, `--rmx-line` otherwise), its header an RMX Workflow Step
   avatar — white with a brand border and the `edit-filled` pencil when current, green with a white check when complete, a
   grey `#737373` number before it starts — the label (SemiBold when current), and a no-background Lozenge: an 8px dot and
-  italic *n of m Ready* (amber, green once the step is complete). Figma's third frame puts the brand border on the completed
-  step 1 and not on the current step 2; the prototype follows the first two frames (current = brand).
+  italic *n of m Ready* (amber, green once the step is complete). The third frame had the brand border on the completed
+  step 1; it was switched to the current step 2 on 2026-10-20, so every frame and the prototype agree.
 - **Step 1 · Add Marketing Details to Charge Types** (header 16px padding): *Set once on the charge type. Every charge that
   uses it, at every property, is advertised with those details.* over **Mass Edit Marketing** (primary, `ftMassEdit` with the
   short codes) and **View Charge Types** (link, `navChargeTypes`). No register of charge types any more. Done, it is the
