@@ -3498,7 +3498,6 @@ class Component extends DCLogic {
       ['Security Deposit', 'The unit’s Security Deposit, found the same way. A dash means the property charges none.'],
       ['Total Monthly Price', 'Base Rent plus every required monthly charge. Shows once the property is fee transparent; N/A where fee transparency doesn’t apply.'],
       ['Available', 'The date the unit is available to move in.'],
-      ['Charge Types', 'How many of the charge types on this listing are listing ready. Select it to see which need marketing details.'],
       ['Feed Status', 'Sent, Sent, Incomplete (it went out, but Rent Manager or a provider is missing information), or Not Sent (a charge type is missing marketing details, a Base Rent is duplicated, or the unit has no Base Rent). Select it to see why.']
     ];
     const columns = card(colRows.map(r => `<span style="display:flex;flex-direction:column;gap:3px">
@@ -5992,8 +5991,10 @@ class Component extends DCLogic {
     </div>`;
 
     // ---- one card per property: a header that says where the property stands, then its listings ----
-    const colK = 'listings';
-    const cols = this.colTracks(colK, 'minmax(0,170fr) minmax(0,140fr) minmax(0,130fr) minmax(0,150fr) minmax(0,180fr) minmax(0,140fr) minmax(0,200fr) minmax(0,230fr)');
+    // No Charge Types column (2026-10-20, the user's call): the key changed with the tracks, so a width
+    // someone dragged on the old eight columns can't land on the new seven.
+    const colK = 'listings7';
+    const cols = this.colTracks(colK, 'minmax(0,170fr) minmax(0,140fr) minmax(0,130fr) minmax(0,150fr) minmax(0,180fr) minmax(0,140fr) minmax(0,230fr)');
     const hc = (t, first, right) => `<span title="${t}" style="display:flex;align-items:center;${right?'justify-content:flex-end;':''}gap:8px;height:32px;box-sizing:border-box;padding:${first?'0 12px 0 17px':'0 12px'};font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;min-width:0;overflow:hidden"><span style="overflow:hidden;text-overflow:ellipsis">${t}</span></span>`;
     const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:36px;box-sizing:border-box;padding:0 12px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
 
@@ -6041,7 +6042,7 @@ class Component extends DCLogic {
       </div>`;
 
       const head = `<div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7)">
-        ${hc('Unit', true)}${hc('Unit Type')}${hc('Base Rent')}${hc('Security Deposit')}${hc('Total Monthly Price')}${hc('Available')}${hc('Charge Types')}${hc('Feed Status')}
+        ${hc('Unit', true)}${hc('Unit Type')}${hc('Base Rent')}${hc('Security Deposit')}${hc('Total Monthly Price')}${hc('Available')}${hc('Feed Status')}
       </div>`;
 
       const body = g.rows.map(({ l, i }) => {
@@ -6059,7 +6060,6 @@ class Component extends DCLogic {
           ${cell(dep)}
           ${cell(total)}
           ${cell(l.avail || '—')}
-          ${chargeCell(l, i)}
           ${this.ltFeedCell(l, i)}
         </div>`;
       }).join('');
@@ -6075,13 +6075,13 @@ class Component extends DCLogic {
     const empty = `<div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:26px 17px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">${emptyMsg}</div>`;
 
     // ---- ungrouped: the same listings as one register, with the property named on each row ----
-    const flatK = 'listings-flat';
-    const fcols = this.colTracks(flatK, 'minmax(0,180fr) minmax(0,110fr) minmax(0,120fr) minmax(0,120fr) minmax(0,140fr) minmax(0,160fr) minmax(0,130fr) minmax(0,190fr) minmax(0,230fr)');
+    const flatK = 'listings-flat8';
+    const fcols = this.colTracks(flatK, 'minmax(0,180fr) minmax(0,110fr) minmax(0,120fr) minmax(0,120fr) minmax(0,140fr) minmax(0,160fr) minmax(0,130fr) minmax(0,230fr)');
     const flat = () => {
       const rows = groups.reduce((a, g) => a.concat(g.rows), []);
       if (!rows.length) return empty;
       const head = `<div ${this.colHead(flatK)} style="display:grid;grid-template-columns:${fcols};border-bottom:1px solid var(--rmx-line, #cedbe7)">
-        ${hc('Property', true)}${hc('Unit')}${hc('Unit Type')}${hc('Base Rent')}${hc('Security Deposit')}${hc('Total Monthly Price')}${hc('Available')}${hc('Charge Types')}${hc('Feed Status')}
+        ${hc('Property', true)}${hc('Unit')}${hc('Unit Type')}${hc('Base Rent')}${hc('Security Deposit')}${hc('Total Monthly Price')}${hc('Available')}${hc('Feed Status')}
       </div>`;
       const body = rows.map(({ l, i }) => {
         const is = this.ltIssues(l);
@@ -6095,7 +6095,6 @@ class Component extends DCLogic {
           ${cell(dep)}
           ${cell(total)}
           ${cell(l.avail || '\u2014')}
-          ${chargeCell(l, i)}
           ${this.ltFeedCell(l, i)}
         </div>`;
       }).join('');

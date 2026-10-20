@@ -415,6 +415,8 @@ different component. `infoTip(inner, width, opts)` still takes a width; nothing 
 component measures in `3573:779`; the 36 is the user's own call, below RMX's 44px Cell, so a
 property's listings read as one block rather than a scroll.
 
+**The Charge Types column is gone** (2026-10-20, the user's call): both Listings registers end Available · Feed Status (column keys `listings7` / `listings-flat8`, so old dragged widths don't apply), and the help panel's Column Descriptions drop it. `chargeCell`, `ltTypesHTML` and `ltTypesOpen` stay in the file, unreachable. What follows describes it.
+
 **The Charge Types column replaced Listing Ready Charges** (2026-10-15, the user's call). It counts the
 charge types the listing carries (`ltTypes(l)`: the listed charges reaching its unit, grouped by type, each
 with its missing fields and any duplicate pair), drawn the way Listing Ready Charges was
