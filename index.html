@@ -1883,9 +1883,8 @@ class Component extends DCLogic {
       // Setup is where converting lives now.
       // From a property's own Marketing Setup the overlay is about that property alone, so it opens
       // scoped to it (`only`) with its row already expanded. From Listings it is the portfolio.
-      // From Listings the first property with something left opens (an activated one holding listings back
-      // included), so step 2 shows what is in the way.
-      case 'ftSetupOpen': { const first = arg ? null : (this.ftSetupRows().filter(r => r.converted ? r.short.length || r.dupes.length : !r.ready)[0] || {}).p;
+      // From Listings the first property still to activate with something left opens, so step 2 shows what is in the way.
+      case 'ftSetupOpen': { const first = arg ? null : (this.ftSetupRows().filter(r => !r.converted && !r.ready)[0] || {}).p;
         this.setState({ ftSetup: arg
         ? { sec: {}, props: { [arg]: true }, only: arg }
         : { sec: {}, props: first ? { [first]: true } : {} } }); break; }
@@ -5267,29 +5266,29 @@ class Component extends DCLogic {
     const INK = 'color:var(--rmx-brand-dark, #13314c)';
     const link = (t, act, arg) => `<span data-act="${act}"${arg ? ` data-arg="${esc(arg)}"` : ''} style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap;flex:none">${t}</span>`;
     const loz = (t, bg, icon) => `<span style="display:inline-flex;align-items:center;gap:8px;height:24px;box-sizing:border-box;padding:0 8px;border-radius:4px;background:${bg};font-size:14px;line-height:20px;${INK};white-space:nowrap;flex:none">${icon || ''}${t}</span>`;
-    const status = r.converted
-      ? `<span style="font-size:14px;font-style:italic;color:var(--rmx-text, #666666);white-space:nowrap;flex:none">Fee Transparent</span>`
-      : r.ready ? loz('Ready', 'var(--rmx-success-bg, #e2f1da)')
+    const status = r.ready ? loz('Ready', 'var(--rmx-success-bg, #e2f1da)')
       : loz('Not Ready', '#fdf3e7', this.ico('warning', 16, 'color:var(--rmx-notice, #faa61c);flex:none'));
-    const lead = !r.converted && r.ready ? link('Activate Fee Transparency', 'pubOpen', r.p) : '';
-    // What is left, one sub-row each: a role conflict to resolve, charge types short of their details, units
-    // with no Base Rent. A ready or activated property says it has nothing left.
+    const lead = r.ready ? link('Activate Fee Transparency', 'pubOpen', r.p) : '';
+    // What is left before it can activate, one sub-row each: a role conflict to resolve, charge types short of
+    // their details, units with no Base Rent. A ready property says it has nothing left.
     const subs = [];
     r.dupes.forEach(g => subs.push([`Duplicate Charges: ${esc(this.dupWhat(g))}`, link('How do I resolve this?', 'dupOpen', r.p + '::' + g.key), esc(this.dupLabelAt(g))]));
-    if (r.short.length) subs.push([`${r.short.length} Charge Type${r.short.length === 1 ? '' : 's'} Missing Required Fields${r.converted ? ': listings not sent' : ''}`,
+    if (r.short.length) subs.push([`${r.short.length} Charge Type${r.short.length === 1 ? '' : 's'} Missing Required Fields`,
       link('Mass Edit Marketing', 'ftMassEdit', r.short.join(',')), esc(r.short.join(', '))]);
-    if (!r.converted) { const rs = this.roleSetupState(r.p);
+    { const rs = this.roleSetupState(r.p);
       if (rs === 'none' || rs === 'gap') { const n = this.roleRentGap(r.p);
         subs.push([rs === 'none' ? 'Base Rent Missing: no Base Rent charge' : `Base Rent Missing: ${n} unit${n === 1 ? '' : 's'}`, link('View Charges', 'openFeeProfile', r.p)]); } }
-    if (!subs.length) subs.push([r.converted ? 'Listings show every included charge.' : 'Every charge type is ready and every unit has a Base Rent.', link('View Charges', 'openFeeProfile', r.p)]);
     const sub = (x, i) => `<div style="display:flex;align-items:center;gap:12px;min-height:36px;box-sizing:border-box;padding:8px;background:var(--rmx-bg-subtle, #f5f8fa);${i ? 'border-top:1px solid var(--rmx-line, #cedbe7);' : ''}">
       <span${x[2] ? ` title="${x[2]}"` : ''} style="flex:1;min-width:0;font-size:14px;line-height:20px;${INK}">${x[0]}</span>${x[1]}
     </div>`;
+    // A ready property has nothing left to show, so it has no chevron and doesn't open (2026-10-20, the user's call).
+    if (r.ready) open = false;
+    const toggle = r.ready ? '' : `data-act="ftSetupProp" data-arg="${esc(r.p)}" role="button" aria-expanded="${open ? 'true' : 'false'}" `;
     return `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden;background:#fff;flex:none">
-      <div data-act="ftSetupProp" data-arg="${esc(r.p)}" role="button" aria-expanded="${open ? 'true' : 'false'}" style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:8px;cursor:pointer;${open ? 'border-bottom:1px solid var(--rmx-line, #cedbe7);' : ''}">
+      <div ${toggle}style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:8px;${r.ready ? '' : 'cursor:pointer;'}${open ? 'border-bottom:1px solid var(--rmx-line, #cedbe7);' : ''}">
         <span style="display:inline-flex;${INK};flex:none">${this.ftHomeSvg()}</span>
         <span style="flex:1 1 120px;min-width:0;font-size:14px;line-height:20px;${INK};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.p)}</span>
-        <span style="display:flex;align-items:center;gap:8px;margin-left:auto;flex:none">${lead}${status}${this.ico(open ? 'keyboard_arrow_up' : 'keyboard_arrow_down', 24, 'color:var(--rmx-brand-dark, #13314c);flex:none')}</span>
+        <span style="display:flex;align-items:center;gap:8px;margin-left:auto;flex:none">${lead}${status}${r.ready ? '' : this.ico(open ? 'keyboard_arrow_up' : 'keyboard_arrow_down', 24, 'color:var(--rmx-brand-dark, #13314c);flex:none')}</span>
       </div>
       ${open ? subs.map(sub).join('') : ''}
     </div>`;
@@ -5314,8 +5313,10 @@ class Component extends DCLogic {
   // The Fee Transparency Setup overlay, Figma 4102:195176 (2026-10-20): two step cards under an intro and a
   // progress bar. Step 1 is one way through — Mass Edit Marketing — rather than a list of charge types;
   // what is short is said property by property in step 2. Learning is the help panel, not a step.
+  // Setup is only what stands between a property and activation (2026-10-20, the user's call): an activated
+  // property is left out of both steps — what it still needs shows on Listings, not here.
   ftSetupSteps(){
-    const scope = this.ftScopeNames().filter(p => this.ftApplicable(p));
+    const scope = this.ftScopeNames().filter(p => this.ftApplicable(p) && !this.state.publishedProps[p]);
     const used = {}, miss = {}, dups = [];
     scope.forEach(p => {
       this.appliedRows(p).filter(r => r.ils).forEach(r => { const c = String(r.mits || '').toUpperCase(); if (c) used[c] = 1; });
@@ -5333,7 +5334,7 @@ class Component extends DCLogic {
   ftSetupHTML(){
     const st = this.state.ftSetup; if (!st) return '';
     const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
-    const rows = this.ftSetupRows();
+    const all = this.ftSetupRows(), rows = all.filter(r => !r.converted);
     const canGo = this.ftReadyProps();
     const S = this.ftSetupSteps();
     const INK = 'color:var(--rmx-brand-dark, #13314c)';
@@ -5369,10 +5370,9 @@ class Component extends DCLogic {
         </div>`));
 
     // ---- Step 2: activate properties ----
-    // Ready counts a property that can activate, and one already active with nothing outstanding.
-    const ok = (r) => r.converted ? !r.short.length && !r.dupes.length : r.ready;
-    const okN = rows.filter(ok).length, doneN = rows.filter(r => r.converted).length;
-    const allDone = rows.length > 0 && doneN === rows.length && rows.every(ok);
+    // Only properties still to activate; the activated ones count as done in the progress bar alone.
+    const okN = rows.filter(r => r.ready).length, doneN = all.length - rows.length;
+    const allDone = !rows.length && doneN > 0;
     const s2State = allDone ? 'Complete' : S.done ? 'Focused' : 'Default';
     // Collapsed to its header until a charge type is ready (or a property is): before that every property
     // would only read Not Ready for the reason step 1 already gives.
@@ -5384,11 +5384,11 @@ class Component extends DCLogic {
       + (!s2Open ? '' : `<div style="padding:4px 16px 16px 52px;display:flex;flex-direction:column;gap:12px">
           ${DESC('A property can activate once every charge type it uses is ready and every unit has a Base Rent.')}
           ${rows.length ? `<div style="display:flex;flex-direction:column;gap:8px">${rows.map(r => this.ftPropRow(r, open(r))).join('')}</div>`
-            : DESC('No properties are enabled for online listings yet.')}
+            : DESC(doneN ? 'Every property is fee transparent.' : 'No properties are enabled for online listings yet.')}
         </div>`));
 
     // The whole setup: charge types ready plus properties activated, over all of them. RMX ProgressBar.
-    const items = S.total + rows.length, doneItems = S.ready + doneN;
+    const items = S.total + all.length, doneItems = S.ready + doneN;
     const pct = items ? Math.round(doneItems / items * 100) : 100;
     const bar = `<div role="progressbar" aria-label="Setup progress" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" style="display:flex;align-items:center;gap:16px;width:240px;flex:none">
       <span style="flex:1;height:12px;border-radius:200px;background:#e5e5e5;overflow:hidden"><span style="display:block;height:100%;width:${pct}%;border-radius:200px;background:var(--ac,var(--rmx-brand, #008dd5))"></span></span>

@@ -45,19 +45,20 @@ at 12px; the whole setup — charge types ready plus properties activated, over 
   uses it, at every property, is advertised with those details.* over **Mass Edit Marketing** (primary, `ftMassEdit` with the
   short codes) and **View Charge Types** (link, `navChargeTypes`). No register of charge types any more. Done, it is the
   header alone with *n of n Ready*.
+- **Setup is only what's needed to activate** (2026-10-20, the user's call): an **activated property is left out of both
+  steps** — step 1 counts only the charge types the not-yet-activated properties list, step 2 lists only them. Activated
+  properties count as done in the progress bar alone; what they still need shows on Listings.
 - **Step 2 · Activate Properties** (header 8px/16px): **Bulk Activate** (24px secondary, `ftActivateReady`) when
-  `ftReadyProps()` has more than one, then *n of m Ready* — a property that can activate, or one active with nothing
-  outstanding. It stays **collapsed to its header until a charge type or a property is ready** (On Rollout opens on it
+  `ftReadyProps()` has more than one, then *n of m Ready* over the properties still to activate. It stays **collapsed to its header until a charge type or a property is ready** (On Rollout opens on it
   collapsed). Open: *A property can activate once every charge type it uses is ready and every unit has a Base Rent.*, then
   one card per property (`ftPropRow(r, open)`): the house glyph, the name, then **Activate Fee Transparency** (`pubOpen`) + a
-  green **Ready** lozenge, or a **Not Ready** lozenge (`#fdf3e7`, the outlined amber `warning` — the user's outlined-glyph
-  rule over Figma's filled one), or italic *Fee Transparent*; and a chevron. The row toggles it (`ftSetupProp`). Open, grey
-  36px sub-rows say what's left: *Duplicate Charges: Base Rent* · **How do I resolve this?** (`dupOpen`); *n Charge Types
-  Missing Required Fields* (*…: listings not sent* once activated, the codes in a `title`) · **Mass Edit Marketing**
-  (`ftMassEdit` with that property's codes); *Base Rent Missing: n units* · **View Charges**; else *Every charge type is
-  ready and every unit has a Base Rent.* / *Listings show every included charge.* · **View Charges**.
-- Opening Setup from Listings opens the **first property with something left** (an activated one holding listings back
-  included); from Marketing Setup, that property. Rows and headers wrap on a narrow pane.
+  green **Ready** lozenge — **no chevron, and it doesn't open**, since nothing is left — or a **Not Ready** lozenge
+  (`#fdf3e7`, the outlined amber `warning` — the user's outlined-glyph rule over Figma's filled one) and a chevron. The row
+  toggles it (`ftSetupProp`). Open, grey 36px sub-rows say what's left: *Duplicate Charges: Base Rent* · **How do I
+  resolve this?** (`dupOpen`); *n Charge Types Missing Required Fields* (the codes in a `title`) · **Mass Edit Marketing**
+  (`ftMassEdit` with that property's codes); *Base Rent Missing: n units* · **View Charges**.
+- Opening Setup from Listings opens the **first Not Ready property**; from Marketing Setup, that property. Rows and
+  headers wrap on a narrow pane.
 - **Learning is the help panel, not a step.** `ftHelpHTML` carries *What is fee transparency?*; it sits at z-index 156 over
   the Setup overlay.
 
