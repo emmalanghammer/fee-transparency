@@ -31,37 +31,39 @@ property not in `publishedProps`), so Post Conversion shows none and Happy Path 
 Riverview activates. A property it can't apply to never activates, so it can't hold the banner on
 screen (2026-10-07; it used to wait on every listing advertising a complete price).
 
-**Fee Transparency Setup is a two-step checklist** (2026-10-20, board A of the canvas *Fee Transparency
-Setup Iterations*, <https://claude.ai/artifact/UDQid3WQcdTD1FoNXePwJS>, as the user revised it). This replaces
-the cards described below. `ftSetupHTML()` now draws: the header with a **help** icon (`ftHelpOpen`) beside
-the close; *Two steps to fee transparent listings* over *New to fee transparency? Read how it works*
-(`ftHelpOpen`), and an RMX ProgressBar of charge types ready on the right; then two cards, each led by an
-RMX Workflow Step avatar (grey number, brand pencil when current, green check when complete).
-- **1 · Add marketing details to charge types.** `ftSetupSteps()` gathers, across the scope's applicable
-  properties (activated ones too, since their listings aren't sent), each charge type missing fields and
-  each duplicate group. Open while anything is short: an amber *n of m Ready* lozenge, *Set once on the charge
-  type. Every charge that uses it, at every property, is advertised with those details.*, a register **Charge Type · Listing Status ·
-  action** — duplicates first (`statusDot` *Duplicate Charge*, amber, red once the property has activated,
-  `dupLabelAt` on hover, **Resolve** → `dupOpen`), then red *Missing Required Fields* (the fields on hover)
-  with **Edit** → `ctOpen`. The register is closed by default: the step leads with a SemiBold count —
-  *10 Charge Types missing marketing details* (else *n duplicate charges to resolve*) — with **Show charge types** to its right (a chevron, DOM-only,
-  `#ft-short-wrap`) opening every row, duplicates included; listing them all up front was overwhelming (2026-10-20) — then **Mass Edit Marketing Details** (`ftMassEdit` filtered to the short types) and **Open
-  Charge Types**. Done, it collapses to *All n charge types ready* with **Open Charge Types**.
-- **2 · Activate properties.** *n of m ready* (plus **Bulk Activate** → `ftActivateReady` when more than one
-  is ready), then **Property · Charge Types · What's Left · Status**: the dot fraction (`ftPropTypes`); what's
-  left — the short codes *(step 1)*, *n units with no Base Rent* with **View Charges**, *Nothing*, or on an
-  activated property `—` / *GARBAG (step 1): listings not sent*; and an **Activate** button (`pubOpen`), a
-  Not Ready lozenge, or italic *Fee Transparent*.
-- **After a critique (2026-10-20):** step 1 has **no Base Rent row** (one was added for rollout, when no
-  charge type has the Base Rent role, and the user removed it the same day); step 2's *n units with no Base
-  Rent* shows whenever `roleRentGap` counts any. **Step 2 collapses to its header** — an amber dot and *0 of 3 Ready*
-  (no background; its *· available once charge types are ready* came off the same day) — while step 1 has work and no property is ready or activated. Its
-  What's Left is a count, *2 charge types need details (step 1)*, the codes in a `title`; the column is
-  **Types Ready** (min 110px) and its dot is amber while setting up, red only on an activated property. The
-  progress bar is the **whole setup** (charge types ready plus properties activated, over all of them), 240px with its percentage, and no text label.
-- **Learning is the help panel, not a step.** The *What is Fee Transparency?* card is gone; its content moved
-  into `ftHelpHTML` as a *What is fee transparency?* card above the steps. The panel sits at z-index 156 so it
-  opens over the Setup overlay. The Base Rent is no longer its own sub-row; it is part of step 1.
+**Fee Transparency Setup is Figma `4102:195176`** (2026-10-20, the user's new design; three frames: nothing ready
+`4097:82767`, charge types 8 of 9 `4100:85395`, charge types done `4102:194717`). An 800px dialog: the 48px header with
+**help** (`ftHelpOpen`) and close 16px apart; an intro, *2 Steps to Fee Transparent Listings* over *New to fee
+transparency? Read how it works*, with RMX's ProgressBar on the right (240px, `#e5e5e5` track, brand fill, the percentage
+at 12px; the whole setup — charge types ready plus properties activated, over all of them); then two step cards.
+- **A step card** is a 1px border (brand on the **current** step, `--rmx-line` otherwise), its header an RMX Workflow Step
+  avatar — white with a brand border and the `edit-filled` pencil when current, green with a white check when complete, a
+  grey `#737373` number before it starts — the label (SemiBold when current), and a no-background Lozenge: an 8px dot and
+  italic *n of m Ready* (amber, green once the step is complete). Figma's third frame puts the brand border on the completed
+  step 1 and not on the current step 2; the prototype follows the first two frames (current = brand).
+- **Step 1 · Add Marketing Details to Charge Types** (header 16px padding): *Set once on the charge type. Every charge that
+  uses it, at every property, is advertised with those details.* over **Mass Edit Marketing** (primary, `ftMassEdit` with the
+  short codes) and **View Charge Types** (link, `navChargeTypes`). No register of charge types any more. Done, it is the
+  header alone with *n of n Ready*.
+- **Step 2 · Activate Properties** (header 8px/16px): **Bulk Activate** (24px secondary, `ftActivateReady`) when
+  `ftReadyProps()` has more than one, then *n of m Ready* — a property that can activate, or one active with nothing
+  outstanding. It stays **collapsed to its header until a charge type or a property is ready** (On Rollout opens on it
+  collapsed). Open: *A property can activate once every charge type it uses is ready and every unit has a Base Rent.*, then
+  one card per property (`ftPropRow(r, open)`): the house glyph, the name, then **Activate Fee Transparency** (`pubOpen`) + a
+  green **Ready** lozenge, or a **Not Ready** lozenge (`#fdf3e7`, the outlined amber `warning` — the user's outlined-glyph
+  rule over Figma's filled one), or italic *Fee Transparent*; and a chevron. The row toggles it (`ftSetupProp`). Open, grey
+  36px sub-rows say what's left: *Duplicate Charges: Base Rent* · **How do I resolve this?** (`dupOpen`); *n Charge Types
+  Missing Required Fields* (*…: listings not sent* once activated, the codes in a `title`) · **Mass Edit Marketing**
+  (`ftMassEdit` with that property's codes); *Base Rent Missing: n units* · **View Charges**; else *Every charge type is
+  ready and every unit has a Base Rent.* / *Listings show every included charge.* · **View Charges**.
+- Opening Setup from Listings opens the **first property with something left** (an activated one holding listings back
+  included); from Marketing Setup, that property. Rows and headers wrap on a narrow pane.
+- **Learning is the help panel, not a step.** `ftHelpHTML` carries *What is fee transparency?*; it sits at z-index 156 over
+  the Setup overlay.
+
+*(Before 2026-10-20, later)* Setup was a two-step checklist with a register under each step (canvas
+<https://claude.ai/artifact/UDQid3WQcdTD1FoNXePwJS>, board A): step 1 listed short charge types and duplicates behind *Show
+charge types*, step 2 was a **Property · Types Ready · What's Left · Status** register.
 
 **View Setup opens `ftSetupHTML()`** *(the notes from here to "One ready property…" describe the version before the checklist)* — the Fee Transparency Setup overlay, matching Figma
 `3562:42475`. A 972px dialog: header, then three cards 8px apart inside a 16px scrolling body.
