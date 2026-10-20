@@ -1263,7 +1263,14 @@ describes the design before that tag; the code for most of it is still in the fi
   review; `ftStatus`'s `rentPending` reads *Base Rent Missing* → **View Charges**.
 - **Scenarios pick their short type** (`mktDefShort`): Happy Path and Post Conversion none; Mid
   Conversion **DOGFEE** (Riverview activated and drifted, The Estates short, The Windermere complete, The
-  Hamptons ready); On Rollout and No ILS **GARBAG**.
+  Hamptons ready); No ILS **GARBAG**.
+- **On Rollout has no marketing details at all** (2026-10-20, the user's call: "truly on rollout"). `mktDefAll` gives every
+  charge type an empty entry — Name, Marketing Description, Charge Requirement, Charge Schedule, Charge Timing and
+  Refundability blank — keeping only **Charge Category** (a charge type field before marketing details existed) and the
+  **Charge Role** (RC Base Rent, DP Security Deposit, MTM Base Rent, from the Rent / Security Deposit Charge Types settings),
+  so RC and DP still read *Base Rent* / *Security Deposit* by `roleFixed`. Every type reads *Missing Required Fields* (SF *Not
+  on Listings*); Riverview **0/9**, The Berkshires 0/8, The Windermere 0/8; nothing is Not Sent, since nothing has activated.
+  The baselines quoted elsewhere for `on` (Riverview 8/9 and so on) now belong to No ILS only.
 
 ## Marketing details inherit: charge type → property → charge
 

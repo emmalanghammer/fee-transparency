@@ -789,7 +789,12 @@ class Component extends DCLogic {
         d.schedule = 'Monthly';
         d.feeDue = seed.feeDue || 'During Term';
       }
-      out[code] = d;
+      // On Rollout is the day the feature ships (2026-10-20, the user's call): no charge type has any
+      // marketing details yet. Charge Category (a charge type field before marketing details existed) and
+      // the Charge Role (from the Rent / Security Deposit Charge Types settings) are already there.
+      out[code] = this.scenarioKey() === 'on'
+        ? { name:'', category: d.category, marketing:'', requirement:'', schedule:'', feeDue:'', refundable:'', role: d.role }
+        : d;
     });
     // Storage carries no default marketing details whatsoever — not even a name or a category — so
     // its Default Marketing Details tile opens empty and a charge added on it raises Add Category.
