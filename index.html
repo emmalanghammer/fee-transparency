@@ -888,8 +888,7 @@ class Component extends DCLogic {
         // The charge type's Pet Details (or the property override's), read-only like the rest (2026-10-20).
         return `<div style="display:flex;flex-direction:column;gap:12px;padding-top:12px;border-top:1px solid var(--rmx-line, #cedbe7)">
           <span style="font-size:14px;font-weight:600;${INK}">Pet Details (Optional)</span>
-          <div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px">${ro('Pet Type', pt, false)}</div>
-          ${this.petInfoHTML(pt)}
+          <div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px">${ro('Pet Type', pt, false)}${this.petInfoHTML(pt, { cells: true })}</div>
         </div>`; })() : ''}
     </div>`;
   }
@@ -4250,7 +4249,7 @@ class Component extends DCLogic {
     const wrap = (key, title, inner, head) => `<div id="${pre}-at-${key}-wrap" style="display:${cat === title ? 'flex' : 'none'};flex-direction:column;gap:12px;padding-top:12px;border-top:1px solid var(--rmx-line, #cedbe7);${o.locked ? 'pointer-events:none;opacity:0.5' : ''}">
         <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${head || title + ' Details'}</span>${inner}</div>`;
     // Picking a Pet Type shows its own details under it, read-only (they are edited on the Pet Type).
-    window.__petDefShow = (px, v) => { const el = document.getElementById(px + '-at-petinfo'); if (el) el.innerHTML = this.petInfoHTML(v); };
+    window.__petDefShow = (px, v) => { const el = document.getElementById(px + '-at-petinfo'); if (el) el.innerHTML = this.petInfoHTML(v, { cols: 2, box: true }); };
     window.__attrDefShow = (px, c) => {
       [['stor','Storage'], ['park','Parking'], ['pet','Pet']].forEach(([k, n]) => {
         const el = document.getElementById(px + '-at-' + k + '-wrap'); if (el) el.style.display = c === n ? 'flex' : 'none'; });
@@ -4264,8 +4263,9 @@ class Component extends DCLogic {
              sub('Vehicle Size', dd(pre + '-at-size', ['Motorcycle','Compact','Car','Extended (RV/Boat)'], att.size || '')))
         + `<div style="display:flex;gap:16px">${sub('Standard Parking', dd(pre + '-at-reg', SPACE, att.regular || ''))}${sub('Handicapped Parking', dd(pre + '-at-hc', SPACE, att.handicapped || ''))}${sub('Electric Parking', dd(pre + '-at-elec', SPACE, att.electric || ''))}</div>`
         + sub('Parking Description', `<input id="${pre}-at-desc" value="${esc(att.desc || '')}" placeholder="E.g. 50 surface spaces, 5 handicapped, 10 EV" style="width:100%;box-sizing:border-box;height:36px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:0 10px;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);outline:none">`))
-      + (o.pet ? wrap('pet', 'Pet', pair(sub('Pet Type', dd(pre + '-at-pettype', this.petTypesFor().map(t => t.name), att.petType || '', "if(window.__petDefShow)window.__petDefShow('" + pre + "',_v)")), '<div style="flex:1;min-width:0"></div>')
-          + `<div id="${pre}-at-petinfo">${this.petInfoHTML(att.petType)}</div>`, 'Pet Details (Optional)') : '');
+      // The pet type's details sit to the right of the Pet Type (2026-10-20, the user's call).
+      + (o.pet ? wrap('pet', 'Pet', pair(sub('Pet Type', dd(pre + '-at-pettype', this.petTypesFor().map(t => t.name), att.petType || '', "if(window.__petDefShow)window.__petDefShow('" + pre + "',_v)")),
+          `<div id="${pre}-at-petinfo" style="flex:1;min-width:0">${this.petInfoHTML(att.petType, { cols: 2, box: true })}</div>`), 'Pet Details (Optional)') : '');
   }
   ctmCommit(prop, code, vals, on, mode){
     const K = this.ctmFields();
@@ -6322,15 +6322,20 @@ class Component extends DCLogic {
   }
   // The chosen pet type's own details, read-only (RMX Input Field Style=Read-only): they are edited on the
   // Pet Type, so every surface that picks or shows one draws them the same way. Nothing when none is chosen.
-  petInfoHTML(name){
+  // `o.cells` returns the cells alone, for a caller placing them in its own grid; `o.cols` sets the columns,
+  // and `o.box` sets each value 36px tall so it centres against a dropdown beside it.
+  petInfoHTML(name, o){
+    o = o || {};
     const t = this.petTypeByName(name); if (!t) return '';
     // Max Allowed and Max Weight only (2026-10-20, the user's call); the amounts stay on the Pet Type.
     const F = [['Max Allowed', t.maxPets || ''], ['Max Weight', t.maxWeight || '']];
     // Each field the label over its value, in the same four-column grid as the fields above it.
-    const val = (v) => v !== '' ? `<span style="font-size:14px;line-height:20px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${v}</span>`
-      : `<span style="font-size:14px;line-height:20px;color:var(--rmx-text-muted, #b3b3b3)">—</span>`;
-    return `<div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:12px 16px">${F.map(([l, v]) => `<div style="min-width:0;display:flex;flex-direction:column;gap:4px">
-        <span style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">${l}</span>${val(v)}</div>`).join('')}</div>`;
+    const box = o.box ? 'display:flex;align-items:center;min-height:36px;' : '';
+    const val = (v) => v !== '' ? `<span style="${box}font-size:14px;line-height:20px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${v}</span>`
+      : `<span style="${box}font-size:14px;line-height:20px;color:var(--rmx-text-muted, #b3b3b3)">—</span>`;
+    const cells = F.map(([l, v]) => `<div style="min-width:0;display:flex;flex-direction:column;gap:4px">
+        <span style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">${l}</span>${val(v)}</div>`).join('');
+    return o.cells ? cells : `<div style="display:grid;grid-template-columns:repeat(${o.cols || 4}, minmax(0, 1fr));gap:12px 16px">${cells}</div>`;
   }
   // Pet types available on a property — a type with no property list applies everywhere.
   petTypeByName(n){ return this.state.petTypes.filter(t => t.name === String(n || '').trim())[0] || null; }

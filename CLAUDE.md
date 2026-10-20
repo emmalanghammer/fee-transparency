@@ -1210,7 +1210,7 @@ describes the design before that tag; the code for most of it is still in the fi
   (`ctAttrsFor` no longer reads one off the charges, so DOGFEE no longer opens on *Dog*), and picking one shows that pet
   type's own details under it, read-only, in the four-column grid — **Max Allowed and Max Weight** only (the amounts came off the same day)
   (`petInfoHTML`, swapped DOM-only by
-  `window.__petDefShow`; each label over its value). The override shows the charge type's,
+  `window.__petDefShow`; each label over its value, **to the right of the Pet Type** — its other half on Charge Type Details and the override, the next cells of its row on the charge form). The override shows the charge type's,
   locked, until ticked. **A charge no longer picks its own pet type**: `petTypeOf(r)` is the override's, else the charge
   type's, and it is what the charge form's read-only Marketing Details shows (a *Pet Details (Optional)* block on a Pet
   charge), what locks Amount (`__petApply`, the hidden `#m-at-pettype` now follows the charge type) and what the rent quote
