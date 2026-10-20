@@ -1031,6 +1031,10 @@ describes the design before that tag; the code for most of it is still in the fi
   required field that's empty reads the outlined icon (amber before activation, red after) and *Missing* in red, no box
   (the label names the field); an
   empty optional one, or any empty field where nothing is asked, is a grey `—`. The note below describes the version before.
+- **Its labels carry Charge Type Details' help** (2026-10-20, the user's call): `chargeMktStaticHTML`'s `ro()` takes a
+  sixth `help` argument, and **Charge Role**, **Charge Category** and **Charge Requirement** carry the same RMX Tooltip
+  icons as on Charge Type Details — `mktHelp()` now holds `role` too (the property override dialog's text, which reads it
+  from there).
 - **That read-only section is drawn the way a listing names the fee** (2026-10-16, board E of the design
   canvas *Marketing Details as Listing Fees*, <https://claude.ai/artifact/7tZkDzGSh5gTgc5wRXPozV>, from
   Figma `4013:164963`). `chargeMktStaticHTML(code, isOne, { live, act, dim })`: **Name** (no *Listed as* lead since 2026-10-16) and the

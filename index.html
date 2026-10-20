@@ -858,8 +858,10 @@ class Component extends DCLogic {
     // a recurring charge, four on a one-time one — so Marketing Description always starts over the second.
     // Charge Role leads the second row (2026-10-19), so the grid is one column wider.
     const COLS = isOne ? 5 : 4;
-    const ro = (label, val, missing, wide, extra) => `<div style="${wide ? 'grid-column:2 / -1;' : ''}min-width:0;display:flex;flex-direction:column;gap:4px">
-        <span style="display:flex;align-items:flex-start;gap:16px;font-size:14px;line-height:20px;color:var(--rmx-text, #666666)"><span style="flex:1;min-width:0">${label}</span>${extra || ''}</span>
+    // The same help as Charge Type Details' labels (2026-10-20): Charge Role, Charge Category, Charge Requirement.
+    const H = this.mktHelp();
+    const ro = (label, val, missing, wide, extra, help) => `<div style="${wide ? 'grid-column:2 / -1;' : ''}min-width:0;display:flex;flex-direction:column;gap:4px">
+        <span style="display:flex;align-items:flex-start;gap:16px;font-size:14px;line-height:20px;color:var(--rmx-text, #666666)"><span style="flex:1;min-width:0;display:inline-flex;align-items:center;gap:6px;white-space:nowrap">${label}${help || ''}</span>${extra || ''}</span>
         ${val ? `<span style="font-size:14px;line-height:20px;font-weight:600;color:var(--rmx-brand-dark, #13314c);overflow-wrap:anywhere">${esc(val)}</span>`
           : missing ? `<span style="align-self:flex-start">${miss(label)}</span>`
           : `<span style="font-size:14px;line-height:20px;color:var(--rmx-text-muted, #b3b3b3)">—</span>`}
@@ -876,9 +878,9 @@ class Component extends DCLogic {
           // The link rides on the description's label row, at its right edge.
           ? `<span style="flex:none;font-size:14px;line-height:20px;white-space:nowrap;color:var(--rmx-text, #666666)">Edit Details on <a data-act="ctmOpen" data-arg="${c}" title="Open ${esc(this.state.property)}'s override of ${c}" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Property Override</a></span>`
           : `<span style="flex:none;font-size:14px;line-height:20px;white-space:nowrap;color:var(--rmx-text, #666666)">Edit Details on <a data-act="ctOpen" data-arg="${c}" title="Open the ${c} charge type" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer">Charge Type</a></span>`)}
-        ${ro('Charge Role', role === 'rent' ? 'Base Rent' : role === 'deposit' ? 'Security Deposit' : 'Additional Charge', false)}
-        ${ro('Charge Category', cat, true)}
-        ${ro('Charge Requirement', D.requirement, true)}
+        ${ro('Charge Role', role === 'rent' ? 'Base Rent' : role === 'deposit' ? 'Security Deposit' : 'Additional Charge', false, false, '', H.role)}
+        ${ro('Charge Category', cat, true, false, '', H.category)}
+        ${ro('Charge Requirement', D.requirement, true, false, '', H.requirement)}
         ${isOne ? ro('Charge Timing', DUE[D.feeDue] || D.feeDue, true) + ro('Refundability', ref, false) : ro('Charge Schedule', D.schedule, true)}
       </div>
     </div>`;
@@ -4521,7 +4523,7 @@ class Component extends DCLogic {
     // Charge Role is the charge type's too (2026-10-16, the user's call): shown, never edited here, the way
     // Charge Category is — a label over the value in SemiBold, its tooltip saying where it is changed.
     const roleKind = this.leaseRoleKind(code);
-    const roleTip = this.fieldHelp('Charge Role', 'Whether listings treat this charge as the Base Rent, the Security Deposit or an additional charge. Charge roles are specific to each charge type, so this can only be changed on the charge type.');
+    const roleTip = this.mktHelp().role;
     const roleBlock = `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <span style="display:inline-flex;align-items:center;gap:6px;min-height:20px;line-height:20px;white-space:nowrap">${lab('Charge Role:')}${roleTip}</span>
       <span style="font-size:14px;line-height:20px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${roleKind ? this.leaseRoleLabel(roleKind) : 'Additional Charge'}</span>
@@ -6852,7 +6854,8 @@ class Component extends DCLogic {
   mktHelp(){
     if (!this._mktHelp) this._mktHelp = {
       category: this.fieldHelp('Charge Category', 'The category listings report this charge under. A charge without one can\'t go on a listing.'),
-      requirement: this.reqHelp()
+      requirement: this.reqHelp(),
+      role: this.fieldHelp('Charge Role', 'Whether listings treat this charge as the Base Rent, the Security Deposit or an additional charge. Charge roles are specific to each charge type, so this can only be changed on the charge type.')
     };
     return this._mktHelp;
   }
