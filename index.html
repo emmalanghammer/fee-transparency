@@ -3571,6 +3571,12 @@ class Component extends DCLogic {
   // ---------- How does pricing setup work? (mock 2699-105683) ----------
   // The page's own explainer: the three steps, what each status means, and what every column counts.
   ftHelpLoz(status){
+    // The Setup overlay's own three (2026-10-19, brief item 8): Not Ready / Ready lozenges with a dot, and
+    // Fee Transparent in italics — drawn exactly as `ftPropRow` draws them.
+    const loz = (t, bg, dot) => `<span style="display:inline-flex;align-items:center;gap:8px;height:24px;box-sizing:border-box;padding:0 9px;border-radius:4px;background:${bg};font-size:13px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;flex:none"><span style="width:8px;height:8px;border-radius:50%;flex:none;background:${dot}"></span>${t}</span>`;
+    if (status === 'Not Ready') return loz('Not Ready', '#fdf3e7', 'var(--rmx-notice, #faa61c)');
+    if (status === 'Ready') return loz('Ready', 'var(--rmx-success-bg, #e2f1da)', 'var(--rmx-success, #6eb744)');
+    if (status === 'Fee Transparent') return `<span style="font-size:14px;line-height:24px;font-style:italic;color:var(--rmx-text, #666666);white-space:nowrap">Fee Transparent</span>`;
     const map = { 'Incomplete Charges':'amber', 'Ready to Activate':'blue',
       'Needs Attention':'red', 'Complete':'green' };
     const styles = { green:'background:var(--rmx-success-bg, #e2f1da);color:#2f5d43', amber:'background:#fdf3e3;color:#7a5a2a',
@@ -3592,18 +3598,17 @@ class Component extends DCLogic {
         ${body(note)}
       </span></div>`;
     const steps = card(
-      step(1, 'Add Charge Details', 'Fill in more details that describe each charge.')
-      + step(2, 'Activate Fee Transparency', 'Listings show a total monthly price.', 'If you list online &amp; fee transparency is available')
+      step(1, 'Add Marketing Details to Charge Types', 'Set them once on each charge type. Every charge of that type, at every property, is advertised with them.')
+      + step(2, 'Activate Fee Transparency', 'Once every unit has a Base Rent and every charge type a property uses has its marketing details, activate it from Fee Transparency Setup. Listings then show a Total Monthly Price.', 'If you list online &amp; fee transparency is available')
       + `<div style="display:flex;align-items:center;gap:8px;border-top:1px solid var(--rmx-bg-subtle, #f5f8fa);padding-top:10px">
           <svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-success, #6eb744)"><path d="M378-246 154-470l43-43 181 181 384-384 43 43-427 427Z"/></svg>
           ${body("Not listing online? There's nothing to do here.")}
         </div>`);
 
     const keyRows = [
-      ['Incomplete Charges', 'Some charges are missing details listings need.'],
-      ['Ready to Activate', 'Every charge has what it needs. Activate when you’re ready.'],
-      ['Needs Attention', 'Active, but charges are missing details, so some fees are not showing on listings right now.'],
-      ['Complete', 'No setup left to do for this property.']
+      ['Not Ready', 'A unit has no Base Rent, or a charge type the property uses is missing marketing details.'],
+      ['Ready', 'Every unit has a Base Rent and every charge type has its marketing details. Activate when you’re ready.'],
+      ['Fee Transparent', 'Activated. Listings show a Total Monthly Price with every included charge.']
     ];
     const keyCols = '190px minmax(0,1fr)';
     const statusKey = `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
@@ -3614,11 +3619,12 @@ class Component extends DCLogic {
     </div>`;
 
     const colRows = [
-      ['Fee Transparent', 'If checked, listings show a total monthly price with all fees displaying. N/A means this step isn’t applicable to this property.'],
-      ['Total Charges', 'Every charge on the property, whichever level it is written at.'],
-      ['Listing Ready Charges', 'Charges with all the fields that listings require.'],
-      ['Incomplete Charges', 'Charges missing required fields. These will not appear on listings.'],
-      ['Excluded Charges', 'Charges you’ve chosen to keep off listings. These are excluded on the individual charge.']
+      ['Base Rent', 'The unit’s Base Rent: the charge on a Base Rent charge type that reaches it, from the unit, its unit type or the property.'],
+      ['Security Deposit', 'The unit’s Security Deposit, found the same way. A dash means the property charges none.'],
+      ['Total Monthly Price', 'Base Rent plus every required monthly charge. Shows once the property is fee transparent; N/A where fee transparency doesn’t apply.'],
+      ['Available', 'The date the unit is available to move in.'],
+      ['Charge Types', 'How many of the charge types on this listing are listing ready. Select it to see which need marketing details.'],
+      ['Feed Status', 'Sent, Sent, Incomplete (it went out, but Rent Manager or a provider is missing information), or Not Sent (a charge type is missing marketing details, a Base Rent is duplicated, or the unit has no Base Rent). Select it to see why.']
     ];
     const columns = card(colRows.map(r => `<span style="display:flex;flex-direction:column;gap:3px">
       <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${r[0]}</span>${body(r[1])}</span>`).join(''));

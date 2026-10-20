@@ -122,6 +122,12 @@ all removed with this design — the whole journey now runs through Setup. `pubO
 confirmation still exist and are still reached from the Marketing Setup overlay's property strip,
 which keeps its filled Convert button; nothing on Listings calls them.
 
+**The Listings help panel follows the current page** (`ftHelpHTML`, 2026-10-19, brief item 8): step 1 is **Add Marketing
+Details to Charge Types**, step 2 says both conditions and that activating runs through Fee Transparency Setup; the
+Status Key is Setup's own **Not Ready / Ready / Fee Transparent** (`ftHelpLoz` draws them as `ftPropRow` does; Complete
+and the other old rungs are gone); Column Descriptions are **Base Rent, Security Deposit, Total Monthly Price, Available,
+Charge Types, Feed Status**.
+
 **Group by property** (`ltGroupToggle`, `state.ltGroupBy`, on by default) is the toolbar checkbox
 between Property and Hide listings without errors. On, the page reads at the property — the level
 the charge work happens at. Off, the same listings are one register whose first column is
