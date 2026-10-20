@@ -97,7 +97,8 @@ window.__resources = {
     .crumb:hover { color: var(--rmx-brand-hover, #0071aa); }
     .railico { font-size:20px; cursor:pointer; }
     .checker { background-image:linear-gradient(45deg,#e4e9ee 25%,transparent 25%),linear-gradient(-45deg,#e4e9ee 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e4e9ee 75%),linear-gradient(-45deg,transparent 75%,#e4e9ee 75%); background-size:14px 14px; background-position:0 0,0 7px,7px -7px,-7px 0; background-color:#f0f3f6; }
-    .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--rmx-brand-dark, #13314c); color:#fff; padding:12px 20px; border-radius:4px; font-size:14px; box-shadow:0 3px 12px rgba(0,0,0,0.25); z-index:200; display:flex; align-items:center; gap:10px; }
+    .toast { position:fixed; top:60px; left:0; right:0; margin:0 auto; width:max-content; max-width:min(720px, calc(100vw - 32px)); box-sizing:border-box; background:var(--rmx-success, #6eb744); color:#fff; padding:12px 16px; border-radius:4px; font-size:14px; line-height:20px; box-shadow:0 3px 6px rgba(0,0,0,0.25); z-index:400; display:flex; align-items:flex-start; gap:8px; }
+    .toast-err { background:var(--rmx-error, #eb343c); }
     .tipw { position:relative; display:inline-flex; }
     .tipw .tip { display:none; position:absolute; left:26px; top:-6px; width:312px; background:#fff; border:1px solid var(--rmx-line, #cedbe7); border-radius:4px; box-shadow:0 3px 6px rgba(0,0,0,0.10); padding:16px; font:400 14px/20px Roboto,sans-serif; color:var(--rmx-brand-dark, #13314c); text-align:left; z-index:20; }
     .tipw:hover .tip { display:block; }
@@ -1465,7 +1466,10 @@ class Component extends DCLogic {
 
   // ---------- state helpers ----------
   go(view, extra){ this._resetScroll = true; this.setState(Object.assign({ view }, extra || {})); window.scrollTo(0,0); }
-  flash(msg){ this.setState({ toast: msg }); clearTimeout(this._t); this._t = setTimeout(() => this.setState({ toast: null }), 2200); }
+  // RMX Toast colours (2026-10-19, brief item 12): green for a completed action, red for an error — the same
+  // green as the activation toast. A long message (a charge type save naming units) stays up longer.
+  flash(msg, tone){ this.setState({ toast: msg, toastTone: tone === 'error' ? 'error' : 'success' }); clearTimeout(this._t);
+    this._t = setTimeout(() => this.setState({ toast: null }), Math.min(9000, Math.max(2600, String(msg || '').length * 55))); }
   mutFee(id, fn){ this.setProfileRows(rows => rows.map(f => f.id === id ? fn(Object.assign({}, f)) : f)); }
   deleteRow(id){
     const gone = this.profileRows().find(f => String(f.id) === String(id));
@@ -1785,7 +1789,7 @@ class Component extends DCLogic {
       case 'rqBack': this.setState(s => ({ rq: Object.assign({}, s.rq, { step:1 }) })); break;
       case 'rqAddOri': { this.rqCapture();
         // A rentable item rides along with a unit, so there has to be one first.
-        if (!(this.state.rq && this.state.rq.unit)) { this.flash('Choose the primary unit first'); break; }
+        if (!(this.state.rq && this.state.rq.unit)) { this.flash('Choose the primary unit first', 'error'); break; }
         this.setState(s => { const q = Object.assign({}, s.rq);
           q.oris = (q.oris || []).concat([{ prop:'', unit:'', ctype:'', amount:'' }]); return { rq:q }; }); break; }
       case 'rqRmOri': { this.rqCapture(); const i = parseInt(arg, 10);
@@ -1809,7 +1813,7 @@ class Component extends DCLogic {
       case 'rqAddSave': { const a = this.state.rqAdd; if (!a) break;
         const v = (id) => { const e = this.q('#' + id); return e ? String(e.value || '').trim() : ''; };
         const type = v('rqa-ctype'), amt = this.rqAmt(v('rqa-amount'));
-        if (!type) { this.flash('Choose a charge type'); break; }
+        if (!type) { this.flash('Choose a charge type', 'error'); break; }
         const row = { id:'t' + Date.now(), level:'Tenant', type, comment:v('rqa-comment'), amount:amt || 0, one:a.one,
           freq:a.one ? '' : (v('rqa-freq') || '1'), from:a.one ? '' : v('rqa-from'), to:a.one ? '' : v('rqa-to') };
         if (a.ctx === 'mi') { this._miExtra = (this._miExtra || []).concat([row]); this.setState({ rqAdd: null }); break; }
@@ -1829,7 +1833,7 @@ class Component extends DCLogic {
         const num = id => { const n = parseFloat(v(id).replace(/[$,]/g, '')); return isNaN(n) ? 0 : n; };
         const chk2 = id => { const e = this.q('#' + id); return !!(e && e.checked); };
         const name = v('pt-name');
-        if (!name) { this.flash('Name is required'); break; }
+        if (!name) { this.flash('Name is required', 'error'); break; }
         const recPer = chk2('pt-rec-per'), onePer = chk2('pt-one-per'), depPer = chk2('pt-dep-per');
         const picked = Array.from(document.querySelectorAll('#pt-props-list input:checked')).map(i => i.value);
         const row = { name, desc: v('pt-desc'), props: picked.length === this.propNames().length ? null : picked,
@@ -2009,7 +2013,7 @@ class Component extends DCLogic {
       case 'colSetupOpen': this.setState({ colSetup: true }); break;
       case 'colSetupClose': this.setState({ colSetup: false }); break;
       case 'colSetupApply': { const r = this.colSetupRead();
-        if (!r || !r.keys.length) { this.flash('Select at least one column'); break; }
+        if (!r || !r.keys.length) { this.flash('Select at least one column', 'error'); break; }
         this.setState({ chgCols: r.keys, colNames: r.names, colSetup: false });
         this.flash('Columns updated');
         break; }
@@ -2034,9 +2038,9 @@ class Component extends DCLogic {
       case 'pubOpen': { const st = this.ftStatus(arg);
         // Publishing an incomplete charge set would advertise a price missing required fees, so the
         // charges have to be finished first.
-        if (st.issues) { this.flash(st.issues + ' charge' + (st.issues===1?'':'s') + ' can’t be listed yet, so fee transparency can’t be activated'); break; }
+        if (st.issues) { this.flash(st.issues + ' charge' + (st.issues===1?'':'s') + ' can’t be listed yet, so fee transparency can’t be activated', 'error'); break; }
         // No Activate without a confirmed Base Rent on every unit (2026-10-15): take them to confirm it.
-        if (!this.roleRentReady(arg)) { this.flash('Every unit needs a Base Rent before fee transparency can be activated'); break; }
+        if (!this.roleRentReady(arg)) { this.flash('Every unit needs a Base Rent before fee transparency can be activated', 'error'); break; }
         this._rolePick = {}; this.setState({ pubModal: { prop: arg } }); break; }
       case 'pubCancel': this.setState({ pubModal: null }); break;
       case 'pubConfirm': { const m = this.state.pubModal; const props = m.props || [m.prop];
@@ -2185,9 +2189,9 @@ class Component extends DCLogic {
           return { copyFees: Object.assign({}, s.copyFees, { sel }) }; });
         break; }
       case 'copySave': { const c = this.state.copyFees;
-        if (!c || !c.from) { this.flash('Choose a property to copy from'); break; }
+        if (!c || !c.from) { this.flash('Choose a property to copy from', 'error'); break; }
         const picked = this.copyableRows(c.from).filter(r => c.sel[r.id]);
-        if (!picked.length) { this.flash('Select at least one charge'); break; }
+        if (!picked.length) { this.flash('Select at least one charge', 'error'); break; }
         const out = this.profileRows().slice();
         let added = 0, replaced = 0, skipped = 0, nextId = this.state.nextFeeId;
         picked.forEach(src => {
@@ -2222,7 +2226,7 @@ class Component extends DCLogic {
           ids.forEach(id => { if (every) delete sel[id]; else sel[id] = true; });
           return { bulkSel: { sel } }; }); break; }
       case 'bulkSelCancel': this.setState({ bulkSel: null, bulkUpd: null }); break;
-      case 'bulkUpdOpen': { if (!this.bulkSelRows().length) { this.flash('Select at least one charge'); break; }
+      case 'bulkUpdOpen': { if (!this.bulkSelRows().length) { this.flash('Select at least one charge', 'error'); break; }
         this.setState({ bulkUpd: { gen: true, mkt: true } }); break; }
       case 'bulkUpdClose': this.setState({ bulkUpd: null }); break;
       case 'bulkUpdSave': { const CLEAR = '__blank__';
@@ -2252,7 +2256,7 @@ class Component extends DCLogic {
           : typedName;
         const nameChanges = set('bu-name');
         const nGen = Object.keys(genSet).filter(k => genSet[k]).length, nMkt = Object.keys(mktSet).filter(k => mktSet[k]).length;
-        if (!nGen && !nMkt && !nameChanges) { this.flash('Fill in a field to change it'); break; }
+        if (!nGen && !nMkt && !nameChanges) { this.flash('Fill in a field to change it', 'error'); break; }
         // Same rule as the charge form: no two charges of one charge type may share a name at the same
         // charge level. Applying one set of values to many charges is the easiest way to break it, so
         // the collision is caught before anything is written — against the other selected charges and
@@ -2286,7 +2290,7 @@ class Component extends DCLogic {
               + (nm ? 'named “' + nm + '”' : 'with no comment') + ' ' + this.dupWhere(clash.level || 'Property', clash.target)
               + '. Give them different comments, or update fewer charges at once.';
             eb.style.display = 'flex'; }
-          else this.flash('That would create duplicate charges');
+          else this.flash('That would create duplicate charges', 'error');
           break;
         }
         const eb0 = this.q('#bu-err'); if (eb0) eb0.style.display = 'none';
@@ -2327,7 +2331,7 @@ class Component extends DCLogic {
       case 'addPropSave': {
         const a = this.state.addProp;
         const name = ((this.q('#ap-name') || {}).value || '').trim();
-        if (!name) { this.setState(s => ({ addProp: Object.assign({}, s.addProp, { err: true }) })); this.flash('Property Name is required'); break; }
+        if (!name) { this.setState(s => ({ addProp: Object.assign({}, s.addProp, { err: true }) })); this.flash('Property Name is required', 'error'); break; }
         const short = ((this.q('#ap-short') || {}).value || '').trim() || name.slice(0, 6).toUpperCase();
         const picked = a.fee === 'copy' && a.copyFrom
           ? this.copyableRows(a.copyFrom).filter(r => a.sel[r.id]).map(r => Object.assign({}, r))
@@ -4114,7 +4118,7 @@ class Component extends DCLogic {
       { span:2, grid:true, flush:true, minH:300 });
     const qCols = 'minmax(0,1.1fr) 110px 150px 120px';
     const qLoz = (t, ok) => `<span class="loz" style="${ok?'background:var(--rmx-success-bg, #e2f1da);color:#2f5d43':'background:#fdeaea;color:var(--rmx-error, #eb343c)'};text-transform:none;letter-spacing:0">${t}</span>`;
-    const labelPill = (on) => `<span data-act="todo" data-arg="Rent quote filter" style="display:inline-flex;align-items:center;height:26px;padding:0 14px;border-radius:4px;font-size:14px;cursor:pointer;${on?'border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--rmx-brand-dark, #13314c);background:#fff':'border:1px solid var(--rmx-line, #cedbe7);color:var(--rmx-text, #666666);background:#fff'}">Label</span>`;
+    const labelPill = (on, t) => `<span data-act="todo" data-arg="Rent quote filter" style="display:inline-flex;align-items:center;height:26px;padding:0 14px;border-radius:4px;font-size:14px;cursor:pointer;${on?'border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--rmx-brand-dark, #13314c);background:#fff':'border:1px solid var(--rmx-line, #cedbe7);color:var(--rmx-text, #666666);background:#fff'}">${t}</span>`;
     const qMoney = (n) => n.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
     const qRow = (r, i) => gRow(qCols, tdc(r.prop) + tdc(r.unit)
       + `<span style="padding:7px 12px">${qLoz(r.status, r.status !== 'Expired')}</span>` + tdc(qMoney(r.amount), true), i % 2 === 1);
@@ -4128,7 +4132,7 @@ class Component extends DCLogic {
     const quotes = tile('Rent Quotes', `<span data-act="rqOpen" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Add Quote</span>`,
       qBody,
       { grid:true, flush:qList.length > 0, minH:300,
-        mid: qList.length ? `<span style="display:inline-flex;align-items:center;gap:8px">${labelPill(true)}${labelPill(false)}</span>` : '' });
+        mid: qList.length ? `<span style="display:inline-flex;align-items:center;gap:8px">${labelPill(true, 'Active')}${labelPill(false, 'Expired')}</span>` : '' });
 
     // ---- Lead Information / Preferences / Reservation ----
     const lead = tile('Lead Information', link('Cancel') + openIcon('Lead Information'), `
@@ -7150,7 +7154,7 @@ class Component extends DCLogic {
     const cols = this.colTracks(colK, 'minmax(140px,1fr) minmax(150px,1.1fr) 100fr 115fr 140fr 160fr 120fr 150fr 120fr 150fr 44px');
     const hc = (t, first, right) => `<span style="display:flex;align-items:center;${right?'justify-content:flex-end;':''}height:28px;box-sizing:border-box;padding:4px ${first?'8px 4px 16px':'8px'};font-size:14px;font-weight:500;letter-spacing:0.5px;color:#fff;border-right:1px solid rgba(255,255,255,0.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>`;
     const header = `<div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">
-      ${hc('Name', true)}${hc('Description')}${hc('Max Pets')}${hc('Max Weight')}${hc('Recurring Amount', false, true)}${hc('Max Recurring Amount', false, true)}${hc('One Time Fee', false, true)}${hc('Max One Time Fee', false, true)}${hc('Pet Deposit', false, true)}${hc('Max Pet Deposit', false, true)}<span></span>
+      ${hc('Name', true)}${hc('Description')}${hc('Max Allowed')}${hc('Max Weight')}${hc('Recurring Charge Amount', false, true)}${hc('Max Recurring Charge Amount', false, true)}${hc('One-Time Charge Amount', false, true)}${hc('Max One-Time Charge Amount', false, true)}${hc('Pet Deposit Amount', false, true)}${hc('Max Pet Deposit Amount', false, true)}<span></span>
     </div>`;
     const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:0 8px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra||''}">${t}</span>`;
     const rows = this.state.petTypes.map((t, i) => `<div data-act="petTypeOpen" data-arg="${i}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);cursor:pointer;background:#fff" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background=''">
@@ -9940,7 +9944,7 @@ class Component extends DCLogic {
       { span:3, flush:true, minH:250 });
 
     // ---- Service Issues ----
-    const labelPill = (on) => `<span data-act="todo" data-arg="Service issue filter" style="display:inline-flex;align-items:center;height:26px;padding:0 14px;border-radius:4px;font-size:14px;cursor:pointer;background:#fff;border:1px solid ${on?'var(--ac,var(--rmx-brand, #008dd5))':'var(--rmx-line, #cedbe7)'};color:${on?'var(--rmx-brand-dark, #13314c)':'var(--rmx-text, #666666)'}">Label</span>`;
+    const labelPill = (on, t) => `<span data-act="todo" data-arg="Service issue filter" style="display:inline-flex;align-items:center;height:26px;padding:0 14px;border-radius:4px;font-size:14px;cursor:pointer;background:#fff;border:1px solid ${on?'var(--ac,var(--rmx-brand, #008dd5))':'var(--rmx-line, #cedbe7)'};color:${on?'var(--rmx-brand-dark, #13314c)':'var(--rmx-text, #666666)'}">${t}</span>`;
     const sCols = '32px 70px minmax(0,1fr) 110px 110px 110px';
     const issues = [
       ['123','Re-key Locks','03/01/26','To do','High'],
@@ -9954,7 +9958,7 @@ class Component extends DCLogic {
         issues.map((r, i) => gRow(sCols, caret + tdc(r[0]) + tdc(r[1]) + tdc(r[2]) + tdc(r[3]) + tdc(r[4]), i % 2 === 1)).join(''), 540)
       + '<div style="flex:1"></div>',
       { span:2, flush:true, minH:250,
-        mid:`<span style="display:inline-flex;align-items:center;gap:8px">${labelPill(true)}${labelPill(false)}</span>` });
+        mid:`<span style="display:inline-flex;align-items:center;gap:8px">${labelPill(true, 'Open')}${labelPill(false, 'Closed')}</span>` });
 
     // ---- UDFs ----
     const uCols = 'minmax(0,1fr) minmax(0,1fr)';
@@ -10174,7 +10178,7 @@ class Component extends DCLogic {
     const srcRows = isCopy ? this.copyableRows(a.copyFrom) : [];
     const chargeTable = (label, rows, rec) => {
       const colK = 'addprop-' + (rec ? 'rec' : 'one');
-      const cols = this.colTracks(colK, rec ? '38px 190px 110px minmax(140px,1fr) 80px 90px 50px 100px' : '38px 190px 110px minmax(140px,1fr) 100px');
+      const cols = this.colTracks(colK, rec ? '38px minmax(0,1.5fr) minmax(0,0.8fr) minmax(0,1.3fr) minmax(0,0.7fr) minmax(0,0.85fr) minmax(0,0.6fr) minmax(130px,1fr)' : '38px minmax(0,1.5fr) minmax(0,0.8fr) minmax(0,2fr) minmax(130px,1fr)');
       const heads = rec ? ['','Charge Level','Charge Type','Comment','Frequency','From','To','Amount'] : ['','Charge Level','Charge Type','Comment','Amount'];
       const allOn = rows.length && rows.every(r => a.sel[r.id]);
       const hc = (t,i) => i === 0
@@ -11314,8 +11318,8 @@ class Component extends DCLogic {
     const dupTip = this.infoTip(`<span style="display:block;white-space:normal">A duplicate is a charge matching one this property already has: the same charge type and comment, at the same level and on the same unit type or unit. For example, if both properties have a property-level APPFEE charge commented “Application fee”, that's a duplicate.</span>`);
     const table = (label, list, isRec) => {
       const colK = 'copy-' + (isRec ? 'rec' : 'one');
-      const cols = this.colTracks(colK, isRec ? '44px 200px 120px minmax(150px,1fr) 90px 100px 90px 110px'
-                         : '44px 200px 120px minmax(150px,1fr) 110px');
+      const cols = this.colTracks(colK, isRec ? '44px minmax(0,1.5fr) minmax(0,0.8fr) minmax(0,1.3fr) minmax(0,0.7fr) minmax(0,0.85fr) minmax(0,0.6fr) minmax(130px,1fr)'
+                         : '44px minmax(0,1.5fr) minmax(0,0.8fr) minmax(0,2fr) minmax(130px,1fr)');
       const heads = isRec ? ['','Charge Level','Charge Type','Comment','Frequency','From','To','Amount']
                           : ['','Charge Level','Charge Type','Comment','Amount'];
       const allOn = list.length && list.every(r => c.sel[r.id]);
@@ -12189,7 +12193,9 @@ class Component extends DCLogic {
       </div>
     </div>`;
   }
-  toastHTML(){ return this.state.toast ? `<div class="toast"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="m421-298 283-283-46-45-237 237-120-120-45 45 165 166Zm59 218q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 31.5-156t86-127Q252-817 325-848.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 82-31.5 155T763-197.5q-54 54.5-127 86T480-80Zm0-60q142 0 241-99.5T820-480q0-142-99-241t-241-99q-141 0-240.5 99T140-480q0 141 99.5 240.5T480-140Zm0-340Z"/></svg>${this.state.toast}</div>` : ''; }
+  toastHTML(){ if (!this.state.toast) return '';
+    const err = this.state.toastTone === 'error';
+    return `<div class="toast${err ? ' toast-err' : ''}" role="${err ? 'alert' : 'status'}">${this.filledIco(err ? 'error' : 'check_circle', 24, 'flex:none;color:#fff')}<span style="min-width:0">${this.state.toast}</span></div>`; }
 
   // ================= SCREENS =================
   screenHTML(){

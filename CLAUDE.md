@@ -1765,6 +1765,19 @@ Details' Marketing Details intro is the first sentence alone (*Charges show it a
 **Add Property's charges section is *Charges*** (2026-10-19, brief item 11; it was *Fee Transparency*), and its Blank
 option's hint reads *Start with no charges and add them after the property is created.*
 
+**Small fixes** (2026-10-19, brief item 12): the two copy tables (Copy Charges from Property, Add Property › Copy From)
+use flexible tracks with Amount at `minmax(130px,1fr)`, so *Unit Market Rent* is no longer clipped by a grid wider than its
+dialog; the Rent Quotes tile's placeholder *Label | Label* pills read **Active | Expired** (Service Issues' read **Open |
+Closed**); the Pet Types register's headers use the dialog's names — **Max Allowed, Recurring Charge Amount, Max Recurring
+Charge Amount, One-Time Charge Amount, Max One-Time Charge Amount, Pet Deposit Amount, Max Pet Deposit Amount**.
+
+**`flash()` is RMX's Toast in two colours** (2026-10-19, brief item 12): `flash(msg, tone)` — green
+(`--rmx-success`) with a filled white `check_circle` for a completed action, red (`--rmx-error`) with `error` when
+`tone` is `'error'` (`toastTone`). Top centre at `top:60px` like the activation toast (it was a navy pill at the
+bottom), up to 720px wide, and it stays `55ms × length` (2.6–9s) so a long charge type notice can be read. The error
+calls: choose a unit / charge type / property to copy from, name required, select a column or a charge, fill in a
+field, duplicate charges, and activation refused (charges short, a unit with no Base Rent).
+
 ## Tenant Charge Setup
 
 **Rent Charge Types on the property's General tab is a real checklist** (2026-10-09). It was a static
