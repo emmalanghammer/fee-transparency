@@ -40,24 +40,25 @@ RMX Workflow Step avatar (grey number, brand pencil when current, green check wh
 - **1 · Add marketing details to charge types.** `ftSetupSteps()` gathers, across the scope's applicable
   properties (activated ones too, since their listings aren't sent), each charge type missing fields and
   each duplicate group. Open while anything is short: an amber *n of m Ready* lozenge, *Set once on the charge
-  type, including whether it's the Base Rent or Security Deposit…*, a register **Charge Type · What's Left ·
-  action** — duplicates first (`dupLabelAt`, **Resolve** → `dupOpen`), then *n fields missing* (the fields in
-  its `title`) with **Edit** → `ctOpen`. Only three rows show; *Show n more charge types* reveals the rest
-  DOM-only (`[data-ftmore]`), since listing every type was overwhelming (2026-10-20) — then **Mass Edit Marketing Details** (`ftMassEdit` filtered to the short types) and **Open
+  type. Every charge that uses it, at every property, is advertised with those details.*, a register **Charge Type · Listing Status ·
+  action** — duplicates first (`statusDot` *Duplicate Charge*, amber, red once the property has activated,
+  `dupLabelAt` on hover, **Resolve** → `dupOpen`), then red *Missing Required Fields* (the fields on hover)
+  with **Edit** → `ctOpen`. The register is closed by default: the step leads with a SemiBold count —
+  *10 Charge Types missing marketing details* (else *n duplicate charges to resolve*) — with **Show charge types** to its right (a chevron, DOM-only,
+  `#ft-short-wrap`) opening every row, duplicates included; listing them all up front was overwhelming (2026-10-20) — then **Mass Edit Marketing Details** (`ftMassEdit` filtered to the short types) and **Open
   Charge Types**. Done, it collapses to *All n charge types ready* with **Open Charge Types**.
 - **2 · Activate properties.** *n of m ready* (plus **Bulk Activate** → `ftActivateReady` when more than one
   is ready), then **Property · Charge Types · What's Left · Status**: the dot fraction (`ftPropTypes`); what's
   left — the short codes *(step 1)*, *n units with no Base Rent* with **View Charges**, *Nothing*, or on an
   activated property `—` / *GARBAG (step 1): listings not sent*; and an **Activate** button (`pubOpen`), a
   Not Ready lozenge, or italic *Fee Transparent*.
-- **After a critique (2026-10-20):** when no listed charge type has the Base Rent role (rollout),
-  `ftSetupSteps` sets `noRent` and step 1 leads with a **Base Rent** row, *No charge type is set as the Base
-  Rent*, **Edit RC** (`ctOpen`); step 2 then shows no *units with no Base Rent* (that appears only once a type
-  is the Base Rent and a unit still isn't reached). **Step 2 collapses to its header** — *0 of 3 ready ·
-  available once charge types are ready* — while step 1 has work and no property is ready or activated. Its
+- **After a critique (2026-10-20):** step 1 has **no Base Rent row** (one was added for rollout, when no
+  charge type has the Base Rent role, and the user removed it the same day); step 2's *n units with no Base
+  Rent* shows whenever `roleRentGap` counts any. **Step 2 collapses to its header** — an amber dot and *0 of 3 Ready*
+  (no background; its *· available once charge types are ready* came off the same day) — while step 1 has work and no property is ready or activated. Its
   What's Left is a count, *2 charge types need details (step 1)*, the codes in a `title`; the column is
   **Types Ready** (min 110px) and its dot is amber while setting up, red only on an activated property. The
-  progress reads *n of m charge types ready* beside a 160px bar, no percentage.
+  progress bar is the **whole setup** (charge types ready plus properties activated, over all of them), 240px with its percentage, and no text label.
 - **Learning is the help panel, not a step.** The *What is Fee Transparency?* card is gone; its content moved
   into `ftHelpHTML` as a *What is fee transparency?* card above the steps. The panel sits at z-index 156 so it
   opens over the Setup overlay. The Base Rent is no longer its own sub-row; it is part of step 1.
@@ -1095,7 +1096,8 @@ describes the design before that tag; the code for most of it is still in the fi
   active charge type — **Charge Type · Properties · Charge Role · Name · Charge Category · Marketing
   Description · Charge Requirement · Charge Schedule · Charge Timing · Refundability** — grey Register
   header, striped rows that tint `#ebf1f5` on hover. A 1px rule runs down the right of **Properties** (white at 70% in the header,
-  `--rmx-line` in the rows), between what identifies a row and what can be edited (2026-10-15). **Properties** reads *All Properties*, one property's
+  `--rmx-line` in the rows), between what identifies a row and what can be edited (2026-10-15). **Charge Type and Properties are frozen** when the register scrolls sideways (2026-10-20):
+  `position:sticky` at `left:0` / `left:100px`, the row's background inherited so hover still tints, the header row at z-index 3. **Properties** reads *All Properties*, one property's
   code, or the first code then RMX's dropdown Pill *+n* (`morePill`, 2026-10-15) whose panel lists every
   one — only properties in the scenario's portfolio. The Pill's handler is shared with the Review
   overlay's missing floor plans (`pillInstall` / `window.__rolePill`). An empty required field reads a filled red `error` glyph
