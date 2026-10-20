@@ -2250,8 +2250,6 @@ class Component extends DCLogic {
         this.setState(s => { const m = Object.assign({}, s.ilsProps); if (turningOn) m[p] = true; else delete m[p]; return { ilsProps: m, profMenu: null }; });
         this.logChange(p, 'Fee Transparency', 'Online listings turned ' + (turningOn ? 'on' : 'off'), p);
         this.flash(turningOn ? p + ' will market on online listings' : p + ' removed from online listing marketing'); break; }
-      case 'profMenuOpen': { const r = el.getBoundingClientRect(); this.setState({ profMenu: { x: r.right, y: r.bottom + 4 } }); break; }
-      case 'profMenuClose': this.setState({ profMenu: null }); break;
 
       // ---- pricing preview ----
       case 'pricePreviewOpen': { const pp = arg || this.state.property;
@@ -4139,9 +4137,12 @@ class Component extends DCLogic {
       ['Announcements', [
         ['New Feature', 'announceOpen']
       ]],
-      // Not part of the product — the way back to the Test Feature State picker once it is hidden.
+      // Not part of the product — the way back to the Test Feature State picker once it is hidden, and
+      // whether the property on screen markets online (2026-10-20, round 2 item 5: a prototyping control,
+      // not product UI; it lived in the Charges ⋮ menu).
       ['Prototype', [
         [`${this.scenShow() ? 'Hide' : 'Show'} Test Feature State`, 'scenToggle'],
+        [`${this.ilsOn(this.state.property) ? 'Stop marketing' : 'Market'} ${this.state.property} on online listings`, 'ilsPropToggle'],
         ['Marketing Center version', 'variantGo', 'marketing-center.html']
       ]]
     ];
@@ -7504,21 +7505,8 @@ class Component extends DCLogic {
           ${[['Add Recurring Charge','req-rec'],['Add One-Time Charge','req-one'],['Add CRE Recurring Charge','cre']].map(o=>`<div data-act="addopen" data-arg="${o[1]}" style="padding:11px 16px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">${o[0]}</div>`).join('')}
         </div>
       </span>
-      ${this.scenarioKey() === 'happy' ? '' : `<span data-act="profMenuOpen" style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:36px;cursor:pointer"><svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5))"><path d="M400-720a80 80 0 1 0 160 0 80 80 0 1 0-160 0ZM400-480a80 80 0 1 0 160 0 80 80 0 1 0-160 0ZM400-240a80 80 0 1 0 160 0 80 80 0 1 0-160 0Z"/></svg></span>`}
+
     </div>`;
-  }
-  profMenuHTML(){
-    const p = this.state.profMenu; if (!p) return '';
-    const left = Math.max(8, p.x - 260);
-    const item = (t,act,arg) => `<div data-act="${act||'profAct'}" data-arg="${arg!=null?arg:t}" style="padding:10px 14px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">${t}</div>`;
-    // Every Happy Path property already markets online, so the toggle is noise in the walkthrough —
-    // and turning it off would take fee transparency off the table mid-demo.
-    const on = this.ilsOn();
-    const ilsItem = this.scenarioKey() === 'happy' ? '' : `<div data-act="ilsPropToggle" style="display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">${this.ico(on ? 'check_box' : 'check_box_outline_blank', 18, `color:${on ? 'var(--rmx-success, #6eb744)' : 'var(--rmx-line, #cedbe7)'}`)}Market this property on online listings</div>`;
-    return `<div data-act="profMenuClose" style="position:fixed;inset:0;z-index:150"></div>
-      <div style="position:fixed;left:${left}px;top:${p.y}px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);z-index:151;overflow:hidden;padding:4px 0">
-        ${ilsItem}
-      </div>`;
   }
   // Recurring / One-Time subtable inside a profile section.
   // Charges register columns: everything Customize Column Setup can offer. Selection and order live
@@ -11913,7 +11901,6 @@ class Component extends DCLogic {
     out += this.petTypeHTML();
     out += this.pricePreviewHTML();
     out += this.txnViewHTML();
-    out += this.profMenuHTML();
     out += this.announceHTML();
     out += this.rqHTML();
     out += this.rqAddHTML();

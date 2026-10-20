@@ -1796,6 +1796,12 @@ bottom), up to 720px wide, and it stays `55ms × length` (2.6–9s) so a long ch
 calls: choose a unit / charge type / property to copy from, name required, select a column or a charge, fill in a
 field, duplicate charges, and activation refused (charges short, a unit with no Base Rent).
 
+**"Market this property on online listings" is a prototyping control, not product UI** (2026-10-20, round 2 item 5). It
+lives in **Full Menu › Prototype**, under Show Test Feature State, reading *Market <Property> on online listings* or *Stop
+marketing <Property> on online listings* for the property on screen (`ilsPropToggle`, in every scenario). It used to be the
+Charges ⋮ menu's only item, so that ⋮ (`profMenuOpen`, `profMenuHTML`) is gone and the toolbar ends at the Add Recurring
+Charge split button.
+
 **Copy Charges lives only in Add Property** (2026-10-20, round 2 item 4, a Phase 1 cut): the Charges ⋮ menu's *Copy
 Charges from Property*, its dialog (`copyFeesHTML`), `state.copyFees` and the `copy*` cases were removed. Add Property ›
 Copy From is untouched (`copyableRows`, `sameCharge`). The ⋮ now carries only the online-listings toggle, so it isn't drawn
