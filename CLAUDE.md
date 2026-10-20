@@ -1824,8 +1824,10 @@ field, duplicate charges, and activation refused (charges short, a unit with no 
 - Dashes: an empty cell is **—** (the Charges register's To, Add Property's copy tables, Listings' Total Monthly Price before
   activation and its no-figure money) and a range is **–** (floor plan figures before activation too).
 - Resolve Duplicate Charges gives Charge Level more of the row (1.3 against From - To and Amount at 0.85).
-- The Unit Selector shows the prospect's own unit (1B, Charlie Apegian) as **Reserved**, with no occupant, and offers it
-  with Vacant only ticked.
+- **The prospect is Jordan Ellis** (2026-10-20, the user's call, replacing a *Reserved* special case in the Unit Selector):
+  the prospect page (`prospectBody`: name, *JE* avatar, *jellis@lcs.com*, reserved unit **2B**, address *88 Maple Avenue,
+  Apt 4*), the Move In wizard's Account, the top search box and the move-in toast. Charlie Apegian stays 1B's tenant, so the
+  Unit Selector lists 1B as Occupied, and hides it with Vacant only ticked.
 - The rent quote's and the Pricing Preview's total bars keep each label with its figure (*Due one-time $1,915.00* no longer
   splits).
 
