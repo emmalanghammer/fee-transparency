@@ -610,7 +610,9 @@ Header + Cell, and fields are `Input Field`. Page `3465:40468` ("V2") holds the 
 
 ## Deploying
 
-`git push origin experiment` triggers the Actions workflow. Poll it with
+`git push origin experiment` triggers the Actions workflow. **Pages builds from GitHub Actions only** (2026-10-20, at the
+user's request; it was *Deploy from a branch* as well, so every push ran two deploys that raced, and one failed or was
+cancelled — the failure emails). Push once per change: the change and its artifact version note go up together. Poll it with
 `gh run view <id> --json status,conclusion` until it says `completed success`, then the change
 is live at <https://emmalanghammer.github.io/fee-transparency/>.
 
