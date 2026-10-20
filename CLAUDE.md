@@ -420,7 +420,7 @@ type is listing ready, red while any is short — and the fraction of charge typ
 `title` naming the short ones. It opens **`ltTypesHTML`** (`ltTypesOpen` with the listing index,
 `state.ltTypes = { i }`, z-index 150): *Charge Types: `<property · unit>`*, a lead *"1 of 7 charge types on
 this listing isn't listing ready. Each charge's marketing details come from its charge type."* with
-**Mass Edit Marketing Details** beside it when more than one type is short — opening Mass Edit on **every**
+**Mass Edit Marketing Details** under it (stacked since 2026-10-20; it sat beside the sentence) when more than one type is short — opening Mass Edit on **every**
 charge type, not only the short ones (the user's call) — then a register **Charge Type · Listing Ready ·
 action**: *GARBAG – Garbage Fee*; *Listing Ready*, or *Missing Details* over *Required for listings:
 Charge Requirement, Charge Schedule*, or *Duplicate* over *2 RC charges at The Berkshires would show as the
