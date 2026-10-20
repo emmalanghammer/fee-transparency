@@ -1089,8 +1089,8 @@ describes the design before that tag; the code for most of it is still in the fi
   (white, 1px red outline, filled `error`), and a duplicate (`dupG`, from `chargeDupes`) adds `#m-dup-msg`, a
   Warning Callout before activation / Error after — *2 Base Rent charges at the property can’t both be…, so
   neither is listed.* — with **Resolve** (`dupOpen`) on the right.
-- **Mass Edit Marketing Details** (Figma `3980:160947`, 2026-10-15): an action link (`edit_square`) beside
-  Add Charge Type on the Charge Types page opens `ctMassHTML` (`state.ctMass`, z-index 150, 1572px wide):
+- **Mass Edit Marketing Details** (Figma `3980:160947`, 2026-10-15): an action link (`edit_square`, labelled **Mass Edit Marketing**
+  since 2026-10-20) beside Add Charge Type on the Charge Types page opens `ctMassHTML` (`state.ctMass`, z-index 150, 1572px wide):
   the 48px header with a help (`todo`) and close, *"Set the marketing information for every charge that
   uses this charge type. Charges will display on listings as they are here."*, then one register row per
   active charge type — **Charge Type · Properties · Charge Role · Name · Charge Category · Marketing
