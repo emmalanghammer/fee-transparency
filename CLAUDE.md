@@ -584,7 +584,7 @@ Column Setup, and the copy changes since Version 7), the same way. **Version 9 t
 Activate until a Base Rent is confirmed for every unit), the same way. **Version 10 the same day**, from `811a0b3` (a
 listing is Not Sent only when a charge applying to its unit is short), the same way. **Version 11**, from `c631b98`
 (Listing Ready Charges per unit), the same way. **Version 12 on 2026-10-19**, from `841b1f1` (everything since
-Version 11, through item 1 of the fixes brief), the same way. **Version 13**, from `81725bd` (item 2), the same way. **Version 14**, from `1d86452` (item 3), the same way. **Version 15**, from `4a30b28` (item 4), the same way. **Version 16**, from `6f6f1fa` (item 5), the same way. **Version 17**, from `7e7cbf2` (item 6), the same way.
+Version 11, through item 1 of the fixes brief), the same way. **Version 13**, from `81725bd` (item 2), the same way. **Version 14**, from `1d86452` (item 3), the same way. **Version 15**, from `4a30b28` (item 4), the same way. **Version 16**, from `6f6f1fa` (item 5), the same way. **Version 17**, from `7e7cbf2` (item 6), the same way. **Version 18 on 2026-10-20**, from `ae3d2e7` (item 7), the same way.
 
 **Do not republish the old artifact.** <https://claude.ai/artifact/JCtc82KKhtuQJ1eEDfiQdj> is
 frozen at Version 29, which matches `main`. It is the shareable record of that snapshot, so
