@@ -1554,7 +1554,6 @@ class Component extends DCLogic {
       case 'ctMassAll': this.setState({ ctMass: true }); break;
       case 'ltTypesOpen': this.setState({ ltTypes: { i: parseInt(arg, 10) || 0 } }); break;
       case 'ltTypesClose': this.setState({ ltTypes: null }); break;
-      case 'ctMissingOnly': this.setState(s => ({ ctMissingOnly: !s.ctMissingOnly })); break;
       case 'dupOpen': { const k = String(arg).indexOf('::'); this._dupEndVal = ''; window.__C_dupEnd = (v) => { this._dupEndVal = v; };
         this.setState({ rowMenu: null, dupResolve: { prop: String(arg).slice(0, k), key: String(arg).slice(k + 2), step: 1, keep: null, act: null } }); break; }
       case 'dupClose': this.setState({ dupResolve: null }); break;
@@ -1936,26 +1935,6 @@ class Component extends DCLogic {
           roleRows ? { profileFees: Object.assign({}, s.profileFees, { [prop]: roleRows }) } : {}));
         this.flash(e.id ? 'Floor plan saved' : 'Floor plan added'); break; }
       case 'rentCTBlockClose': this.setState({ rentCTBlock: null }); break;
-      case 'roleReviewOpen': this._roleDraft = Object.assign({}, this._roleDraft, { review: {} }); this._roleNew = [];
-        this.setState({ roleReview: { prop: arg || this.state.property } }); break;
-      case 'roleReviewClose': if (this._roleDraft) this._roleDraft.review = {}; this._roleNew = []; this.setState({ roleReview: null }); break;
-      case 'roleReviewSave': { const rv = this.state.roleReview; if (!rv) break;
-        const ov = this.q('[data-rreview]');
-        const left = ov ? Array.prototype.filter.call(ov.querySelectorAll('[data-rsec="rent"] [data-rrow]:not([data-removed])'), r => { const c = r.querySelector('[data-rs="conf"]'); return !c || c.style.display === 'none'; }).length : 0;
-        if (left) break;
-        const prop = rv.prop;
-        const rows = this.roleApplyRows(prop, (this._roleDraft || {}).review || {});
-        // Each Add sets an existing charge as that unit type's or unit's Base Rent / Security Deposit: its
-        // own role where it's written there, else a `roleFor` entry for the level it answers from above.
-        const added = rows.map(r => r);
-        (this._roleNew || []).forEach(n => { const i = added.findIndex(r => String(r.id) === String(n.id)); if (i < 0) return;
-          const r = added[i], L = Object.assign({}, r.listing);
-          if (String(r.level || 'Property') === n.level && String(r.target || '') === n.target) L.leaseRole = n.kind;
-          else L.roleFor = Object.assign({}, L.roleFor, { [n.kind + '|' + n.level + '|' + n.target]: true });
-          added[i] = Object.assign({}, r, { listing: L }); });
-        if (this._roleDraft) this._roleDraft.review = {}; this._roleNew = [];
-        this.setState(s => ({ roleReview: null, profileFees: Object.assign({}, s.profileFees, { [prop]: added }) }));
-        this.flash('Base Rent and Security Deposit saved'); break; }
       // System Preferences › Security Deposit › General. A type can't come off while any property's
       // Security Deposit is a charge on it — the same popup the Rent Charge Types list raises, naming
       // where it is held.
@@ -3513,7 +3492,7 @@ class Component extends DCLogic {
     // question. Starts below the page's context bar and runs to the bottom of the window.
     return `<div data-act="noop" style="position:fixed;top:88px;right:0;bottom:0;width:534px;max-width:96vw;box-sizing:border-box;background:#fff;border-left:1px solid var(--rmx-line, #cedbe7);box-shadow:-6px 0 18px rgba(19,49,76,0.12);display:flex;flex-direction:column;overflow:hidden;z-index:150">
         <div style="flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;height:48px;box-sizing:border-box;padding:10px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
-          <span style="font-size:20px;color:var(--rmx-brand-dark, #13314c)">How does pricing setup work?</span>
+          <span style="font-size:20px;color:var(--rmx-brand-dark, #13314c)">How does Fee Transparency Setup work?</span>
           <svg class="ico" width="24" height="24" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="ftHelpClose" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
         </div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:16px">
@@ -4344,6 +4323,16 @@ class Component extends DCLogic {
   }
   // Figma `3591:138722`. One box decides whose values these are: unticked, the fields are disabled
   // and show the charge type's; ticked, they are live and the property's own.
+  // A charge type's Storage / Parking / Pet details: what it has saved, else (until it saves one) the pet type
+  // its charges name most. Read by Charge Type Details and the property override dialog alike.
+  ctAttrsFor(code, attrs){
+    if (attrs && Object.keys(attrs).length) return attrs;
+    const c = String(code || '').toUpperCase(), seen = {};
+    this.propNames().forEach(p => this.profileRows(p).forEach(x => {
+      const t = String(x.mits || '').toUpperCase() === c && x.attrs && x.attrs.petType; if (t) seen[t] = (seen[t] || 0) + 1; }));
+    const top = Object.keys(seen).sort((a, b) => seen[b] - seen[a])[0];
+    return top ? Object.assign({}, attrs || {}, { petType: top }) : attrs;
+  }
   ctmEditHTML(){
     const e = this.state.ctmEdit; if (!e) return '';
     const prop = e.prop, code = String(e.code || '').toUpperCase(), on = !!e.on;
@@ -4381,7 +4370,10 @@ class Component extends DCLogic {
     // follow the same box as the rest: unticked, the charge type's, locked; ticked, the property's.
     // Every section is drawn and the category picks which shows, so changing Charge Category here
     // swaps it live.
-    const att = on ? ((e.vals || {}).attrs || base.attrs || {}) : (base.attrs || {});
+    // The charge type's details as Charge Type Details shows them — its Pet Type included, read off its charges
+    // until the type has saved one (2026-10-20: DOGFEE read Dog there and blank here).
+    const baseAttrs = this.ctAttrsFor(code, base.attrs) || {};
+    const att = on ? ((e.vals || {}).attrs || baseAttrs) : baseAttrs;
     // Charge Category is the charge type's and nobody else's, so it reads the way it does on a charge:
     // static, in either state of the box, with the red Add Category box when the type has none. What
     // is added there goes to the charge type, on Save.
@@ -4470,7 +4462,7 @@ class Component extends DCLogic {
   fpStats(ids){
     const U = this.units().filter(u => ids.indexOf(u.u) >= 0);
     const range = (a, f) => { const v = a.filter(n => n != null); if (!v.length) return '—';
-      const lo = Math.min.apply(null, v), hi = Math.max.apply(null, v); return lo === hi ? f(lo) : f(lo) + ' - ' + f(hi); };
+      const lo = Math.min.apply(null, v), hi = Math.max.apply(null, v); return lo === hi ? f(lo) : f(lo) + ' – ' + f(hi); };
     const money = n => '$' + n.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
     return { units: U.length, avail: U.filter(u => /vacant/i.test(u.tenant)).length,
       sqft: range(U.map(u => this.fpNum(u.sqft)), n => n.toLocaleString('en-US')),
@@ -5093,156 +5085,6 @@ class Component extends DCLogic {
   // The Review overlay, to Figma 3931:167844 / 3931:168155: one section per role, the property's charge
   // first and the unit type and unit charges stacked under it, each section headed by how many units
   // it covers and which are missing.
-  roleReviewHTML(){
-    const rv = this.state.roleReview; if (!rv) return '';
-    const prop = rv.prop, INK = 'color:var(--rmx-brand-dark, #13314c)';
-    const F = this.ctFieldBits();
-    const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;');
-    const pendingN = ['rent', 'deposit'].reduce((n, kind) => n + this.roleGroups(prop, kind, { all: true }).filter(g => !this.roleAnswer('review', kind, g)).length, 0);
-    const lozenge = (c) => `<span data-covloz style="display:inline-flex;align-items:center;height:24px;padding:0 8px;border-radius:4px;background:${c.covered === c.total ? 'var(--rmx-success-bg, #e2f1da)' : '#feedd2'};font:400 14px/16px Roboto,sans-serif;${INK};white-space:nowrap">${c.covered} of ${c.total} units</span>`;
-    const section = (kind) => {
-      const L = this.leaseRoleLabel(kind);
-      const gs = this.roleGroups(prop, kind, { all: true });
-      const c = this.roleCoverage(prop, kind);
-      const gone = (g) => { const a = this.roleAnswer('review', kind, g); return !!(a && a.declined); };
-      const hasProp = gs.some(g => g.level === 'Property' && !gone(g));
-      // No property-level charge (2026-10-15): for rent, the first row under the header is just a tip
-      // Callout towards one property charge on Unit Market Rent; a deposit shows nothing, the missing
-      // line in the header already says it.
-      const missingProp = kind !== 'rent' ? '' : `<div data-rmissprop style="display:${hasProp ? 'none' : 'flex'};align-items:center;min-height:52px;box-sizing:border-box;padding:8px 16px;border-top:1px solid var(--rmx-line, #cedbe7);font-size:14px;line-height:20px;${INK}">
-          <span style="display:inline-flex;align-items:center;gap:8px;padding:8px;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px">${this.ico('info', 20, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}<span><strong style="font-weight:600">Tip:</strong> Include Base Rent on every unit with one property charge using Unit Market Rent.</span></span>
-        </div>`;
-      const optsAdd = this.roleAddTargets(prop, kind);
-      // The charge to add is one on a charge type this role reads: a rent charge type for the Base Rent
-      // (recurring, so a type the property only runs one-time, like FMR, is left out), a security
-      // deposit charge type for the Security Deposit.
-      return `<section data-rsec="${kind}" style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;background:#fff">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;flex-wrap:wrap">
-          <span style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-width:0">
-            <span style="font-size:16px;line-height:24px;font-weight:600;${INK}">${L}</span>${lozenge(c)}
-            <span data-covmiss style="font-size:14px;line-height:20px;${INK}">${c.missingHTML}</span>
-          </span>
-          <a onclick="window.__roleNewForm('${kind}', true)" data-radd="${kind}" style="display:inline-flex;align-items:center;gap:4px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${this.ico('add', 20)}Add ${L}</a>
-        </div>
-        ${missingProp}${gs.map(g => this.roleRowHTML('review', prop, kind, g, { removed: gone(g) })).join('')}
-        <div data-rnew="${kind}">${this.roleNewRowsHTML(kind, prop)}</div>
-        <div data-rform="${kind}" style="display:none;flex-wrap:wrap;gap:12px;align-items:flex-end;padding:12px 16px;border-top:1px solid var(--rmx-line, #cedbe7)">
-          <div data-rat style="flex:1 1 200px;min-width:0;display:flex;flex-direction:column;gap:4px">${F.lab('Applies to')}${this.singleSelect('rnew-at-' + kind, optsAdd, '', { placeholder: 'Select', js: "window.__roleNewTarget('" + kind + "',_v)" })}</div>
-          <div style="flex:2 1 280px;min-width:0;display:flex;flex-direction:column;gap:4px">${F.lab('Charge')}<div data-rct>${this.roleChargeOff(kind, 'Select')}</div></div>
-          <button type="button" class="btn-pri" data-raddbtn disabled onclick="window.__roleNewAdd('${kind}')" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;opacity:.5;cursor:default">Add</button>
-          <button type="button" class="btn-out" onclick="window.__roleNewForm('${kind}', false)" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Cancel</button>
-          <span data-rerr style="display:none;flex-basis:100%;font-size:12px;line-height:16px;color:var(--rmx-error, #eb343c)"></span>
-        </div>
-      </section>`;
-    };
-    // DOM-only refresh of everything coverage drives — the counts per row, each section's lozenge and
-    // what's missing — plus Save and the footer line.
-    window.__roleCov = () => {
-      const ov = document.querySelector('[data-rreview]'); if (!ov) return;
-      ['rent', 'deposit'].forEach(kind => {
-        const c = this.roleCoverage(prop, kind), sec = ov.querySelector('[data-rsec="' + kind + '"]'); if (!sec) return;
-        sec.querySelectorAll('[data-cov]').forEach(el => { const k = el.getAttribute('data-cov'), n = c.by[k] || 0;
-          el.textContent = n ? 'Used by ' + n + ' unit' + (n === 1 ? '' : 's') : 'Not used'; });
-        const lz = sec.querySelector('[data-covloz]'); if (lz) { lz.textContent = c.covered + ' of ' + c.total + ' units'; lz.style.background = c.covered === c.total ? 'var(--rmx-success-bg, #e2f1da)' : '#feedd2'; }
-        const ms = sec.querySelector('[data-covmiss]'); if (ms) ms.innerHTML = c.missingHTML;
-        // *No property level …* shows whenever nothing live is written for the property.
-        const D = ((this._roleDraft || {}).review) || {};
-        const live = this.roleGroups(prop, kind, { all: true }).some(g => g.level === 'Property' && !(D[this.roleKey(kind, g)] ? D[this.roleKey(kind, g)].declined : g.declined))
-          || (this._roleNew || []).some(n => n.kind === kind && n.level === 'Property');
-        const mp = sec.querySelector('[data-rmissprop]'); if (mp) mp.style.display = live ? 'none' : 'flex';
-      });
-    };
-    window.__roleCount = () => {
-      const ov = document.querySelector('[data-rreview]'); if (!ov) return;
-      // Only the Base Rent has to be answered to save (2026-10-15); a deposit left suggested is fine.
-      let n = 0; ov.querySelectorAll('[data-rsec="rent"] [data-rrow]:not([data-removed])').forEach(r => { const c = r.querySelector('[data-rs="conf"]'); if (!c || c.style.display === 'none') n++; });
-      const sv = ov.querySelector('#rr-save'); if (sv) { sv.disabled = !!n; sv.style.opacity = n ? '.5' : '1'; sv.style.cursor = n ? 'default' : 'pointer'; }
-
-    };
-    window.__roleNewForm = (kind, on) => {
-      const sec = document.querySelector('[data-rreview] [data-rsec="' + kind + '"]'); if (!sec) return;
-      // Rebuilt on every open, since a removal or an Add since the render changes what's taken.
-      if (on) {
-        sec.querySelector('[data-rat]').innerHTML = F.lab('Applies to') + this.singleSelect('rnew-at-' + kind, this.roleAddTargets(prop, kind), '', { placeholder: 'Select', js: "window.__roleNewTarget('" + kind + "',_v)" });
-        window.__roleNewTarget(kind, '');
-      }
-      sec.querySelector('[data-rform]').style.display = on ? 'flex' : 'none';
-      sec.querySelector('[data-radd]').style.visibility = on ? 'hidden' : 'visible';
-      const e = sec.querySelector('[data-rerr]'); if (e) e.style.display = 'none';
-    };
-    // Picking where fills Charge with the charges that already reach it — the property's, the unit
-    // type's, and (for a unit) its own — DOM-only, so nothing else in the overlay redraws.
-    window.__roleNewTarget = (kind, v) => {
-      const sec = document.querySelector('[data-rreview] [data-rsec="' + kind + '"]'); if (!sec) return;
-      const [level, target] = String(v || '').split('|');
-      const opts = level ? this.roleWrittenAt(prop, kind, level, target).map(r => ({ value: String(r.id), label: this.roleShort(r) })) : [];
-      // Disabled until Applies to is chosen, and while nothing is written there to pick (2026-10-15).
-      sec.querySelector('[data-rct]').innerHTML = !level ? this.roleChargeOff(kind, 'Select')
-        : !opts.length ? this.roleChargeOff(kind, 'No charges at this level')
-        : this.singleSelect('rnew-ch-' + kind, opts, opts.length === 1 ? opts[0].value : '', { noSearch: true, placeholder: 'Select a charge', js: "window.__roleAddOn('" + kind + "', true)" });
-      // Add stays disabled until there is a charge to add — one picked, or the only one on offer.
-      window.__roleAddOn(kind, opts.length === 1);
-    };
-    window.__roleAddOn = (kind, on) => {
-      const b = document.querySelector('[data-rreview] [data-rsec="' + kind + '"] [data-raddbtn]'); if (!b) return;
-      b.disabled = !on; b.style.opacity = on ? '1' : '.5'; b.style.cursor = on ? 'pointer' : 'default';
-    };
-    window.__roleNewAdd = (kind) => {
-      const sec = document.querySelector('[data-rreview] [data-rsec="' + kind + '"]'); if (!sec) return;
-      const at = (document.getElementById('rnew-at-' + kind) || {}).value || '';
-      const id = (document.getElementById('rnew-ch-' + kind) || {}).value || '';
-      const err = (t) => { const e = sec.querySelector('[data-rerr]'); e.textContent = t; e.style.display = 'block'; };
-      if (!at) return err('Choose where it applies.');
-      if (!id) return;
-      const [level, target] = at.split('|');
-      const D = ((this._roleDraft || {}).review) || {};
-      const has = this.roleGroups(prop, kind, { all: true }).some(g => g.level === level && g.target === target && !(D[this.roleKey(kind, g)] || {}).declined && !(g.declined && !D[this.roleKey(kind, g)]))
-        || (this._roleNew || []).some(n => n.kind === kind && n.level === level && n.target === target);
-      if (has) return err((level === 'Unit' ? 'Unit ' + target : level === 'Property' ? prop : target) + ' already has its own ' + this.leaseRoleLabel(kind) + '.');
-      (this._roleNew || (this._roleNew = [])).push({ kind, level, target, id });
-      if (level === 'Property') { const mp = sec.querySelector('[data-rmissprop]'); if (mp) mp.style.display = 'none'; }
-      sec.querySelector('[data-rnew]').innerHTML = this.roleNewRowsHTML(kind, prop);
-      window.__roleNewForm(kind, false); window.__roleCov(); window.__roleCount();
-    };
-    // An added row reads as a confirmed one: the pencil swaps its charge for a dropdown of the charges
-    // that reach that unit type or unit, and a pick puts the row back (2026-10-14, replacing *Added*).
-    window.__roleNewEdit = (btn, i) => {
-      const n = (this._roleNew || [])[i]; if (!n) return;
-      const txt = btn.closest('div').querySelector('[data-rnewtxt]'); if (!txt) return;
-      const opts = this.roleWrittenAt(prop, n.kind, n.level, n.target).map(r => ({ value: String(r.id), label: this.roleShort(r) }));
-      txt.innerHTML = this.singleSelect('rnew-ed-' + i, opts, String(n.id), { noSearch: true, placeholder: 'Choose a charge', js: 'window.__roleNewPick(' + i + ',_v)' });
-      btn.style.visibility = 'hidden';
-    };
-    window.__roleNewPick = (i, v) => {
-      const n = (this._roleNew || [])[i]; if (!n || !v) return; n.id = v;
-      const box = document.querySelector('[data-rreview] [data-rnew="' + n.kind + '"]'); if (box) box.innerHTML = this.roleNewRowsHTML(n.kind, prop);
-      window.__roleCov(); window.__roleCount();
-    };
-    window.__roleNewRemove = (i) => {
-      const n = (this._roleNew || [])[i]; if (!n) return;
-      this._roleNew.splice(i, 1);
-      ['rent', 'deposit'].forEach(kind => { const box = document.querySelector('[data-rreview] [data-rnew="' + kind + '"]'); if (box) box.innerHTML = this.roleNewRowsHTML(kind, prop); });
-      window.__roleCov(); window.__roleCount();
-    };
-    setTimeout(() => window.__roleCov && window.__roleCov(), 0);
-    return `<div data-act="roleReviewClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:155">
-      <div data-act="noop" data-rreview style="width:1000px;max-width:96vw;max-height:92vh;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;height:48px;box-sizing:border-box;padding:8px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
-          <span style="font:400 20px/28px Roboto,sans-serif;${INK};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Base Rent &amp; Security Deposit: ${esc(prop)}</span>
-          <span data-act="roleReviewClose" style="display:flex;cursor:pointer">${this.ico('close', 24, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
-        </div>
-        <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;background:var(--rmx-bg-subtle, #f5f8fa)">
-          <p style="margin:0;font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">Every unit needs a Base Rent to activate fee transparency; a Security Deposit is recommended. A property charge will apply to all unless a unit type or unit has its own. You can also set either one when editing a charge.</p>
-          ${section('rent')}${section('deposit')}
-        </div>
-        <div style="display:flex;align-items:center;gap:16px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:8px 16px;flex:none">
-          <span style="flex:1"></span>
-          <button id="rr-save" data-act="roleReviewSave" class="btn-pri"${pendingN ? ' disabled' : ''} style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px${pendingN ? ';opacity:.5;cursor:default' : ''}">Save</button>
-          <button data-act="roleReviewClose" class="btn-out" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Cancel</button>
-        </div>
-      </div>
-    </div>`;
-  }
   // What an advertised unit of this type totals: its Base Rent plus the required monthly charges.
   // `rentOnly`: the Base Rent alone, without the required monthly fees (the floor plan's Base Rent row).
   // What the property's listings advertise as their Base Rent or Security Deposit — the same figures the
@@ -5304,9 +5146,9 @@ class Component extends DCLogic {
         <span style="font-size:14px;line-height:20px;font-weight:600;color:${INK}">${esc(title(r))}${r.desc ? `<span style="font-weight:400;color:${GREY}"> · ${esc(r.desc)}</span>` : ''}</span>
         <div style="display:flex;align-items:flex-start;gap:24px;padding-top:8px">
           ${col('Charge Type', esc(code + ' – ' + (names[code] || r.name || '')), false, 1.5)}
-          ${col('Charge Level', `<span style="display:inline-flex;align-items:center;gap:8px;max-width:100%">${this.chargeLevelCell(g.level, lvlName)}</span>`)}
-          ${col('From - To', dates)}
-          ${col('Amount', esc(r.amount || ''), true)}
+          ${col('Charge Level', `<span style="display:inline-flex;align-items:center;gap:8px;max-width:100%">${this.chargeLevelCell(g.level, lvlName)}</span>`, false, 1.3)}
+          ${col('From - To', dates, false, 0.85)}
+          ${col('Amount', esc(r.amount || ''), true, 0.85)}
         </div>
       </div>`;
     };
@@ -5516,7 +5358,7 @@ class Component extends DCLogic {
     const mkLink = (t, act, arg) => `<span data-act="${act}"${arg ? ` data-arg="${esc(arg)}"` : ''} style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${t}</span>`;
     const defaults = `<div style="${CARD};padding:16px;display:flex;flex-direction:column;gap:8px">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-        <div style="display:flex;align-items:center;gap:8px">${H2('Add Marketing Details to Charge Types')}${loz('Required', '#fbd6d8', 'var(--rmx-brand-dark, #13314c)')}</div>
+        <div style="display:flex;align-items:center;gap:8px">${H2('Add Marketing Details to Charge Types')}${Object.keys(this.ctMissingAll()).some(c => (this.ctMissingAll()[c] || []).length) ? loz('Required', '#fbd6d8', 'var(--rmx-brand-dark, #13314c)') : ''}</div>
         ${mkLink('Charge Types', 'navChargeTypes')}
       </div>
       ${DESC('Edit each charge type’s marketing details, so any charge that uses that charge type will be advertised with them. You can do this individually or in bulk on the charge types register.')}
@@ -6088,7 +5930,7 @@ class Component extends DCLogic {
   // marketing details, each naming the fields it is short. Same n/n as the lozenge — this is that
   // count, itemised — and the way through to fill them in.
   listingsBody(){
-    const money = (n) => n == null ? '-' : '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    const money = (n) => n == null ? '—' : '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
     const esc = s2 => (''+s2).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
     const all = this.listingsData();
     const props = all.map(l => l.prop).filter((v, i, a) => a.indexOf(v) === i);
@@ -6189,7 +6031,7 @@ class Component extends DCLogic {
         const is = this.ltIssues(l);
         // Only a converted property advertises a total; everything else still lists rent alone,
         // so there is no total monthly price to show yet.
-        const total = this.state.publishedProps[l.prop] ? money(l.base + this.ltMonthlyFees(l.prop)) : this.ftApplicable(l.prop) ? '-' : 'N/A';
+        const total = this.state.publishedProps[l.prop] ? money(l.base + this.ltMonthlyFees(l.prop)) : this.ftApplicable(l.prop) ? '—' : 'N/A';
         const depAmt = this.ltDeposit(l), dep = depAmt == null ? '\u2014' : money(depAmt);
 
         return `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background='#fff'">
@@ -6225,7 +6067,7 @@ class Component extends DCLogic {
       </div>`;
       const body = rows.map(({ l, i }) => {
         const is = this.ltIssues(l);
-        const total = this.state.publishedProps[l.prop] ? money(l.base + this.ltMonthlyFees(l.prop)) : this.ftApplicable(l.prop) ? '-' : 'N/A';
+        const total = this.state.publishedProps[l.prop] ? money(l.base + this.ltMonthlyFees(l.prop)) : this.ftApplicable(l.prop) ? '—' : 'N/A';
         const depAmt = this.ltDeposit(l), dep = depAmt == null ? '\u2014' : money(depAmt);
         return `<div style="display:grid;grid-template-columns:${fcols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background='#fff'">
           ${cell(esc(l.prop), 'padding-left:17px')}
@@ -6526,19 +6368,22 @@ class Component extends DCLogic {
       const dv = ((this._meVals || {})[code] || {})[f]; if (dv !== undefined) return dv;
       const d = this.mktDefFor(code) || {}; return f === 'role' ? (d.role || '') : (d[f] || ''); };
     const NA = `<span style="color:var(--rmx-text-muted, #b3b3b3)" title="No charge of this type needs it">—</span>`;
+    const DASH = `<span style="color:var(--rmx-text-muted, #b3b3b3)">—</span>`;
     const show = (c, v, code) => { if (c.f === 'role') return esc(lbl(ROLE, v || '')); if (v) return esc(c.opts ? lbl(c.opts, v) : v);
       const u = U[code] || { rec: 0, one: 0 };
       if (c.f === 'schedule') return u.rec ? MISSING : NA;
       if (c.f === 'feeDue') return u.one ? MISSING : NA;
-      if (c.f === 'refundable') return u.one ? '-' : NA;
-      return c.req && (u.rec + u.one) ? MISSING : '-'; };
+      if (c.f === 'refundable') return u.one ? DASH : NA;
+      return c.req && (u.rec + u.one) ? MISSING : DASH; };
+    // A flex cell can't ellipsize its own text, so the value sits in a span that can (2026-10-20).
+    const showW = (c, v, code) => `<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${show(c, v, code)}</span>`;
     // One cell at a time, as production's mass edit does (2026-10-15): clicking a cell closes the one
     // that was open — keeping what was typed or picked in `this._meVals` — and opens this one. A text
     // field becomes a blue-edged input with its text selected; a field with choices opens straight onto
     // its options. Enter or a click elsewhere keeps the value, Escape drops it. All DOM-only.
     const BRAND = 'var(--ac,var(--rmx-brand, #008dd5))';
     const paint = (el) => { const c = COLS.filter(x => x.f === el.getAttribute('data-f'))[0];
-      el.innerHTML = show(c, V(el.getAttribute('data-code'), c.f), el.getAttribute('data-code')); el.removeAttribute('data-editing'); };
+      el.innerHTML = showW(c, V(el.getAttribute('data-code'), c.f), el.getAttribute('data-code')); el.removeAttribute('data-editing'); };
     const count = () => { const n = Object.keys(this._meVals || {}).length, t = document.getElementById('me-count');
       if (t) t.textContent = n ? n + ' charge type' + (n === 1 ? '' : 's') + ' changed' : ''; };
     const keep = (code, f, v) => { ((this._meVals || (this._meVals = {}))[code] || (this._meVals[code] = {}))[f] = v; count(); };
@@ -6596,14 +6441,14 @@ class Component extends DCLogic {
     const PD = this.propertiesData();
     const props = (r) => { if (!r.props || !r.props.length) return 'All Properties';
       const all = r.props.map(n => PD.find(p => p.name === n)).filter(Boolean).map(p => p.short);
-      if (!all.length) return '-';
+      if (!all.length) return '—';
       return this.morePill(all[0], all, (all.length - 1) + ' more properties'); };
     const body = rows.map((r, i) => {
       const bg = i % 2 ? '#fff' : 'var(--rmx-bg-subtle, #f5f8fa)';
       const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:36px;box-sizing:border-box;padding:0 8px;font-size:14px;${INK};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra || ''}">${t}</span>`;
       return `<div onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background='${bg}'" style="display:grid;grid-template-columns:${tracks};align-items:center;background:${bg};border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)">
         ${cell(esc(r.code))}${cell(props(r), 'overflow:visible;align-self:stretch;border-right:1px solid var(--rmx-line, #cedbe7)')}
-        ${COLS.map(c => `<span data-code="${esc(r.code)}" data-f="${c.f}" onclick="window.__meEdit(this)" title="Select to edit" style="display:flex;align-items:center;min-height:36px;min-width:0;box-sizing:border-box;padding:2px 8px;font-size:14px;${INK};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer">${show(c, V(r.code, c.f), r.code)}</span>`).join('')}
+        ${COLS.map(c => `<span data-code="${esc(r.code)}" data-f="${c.f}" onclick="window.__meEdit(this)" title="Select to edit" style="display:flex;align-items:center;min-height:36px;min-width:0;box-sizing:border-box;padding:2px 8px;font-size:14px;${INK};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer">${showW(c, V(r.code, c.f), r.code)}</span>`).join('')}
       </div>`;
     }).join('');
     const PEN = this.ico('edit_square', 20, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none');
@@ -6648,10 +6493,8 @@ class Component extends DCLogic {
     // Marketing details status per type (2026-10-15): the fields the type's listed charges are missing,
     // or null where no charge on listings uses it. The same answer readiness gives (`ftShortDetail`).
     const MK = this.ctMissingAll();
-    const shortCodes = Object.keys(MK).filter(c => MK[c] && MK[c].length).sort();
     const rows = this.chargeTypeRows()
       .filter(r => this.state.ctShowInactive || r.active)
-      .filter(r => !this.state.ctMissingOnly || shortCodes.indexOf(r.code) >= 0)
       .slice().sort((a, b) => a.code.localeCompare(b.code));
     const colK = 'ctypes2';
     const cols = this.colTracks(colK, '110px minmax(180px,1.2fr) 190px minmax(170px,1fr) 130px 120px 90px 150px 90px 44px');
@@ -6672,10 +6515,14 @@ class Component extends DCLogic {
       return cell(this.ctStatusHTML(code), 'padding:0 0 0 0');
     };
     // Company-wide types say so; the rest name a property and count the others.
+    // Counts the properties in the scenario's portfolio, as Mass Edit does, so the two agree (2026-10-20).
+    const PDr = this.propertiesData();
     const propCell = (r) => {
       if (!r.props || !r.props.length) return cell('All Properties');
-      const first = this.propInfo(r.props[0]).short;
-      const more = r.props.length - 1;
+      const inPf = r.props.map(n => PDr.find(p => p.name === n)).filter(Boolean);
+      if (!inPf.length) return cell('—');
+      const first = inPf[0].short;
+      const more = inPf.length - 1;
       return cell(`<span style="display:inline-flex;align-items:center;gap:6px"><span style="color:var(--rmx-brand-hover, #0071aa)">${first}</span>${more ? `<span style="display:inline-flex;align-items:center;height:20px;padding:0 8px;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:10px;font-size:12px;color:var(--rmx-brand-hover, #0071aa)">+${more}</span>` : ''}</span>`);
     };
     const row = (r, i) => `<div data-act="ctOpen" data-arg="${esc(r.code)}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);cursor:pointer;background:${r.active ? '#fff' : 'var(--rmx-bg-subtle, #f5f8fa)'}" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background='${r.active ? '#fff' : 'var(--rmx-bg-subtle, #f5f8fa)'}'">
@@ -6702,7 +6549,7 @@ class Component extends DCLogic {
       <div style="overflow-x:auto"><div style="min-width:1370px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
         ${header}${rows.map(row).join('')}
       </div></div>
-      <div style="display:flex;justify-content:flex-end"><span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">${rows.length} Charge Types</span></div>
+      <div style="display:flex;justify-content:flex-end"><span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">${rows.length} Charge Type${rows.length === 1 ? '' : 's'}</span></div>
     </div>`;
   }
   // One set of field tooltips for every surface that edits a charge's marketing details: the charge
@@ -6972,14 +6819,7 @@ class Component extends DCLogic {
     const roleRadio = (val, label) => `<label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap"><input type="radio" name="ctd-mkt-role" value="${val}" ${role0 === val ? 'checked' : ''} onchange="if(window.__ctdRole)window.__ctdRole(this.value)" style="width:18px;height:18px;margin:0;flex:none"><span style="font-size:14px;color:var(--rmx-brand-dark, #13314c)">${label}</span></label>`;
     // A Pet category shows Pet Details with its Pet Type here too (2026-10-16), as Storage and Parking show
     // theirs. Until the charge type has saved one, it opens on the pet type its charges already name.
-    const ctAttrs = (() => {
-      if (d.attrs && Object.keys(d.attrs).length) return d.attrs;
-      const c = String(code || '').toUpperCase(), seen = {};
-      this.propNames().forEach(p => this.profileRows(p).forEach(x => {
-        const t = String(x.mits || '').toUpperCase() === c && x.attrs && x.attrs.petType; if (t) seen[t] = (seen[t] || 0) + 1; }));
-      const top = Object.keys(seen).sort((a, b) => seen[b] - seen[a])[0];
-      return top ? Object.assign({}, d.attrs || {}, { petType: top }) : d.attrs;
-    })();
+    const ctAttrs = this.ctAttrsFor(code, d.attrs);
     const mktTile = tile('Marketing Details', whyTip,
       `<span style="font-size:14px;color:var(--rmx-text, #666666);line-height:1.45">Set the marketing details for every charge that uses this charge type.</span>
        <div style="display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap">
@@ -7730,7 +7570,7 @@ class Component extends DCLogic {
         mktname: (i) => cell(L.name || '—', pad(i)),
         freq: (i) => cell(this.freqNum(r)||'—', pad(i)),
         from: (i) => cell(r.from||'—', pad(i)),
-        to: (i) => cell(r.to||'-', pad(i)),
+        to: (i) => cell(r.to||'—', pad(i)),
         amount: (i) => cell(String(r.amount||'').replace(/^\$/,''), 'justify-content:flex-end;text-align:right'),
         level: (i) => `<span style="display:flex;align-items:center;min-height:44px;padding:8px 12px;min-width:0;overflow:hidden;${pad(i)}">${this.chargeLevelPill(r)}</span>`,
         ready: (i) => `<span style="display:flex;align-items:center;min-height:44px;padding:8px 12px">${this.mitsStatusCell(r)}</span>`,
@@ -7954,13 +7794,16 @@ class Component extends DCLogic {
       return this.oriUnitsFor(prop).map(u => ({ unit:u, status:'Vacant', out:'', next:'',
         type:this.oriTypeName(this.oriTypeOfUnit(prop, u)) }));
     }
-    return this.units().filter(u => !vacantOnly || /vacant/i.test(u.tenant)).map(u => ({
+    // The prospect quoting has 1B reserved (their page shows it), so it reads Reserved and stays pickable rather
+    // than Occupied by the person doing the quoting (2026-10-20, round 2 item 7).
+    const PROSPECT = 'Charlie Apegian';
+    return this.units().filter(u => !vacantOnly || /vacant/i.test(u.tenant) || u.tenant === PROSPECT).map(u => { const mine = u.tenant === PROSPECT; return {
       unit: u.u,
-      status: /vacant/i.test(u.tenant) ? 'Vacant' : (/notice/i.test(u.tenant) ? 'On Notice' : 'Occupied'),
+      status: mine ? 'Reserved' : /vacant/i.test(u.tenant) ? 'Vacant' : (/notice/i.test(u.tenant) ? 'On Notice' : 'Occupied'),
       out: /notice/i.test(u.tenant) ? '09/30/2026' : '',
-      next: /vacant|notice/i.test(u.tenant) ? '' : u.tenant,
+      next: mine || /vacant|notice/i.test(u.tenant) ? '' : u.tenant,
       type: u.type
-    }));
+    }; });
   }
   unitSelHTML(){
     const f = this.state.unitSel; if (!f) return '';
@@ -8452,10 +8295,10 @@ class Component extends DCLogic {
         <span style="display:inline-flex;align-items:center;gap:14px;flex:none">${chip('home', this.rqShort(q.prop))}${q.unit ? chip('apartment', q.unit) : ''}</span>
       </div>
       ${(recCount + oneCount) ? '' : `<span style="font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3);line-height:1.5">Tick a charge on the left to build the price.</span>`}
-      <div style="display:flex;align-items:center;gap:12px;background:var(--rmx-brand-dark, #13314c);border-radius:2px;padding:9px 14px">
-        <span style="font-size:14px;color:#fff">Due monthly</span><span style="font-size:14px;font-weight:600;color:#fff">${whole(monthly)}</span>
+      <div style="display:flex;align-items:center;gap:12px;background:var(--rmx-brand-dark, #13314c);border-radius:2px;padding:9px 14px;flex-wrap:wrap">
+        <span style="display:inline-flex;gap:12px;white-space:nowrap"><span style="font-size:14px;color:#fff">Due monthly</span><span style="font-size:14px;font-weight:600;color:#fff">${whole(monthly)}</span></span>
         <div style="flex:1"></div>
-        <span style="font-size:14px;color:#fff">Due one-time</span><span style="font-size:14px;font-weight:600;color:#fff">${whole(oneTotal)}</span>
+        <span style="display:inline-flex;gap:12px;white-space:nowrap"><span style="font-size:14px;color:#fff">Due one-time</span><span style="font-size:14px;font-weight:600;color:#fff">${whole(oneTotal)}</span></span>
       </div>
     </div>`;
 
@@ -8552,9 +8395,9 @@ class Component extends DCLogic {
               : `<div style="padding:14px 0;border-top:1px solid var(--rmx-bg-subtle, #f5f8fa);font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3);line-height:1.5">Tick a charge on the left to build the price.</div>`}
           </div>
           <div style="margin:12px 16px 16px;background:var(--rmx-brand-dark, #13314c);border-radius:4px;padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-            <span style="font-size:14px;color:#fff">Due monthly</span><span style="font-size:14px;font-weight:600;color:#fff">${money(monthly)}</span>
+            <span style="display:inline-flex;gap:10px;white-space:nowrap"><span style="font-size:14px;color:#fff">Due monthly</span><span style="font-size:14px;font-weight:600;color:#fff">${money(monthly)}</span></span>
             <div style="flex:1"></div>
-            <span style="font-size:14px;color:#fff">Due one-time</span><span style="font-size:14px;font-weight:600;color:#fff">${money(oneTotal)}</span>
+            <span style="display:inline-flex;gap:10px;white-space:nowrap"><span style="font-size:14px;color:#fff">Due one-time</span><span style="font-size:14px;font-weight:600;color:#fff">${money(oneTotal)}</span></span>
           </div>
         </div>
       </div>
@@ -9882,7 +9725,7 @@ class Component extends DCLogic {
         ${rows.map(r=>`<div data-act="addPropToggle" data-arg="${r.id}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);cursor:pointer;background:#fff">
           <span style="display:flex;align-items:center;justify-content:center;min-height:34px">${chk(!!a.sel[r.id],'')}</span>
           <span style="display:flex;align-items:center;min-height:34px;padding:5px 8px;min-width:0;overflow:hidden">${this.chargeLevelPill(r, a.copyFrom)}</span>
-          ${cell(r.mits)}${cell(r.desc||r.name)}${rec?(cell(this.freqNum(r)||'1')+cell(r.from||'—')+cell(r.to||'-')):''}
+          ${cell(r.mits)}${cell(r.desc||r.name)}${rec?(cell(this.freqNum(r)||'1')+cell(r.from||'—')+cell(r.to||'—')):''}
           ${cell(String(r.amount||'').replace(/^\$/,''),'justify-content:flex-end;text-align:right')}</div>`).join('')}
         </div>`;
     };
@@ -9972,7 +9815,7 @@ class Component extends DCLogic {
         <div style="display:flex;align-items:center;gap:12px;padding:8px 16px;border-top:1px solid var(--rmx-line, #cedbe7);background:var(--rmx-bg-subtle, #f5f8fa);flex:none">
           <span id="m-err" style="display:none;align-items:center;gap:6px;color:var(--rmx-error, #eb343c);font-size:14px"><svg class="ico" width="16" height="16" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true"><path d="M503.5-289.48q9.5-9.48 9.5-23.5t-9.48-23.52q-9.48-9.5-23.5-9.5t-23.52 9.48q-9.5 9.48-9.5 23.5t9.48 23.52q9.48 9.5 23.5 9.5t23.52-9.48ZM453-433h60v-253h-60v253Zm27.27 353q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg><span id="m-err-txt"></span></span>
           <div style="flex:1"></div>
-          ${m.ro ? `<button data-act="addclose" class="btn-out" style="height:36px;padding:8px 20px;font-size:14px;border-radius:4px;box-sizing:border-box">Close</button>` : `<button data-act="${m.generalOnly?'txnAddSave':'addsave'}" class="btn-pri" style="height:36px;padding:8px 20px;font-size:14px;border-radius:4px">Save</button>
+          ${(m.ro || (m.edit && m.edit.propSpecific)) ? `<button data-act="addclose" class="btn-out" style="height:36px;padding:8px 20px;font-size:14px;border-radius:4px;box-sizing:border-box">Close</button>` : `<button data-act="${m.generalOnly?'txnAddSave':'addsave'}" class="btn-pri" style="height:36px;padding:8px 20px;font-size:14px;border-radius:4px">Save</button>
           <button data-act="addclose" class="btn-out" style="height:36px;padding:8px 20px;font-size:14px;border-radius:4px;box-sizing:border-box">Cancel</button>`}
         </div>
       </div></div>${this.catAddHTML()}${this.utConfHTML(!!(m && m.edit))}${this.leaseConfHTML()}`;
@@ -10419,7 +10262,7 @@ class Component extends DCLogic {
       </div>`;
     const specNote = !spec ? '' : `<div style="display:flex;flex-direction:column;align-items:center;gap:5px;background:#f0f2f4;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:14px 18px;text-align:center">
       <span style="display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)"><svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-brand-dark, #13314c)"><path d="M220-80q-24.75 0-42.37-17.63Q160-115.25 160-140v-434q0-24.75 17.63-42.38Q195.25-634 220-634h70v-96q0-78.85 55.61-134.42Q401.21-920 480.11-920q78.89 0 134.39 55.58Q670-808.85 670-730v96h70q24.75 0 42.38 17.62Q800-598.75 800-574v434q0 24.75-17.62 42.37Q764.75-80 740-80H220Zm0-60h520v-434H220v434Zm314.5-162.03Q557-324.06 557-355q0-30-22.67-54.5t-54.5-24.5q-31.83 0-54.33 24.5t-22.5 55q0 30.5 22.67 52.5t54.5 22q31.83 0 54.33-22.03ZM350-634h260v-96q0-54.17-37.88-92.08-37.88-37.92-92-37.92T388-822.08q-38 37.91-38 92.08v96ZM220-140v-434 434Z"/></svg>This charge cannot be edited.</span>
-      <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">${spec==='NSF'?'Only the marketing details can be edited here, NSF fee details are pulled from the property details.':'Only the marketing details can be edited here, late fees are property specific and have special circumstances.'}</span>
+      <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">${spec==='NSF'?'NSF fee details are pulled from the property details.':'Late fees are property specific and have special circumstances.'}</span>
     </div>`;
     // Only a one-time charge can be prorated against a move-in date — a recurring one is billed on
     // its own frequency, so there is no single amount to divide. It sits under Amount, because that
@@ -11209,7 +11052,7 @@ class Component extends DCLogic {
       ${preview}
       <div style="display:flex;flex-direction:column">
         ${stepRow(1,'Add Marketing Details to Charge Types','Set each charge type&#39;s marketing details once, and every charge that uses it, at every property, is advertised with them. Edit one at a time, or several at once with Mass Edit.')}
-        ${stepRow(2,'Activate Fee Transparency','Once every charge type a property lists is ready, activate it from Fee Transparency Setup on Listings. Its listings then show a Total Monthly Price.','If you list online &amp; fee transparency is available',true)}
+        ${stepRow(2,'Activate Fee Transparency','Once every unit has a Base Rent and every charge type a property lists has its marketing details, activate it from Fee Transparency Setup on Listings. Its listings then show a Total Monthly Price.','If you list online &amp; fee transparency is available',true)}
       </div>
       <div style="height:1px;background:var(--rmx-line, #cedbe7)"></div>
       <div style="display:flex;align-items:center;gap:10px">
@@ -11237,8 +11080,8 @@ class Component extends DCLogic {
       </div>
     </div>`;
 
-    const done = this.scenarioKey() === 'happy'
-      ? ['announceProps', 'Go to Properties'] : ['announceCT', 'Go to Charge Types'];
+    // Where to Start says Charge Types in every scenario, so the button does too (2026-10-20).
+    const done = ['announceCT', 'Go to Charge Types'];
     const cta = step < 3
       ? `<button data-act="announceNext" class="btn-pri" style="height:34px;min-height:34px;padding:0 20px;border-radius:4px;font-size:14px">Next</button>`
       : `<button data-act="${done[0]}" class="btn-pri" style="height:34px;min-height:34px;padding:0 20px;border-radius:4px;font-size:14px">${done[1]}</button>`;
@@ -11712,7 +11555,7 @@ class Component extends DCLogic {
           return need
             ? `<div style="display:flex;align-items:flex-start;gap:10px;background:#fef4e8;border:1px solid #f6d9ac;border-radius:4px;padding:11px 14px">
                 <svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-attention, #f58220);flex:none;margin-top:1px"><path d="M503.5-289.48q9.5-9.48 9.5-23.5t-9.48-23.52q-9.48-9.5-23.5-9.5t-23.52 9.48q-9.5 9.48-9.5 23.5t9.48 23.52q9.48 9.5 23.5 9.5t23.52-9.48ZM453-433h60v-253h-60v253Zm27.27 353q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg>
-                <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Fee transparency can be activated once every charge type this property uses has its marketing details. ${need} charge${need===1?' is':'s are'} still missing them.</span>
+                <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Fee transparency can be activated once every unit has a Base Rent and every charge type this property uses has its marketing details. ${(t => { const n = t.total - t.ready; return n + ' charge type' + (n === 1 ? ' is' : 's are'); })(this.ftPropTypes(prop2))} still missing them.</span>
                 <a data-act="mktAdvCT" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Add Marketing Details</a>
               </div>`
             // No Activate here (2026-10-19, brief item 7): activating runs through Fee Transparency Setup alone.
@@ -11900,7 +11743,6 @@ class Component extends DCLogic {
     out += this.fpMenuHTML();
     out += this.fpDelHTML();
     out += this.rentCTBlockHTML();
-    out += this.roleReviewHTML();
     out += this.ctmAskHTML();
     out += this.mktDefAskHTML();
     out += this.mktAdvHTML();

@@ -1804,6 +1804,31 @@ bottom), up to 720px wide, and it stays `55ms × length` (2.6–9s) so a long ch
 calls: choose a unit / charge type / property to copy from, name required, select a column or a charge, fill in a
 field, duplicate charges, and activation refused (charges short, a unit with no Base Rent).
 
+**Round 2 item 7, copy and consistency** (2026-10-20):
+- The announcement's step 2 states both conditions (a Base Rent on every unit, marketing details on every charge type a
+  property lists); step 3's button is **Go to Charge Types** in every scenario, Happy Path included, matching *Start in
+  Charge Types* (`announceProps` is no longer reached from it).
+- Setup's *Required* lozenge on Add Marketing Details to Charge Types shows only while a charge type is still missing
+  details (`ctMissingAll`).
+- The Listings help panel is titled **How does Fee Transparency Setup work?**
+- Advanced › Provider Settings' note states both conditions and counts **charge types** (`ftPropTypes`): *…9 charge types
+  are still missing them.*
+- The NSF / Late form drops *Only the marketing details can be edited here*, and its footer is a lone **Close**.
+- The property override dialog reads the charge type's Pet Type the way Charge Type Details does (`ctAttrsFor(code,
+  attrs)`, shared): DOGFEE reads *Dog* in both.
+- Mass Edit: values ellipsize inside their cell (`showW`), every empty cell is one **—** (`NA` keeps its *No charge of this
+  type needs it* title, `DASH` has none), and the Charge Types register's Property cell counts only properties in the
+  scenario's portfolio, as Mass Edit's does (COVPARK reads *RIVER +2* in both).
+- The Charge Types register's count is singular for one; the never-set missing-only filter (`ctMissingOnly`) and the Base
+  Rent & Security Deposit review dialog (`roleReviewHTML`, `roleReview*` cases), which nothing opened, are gone.
+- Dashes: an empty cell is **—** (the Charges register's To, Add Property's copy tables, Listings' Total Monthly Price before
+  activation and its no-figure money) and a range is **–** (floor plan figures before activation too).
+- Resolve Duplicate Charges gives Charge Level more of the row (1.3 against From - To and Amount at 0.85).
+- The Unit Selector shows the prospect's own unit (1B, Charlie Apegian) as **Reserved**, with no occupant, and offers it
+  with Vacant only ticked.
+- The rent quote's and the Pricing Preview's total bars keep each label with its figure (*Due one-time $1,915.00* no longer
+  splits).
+
 **"Market this property on online listings" is a prototyping control, not product UI** (2026-10-20, round 2 item 5). It
 lives in **Full Menu › Prototype**, under Show Test Feature State, reading *Market <Property> on online listings* or *Stop
 marketing <Property> on online listings* for the property on screen (`ilsPropToggle`, in every scenario). It used to be the
