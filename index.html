@@ -170,8 +170,6 @@ class Component extends DCLogic {
     // Bulk Update Charges: { idx, open:{rec,one} }. state.modal carries the charge being edited, so the
     // shared form and saveFee work unchanged.
     bulk: null,
-    // Copy Charges from Property: { from, dup:'skip'|'replace', excl }
-    copyFees: null,
     // The "Introducing Fee Transparency" launch announcement, also opened from the nav menu. It
     // starts open because the default "Happy Path" scenario is the day the feature ships.
     announce: false,
@@ -2186,47 +2184,6 @@ class Component extends DCLogic {
         this.go('chargetypes', { announce: false, ftSetup: null });
         break;
 
-      // ---- Copy Charges from Property ----
-      case 'copyOpen': this.setState({ profMenu: null, copyFees: { from: '', dup: 'skip', sel: {} } }); break;
-      case 'copyClose': this.setState({ copyFees: null }); break;
-      // Switching source clears the selection, since the ids belong to the previous property. Nothing
-      // is picked by default — copying one charge shouldn't mean unticking seventeen.
-      case 'copyFrom': this.setState(s => ({ copyFees: Object.assign({}, s.copyFees, { from: arg, sel: {} }) })); break;
-      case 'copyDup': this.setState(s => ({ copyFees: Object.assign({}, s.copyFees, { dup: arg }) })); break;
-      case 'copyToggle': this.setState(s => { const sel = Object.assign({}, s.copyFees.sel); if (sel[arg]) delete sel[arg]; else sel[arg] = true; return { copyFees: Object.assign({}, s.copyFees, { sel }) }; }); break;
-      // Select-all works per table, so recurring and one-time can be taken separately.
-      case 'copyAll': { const c = this.state.copyFees; const rows = this.copyableRows(c.from)
-          .filter(r => arg === 'one' ? /-one$/.test(r.group) : !/-one$/.test(r.group));
-        const on = rows.length && rows.every(r => c.sel[r.id]);
-        this.setState(s => { const sel = Object.assign({}, s.copyFees.sel);
-          rows.forEach(r => { if (on) delete sel[r.id]; else sel[r.id] = true; });
-          return { copyFees: Object.assign({}, s.copyFees, { sel }) }; });
-        break; }
-      case 'copySave': { const c = this.state.copyFees;
-        if (!c || !c.from) { this.flash('Choose a property to copy from', 'error'); break; }
-        const picked = this.copyableRows(c.from).filter(r => c.sel[r.id]);
-        if (!picked.length) { this.flash('Select at least one charge', 'error'); break; }
-        const out = this.profileRows().slice();
-        let added = 0, replaced = 0, skipped = 0, nextId = this.state.nextFeeId;
-        picked.forEach(src => {
-          const i = out.findIndex(r => this.sameCharge(r, src));
-          if (i >= 0) {
-            if (c.dup === 'replace') { out[i] = Object.assign({}, src, { id: out[i].id }); replaced++; } else skipped++;
-          } else { out.push(Object.assign({}, src, { id: nextId++ })); added++; }
-        });
-        const prop = this.state.property;
-        this.setProfileRows(() => out);
-        this.setState({ copyFees: null, nextFeeId: nextId });
-        this.logChange(prop, 'Fee Transparency',
-          'Copied fees from ' + c.from + ' · ' + added + ' added, ' + replaced + ' replaced, ' + skipped + ' skipped', prop);
-        // "0 charges copied" on its own reads like a failure, so the toast says what happened to the
-        // ones that didn't land.
-        const bits = [];
-        if (added) bits.push(added + ' copied');
-        if (replaced) bits.push(replaced + ' replaced');
-        if (skipped) bits.push(skipped + ' skipped as duplicate' + (skipped === 1 ? '' : 's'));
-        this.flash(bits.join(' · ') + ' from ' + c.from);
-        break; }
 
       // One charge open at a time — expanding a charge collapses whichever was open before.
 
@@ -3446,7 +3403,7 @@ class Component extends DCLogic {
       property: 'Riverview Apartments', propTab: 'General', unit: '1B',
       newProps: [], addProp: null, histLog: [], toggles: {}, tenantCharges: {},
       modal: null, bulk: null,
-      copyFees: null, pricePreview: null, profMenu: null,
+      pricePreview: null, profMenu: null,
       recView: null, mrView: false, rowMenu: null, pubModal: null, pubDone: null, ftSel: null, dupResolve: null, rentDel: null, ltTypes: null, mktDef: this.mktDefAll(),
       mktSetup: false, mktAdv: false, mktTab: 'General', petType: null, spBanner: true, tcsProp: null, ftHelp: false,
       lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false, ltStatus: [], ltGroupBy: true, ftSetup: null, propDef: {}, ctmEdit: null, ctmAsk: null, ctmMode: 'inherit', mcTab: 'Overview',
@@ -7547,7 +7504,7 @@ class Component extends DCLogic {
           ${[['Add Recurring Charge','req-rec'],['Add One-Time Charge','req-one'],['Add CRE Recurring Charge','cre']].map(o=>`<div data-act="addopen" data-arg="${o[1]}" style="padding:11px 16px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">${o[0]}</div>`).join('')}
         </div>
       </span>
-      <span data-act="profMenuOpen" style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:36px;cursor:pointer"><svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5))"><path d="M400-720a80 80 0 1 0 160 0 80 80 0 1 0-160 0ZM400-480a80 80 0 1 0 160 0 80 80 0 1 0-160 0ZM400-240a80 80 0 1 0 160 0 80 80 0 1 0-160 0Z"/></svg></span>
+      ${this.scenarioKey() === 'happy' ? '' : `<span data-act="profMenuOpen" style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:36px;cursor:pointer"><svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5))"><path d="M400-720a80 80 0 1 0 160 0 80 80 0 1 0-160 0ZM400-480a80 80 0 1 0 160 0 80 80 0 1 0-160 0ZM400-240a80 80 0 1 0 160 0 80 80 0 1 0-160 0Z"/></svg></span>`}
     </div>`;
   }
   profMenuHTML(){
@@ -7560,8 +7517,7 @@ class Component extends DCLogic {
     const ilsItem = this.scenarioKey() === 'happy' ? '' : `<div data-act="ilsPropToggle" style="display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background=''">${this.ico(on ? 'check_box' : 'check_box_outline_blank', 18, `color:${on ? 'var(--rmx-success, #6eb744)' : 'var(--rmx-line, #cedbe7)'}`)}Market this property on online listings</div>`;
     return `<div data-act="profMenuClose" style="position:fixed;inset:0;z-index:150"></div>
       <div style="position:fixed;left:${left}px;top:${p.y}px;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,0.18);z-index:151;overflow:hidden;padding:4px 0">
-        ${ilsItem ? ilsItem + '<div style="height:1px;background:var(--rmx-brand-tint-bg, #ebf1f5);margin:4px 0"></div>' : ''}
-        ${item('Copy Charges from Property','copyOpen')}
+        ${ilsItem}
       </div>`;
   }
   // Recurring / One-Time subtable inside a profile section.
@@ -11044,72 +11000,6 @@ class Component extends DCLogic {
       && String(a.level || 'Property') === String(b.level || 'Property')
       && String(a.target || '') === String(b.target || '');
   }
-  // Copy Charges from Property (mock 2575-81218). Pick a property with a profile, decide what happens to
-  // charges this profile already has, then choose which of the source's charges to bring over.
-  copyFeesHTML(){
-    const c = this.state.copyFees; if (!c) return '';
-    const prop = this.state.property;
-    const sources = this.copyableProfiles().filter(p => p !== prop);
-    const rows = this.copyableRows(c.from);
-    const rec = rows.filter(r => !/-one$/.test(r.group));
-    const one = rows.filter(r => /-one$/.test(r.group));
-    const picked = rows.filter(r => c.sel[r.id]).length;
-    const box = on => `<span style="width:18px;height:18px;border-radius:2px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;${on?'background:var(--rmx-attention, #f58220);border:1px solid var(--rmx-attention, #f58220)':'background:#fff;border:1px solid var(--rmx-text-muted, #b3b3b3)'}">${on?'<svg class="ico" width="14" height="14" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:#fff"><path d="M378-246 154-470l43-43 181 181 384-384 43 43-427 427Z"/></svg>':''}</span>`;
-    const radio = (val, label, em) => `<label data-act="copyDup" data-arg="${val}" style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;color:var(--rmx-brand-dark, #13314c)"><span style="width:18px;height:18px;border-radius:50%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none;border:1px solid ${c.dup===val?'var(--ac,var(--rmx-brand, #008dd5))':'var(--rmx-text-muted, #b3b3b3)'}">${c.dup===val?'<span style="width:10px;height:10px;border-radius:50%;background:var(--ac,var(--rmx-brand, #008dd5))"></span>':''}</span><span>${label}<i style="color:var(--rmx-ink-2, #424e5b)"> ${em}</i></span></label>`;
-    const dupTip = this.infoTip(`<span style="display:block;white-space:normal">A duplicate is a charge matching one this property already has: the same charge type and comment, at the same level and on the same unit type or unit. For example, if both properties have a property-level APPFEE charge commented “Application fee”, that's a duplicate.</span>`);
-    const table = (label, list, isRec) => {
-      const colK = 'copy-' + (isRec ? 'rec' : 'one');
-      const cols = this.colTracks(colK, isRec ? '44px minmax(0,1.5fr) minmax(0,0.8fr) minmax(0,1.3fr) minmax(0,0.7fr) minmax(0,0.85fr) minmax(0,0.6fr) minmax(130px,1fr)'
-                         : '44px minmax(0,1.5fr) minmax(0,0.8fr) minmax(0,2fr) minmax(130px,1fr)');
-      const heads = isRec ? ['','Charge Level','Charge Type','Comment','Frequency','From','To','Amount']
-                          : ['','Charge Level','Charge Type','Comment','Amount'];
-      const allOn = list.length && list.every(r => c.sel[r.id]);
-      const headBox = `<span data-act="copyAll" data-arg="${isRec?'rec':'one'}" title="${allOn?'Clear all':'Select all'}" style="display:flex;align-items:center;justify-content:center;cursor:pointer">${box(!!allOn)}</span>`;
-      const hc = (t,i) => i === 0 ? headBox : `<span style="display:flex;align-items:center;padding:8px 10px${i===1?' 8px 14px':''};font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;${/Amount/.test(t)?'justify-content:flex-end;':''}">${t}</span>`;
-      const cell = (t,extra) => `<span style="display:flex;align-items:center;min-height:38px;padding:6px 10px;font-size:14px;color:var(--rmx-brand-dark, #13314c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
-      return `<div style="font-size:14px;color:var(--rmx-text, #666666);padding:12px 0 6px">${label} (${list.length})</div>
-        <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden"><div style="overflow-x:auto"><div style="min-width:${isRec?760:480}px">
-        <div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};border-bottom:1px solid var(--rmx-line, #cedbe7)">${heads.map(hc).join('')}</div>
-        ${list.length ? list.map(r=>`<div data-act="copyToggle" data-arg="${r.id}" style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);cursor:pointer">
-          <span style="display:flex;align-items:center;justify-content:center;min-height:38px">${box(!!c.sel[r.id])}</span>
-          <span style="display:flex;align-items:center;min-height:38px;padding:6px 10px 6px 14px;min-width:0;overflow:hidden">${this.chargeLevelPill(r, c.from)}</span>
-          ${cell(r.mits)}${cell(r.desc||r.name)}
-          ${isRec?cell(this.freqNum(r)||'—')+cell(r.from||'—')+cell(r.to||'-'):''}
-          ${cell(String(r.amount||'').replace(/^\$/,''),'justify-content:flex-end;text-align:right')}</div>`).join('')
-          : `<div style="padding:14px;font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">None on that property.</div>`}
-        </div></div></div>`;
-    };
-    return `<div data-act="copyClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:120">
-      <div data-act="noop" style="width:960px;max-width:96vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
-        <div style="flex:none;display:flex;align-items:center;gap:10px;padding:12px 16px 12px 20px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
-          <span style="font-size:20px;color:var(--rmx-brand-dark, #13314c)">Copy Charges from Property</span><div style="flex:1"></div>
-          <svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="copyClose" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
-        </div>
-        <div style="flex:1;min-height:0;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:14px">
-          <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.5">Recurring and one-time charges can be copied from any other property. Only property charges and unit type charges for a unit type this property has are listed. Unit and rentable item charges stay with the property they're on.</span>
-          <div style="display:flex;flex-direction:column;gap:6px">
-            <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Copy From</span>
-            ${sources.length
-              ? this.singleSelect('cp-from', sources, c.from, { act:'copyFrom', placeholder:'Select a property' })
-              : `<span style="font-size:12px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3)">No other property has Fee Transparency turned on yet.</span>`}
-          </div>
-          <div style="display:flex;flex-direction:column;gap:10px">
-            <span style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--rmx-brand-dark, #13314c)">How would you like to handle duplicate charges?${dupTip}</span>
-            ${radio('skip','Skip duplicate charges:',`keep ${prop} charges`)}
-            ${radio('replace','Replace existing charges:',c.from ? `use ${c.from} charges` : 'use the copied charges')}
-          </div>
-          <div style="display:flex;flex-direction:column;gap:2px">
-            <div style="display:flex;align-items:baseline;gap:12px"><span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">Select Charges to Include</span><div style="flex:1"></div>${c.from?`<span style="font-size:14px;color:var(--rmx-ink-2, #424e5b)">${picked} of ${rows.length} selected</span>`:''}</div>
-            ${c.from ? table('Recurring Charges', rec, true) + table('One-Time Charges', one, false)
-              : `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:22px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;margin-top:8px"><svg class="ico" width="24" height="24" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-line, #cedbe7)"><path d="M300-200q-24 0-42-18t-18-42v-560q0-24 18-42t42-18h440q24 0 42 18t18 42v560q0 24-18 42t-42 18H300Zm0-60h440v-560H300v560ZM180-80q-24 0-42-18t-18-42v-620h60v620h500v60H180Zm120-180v-560 560Z"/></svg><span style="font-size:12px;color:var(--rmx-text-muted, #b3b3b3)">Choose a property above to see its charges.</span></div>`}
-          </div>
-        </div>
-        <div style="flex:none;display:flex;justify-content:flex-end;gap:10px;padding:12px 20px;border-top:1px solid var(--rmx-line, #cedbe7);background:var(--rmx-bg-subtle, #f5f8fa)">
-          <button ${c.from?'data-act="copySave"':''} class="btn-pri" style="height:36px;min-height:36px;padding:0 24px;border-radius:4px;font-size:14px;${c.from?'':'opacity:0.45;cursor:default'}">Save</button>
-          <button data-act="copyClose" class="btn-out" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px;box-sizing:border-box">Cancel</button>
-        </div>
-      </div></div>`;
-  }
   // Every charge on the profile, recurring first — the order the bulk rail and its counter follow.
   bulkRows(){
     const rows = this.profileRows();
@@ -12025,7 +11915,6 @@ class Component extends DCLogic {
     out += this.txnViewHTML();
     out += this.profMenuHTML();
     out += this.announceHTML();
-    out += this.copyFeesHTML();
     out += this.rqHTML();
     out += this.rqAddHTML();
     out += this.miHTML();

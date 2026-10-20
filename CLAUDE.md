@@ -1796,6 +1796,11 @@ bottom), up to 720px wide, and it stays `55ms × length` (2.6–9s) so a long ch
 calls: choose a unit / charge type / property to copy from, name required, select a column or a charge, fill in a
 field, duplicate charges, and activation refused (charges short, a unit with no Base Rent).
 
+**Copy Charges lives only in Add Property** (2026-10-20, round 2 item 4, a Phase 1 cut): the Charges ⋮ menu's *Copy
+Charges from Property*, its dialog (`copyFeesHTML`), `state.copyFees` and the `copy*` cases were removed. Add Property ›
+Copy From is untouched (`copyableRows`, `sameCharge`). The ⋮ now carries only the online-listings toggle, so it isn't drawn
+in Happy Path, which hides that toggle.
+
 **Bulk Update Charges is gone** (2026-10-20, round 2 item 3, a Phase 1 cut): the Charges ⋮ menu item, the selection mode
 (the register's checkbox column and the *Select charges to update* bar), the Update Charges dialog (`bulkUpdHTML`, its
 `#bu-err` duplicate check and *Fill in a field to change it*), `state.bulkSel` / `bulkUpd`, every `bulk*` case and the
