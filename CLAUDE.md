@@ -870,6 +870,11 @@ get started.* over **+ Add Rent Quote**, centred text, sitting near the top of t
 rather than in the middle of however tall the row makes it — `empty(t, extra, top)`. The tile's 4px
 corners and SemiBold title stay on the RMX tokens; production's 6px and bold are its own drift.
 
+**A rent quote needs a unit** (2026-10-20, round 2 item 6). Step one's **Add Charges** is disabled, with *Choose a unit to
+add charges.* beside it, until a primary unit is chosen (`rqNext` checks too); `rqRows()` returns nothing without a unit, so
+no RC estimate ($1,350) stands in for a price; an Other Rentable Item card with no unit adds no charges (`rqOriCharges`);
+and `rqSave` refuses a quote with no unit (red toast *Choose a unit before saving the quote*).
+
 **A rent quote prices the Base Rent from the unit's own charge** (2026-10-19, brief item 5). `rqBlank()` carried a
 hard-coded `rent:'500.00'` that `rqRows` used to override every RC — and step one has no rent field to change it. It
 is `''` now and every row prices through `chargeAmt(r, unit)`, so the quote's Base Rent and Total Monthly Price match

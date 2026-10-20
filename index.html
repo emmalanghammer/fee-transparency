@@ -1788,7 +1788,7 @@ class Component extends DCLogic {
       case 'miSave': { const u = (this.q('#mi-unit') || {}).value || '';
         this.setState({ mi: null }); this.flash('Charlie Apegian moved in' + (u ? ' to ' + u : '')); break; }
       case 'rqClose': this.setState({ rq: null, rqAdd: null }); break;
-      case 'rqNext': this.rqCapture(); this.setState(s => ({ rq: Object.assign({}, s.rq, { step:2 }) })); break;
+      case 'rqNext': this.rqCapture(); if (!(this.state.rq || {}).unit) break; this.setState(s => ({ rq: Object.assign({}, s.rq, { step:2 }) })); break;
       case 'rqBack': this.setState(s => ({ rq: Object.assign({}, s.rq, { step:1 }) })); break;
       case 'rqAddOri': { this.rqCapture();
         // A rentable item rides along with a unit, so there has to be one first.
@@ -1826,6 +1826,7 @@ class Component extends DCLogic {
           const c = Object.assign({}, q.closed); if (c[arg]) delete c[arg]; else c[arg] = true;
           q.closed = c; return { rq:q }; }); break; }
       case 'rqSave': { const q = this.state.rq; if (!q) break;
+        if (!q.unit) { this.flash('Choose a unit before saving the quote', 'error'); break; }
         const rec = this.rqRecurring();
         const monthly = this.rqSum(rec.primary.rows) + rec.oris.reduce((n, g) => n + this.rqSum(g.rows), 0);
         const row = { prop: this.rqShort(q.prop), unit: q.unit || '', amount: monthly,
@@ -8044,6 +8045,8 @@ class Component extends DCLogic {
   // Rent is the one row that can't be dropped.
   rqRows(){
     const q = this.state.rq || {};
+    // No unit, no price (2026-10-20): nothing to quote, so no RC estimate standing in for a rent.
+    if (!q.unit) return [];
     const unit = q.unit ? this.unitInfo(q.unit) : null;
     const base = (r) => unit ? this.chargeAmt(r, q.unit) : (this.parseAmt(r.amount) || (r.est != null ? r.est : 0));
     // Every charge prices off itself for the unit being quoted (2026-10-19, brief item 5) — the Base Rent
@@ -8095,6 +8098,8 @@ class Component extends DCLogic {
   // is the figure being offered; failing that the charge prices itself.
   rqOriCharges(o, i, one){
     const q = this.state.rq || {};
+    // An Other Rentable Item card with no unit picked adds nothing to the quote.
+    if (!String(o.unit || '').trim()) return [];
     const typed = this.rqAmt(o.amount);
     const hits = this.appliedRows(o.prop || q.prop).filter(r => r.level === 'ORI'
       && /-one$/.test(r.group) === !!one && (!o.ctype || r.mits === o.ctype));
@@ -8149,7 +8154,8 @@ class Component extends DCLogic {
     const q = this.state.rq; if (!q) return '';
     const body = q.step === 1 ? this.rqStep1() : this.rqStep2();
     const foot = q.step === 1
-      ? `<div style="flex:1"></div><button data-act="rqNext" class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px">Add Charges</button>`
+      // A quote prices a unit (2026-10-20, round 2 item 6), so Add Charges waits until one is chosen.
+      ? `<div style="flex:1"></div>${q.unit ? '' : '<span style="font-size:14px;color:var(--rmx-text, #666666)">Choose a unit to add charges.</span>'}<button ${q.unit ? 'data-act="rqNext"' : 'disabled title="Choose a unit first"'} class="btn-pri" style="height:36px;min-height:36px;padding:0 20px;border-radius:4px;font-size:14px;${q.unit ? '' : 'opacity:.5;cursor:default;'}">Add Charges</button>`
       : `<button data-act="rqBack" class="btn-out" style="height:36px;min-height:36px;padding:0 22px;border-radius:4px;font-size:14px">Back</button><div style="flex:1"></div>`
         + `<button data-act="rqSave" data-arg="add" class="btn-pri" style="height:36px;min-height:36px;padding:0 22px;border-radius:4px;font-size:14px">Add</button>`
         + `<button data-act="rqSave" data-arg="reserve" class="btn-pri" style="height:36px;min-height:36px;padding:0 18px;border-radius:4px;font-size:14px;white-space:nowrap">Add &amp; Reserve Unit</button>`
