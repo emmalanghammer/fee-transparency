@@ -77,6 +77,11 @@ on its own after 6s (`this._pubDoneT`), or on a click (`pubDoneClose`). Centred 
 not `left:50%`, so it keeps its width on a narrow pane. `state.pubDone` is `{ props }`, cleared on
 every scenario switch.
 
+**The confirmation's three lines were rewritten on 2026-10-19** (brief item 10), replacing the user's 2026-09-30 copy
+quoted below: ✓ *Listings will show a Total Monthly Price: rent plus every required monthly charge.* ✓ *The change
+reaches listing sites the next time the feed updates.* `visibility_off` *Charges you've excluded stay off listings.*
+Activating is permanent, and the dialog deliberately doesn't say so.
+
 **The confirmation explains what will happen, it doesn't warn.** Its content is the user's own,
 word for word (2026-09-30): *"**`<Property>`** will start advertising listings with all charges
 included."* over a neutral `--rmx-bg-subtle` panel, **What this means for your listings:**, with
