@@ -1332,8 +1332,8 @@ describes the design before that tag; the code for most of it is still in the fi
   Timing and Refundability blank, the **Name defaulting to the charge type's description** (*Rent*, *Garbage Fee*), the
   **Charge Role Additional Charge** for every type (RC and DP included, so no Base Rent or Security Deposit exists until
   someone sets one) and **Charge Category empty** (so a charge reads the red *no charge category* box with Add Category, and
-  DOGFEE has no Pet section). **NSF and LATE are the exception** (2026-10-20): Charge Category *Violation* and Charge
-  Requirement *Situational*, the rest blank. Every type reads *Missing Required Fields* (SF *Not on Listings*); Riverview **0/9**, The
+  DOGFEE has no Pet section). **NSF and LATE are the exception** (2026-10-20): Charge Category *Violation*, Charge
+  Requirement *Situational* and Charge Timing *During Term*, so both are listing ready; the rest blank. Every type reads *Missing Required Fields* (SF *Not on Listings*); Riverview **0/9**, The
   Berkshires 0/8, The Windermere 0/8, all Not Ready; Listings' Security Deposit reads `—`; nothing is Not Sent. The
   baselines quoted elsewhere for `on` (Riverview 8/9 and so on) now belong to No ILS only.
 
