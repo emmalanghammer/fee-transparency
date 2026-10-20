@@ -1866,6 +1866,8 @@ class Component extends DCLogic {
         this.setState({ mktSetup: false }); this.flash('Marketing setup saved'); break;
       case 'mktAdvOpen': this.setState({ mktAdv: true }); break;
       case 'mktAdvClose': this.setState({ mktAdv: false }); break;
+      // Advanced › Provider Settings' Add Marketing Details: out of both overlays, to Charge Types.
+      case 'mktAdvCT': this.go('chargetypes', { mktAdv: false, mktSetup: false, ftSetup: null }); break;
       case 'mktAdvSave': this.setState({ mktAdv: false }); this.flash('Advanced settings saved'); break;
       case 'ltPropSet': this.setState({ ltProp: arg }); break;
       case 'ltErrToggle': this.setState(s => ({ ltErrOnly: !s.ltErrOnly })); break;
@@ -12128,13 +12130,11 @@ class Component extends DCLogic {
           return need
             ? `<div style="display:flex;align-items:flex-start;gap:10px;background:#fef4e8;border:1px solid #f6d9ac;border-radius:4px;padding:11px 14px">
                 <svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-attention, #f58220);flex:none;margin-top:1px"><path d="M503.5-289.48q9.5-9.48 9.5-23.5t-9.48-23.52q-9.48-9.5-23.5-9.5t-23.52 9.48q-9.5 9.48-9.5 23.5t9.48 23.52q9.48 9.5 23.5 9.5t23.52-9.48ZM453-433h60v-253h-60v253Zm27.27 353q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg>
-                <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Fee transparency can be activated once every charge has its required fields. ${need} still need${need===1?'s':''} details.</span>
-                <a data-act="openFeeProfile" data-arg="${prop2}" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Add Charge Details</a>
+                <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Fee transparency can be activated once every charge type this property uses has its marketing details. ${need} charge${need===1?' is':'s are'} still missing them.</span>
+                <a data-act="mktAdvCT" style="flex:none;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Add Marketing Details</a>
               </div>`
-            : `<div style="display:flex;align-items:center;gap:18px">
-                <button data-act="pubOpen" data-arg="${prop2}" class="btn-pri" style="height:36px;min-height:36px;padding:0 18px;border-radius:4px;font-size:14px;white-space:nowrap">Activate Fee Transparency</button>
-                <a data-act="announceOpen" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Learn More</a>
-              </div>`; })() : '');
+            // No Activate here (2026-10-19, brief item 7): activating runs through Fee Transparency Setup alone.
+            : ''; })() : '');
     const prefs = `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;background:#fff">
       ${cardHead('Preferences')}
       <div style="padding:14px 20px 20px;display:grid;grid-template-columns:1fr 1fr;gap:16px 28px">

@@ -176,6 +176,13 @@ charge category."* with **View Charges**.
 same `ftApplicable` gate. The preview renders at z-index 152, over Marketing Setup's 145, and closing
 it returns to Marketing Setup. On a narrow pane the tile's title wraps to make room for it.
 
+**Advanced Settings › Provider Settings carries no Activate either** (2026-10-19, brief item 7, the user's call to remove
+it rather than reword it): `mktAdvHTML`'s ready state shows nothing; short of details it reads *Fee transparency can be
+activated once every charge type this property uses has its marketing details. n charges are still missing them.* with
+**Add Marketing Details** (`mktAdvCT`, which closes Advanced Settings and Marketing Setup and goes to Charge Types — it
+was *Add Charge Details* to the property's Charges); the Base Rent note and the *is using Fee Transparency* line are as
+they were. Activating runs through Fee Transparency Setup alone.
+
 **The strip carries no Activate Fee Transparency button.** Activating runs through Setup, where the
 row says where the property stands *and* offers the action; a button beside Occupied Units was the
 same offer twice, and a disabled one with a tooltip explained less than a **Not Ready** lozenge
