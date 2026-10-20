@@ -1201,6 +1201,17 @@ describes the design before that tag; the code for most of it is still in the fi
   price field is named **Base Rent** before activation too (Listing Details' floor-plan note, Edit Floor Plan's
   price mapping); on activation the charges set as the property's Base Rent and Security Deposit are what it reads.
   Listing Details' **Deposit Fee(s)** reads **Security Deposit** the same way. A property fee transparency can't apply to keeps *Price* and *Deposit Fee(s)*.
+- **Pet Details (Optional) starts empty and is the charge type's** (2026-10-20, the user's call). Charge Type Details and
+  the property override (`attrDefSections`) title the section *Pet Details (Optional)*; the Pet Type opens blank
+  (`ctAttrsFor` no longer reads one off the charges, so DOGFEE no longer opens on *Dog*), and picking one shows that pet
+  type's own details under it, read-only, four across — Max Allowed, Max Weight, Recurring / Max Recurring Charge Amount,
+  One-Time / Max One-Time Charge Amount, Pet Deposit / Max Pet Deposit Amount (`petInfoHTML`, swapped DOM-only by
+  `window.__petDefShow`; labels and values on separate grid rows so values line up). The override shows the charge type's,
+  locked, until ticked. **A charge no longer picks its own pet type**: `petTypeOf(r)` is the override's, else the charge
+  type's, and it is what the charge form's read-only Marketing Details shows (a *Pet Details (Optional)* block on a Pet
+  charge), what locks Amount (`__petApply`, the hidden `#m-at-pettype` now follows the charge type) and what the rent quote
+  and Pricing Preview cap by (`ppPetMax`, `petCapOf`). The charge's stored `attrs.petType` is no longer read. With no pet
+  type set, nothing locks or caps.
 - **Charge Type Details shows Pet Details** when the category is Pet (2026-10-16): `attrDefSections('ctd', …, { pet: true })`, a
   **Pet Type** dropdown saved as `mktDef[CODE].attrs.petType` by `ctSave` (`attrRead` already read it). Until the type has
   saved one it opens on the pet type its charges name (`ctAttrs`; DOGFEE reads *Dog*).

@@ -884,6 +884,13 @@ class Component extends DCLogic {
         ${ro('Charge Requirement', D.requirement, true, false, '', H.requirement)}
         ${isOne ? ro('Charge Timing', DUE[D.feeDue] || D.feeDue, true) + ro('Refundability', ref, false) : ro('Charge Schedule', D.schedule, true)}
       </div>
+      ${cat === 'Pet' ? (() => { const pt = this.petTypeOf({ mits: c });
+        // The charge type's Pet Details (or the property override's), read-only like the rest (2026-10-20).
+        return `<div style="display:flex;flex-direction:column;gap:12px;padding-top:12px;border-top:1px solid var(--rmx-line, #cedbe7)">
+          <span style="font-size:14px;font-weight:600;${INK}">Pet Details (Optional)</span>
+          <div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px">${ro('Pet Type', pt, false)}</div>
+          ${this.petInfoHTML(pt)}
+        </div>`; })() : ''}
     </div>`;
   }
   chargeInherits(prop, code, listing){
@@ -4241,8 +4248,10 @@ class Component extends DCLogic {
       <span id="${id}-sfx" style="font-size:14px;color:var(--rmx-text-muted, #b3b3b3);flex:none">${esc(SFX[String(att.uom || '').trim()] || '')}</span></div>`;
     const uomJs = "['" + pre + "-at-h','" + pre + "-at-w','" + pre + "-at-l'].forEach(function(i){var e=document.getElementById(i+'-sfx');if(e)e.textContent=({Inch:'in',Foot:'ft',Yard:'yd',Meter:'m'})[_v]||''})";
     const SPACE = ['None','Available','Reservable'];
-    const wrap = (key, title, inner) => `<div id="${pre}-at-${key}-wrap" style="display:${cat === title ? 'flex' : 'none'};flex-direction:column;gap:12px;padding-top:12px;border-top:1px solid var(--rmx-line, #cedbe7);${o.locked ? 'pointer-events:none;opacity:0.5' : ''}">
-        <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title} Details</span>${inner}</div>`;
+    const wrap = (key, title, inner, head) => `<div id="${pre}-at-${key}-wrap" style="display:${cat === title ? 'flex' : 'none'};flex-direction:column;gap:12px;padding-top:12px;border-top:1px solid var(--rmx-line, #cedbe7);${o.locked ? 'pointer-events:none;opacity:0.5' : ''}">
+        <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${head || title + ' Details'}</span>${inner}</div>`;
+    // Picking a Pet Type shows its own details under it, read-only (they are edited on the Pet Type).
+    window.__petDefShow = (px, v) => { const el = document.getElementById(px + '-at-petinfo'); if (el) el.innerHTML = this.petInfoHTML(v); };
     window.__attrDefShow = (px, c) => {
       [['stor','Storage'], ['park','Parking'], ['pet','Pet']].forEach(([k, n]) => {
         const el = document.getElementById(px + '-at-' + k + '-wrap'); if (el) el.style.display = c === n ? 'flex' : 'none'; });
@@ -4256,7 +4265,8 @@ class Component extends DCLogic {
              sub('Vehicle Size', dd(pre + '-at-size', ['Motorcycle','Compact','Car','Extended (RV/Boat)'], att.size || '')))
         + `<div style="display:flex;gap:16px">${sub('Standard Parking', dd(pre + '-at-reg', SPACE, att.regular || ''))}${sub('Handicapped Parking', dd(pre + '-at-hc', SPACE, att.handicapped || ''))}${sub('Electric Parking', dd(pre + '-at-elec', SPACE, att.electric || ''))}</div>`
         + sub('Parking Description', `<input id="${pre}-at-desc" value="${esc(att.desc || '')}" placeholder="E.g. 50 surface spaces, 5 handicapped, 10 EV" style="width:100%;box-sizing:border-box;height:36px;background:var(--rmx-bg-subtle, #f5f8fa);border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;padding:0 10px;font:400 14px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);outline:none">`))
-      + (o.pet ? wrap('pet', 'Pet', pair(sub('Pet Type', dd(pre + '-at-pettype', this.petTypesFor().map(t => t.name), att.petType || '')), '<div style="flex:1;min-width:0"></div>')) : '');
+      + (o.pet ? wrap('pet', 'Pet', pair(sub('Pet Type', dd(pre + '-at-pettype', this.petTypesFor().map(t => t.name), att.petType || '', "if(window.__petDefShow)window.__petDefShow('" + pre + "',_v)")), '<div style="flex:1;min-width:0"></div>')
+          + `<div id="${pre}-at-petinfo">${this.petInfoHTML(att.petType)}</div>`, 'Pet Details (Optional)') : '');
   }
   ctmCommit(prop, code, vals, on, mode){
     const K = this.ctmFields();
@@ -4337,6 +4347,7 @@ class Component extends DCLogic {
   // A charge type's Storage / Parking / Pet details: what it has saved, else (until it saves one) the pet type
   // its charges name most. Read by Charge Type Details and the property override dialog alike.
   ctAttrsFor(code, attrs){
+    return attrs; // Pet Type starts empty until the charge type sets one (2026-10-20, the user's call)
     if (attrs && Object.keys(attrs).length) return attrs;
     const c = String(code || '').toUpperCase(), seen = {};
     this.propNames().forEach(p => this.profileRows(p).forEach(x => {
@@ -6303,6 +6314,32 @@ class Component extends DCLogic {
       <div style="flex:1;min-width:0;overflow-y:auto;background:var(--rmx-bg-subtle, #f5f8fa)"><div style="padding:22px 28px 40px;display:flex;flex-direction:column;gap:26px">${body}</div></div>
     </div>`;
   }
+  // A pet charge's pet type is its charge type's (or the property's override of it), like the rest of its
+  // marketing details (2026-10-20): a charge no longer picks its own. Empty until the charge type sets one.
+  petTypeOf(r, prop){
+    if (!r) return '';
+    const c = String(r.mits || '').toUpperCase(), p = r._prop || prop || this.state.property;
+    return String(((this.ctmOwn(p, c) || {}).attrs || (this.mktDefFor(c) || {}).attrs || {}).petType || '');
+  }
+  // The chosen pet type's own details, read-only (RMX Input Field Style=Read-only): they are edited on the
+  // Pet Type, so every surface that picks or shows one draws them the same way. Nothing when none is chosen.
+  petInfoHTML(name){
+    const t = this.petTypeByName(name); if (!t) return '';
+    const m = (v) => v ? this.money(v) : '';
+    const F = [['Max Allowed', t.maxPets || ''], ['Max Weight', t.maxWeight || ''],
+      ['Recurring Charge Amount', m(t.rec)], ['Max Recurring Charge Amount', m(t.recMax)],
+      ['One-Time Charge Amount', m(t.one)], ['Max One-Time Charge Amount', m(t.oneMax)],
+      ['Pet Deposit Amount', m(t.dep)], ['Max Pet Deposit Amount', m(t.depMax)]];
+    // Four across; each row's labels sit on a grid row of their own (bottom-aligned) over a row of values, so
+    // the values line up even where a long label wraps.
+    const lab = (l) => `<span style="align-self:end;min-width:0;font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">${l}</span>`;
+    const val = (v) => v !== '' ? `<span style="min-width:0;font-size:14px;line-height:20px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${v}</span>`
+      : `<span style="font-size:14px;line-height:20px;color:var(--rmx-text-muted, #b3b3b3)">—</span>`;
+    let cells = '';
+    for (let i = 0; i < F.length; i += 4) { const row = F.slice(i, i + 4);
+      cells += row.map(f => lab(f[0])).join('') + row.map(f => `<div style="min-width:0;margin-bottom:8px">${val(f[1])}</div>`).join(''); }
+    return `<div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:4px 16px">${cells}</div>`;
+  }
   // Pet types available on a property — a type with no property list applies everywhere.
   petTypeByName(n){ return this.state.petTypes.filter(t => t.name === String(n || '').trim())[0] || null; }
   // A pet type's Max Allowed caps how many pets a pet charge can be taken for. A charge that names a
@@ -6310,7 +6347,7 @@ class Component extends DCLogic {
   // so it takes the largest limit among them. 0 means no limit is set, and the count is open-ended.
   ppPetMax(r, prop){
     if (!r) return 0;
-    const named = this.petTypeByName((r.attrs || {}).petType);
+    const named = this.petTypeByName(this.petTypeOf(r, prop));
     if (named) return named.maxPets || 0;
     return this.petTypesFor(prop).reduce((n, t) => Math.max(n, t.maxPets || 0), 0);
   }
@@ -7981,7 +8018,7 @@ class Component extends DCLogic {
   rqLineAmt(r){ const t = r.amount * this.rqQtyOf(r); return r.cap ? Math.min(t, r.cap) : t; }
   // The Max Charge Amount a pet type puts on a per-pet charge — the Pricing Preview's rule.
   petCapOf(r){
-    const t = this.petTypeByName((r.attrs || {}).petType); if (!t) return 0;
+    const t = this.petTypeByName(this.petTypeOf(r)); if (!t) return 0;
     const one = /-one$/.test(r.group || '');
     return (one ? t.onePer : t.recPer) ? (one ? (t.oneMax || 0) : (t.recMax || 0)) : 0;
   }
@@ -8605,7 +8642,7 @@ class Component extends DCLogic {
     const qtyOf = r => { const v = tick(r); return v === true ? 1 : (v || 0); };
     // A per-pet charge can carry a Max Charge Amount, which caps what the resident pays however many
     // pets they add — four pets at $30 with a $100 max is $100, not $120.
-    const petCap = r => { const t = this.petTypeByName((r.attrs || {}).petType); if (!t) return 0;
+    const petCap = r => { const t = this.petTypeByName(this.petTypeOf(r)); if (!t) return 0;
       const one = /-one$/.test(r.group || '');
       return (one ? t.onePer : t.recPer) ? (one ? (t.oneMax || 0) : (t.recMax || 0)) : 0; };
     const lineAmt = r => { const t = amtOf(r) * (isPet(r) ? Math.max(1, qtyOf(r)) : 1);
@@ -9995,7 +10032,7 @@ class Component extends DCLogic {
       const ATTRIN = [['m-at-stype','storageType'], ['m-at-uom','uom'], ['m-at-h','height'],
         ['m-at-w','width'], ['m-at-l','length'], ['m-at-struct','structure'], ['m-at-size','size'],
         ['m-at-reg','regular'], ['m-at-hc','handicapped'], ['m-at-elec','electric'],
-        ['m-at-desc','desc'], ['m-at-pettype','petType']];
+        ['m-at-desc','desc']];
       ATTRIN.forEach(([id, key]) => {
         const el = this.q('#' + id); if (!el) return;
         const val = PA[key] || '';
@@ -10004,6 +10041,8 @@ class Component extends DCLogic {
         now['at:' + key] = val;
       });
       if (window.__uomSfx) window.__uomSfx(PA.uom || ((this.q('#m-at-uom') || {}).value) || '');
+      // The Pet Type is the charge type's outright, so it always follows the charge type picked.
+      if (this.q('#m-at-pettype') && window.__ddSet) window.__ddSet('m-at-pettype', PA.petType || '', PA.petType || '\u00a0');
       this._mktDefApplied = now;
       if (window.__attrCheck) window.__attrCheck();
       if (window.__mitsRecheck) window.__mitsRecheck();
@@ -10397,7 +10436,7 @@ class Component extends DCLogic {
     // Pet specifics live on the Pet Type, not the charge: the charge picks a type and shows what that
     // type says. When the type carries an amount, it drives the charge's amount, which locks.
     const petList = this.petTypesFor();
-    const petSel = String(at.petType || '');
+    const petSel = this.petTypeOf({ mits: (ed && ed.mits) || '' }); // the charge type's, not the charge's own
     const petOf = (n) => petList.filter(t => t.name === n)[0];
     // A recurring charge takes the type's monthly figures. A one-time charge can take either its
     // one-time fee or its deposit, so which one is a question the form has to ask (mock 3072-109736).
