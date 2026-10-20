@@ -1091,7 +1091,7 @@ describes the design before that tag; the code for most of it is still in the fi
   neither is listed.* — with **Resolve** (`dupOpen`) on the right.
 - **Mass Edit Marketing Details** (Figma `3980:160947`, 2026-10-15): an action link (`edit_square`, labelled **Mass Edit Marketing**
   since 2026-10-20 — as is every link and button into it: Setup, the Listings Charge Types and Listing Errors dialogs, the
-  announcement's miniature; only the window's own title still reads *Mass Edit Marketing Details*) beside Add Charge Type on the Charge Types page opens `ctMassHTML` (`state.ctMass`, z-index 150, 1572px wide):
+  announcement's miniature, and the window's own title) beside Add Charge Type on the Charge Types page opens `ctMassHTML` (`state.ctMass`, z-index 150, 1572px wide):
   the 48px header with a help (`todo`) and close, *"Set the marketing information for every charge that
   uses this charge type. Charges will display on listings as they are here."*, then one register row per
   active charge type — **Charge Type · Properties · Charge Role · Name · Charge Category · Marketing
