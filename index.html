@@ -788,8 +788,10 @@ class Component extends DCLogic {
       // On Rollout is the day the feature ships (2026-10-20, the user's call): no charge type has any
       // marketing details yet. The Name starts as the charge type's description, the Charge Role as Additional
       // Charge, and Charge Category empty.
+      // NSF and Late are the exception (2026-10-20, the user's call): they start as Violation and Situational.
       out[code] = this.scenarioKey() === 'on'
-        ? { name: desc, category:'', marketing:'', requirement:'', schedule:'', feeDue:'', refundable:'', role:'' }
+        ? { name: desc, category: SITUATIONAL[code] ? 'Violation' : '', marketing:'', requirement: SITUATIONAL[code] ? 'Situational' : '',
+            schedule:'', feeDue:'', refundable:'', role:'' }
         : d;
     });
     // Storage carries no default marketing details whatsoever — not even a name or a category — so
