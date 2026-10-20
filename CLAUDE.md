@@ -1228,7 +1228,13 @@ describes the design before that tag; the code for most of it is still in the fi
     (`roleFlagNote`: *Charge added. RC – Unit rent is also the Base Rent on unit 1A, so both read Duplicate Charge and
     fee transparency can’t be activated until one is resolved.*). Checked in Mid Conversion: a second unit-level RC on
     1A is blocked at Riverview and flagged at The Hamptons.
-  - **A charge type save says what it did** (2026-10-19, brief item 4). It still never blocks. `ctSave` and `ctMassSave`
+  - **Deleting a Base Rent after activation asks first, but doesn't block** (2026-10-20, round 2 item 1). `rowDelete`
+  checks `rentDelUnits(row)` — at an activated property, the listed units whose `ltChargeHits` include this Base Rent —
+  and when there are any raises `rentDelHTML` (`state.rentDel = { id, units }`, z-index 160, modelled on the unit-type
+  dialog): **Delete Base Rent Charge** · *Listings for units 3B, 5A and 4C won’t be sent to listing providers until a new
+  Base Rent charge is added.* · **Delete Charge** / Cancel. After it, those listings are Not Sent with the *No Base Rent*
+  Charge Errors item. Before activation it deletes as before.
+- **A charge type save says what it did** (2026-10-19, brief item 4). It still never blocks. `ctSave` and `ctMassSave`
     take `roleImpactSnap()` before and after — per applicable property, the role conflicts, the listed units no Base
     Rent on listings reaches, and the listings Not Sent — and `roleImpactNote` adds what's new to the toast: *Charge type
     saved. More than one Base Rent now at Riverview Apartments (the property), …. Not Sent until resolved: Riverview

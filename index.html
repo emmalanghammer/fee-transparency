@@ -247,6 +247,7 @@ class Component extends DCLogic {
     // exclFrom:{ types:[], units:[], prop:true }.
     chargeExcl: null,
     utDel: null, // { id } — confirmation before deleting a unit-type charge
+    rentDel: null, // { id, units } — confirmation before deleting a Base Rent after activation (2026-10-20)
     modal: null,
     toast: null
   };
@@ -2135,8 +2136,17 @@ class Component extends DCLogic {
       case 'rowDetails': { const c = this.profileRows().find(x => String(x.id) === String(arg)); this.setState({ rowMenu: null, modal: c ? { group: c.group, edit: c } : null }); break; }
       // A unit-type charge covers every unit of that type, so deleting one asks first.
       case 'rowDelete': { const row = this.profileRows().find(f => String(f.id) === String(arg));
+        // After activation, deleting the Base Rent of a listed unit asks first (2026-10-20, round 2 item 1). It
+        // doesn't block: those listings go Not Sent (Missing Base Rent) until a new Base Rent is added.
+        const units = row ? this.rentDelUnits(row) : [];
+        if (units.length) { this.setState({ rowMenu: null, rentDel: { id: arg, units } }); break; }
         if (row && row.level === 'Unit Type') { this.setState({ rowMenu: null, utDel: { id: arg } }); break; }
         this.deleteRow(arg); break; }
+      case 'rentDelCancel': this.setState({ rentDel: null }); break;
+      case 'rentDelConfirm': { const id = (this.state.rentDel || {}).id;
+        this.setState({ rentDel: null });
+        if (id != null) this.deleteRow(id);
+        break; }
       case 'utDelCancel': this.setState({ utDel: null }); break;
       case 'utDelConfirm': { const id = (this.state.utDel || {}).id;
         this.setState({ utDel: null });
@@ -3535,7 +3545,7 @@ class Component extends DCLogic {
       newProps: [], addProp: null, histLog: [], toggles: {}, tenantCharges: {},
       modal: null, bulk: null, bulkSel: null, bulkUpd: null,
       copyFees: null, pricePreview: null, profMenu: null, profHist: null,
-      recView: null, mrView: false, rowMenu: null, pubModal: null, pubDone: null, ftSel: null, dupResolve: null, ltTypes: null, mktDef: this.mktDefAll(),
+      recView: null, mrView: false, rowMenu: null, pubModal: null, pubDone: null, ftSel: null, dupResolve: null, rentDel: null, ltTypes: null, mktDef: this.mktDefAll(),
       mktSetup: false, mktAdv: false, mktTab: 'General', petType: null, spBanner: true, tcsProp: null, ftHelp: false,
       lvlSel: 'all', ftFilter: 'all', ltProp: 'all', ltErrOnly: false, ltStatus: [], ltGroupBy: true, ftSetup: null, propDef: {}, ctmEdit: null, ctmAsk: null, ctmMode: 'inherit', mcTab: 'Overview',
       fpData: {}, fpEdit: null, fpMenu: null, fpDel: null, sdTypes: ['DP'], roleReview: null,
@@ -8868,6 +8878,34 @@ class Component extends DCLogic {
       return Object.assign({}, r, { group: prefix + suffix });
     });
   }
+  // The listed units whose Base Rent this charge is, at a property that has activated — deleting it leaves them
+  // Not Sent. Empty before activation, or for a charge that isn't a Base Rent anywhere listed.
+  rentDelUnits(row){
+    const prop = this.state.property;
+    if (!(this.state.publishedProps || {})[prop] || this.chargeRole(row) !== 'rent') return [];
+    return this.listingsData().filter(l => l.prop === prop
+      && this.ltChargeHits(l).some(r => String(r.id) === String(row.id))).map(l => l.unit);
+  }
+  rentDelHTML(){
+    const d = this.state.rentDel; if (!d) return '';
+    const u = d.units || [];
+    const list = u.length === 1 ? 'unit ' + u[0] : 'units ' + u.slice(0, -1).join(', ') + ' and ' + u[u.length - 1];
+    return `<div data-act="rentDelCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.35);display:flex;align-items:center;justify-content:center;z-index:160">
+      <div data-act="noop" role="dialog" aria-label="Delete Base Rent Charge" style="width:540px;max-width:92vw;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:12px;padding:13px 20px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
+          <span style="font-size:20px;color:var(--rmx-brand-dark, #13314c)">Delete Base Rent Charge</span><div style="flex:1"></div>
+          <span data-act="rentDelCancel" aria-label="Close" style="display:flex;cursor:pointer">${this.ico('close', 20, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:18px;padding:22px 24px 24px">
+          ${this.ico('warning', 36, 'color:var(--rmx-attention, #f58220);flex:none')}
+          <span style="min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Listings for ${list} won’t be sent to listing providers until a new Base Rent charge is added.</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:14px 20px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7)">
+          <button data-act="rentDelConfirm" class="btn-pri" style="height:38px;min-height:38px;padding:0 22px;border-radius:4px;font-size:14px">Delete Charge</button>
+          <button data-act="rentDelCancel" class="btn-out" style="height:38px;min-height:38px;padding:0 22px;border-radius:4px;font-size:14px">Cancel</button>
+        </div>
+      </div></div>`;
+  }
   // Deleting a unit-type charge affects every unit of that type, so it confirms first.
   utDelHTML(){
     const d = this.state.utDel; if (!d) return '';
@@ -12318,6 +12356,7 @@ class Component extends DCLogic {
     out += this.recViewHTML();
     out += this.marketRentHTML();
     out += this.utDelHTML();
+    out += this.rentDelHTML();
     out += this.ltErrHTML();
     out += this.dupResolveHTML();
     out += this.ltTypesHTML();
