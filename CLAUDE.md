@@ -936,6 +936,14 @@ to keep in view.
 
 ## Charge marketing is the charge type's alone (2026-10-15)
 
+**Wording sweep** (2026-10-19, brief item 9): *marketing information* → **marketing details** (Setup's step 1, Charge
+Type Details' and Mass Edit's intros); the old status rungs' next step *Add Charge Details* → **Add Marketing Details**
+(to Charge Types); the Pricing Preview's *profile* → *property* (*Add a charge to the property to preview it here.*,
+*No charges on this property yet*, *…on this property yet.*), its situational line → *Additional fees may apply for
+late or returned payments and lease violations.*; Add Property's *No properties with a profile* → *No properties with
+charges*; the history entry *Charge removed from the profile* → *Charge removed*. No user-facing *Charge Marketing*,
+*marketing information* or *Add Charge Details* is left.
+
 **"Charge Marketing" is called "Marketing Details" everywhere in the UI** (2026-10-15, every case:
 the Charge Type Details tile, the charge form's section, *Add Marketing Details*, *Listed Charge is Missing
 Marketing Details*, the Listing Errors section, and so on). Notes in this file still say Charge Marketing;
