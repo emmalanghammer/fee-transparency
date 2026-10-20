@@ -3463,6 +3463,14 @@ class Component extends DCLogic {
           ${body("Not listing online? There's nothing to do here.")}
         </div>`);
 
+    // What fee transparency is, moved here from the Setup overlay (2026-10-20): the overlay is the work,
+    // and this panel is the reading.
+    const why = card(heading('What is fee transparency?')
+      + body('Listings show every required fee itemized, plus a Total Monthly Price, instead of base rent alone.')
+      + [['Required in more states', 'A growing number of states require advertised rent to include mandatory fees, and Zillow flags listings that don’t.'],
+         ['Set once, used everywhere', 'Marketing details are set on each charge type, and every charge of that type, at every property, uses them.'],
+         ['Which properties it applies to', 'Properties listed online with a provider that carries complete pricing.']]
+        .map(r => `<span style="display:flex;flex-direction:column;gap:3px"><span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${r[0]}</span>${body(r[1])}</span>`).join(''));
     const keyRows = [
       ['Not Ready', 'A unit has no Base Rent, or a charge type the property uses is missing marketing details.'],
       ['Ready', 'Every unit has a Base Rent and every charge type has its marketing details. Activate when you’re ready.'],
@@ -3490,12 +3498,13 @@ class Component extends DCLogic {
     // A panel docked to the right of the page rather than a dialog over it: the register stays
     // readable while the guide is open, so a status can be looked up against the row that raised the
     // question. Starts below the page's context bar and runs to the bottom of the window.
-    return `<div data-act="noop" style="position:fixed;top:88px;right:0;bottom:0;width:534px;max-width:96vw;box-sizing:border-box;background:#fff;border-left:1px solid var(--rmx-line, #cedbe7);box-shadow:-6px 0 18px rgba(19,49,76,0.12);display:flex;flex-direction:column;overflow:hidden;z-index:150">
+    return `<div data-act="noop" style="position:fixed;top:88px;right:0;bottom:0;width:534px;max-width:96vw;box-sizing:border-box;background:#fff;border-left:1px solid var(--rmx-line, #cedbe7);box-shadow:-6px 0 18px rgba(19,49,76,0.12);display:flex;flex-direction:column;overflow:hidden;z-index:156">
         <div style="flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;height:48px;box-sizing:border-box;padding:10px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
           <span style="font-size:20px;color:var(--rmx-brand-dark, #13314c)">How does Fee Transparency Setup work?</span>
           <svg class="ico" width="24" height="24" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="ftHelpClose" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
         </div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:16px">
+          ${why}
           ${steps}
           <div style="display:flex;flex-direction:column;gap:8px">${heading('Status Key')}${statusKey}</div>
           <div style="display:flex;flex-direction:column;gap:8px">${heading('Column Descriptions')}${columns}</div>
@@ -5309,102 +5318,124 @@ class Component extends DCLogic {
       <button data-act="ftSetupOpen"${only ? ` data-arg="${String(only).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}"` : ''} onmouseover="this.style.background='#d96f14'" onmouseout="this.style.background='var(--rmx-attention, #f58220)'" style="display:inline-flex;align-items:center;gap:8px;height:36px;min-height:36px;padding:0 16px 0 8px;border:0;border-radius:4px;background:var(--rmx-attention, #f58220);color:#fff;font:400 14px Roboto,sans-serif;flex:none;white-space:nowrap;cursor:pointer">${CHECKLIST}View Setup</button>
     </div>`;
   }
+  // The Fee Transparency Setup overlay as a two-step checklist (2026-10-20, the user's pick from the
+  // canvas *Fee Transparency Setup Iterations*, board A, <https://claude.ai/artifact/UDQid3WQcdTD1FoNXePwJS>).
+  // Learning about fee transparency is the help panel (the header's help icon and *Read how it works*),
+  // not a step; the Base Rent is part of step 1, because a charge type is where it is set. Step 1 lists
+  // every charge type still short — missing fields with Edit, duplicates with Resolve — and collapses to
+  // one line once there are none; step 2 is the properties, each with what's left and its action.
+  ftSetupSteps(){
+    const scope = this.ftScopeNames().filter(p => this.ftApplicable(p));
+    const used = {}, miss = {}, dups = [];
+    scope.forEach(p => {
+      this.appliedRows(p).filter(r => r.ils).forEach(r => { const c = String(r.mits || '').toUpperCase(); if (c) used[c] = 1; });
+      this.appliedRows(p).filter(r => r.ils && !this.mitsComplete(r)).forEach(r => {
+        const c = String(r.mits || '').toUpperCase(); if (!c) return;
+        const f = miss[c] || (miss[c] = []); this.mitsMissing(r).forEach(x => { if (f.indexOf(x) < 0) f.push(x); }); });
+      this.chargeDupes(p).forEach(g => dups.push(g));
+    });
+    const short = {};
+    Object.keys(miss).forEach(c => { short[c] = 1; });
+    dups.forEach(g => (g.codes || [g.code]).forEach(c => { short[String(c).toUpperCase()] = 1; }));
+    const total = Object.keys(used).length, ready = total - Object.keys(short).filter(c => used[c]).length;
+    return { miss, dups, total, ready, done: !Object.keys(miss).length && !dups.length };
+  }
   ftSetupHTML(){
     const st = this.state.ftSetup; if (!st) return '';
     const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
-    const sec = st.sec || {}, po = st.props || {};
-
     const rows = this.ftSetupRows();
     const canGo = this.ftReadyProps();
-
-    const CARD = 'background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px';
-    const H = (t) => `<span style="font-size:16px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${t}</span>`;
+    const S = this.ftSetupSteps();
+    const INK = 'color:var(--rmx-brand-dark, #13314c)';
     const DESC = (t) => `<span style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">${t}</span>`;
-    const loz = (t, bg, fg, dot) => `<span style="display:inline-flex;align-items:center;gap:8px;height:24px;box-sizing:border-box;padding:0 9px;border-radius:4px;background:${bg};font-size:13px;color:${fg};white-space:nowrap;flex:none">${dot ? `<span style="width:8px;height:8px;border-radius:50%;flex:none;background:${dot}"></span>` : ''}${t}</span>`;
-    const chev = (open) => this.ico(open ? 'keyboard_arrow_up' : 'keyboard_arrow_down', 24, 'color:var(--rmx-text, #666666);flex:none');
-    const SETTINGS = `<svg class="ico" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="flex:none"><path d="M405-120 373-266q-15-6-29-14t-27-19l-140 44-95-165 111-97q-1-8-1.5-15.5T190-547q0-8 .5-15.5T192-578L81-675l95-165 140 44q13-11 27-19t29-14l32-146h190l32 146q15 6 29.5 14t26.5 19l140-44 95 165-111 97q1 8 1.5 15.5t.5 15.5q0 8-.5 15.5T806-562l111 97-95 165-140-44q-12 11-26.5 19T626-311l-32 146H405Zm75-260q41 0 70.5-29.5T580-480q0-41-29.5-70.5T480-580q-41 0-70.5 29.5T380-480q0 41 29.5 70.5T480-380Z"/></svg>`;
-    const PROPERTY = this.ftHomeSvg();
-    const MEGAPHONE = `<svg class="ico" width="24" height="24" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="flex:none"><path d="M720-440v-80h160v80H720Zm48 280-128-96 48-64 128 96-48 64Zm-80-480-48-64 128-96 48 64-128 96ZM200-200v-160h-40q-33 0-56.5-23.5T80-440v-80q0-33 23.5-56.5T160-600h160l200-120v520L320-320h-40v160h-80Z"/></svg>`;
-
-    // ---- section 1: why ----
-    const notif = (icon, tint, fg, title, body) => `<div style="display:flex;align-items:flex-start;gap:8px">
-      <span style="display:flex;align-items:center;justify-content:center;width:33px;height:33px;border-radius:4px;flex:none;background:${tint};color:${fg}">${icon}</span>
-      <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
-        <span style="font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${title}</span>
-        ${DESC(body)}
-      </div>
+    const link = (t, act, arg) => `<span data-act="${act}"${arg ? ` data-arg="${esc(arg)}"` : ''} style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${t}</span>`;
+    const lozDot = (t, bg, dot) => `<span style="display:inline-flex;align-items:center;gap:8px;height:24px;box-sizing:border-box;padding:0 8px;border-radius:4px;background:${bg};font-size:14px;${INK};white-space:nowrap;flex:none"><span style="width:8px;height:8px;border-radius:50%;flex:none;background:${dot}"></span>${t}</span>`;
+    // RMX Workflow Step avatar: a grey number by default, the brand pencil on the current step, the
+    // green check once complete; the label SemiBold on the current step.
+    const avatar = (state, n) => state === 'Complete'
+      ? `<span style="width:24px;height:24px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;background:var(--rmx-success, #6eb744);color:#fff">${this.ico('check', 16, 'color:#fff')}</span>`
+      : state === 'Focused'
+      ? `<span style="width:24px;height:24px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;background:var(--ac,var(--rmx-brand, #008dd5));color:#fff">${this.ico('edit', 14, 'color:#fff')}</span>`
+      : `<span style="width:24px;height:24px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;background:var(--rmx-bg-muted, #f2f2f2);border:1px solid var(--rmx-line, #cedbe7);box-sizing:border-box;font-size:12px;color:var(--rmx-text, #666666)">${n}</span>`;
+    const stepHead = (state, n, label, right) => `<div style="display:flex;align-items:center;gap:12px;min-height:40px;padding:8px 16px">
+      ${avatar(state, n)}
+      <span style="flex:1;min-width:0;font-size:14px;line-height:20px;${state === 'Focused' ? 'font-weight:600;' : ''}${INK}">${label}</span>
+      ${right || ''}
     </div>`;
-    const rule = `<div style="height:1px;background:var(--rmx-line, #cedbe7)"></div>`;
-    const whatOpen = !!sec.what;
-    const what = `<div style="background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;padding:8px 16px${whatOpen ? ' 16px' : ''};display:flex;flex-direction:column;gap:16px">
-      <div data-act="ftSetupSec" data-arg="what" style="display:flex;align-items:center;gap:8px;cursor:pointer">
-        ${this.ico('help', 20, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}<span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">What is Fee Transparency?</span><div style="flex:1"></div>${chev(whatOpen)}
-      </div>
-      ${whatOpen ? `<div style="height:1px;margin:-4px -16px 0;background:var(--rmx-line, #cedbe7)"></div>
-      ${DESC('Listings show every required fee itemized, plus a Total Monthly Price, instead of base rent alone.')}
-      <div style="display:flex;flex-direction:column;gap:12px">
-        ${notif(this.ico('error', 20, 'flex:none'), '#fdf3e7', 'var(--rmx-notice, #faa61c)', 'Required in More States', 'A growing number of states require advertised rent to include mandatory fees, and Zillow flags listings that don&#39;t.')}
-        ${rule}
-        ${notif(SETTINGS, '#eef1f4', 'var(--rmx-ink-2, #424e5b)', 'Streamlined Process', 'Marketing details are set once on each charge type, and every charge of that type, at every property, uses them.')}
-        ${rule}
-        ${notif(PROPERTY, 'var(--rmx-brand-tint-bg, #ebf1f5)', 'var(--ac,var(--rmx-brand, #008dd5))', 'Applicable Properties', 'Fee Transparency can only be activated for properties that are using online listings with providers that have total pricing/complete pricing')}
-      </div>` : ''}
+    const card = (focused, inner) => `<div style="flex:none;background:#fff;border:1px solid ${focused ? 'var(--ac,var(--rmx-brand, #008dd5))' : 'var(--rmx-line, #cedbe7)'};border-radius:4px;display:flex;flex-direction:column">${inner}</div>`;
+    const body = (inner) => `<div style="padding:4px 16px 16px 52px;display:flex;flex-direction:column;gap:12px">${inner}</div>`;
+    // A register in the Table style: 32px Label/S/Medium headers over 36px striped rows.
+    const head = (t) => `<div style="display:flex;align-items:center;height:32px;box-sizing:border-box;padding:0 8px;border-bottom:1px solid var(--rmx-line, #cedbe7);font:500 12.6px Roboto,sans-serif;letter-spacing:1.134px;${INK};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</div>`;
+    const cell = (inner, i) => `<div style="display:flex;align-items:center;gap:8px;min-width:0;min-height:36px;box-sizing:border-box;padding:6px 8px;background:${i % 2 ? 'var(--rmx-bg-subtle, #f5f8fa)' : '#fff'};font-size:14px;line-height:20px;${INK}">${inner}</div>`;
+    const reg = (cols, heads, rowsArr) => `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow-x:auto">
+      <div style="display:grid;grid-template-columns:${cols};min-width:560px">${heads.map(head).join('')}${rowsArr.map((r, i) => r.map(c => cell(c, i)).join('')).join('')}</div>
     </div>`;
 
-    // ---- Add Marketing Details to Charge Types (Figma 3991:162248, as revised 2026-10-15) ----
-    // No numbers and no status strip: the card says where the work is done and links there; what each
-    // property still needs is the register's count below.
-    const H2 = (t) => `<span style="font-size:16px;line-height:24px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${t}</span>`;
-    const mkLink = (t, act, arg) => `<span data-act="${act}"${arg ? ` data-arg="${esc(arg)}"` : ''} style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${t}</span>`;
-    const defaults = `<div style="${CARD};padding:16px;display:flex;flex-direction:column;gap:8px">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-        <div style="display:flex;align-items:center;gap:8px">${H2('Add Marketing Details to Charge Types')}${Object.keys(this.ctMissingAll()).some(c => (this.ctMissingAll()[c] || []).length) ? loz('Required', '#fbd6d8', 'var(--rmx-brand-dark, #13314c)') : ''}</div>
-        ${mkLink('Charge Types', 'navChargeTypes')}
-      </div>
-      ${DESC('Edit each charge type’s marketing details, so any charge that uses that charge type will be advertised with them. You can do this individually or in bulk on the charge types register.')}
-    </div>`;
+    // ---- Step 1: marketing details on charge types (the Base Rent is set there too) ----
+    const typeName = (c) => `${esc(c)} – ${esc(this.chargeTypeDesc(c) || '')}`;
+    const shortRows = Object.keys(S.miss).sort().map(c => [typeName(c), 'Missing: ' + S.miss[c].join(', '), link('Edit', 'ctOpen', c)])
+      .concat(S.dups.map(g => [typeName(String((g.codes || [g.code])[0]).toUpperCase()), esc(this.dupLabelAt(g)), link('Resolve', 'dupOpen', g.prop + '::' + g.key)]));
+    const shortCodes = Object.keys(S.miss).sort();
+    const s1State = S.done ? 'Complete' : 'Focused';
+    const step1 = card(!S.done, stepHead(s1State, 1, 'Add marketing details to charge types',
+        S.done ? `<span style="font-size:14px;${INK}">All ${S.total} charge types ready</span>${link('Open Charge Types', 'navChargeTypes')}`
+          : lozDot(`${S.ready} of ${S.total} Ready`, '#feedd2', 'var(--rmx-notice, #faa61c)'))
+      + (S.done ? '' : body(DESC('Set once on the charge type, including whether it’s the Base Rent or Security Deposit. Every charge that uses it, at every property, is advertised with those details.')
+        + reg('minmax(0,1.2fr) minmax(0,2fr) 90px', ['Charge Type', 'What’s Left', ''], shortRows)
+        + `<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+            <button data-act="ftMassEdit" data-arg="${esc(shortCodes.join(','))}" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Mass Edit Marketing Details</button>
+            <button data-act="navChargeTypes" class="btn-out" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Open Charge Types</button>
+          </div>`)));
 
-    // ---- Activate Properties ----
-    // Bulk Activate sits in the card's header, shown only when a property could activate now. The register
-    // reads Property · Listing Ready Charge Types (a dot and the charge types ready of those the property
-    // lists) · the Activate link · status, last.
-    const TR = 'display:grid;grid-template-columns:minmax(150px,1fr) minmax(130px,1fr) max-content 120px;align-items:center';
-    const cell = (inner, extra) => `<div style="display:flex;align-items:center;gap:8px;min-width:0;height:36px;box-sizing:border-box;padding:0 8px;border-top:1px solid var(--rmx-brand-tint-bg, #ebf1f5);${extra || ''}">${inner}</div>`;
-    const head = (t) => `<div title="${t}" style="display:flex;align-items:center;height:32px;box-sizing:border-box;padding:0 8px;border-bottom:1px solid var(--rmx-line, #cedbe7);font:500 12.6px Roboto,sans-serif;letter-spacing:1.134px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</div>`;
-    const lozDot = (t, bg, dot) => `<span style="display:inline-flex;align-items:center;gap:8px;height:24px;box-sizing:border-box;padding:0 8px;border-radius:4px;background:${bg};font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;flex:none"><span style="width:8px;height:8px;border-radius:50%;flex:none;background:${dot}"></span>${t}</span>`;
-    const prop = (r) => {
-      const status = r.converted
-        ? `<span style="font-size:14px;font-style:italic;color:var(--rmx-text, #666666);white-space:nowrap">Fee Transparent</span>`
-        : r.ready ? lozDot('Ready', 'var(--rmx-success-bg, #e2f1da)', 'var(--rmx-success, #6eb744)')
-        : lozDot('Not Ready', '#feedd2', 'var(--rmx-notice, #faa61c)');
-      const t = this.ftPropTypes(r.p);
-      const frac = `<span title="${esc(t.short.length ? 'Not listing ready: ' + t.short.join(', ') : 'Every charge type is listing ready')}" style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;flex:none;background:${t.ready === t.total ? 'var(--rmx-success, #6eb744)' : 'var(--rmx-error, #eb343c)'}"></span>${t.ready}/${t.total}</span>`;
-      const next = !r.converted && r.ready ? mkLink('Activate Fee Transparency', 'pubOpen', r.p) : '';
-      return cell(`<span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.p)}</span>`)
-        + cell(frac) + cell(next) + cell(status);
+    // ---- Step 2: activate properties ----
+    const readyN = rows.filter(r => r.ready && !r.converted).length, doneN = rows.filter(r => r.converted).length;
+    const left = (r) => {
+      const t = this.ftPropTypes(r.p), parts = [];
+      // An activated property short of a charge type is holding listings back, so it says so.
+      if (r.converted) return t.short.length ? `${esc(t.short.join(', '))} (step 1): listings not sent` : '—';
+      if (t.short.length) parts.push(esc(t.short.join(', ')) + ' (step 1)');
+      const gap = this.roleRentGap(r.p);
+      if (gap) parts.push(`${gap} unit${gap === 1 ? '' : 's'} with no Base Rent ${link('View Charges', 'openFeeProfile', r.p)}`);
+      return parts.length ? parts.join('; ') : 'Nothing';
     };
-    const charges = `<div style="${CARD};padding:16px;display:flex;flex-direction:column;gap:16px">
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-          ${H2('Activate Properties')}
-          ${canGo.length ? `<button data-act="ftActivateReady" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap;flex:none">Bulk Activate Fee Transparency</button>` : ''}
-        </div>
-        ${DESC('A property can activate once every unit has a Base Rent and every charge type it uses has its marketing details filled in.')}
+    const frac = (p) => { const t = this.ftPropTypes(p);
+      return `<span title="${esc(t.short.length ? 'Not listing ready: ' + t.short.join(', ') : 'Every charge type is listing ready')}" style="display:inline-flex;align-items:center;gap:8px;white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;flex:none;background:${t.ready === t.total ? 'var(--rmx-success, #6eb744)' : 'var(--rmx-error, #eb343c)'}"></span>${t.ready}/${t.total}</span>`; };
+    const status = (r) => r.converted ? `<span style="font-style:italic;color:var(--rmx-text, #666666);white-space:nowrap">Fee Transparent</span>`
+      : r.ready ? `<button data-act="pubOpen" data-arg="${esc(r.p)}" class="btn-pri" style="height:28px;min-height:28px;padding:0 12px;border-radius:4px;font-size:14px;white-space:nowrap">Activate</button>`
+      : lozDot('Not Ready', '#feedd2', 'var(--rmx-notice, #faa61c)');
+    const s2State = S.done ? (readyN || rows.some(r => !r.converted) ? 'Focused' : 'Complete') : 'Default';
+    const step2 = card(s2State === 'Focused', stepHead(s2State, 2, 'Activate properties',
+        `<span style="font-size:14px;${INK};white-space:nowrap">${doneN === rows.length && rows.length ? 'All fee transparent' : `${readyN} of ${rows.length - doneN} ready`}</span>`
+        + (canGo.length > 1 ? `<button data-act="ftActivateReady" class="btn-out" style="height:28px;min-height:28px;padding:0 12px;border-radius:4px;font-size:14px;white-space:nowrap">Bulk Activate</button>` : ''))
+      + body(DESC('A property can activate once every charge type it uses is ready and every unit has a Base Rent.')
+        + (rows.length ? reg('minmax(0,1.1fr) minmax(0,0.6fr) minmax(0,1.8fr) 150px', ['Property', 'Charge Types', 'What’s Left', 'Status'],
+            rows.map(r => [`<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.p)}</span>`, frac(r.p), `<span>${left(r)}</span>`, status(r)]))
+          : DESC('No properties are enabled for online listings yet.'))));
+
+    // Overall progress: the charge types, which is what the work is.
+    const pct = S.total ? Math.round(S.ready / S.total * 100) : 100;
+    const bar = `<div role="progressbar" aria-label="Charge types ready" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" style="display:flex;align-items:center;gap:8px;width:240px;flex:none">
+      <span style="flex:1;height:12px;border-radius:6px;background:var(--rmx-bg-muted, #f2f2f2);overflow:hidden"><span style="display:block;height:100%;width:${pct}%;border-radius:6px;background:${pct === 100 ? 'var(--rmx-success, #6eb744)' : 'var(--ac,var(--rmx-brand, #008dd5))'}"></span></span>
+      <span style="font-size:14px;${INK};min-width:36px;text-align:right">${pct}%</span>
+    </div>`;
+    const intro = `<div style="flex:none;display:flex;align-items:center;gap:16px;padding:4px 0 8px;flex-wrap:wrap">
+      <div style="flex:1;min-width:240px;display:flex;flex-direction:column;gap:4px">
+        <span style="font-size:16px;line-height:24px;font-weight:600;${INK}">Two steps to fee transparent listings</span>
+        <span style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">New to fee transparency? ${link('Read how it works', 'ftHelpOpen')}</span>
       </div>
-      ${rows.length ? `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow-x:auto">
-        <div style="${TR}">${[head('Property'), head('Listing Ready Charge Types'), head(''), head('')].join('')}${rows.map(prop).join('')}</div>
-      </div>` : DESC('No properties are enabled for online listings yet.')}
+      ${bar}
     </div>`;
 
     return `<div data-act="ftSetupClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:150">
       <div data-act="noop" style="width:972px;max-width:94vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;gap:14px;height:48px;box-sizing:border-box;padding:0 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
-          <span style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">Fee Transparency Setup</span>
+          <span style="font:400 20px/28px Roboto,sans-serif;${INK}">Fee Transparency Setup</span>
           <div style="flex:1"></div>
-          <span data-act="ftSetupClose" style="display:flex;cursor:pointer">${this.ico('close', 24, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
+          <span data-act="ftHelpOpen" role="button" aria-label="How fee transparency works" title="How fee transparency works" style="display:flex;cursor:pointer">${this.ico('help', 24, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
+          <span data-act="ftSetupClose" role="button" aria-label="Close" style="display:flex;cursor:pointer">${this.ico('close', 24, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
         </div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px;background:#fff">
-          ${what}${defaults}${charges}
+          ${intro}${step1}${step2}
         </div>
       </div>
     </div>`;
