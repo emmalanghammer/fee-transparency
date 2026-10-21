@@ -1298,8 +1298,11 @@ describes the design before that tag; the code for most of it is still in the fi
 - **Charge Type Details shows Pet Details** when the category is Pet (2026-10-16): `attrDefSections('ctd', …, { pet: true })`, a
   **Pet Type** dropdown saved as `mktDef[CODE].attrs.petType` by `ctSave` (`attrRead` already read it). Until the type has
   saved one it opens on the pet type its charges name (`ctAttrs`; DOGFEE reads *Dog*).
-- **The property Charges register no longer shows Listing Ready by default** (2026-10-16, "for now"): the `ready`
-  column lost its `base:'ft'`, so it is off and offered in Column Setup like the other optional columns.
+- **The property Charges register shows Listing Status again, by default** (2026-10-21, the user's call; it was off from
+  2026-10-16): the `ready` column, *Listing Status*, is back on `base:'ft'`, and `mitsStatusCell` draws the charge form's own
+  status beside Marketing Details — the dot lozenge (`statusDot`): *Excluded from listings* grey, *Missing Required Fields*
+  red (the fields in its `title`), *Duplicate Charge* amber / red once activated (still opening *How do I resolve this?*),
+  *Listing Ready* green. The pills (`lrPill`) are no longer drawn there.
 - **The Listings dialogs use the shared status** (2026-10-16, canvas board H 1a / 1b). `statusDot(label, color, tip)` is the
   one dot-and-italic-label status (RMX Lozenge, no background). **Charge Types** (`ltTypesHTML`): the column is **Listing
   Status**; a row reads *Missing Required Fields* (red, always), *Duplicate Charge* (amber, red once the property has

@@ -7480,21 +7480,19 @@ class Component extends DCLogic {
       + `<span style="display:flex;flex-direction:column;gap:10px;padding-top:11px">${missing.map(n => `<span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${n}</span>`).join('')}</span>`, undefined, { trigger: pill('Missing Details') });
     return `<span title="Listing ready" aria-label="Listing ready" style="display:inline-flex;align-items:center;gap:5px">${this.filledIco('check_circle', 16, 'color:var(--rmx-success, #6eb744);flex:none')}</span>`;
   }
+  // The charge form's own status beside Marketing Details (2026-10-21, the user's call): RMX's Lozenge with no
+  // background, the dot and an italic navy label — Excluded from listings (grey), Missing Required Fields (red),
+  // Duplicate Charge (amber, red once the property has activated) or Listing Ready (green). It replaced the pills.
   mitsStatusCell(r){
-    const missing = this.mitsMissing(r);
-    // Amber while the property still publishes rent alone; red once it has activated, because then a
-    // short charge is holding its listings off the feed.
     const act = !!this.state.publishedProps[r._prop || this.state.property];
-    const pill = (t) => `<span style="display:inline-flex;align-items:center;gap:5px;background:${act ? '#fdecee' : '#fdf3e3'};border-radius:12px;padding:2px 9px;cursor:default">${this.filledIco('error', 14, 'color:' + (act ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-attention, #f58220)') + ';flex:none')}<span style="font-size:14px;color:${act ? '#a3252c' : '#7a5a2a'};white-space:nowrap">${t}</span></span>`;
-    // A charge kept off listings is not measured for readiness at all \u2014 nothing will advertise it,
-    // so counting fields it will never need reads as work outstanding when there is none. It says
-    // **Excluded** whatever its fields hold, which is the same answer `ltChargeIssues` gives (it
-    // only ever counts `ils` charges) and the same one the charge form's header gives.
-    if (!r.ils) {
-      return `<span style="display:inline-flex;align-items:center;gap:5px;background:var(--rmx-bg-muted, #f2f2f2);border-radius:12px;padding:2px 9px;cursor:default" title="This charge isn&#39;t included on listings, so it isn&#39;t measured for listing readiness"><svg class="ico" width="14" height="14" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-text-muted, #b3b3b3)"><path d="m629-419-44-44q26-71-27-118t-115-24l-44-44q17-11 38-16t43-5q71 0 120.5 49.5T650-500q0 22-5.5 43.5T629-419Zm129 129-40-40q49-36 85.5-80.5T857-500q-50-111-150-175.5T490-740q-42 0-86 8t-69 19l-46-47q35-16 89.5-28T485-800q143 0 261.5 81.5T920-500q-26 64-67 117t-95 93Zm58 226L648-229q-35 14-79 21.5t-89 7.5q-146 0-265-81.5T40-500q20-52 55.5-101.5T182-696L56-822l42-43 757 757-39 44ZM223-654q-37 27-71.5 71T102-500q51 111 153.5 175.5T488-260q33 0 65-4t48-12l-64-64q-11 5-27 7.5t-30 2.5q-70 0-120-49t-50-121q0-15 2.5-30t7.5-27l-97-97Zm305 142Zm-116 58Z"/></svg><span style="font-size:14px;color:var(--rmx-text, #666666);white-space:nowrap">Excluded</span></span>`;
-    }
-    // A duplicate pair can't be sent whatever its fields hold (2026-10-15), so it says so first.
-    return this.lrPill(r.mits, missing, act, this.chargeDupeOf(r));
+    const G = 'var(--rmx-success, #6eb744)', R = 'var(--rmx-error, #eb343c)', A = 'var(--rmx-notice, #faa61c)', M = 'var(--rmx-text-muted, #b3b3b3)';
+    if (!r.ils) return this.statusDot('Excluded from listings', M, "This charge isn't included on listings, so it isn't measured for listing readiness");
+    const missing = this.mitsMissing(r);
+    if (missing.length) return this.statusDot('Missing Required Fields', R, 'Required for listings, missing on the ' + String(r.mits || '').toUpperCase() + ' charge type: ' + missing.join(', '));
+    // A duplicate still opens *How do I resolve this?*.
+    const dup = this.chargeDupeOf(r);
+    if (dup) return `<span data-act="dupOpen" data-arg="${String(dup.prop + '::' + dup.key).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" style="display:inline-flex;cursor:pointer">${this.statusDot('Duplicate Charge', act ? R : A, this.dupLabelAt(dup) + ' ' + this.dupWhy(dup) + '. Select to see how to resolve it.')}</span>`;
+    return this.statusDot('Listing Ready', G);
   }
   levelCounts(){
     const rows = this.showExceptions() ? this.profileRows() : this.appliedRows();
@@ -7589,8 +7587,9 @@ class Component extends DCLogic {
       { key:'from',     label:'From',                  w:'100px', base:true, recOnly:true },
       { key:'to',       label:'To',                    w:'90px',  base:true, recOnly:true },
       { key:'amount',   label:'Amount',                w:'140px', base:true },
-      // Off by default for now (2026-10-16, the user's call); still offered in Column Setup.
-      { key:'ready',    label:'Listing Ready',         w:'150px' },
+      // Listing Status, on wherever fee transparency applies (2026-10-21, the user's call; it was off by default from
+      // 2026-10-16, and *Listing Ready* before that).
+      { key:'ready',    label:'Listing Status',        w:'210px', base:'ft' },
       { key:'method',   label:'Amount Method',         w:'130px' },
       // Off by default, on through Column Setup. It reads the resolved schedule, so a one-time
       // charge shows One-Time here rather than sitting blank beside the recurring ones.
@@ -9043,7 +9042,7 @@ class Component extends DCLogic {
     C.push(['from', 'From', ['104px','0','0','0'], 1]);
     C.push(['to', 'To', ['96px','0','0','0'], 1]);
     C.push(['amount', 'Amount', ['120px','116px','116px','110px'], 9, true]);
-    if (o.ready) C.push(['ready', 'Listing Ready', ['140px','140px','140px','0'], 3]);
+    if (o.ready) C.push(['ready', 'Listing Status', ['210px','210px','210px','0'], 3]);
     if (o.kebab) C.push(['kebab', '', ['44px','44px','44px','44px'], 9]);
     const tracks = (t) => C.filter(c => !(t >= c[3])).map(c => c[2][t]).join(' ');
     const hideAt = (t) => C.filter(c => c[3] === t).map(c => `.${ns} .c-${c[0]}`).join(', ');
@@ -9114,7 +9113,7 @@ class Component extends DCLogic {
       }).join('');
       const det = kv('comment', 'Comment', comment || '—') + kv('freq', 'Frequency', freq)
         + (isRec ? kv('from', 'From', f.from || '—') + kv('to', 'To', f.to || '—') : '')
-        + (o.ready ? kv('ready', 'Listing Ready', this.mitsStatusCell(f)) : '');
+        + (o.ready ? kv('ready', 'Listing Status', this.mitsStatusCell(f)) : '');
       const openAttr = o.open ? ` data-act="unitChgOpen" data-arg="${esc2(f.id)}" title="Open this charge" onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background='${bg}'"` : '';
       return `<div data-chgrow="${esc2(key)}" data-rec="${isRec ? '1' : '0'}"${openAttr} style="background:${bg};border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5);${o.open ? 'cursor:pointer;' : ''}">
         <div class="${ns}-r">${cells}</div>
