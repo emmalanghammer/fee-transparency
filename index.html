@@ -5173,14 +5173,11 @@ class Component extends DCLogic {
     return lo === hi ? this.money(lo) : this.money(lo) + ' – ' + this.money(hi);
   }
   roleTotalRange(prop, unitType, rentOnly){
-    // Each unit of the floor plan reads its own Base Rent: one set on the unit, else its unit type's, else the
-    // property's (2026-10-21, the user's call — a unit's own Base Rent used to be skipped here).
-    const gs = this.roleGroups(prop, 'rent');
-    const ut = gs.filter(x => x.level === 'Unit Type' && x.target === unitType)[0] || gs.filter(x => x.level === 'Property')[0];
-    const fees = rentOnly ? 0 : this.ltMonthlyFees(prop);
+    // Each unit of the floor plan reads what its listing would (2026-10-21): its own Base Rent, else its unit type's,
+    // else the property's, plus the required monthly charges reaching it — `ltUnitRent` / `ltUnitFees`, which Listings uses.
     const vals = this.units().filter(u => u.type === unitType).map(u => {
-      const g = gs.filter(x => x.level === 'Unit' && String(x.target) === String(u.u))[0] || ut;
-      return g ? this.chargeAmt(g.chosen, u.u) + fees : null; }).filter(v => v != null);
+      const l = { prop, unit: u.u }, seed = this.parseAmt(u.rent), rent = this.ltUnitRent(l, seed);
+      return rent == null ? null : rent + (rentOnly ? 0 : this.ltUnitFees(l, seed)); }).filter(v => v != null);
     if (!vals.length) return '';
     const lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
     return lo === hi ? this.money(lo) : this.money(lo) + ' – ' + this.money(hi);
@@ -5669,6 +5666,10 @@ class Component extends DCLogic {
       plan: l.unit || l.prop,
       type: this.ltBedBath(l)
     }))
+      // An activated property's Base Rent and Total Monthly Price come from its charges; `seed` keeps the listing's
+      // own figure, which stands in as the unit's market rent.
+      .map(l => !this.state.publishedProps[l.prop] ? l : (() => { const base = this.ltUnitRent(l, l.base);
+        return Object.assign({}, l, { seed: l.base, base, total: base == null ? null : base + this.ltUnitFees(l, l.base) }); })())
       // Happy Path is everything filled out, so no listing arrives carrying Rent Manager or provider
       // gaps either — the seeded ones belong to the portfolio scenarios.
       .map(l => (this.state.scenario || 'on') !== 'happy' ? l : Object.assign({}, l, {
@@ -5749,6 +5750,23 @@ class Component extends DCLogic {
   ltTypeOf(l){ const u = this.units().find(x => x.u === l.unit); return u ? u.type : this.ltUnitType(l).replace(/B\//, 'BR/'); }
   // Whether a charge applies to one listing: the property's (less its exceptions) unless a more specific
   // charge of the same type replaces it there, its unit type's, its unit's, or a rentable item's.
+  // What an activated listing advertises, from the charges (2026-10-21, the user's call: once a property is fee
+  // transparent its Listings figures always follow its charges). The Base Rent is the Base Rent charge on listings that
+  // reaches the unit — the unit's own, else its unit type's, else the property's (`ltChargeHits`) — or null where none
+  // does. A reference to Unit Market Rent reads the unit's rent, or `seed` (the listing's own figure) for a unit the
+  // prototype has no record of.
+  ltChargeAmt(r, l, seed){ const n = this.parseAmt(r.amount); if (n) return n;
+    if (this.units().some(u => u.u === l.unit)) { const ref = this.refAmount(r, l.unit); if (ref != null) return ref; }
+    else if (/unit market rent/i.test(String(r.amount || '')) && seed != null) return seed;
+    return r.est != null ? +r.est : 0; }
+  ltUnitRent(l, seed){
+    const rows = this.ltChargeHits(l).filter(r => r.ils && this.chargeRole(r) === 'rent');
+    return rows.length ? Math.max.apply(null, rows.map(r => this.ltChargeAmt(r, l, seed))) : null; }
+  // The required recurring charges on listings that reach the unit, on top of its Base Rent.
+  ltUnitFees(l, seed){
+    return this.ltChargeHits(l).filter(r => r.ils && !r.propSpecific && !/-one$/.test(String(r.group || '')) && this.chargeRole(r) !== 'rent'
+      && (this.resolvedListing(r).requirement || '') === 'Required')
+      .reduce((t, r) => t + this.ltChargeAmt(r, l, seed), 0); }
   ltChargeHits(l){
     const type = this.ltTypeOf(l);
     const reach = this.appliedRows(l.prop).filter(r => {
@@ -6187,13 +6205,13 @@ class Component extends DCLogic {
         const is = this.ltIssues(l);
         // Only a converted property advertises a total; everything else still lists rent alone,
         // so there is no total monthly price to show yet.
-        const total = this.state.publishedProps[l.prop] ? money(l.base + this.ltMonthlyFees(l.prop)) : this.ftApplicable(l.prop) ? '—' : 'N/A';
+        const total = this.state.publishedProps[l.prop] ? (l.total == null ? '\u2014' : money(l.total)) : this.ftApplicable(l.prop) ? '—' : 'N/A';
         const depAmt = this.ltDeposit(l), dep = depAmt == null ? '\u2014' : money(depAmt);
 
         return `<div style="display:grid;grid-template-columns:${cols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background='#fff'">
           ${cell(l.unit || '—', 'padding-left:17px')}
           ${cell(this.ltUnitType(l))}
-          ${cell(money(l.base))}
+          ${cell(l.base == null ? '\u2014' : money(l.base))}
           ${cell(dep)}
           ${cell(total)}
           ${cell(l.avail || '—')}
@@ -6222,13 +6240,13 @@ class Component extends DCLogic {
       </div>`;
       const body = rows.map(({ l, i }) => {
         const is = this.ltIssues(l);
-        const total = this.state.publishedProps[l.prop] ? money(l.base + this.ltMonthlyFees(l.prop)) : this.ftApplicable(l.prop) ? '—' : 'N/A';
+        const total = this.state.publishedProps[l.prop] ? (l.total == null ? '\u2014' : money(l.total)) : this.ftApplicable(l.prop) ? '—' : 'N/A';
         const depAmt = this.ltDeposit(l), dep = depAmt == null ? '\u2014' : money(depAmt);
         return `<div style="display:grid;grid-template-columns:${fcols};align-items:center;border-bottom:1px solid var(--rmx-bg-subtle, #f5f8fa);background:#fff" onmouseover="this.style.background='#f7fafc'" onmouseout="this.style.background='#fff'">
           ${cell(esc(l.prop), 'padding-left:17px')}
           ${cell(l.unit || '\u2014')}
           ${cell(this.ltUnitType(l))}
-          ${cell(money(l.base))}
+          ${cell(l.base == null ? '\u2014' : money(l.base))}
           ${cell(dep)}
           ${cell(total)}
           ${cell(l.avail || '\u2014')}

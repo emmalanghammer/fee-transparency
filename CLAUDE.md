@@ -228,7 +228,12 @@ Charge Types · Feed Status**, one row per advertised unit (`listingsData()` in 
 suggestion where nothing is marked, and reads `—` where the property runs no deposit (Happy Path's
 Windermere). Both registers' tracks are `minmax(0, n fr)`, so the header row and the body rows share
 one set of widths whatever their content. On a narrow pane the header labels truncate with a `title`.
-**Total Monthly Price reads `-` until the property has actually converted** (`publishedProps`): a
+**Once a property has activated, its Base Rent and Total Monthly Price follow its charges** (2026-10-21, the user's
+call; they were fixed seed figures): `listingsData` sets `l.base` to `ltUnitRent(l)` — the Base Rent charge on listings that
+reaches the unit (its own, else its unit type's, else the property's, through `ltChargeHits`), a Unit Market Rent reference
+reading the unit's rent or, for a unit the prototype has no record of, the seed figure (kept as `l.seed`) — and `l.total` to
+that plus `ltUnitFees(l)`, the required recurring charges on listings reaching the unit. No Base Rent reaching it reads `—` in
+both. Edit Floor Plan's ranges read the same two helpers. Before activation the seed figures stand. **Total Monthly Price reads `-` until the property has actually converted** (`publishedProps`): a
 property that hasn't still advertises rent alone, so it has no total to show — finishing its
 charges is not the same as publishing them. Where fee transparency can't apply (`ftApplicable` is
 false, e.g. Clearcreek on MH Village) it reads **N/A** instead (2026-10-08), since that property
