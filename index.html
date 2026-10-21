@@ -1561,6 +1561,8 @@ class Component extends DCLogic {
       case 'ftMassEdit': this._meVals = {}; this.go('chargetypes', { ftSetup: null, ltErr: null, ltTypes: null, dupResolve: null,
         ctMass: arg ? { only: String(arg).split(',').filter(Boolean) } : true }); break;
       case 'ctMassAll': this.setState({ ctMass: true }); break;
+      case 'ctMassOnly': { const on = !!(this.state.ctMass && this.state.ctMass.only);
+        const M = this.ctMissingAll(); this.setState({ ctMass: on ? true : { only: Object.keys(M).filter(c => (M[c] || []).length) } }); break; }
       case 'ltTypesOpen': this.setState({ ltTypes: { i: parseInt(arg, 10) || 0 } }); break;
       case 'ltTypesClose': this.setState({ ltTypes: null }); break;
       // Every *How do I resolve this?* opens the explainer (2026-10-21, the user's call), not the Resolve task.
@@ -1999,6 +2001,9 @@ class Component extends DCLogic {
       case 'ftSetupClose': this.setState({ ftSetup: null }); break;
       case 'ftSetupSec': this.setState(s2 => { const f2 = s2.ftSetup, o = Object.assign({}, f2.sec || {});
         o[arg] = !o[arg]; return { ftSetup: Object.assign({}, f2, { sec: o }) }; }); break;
+      // A step card's chevron. Unset means the step's default (see `ftSetupHTML`), so the first toggle flips that.
+      case 'ftStepToggle': { const el = e.target.closest('[data-act="ftStepToggle"]'); const now = el && el.getAttribute('aria-expanded') === 'true';
+        this.setState(s2 => ({ ftSetup: Object.assign({}, s2.ftSetup, { steps: Object.assign({}, (s2.ftSetup || {}).steps, { [arg]: !now }) }) })); break; }
       case 'ftSetupProp': this.setState(s2 => { const f2 = s2.ftSetup, o = Object.assign({}, f2.props || {});
         o[arg] = !o[arg]; return { ftSetup: Object.assign({}, f2, { props: o }) }; }); break;
       // One property ready goes straight to the confirmation — there is nothing to choose between.
@@ -2392,7 +2397,9 @@ class Component extends DCLogic {
     this._roleFlag = hit && roleNow && !activated ? { dup: hit, role: roleNow, where: this.dupWhere(app, target) } : null;
     // After activation, a Base Rent / Security Deposit conflict raises RMX's warning Pop Up over the form (Figma
     // 4110:114732, 2026-10-21) rather than the inline error. It is DOM-only, so the form keeps what was typed.
-    if (dup && roleNow) { this.roleDupPopup(String(dup.mits || '').toUpperCase(), roleNow, this.dupWhere(app, target));
+    // An additional charge that repeats another's charge type and comment raises the same Pop Up, titled Existing
+    // Charge Error (Figma Validation, 2026-10-21); it used to be inline text under the form.
+    if (dup) { this.roleDupPopup(String(dup.mits || '').toUpperCase(), roleNow, this.dupWhere(app, target));
       const eb0 = this.q('#m-err'); if (eb0) eb0.style.display = 'none'; return false; }
     if (dup) {
       const role = roleNow;
@@ -4449,7 +4456,7 @@ class Component extends DCLogic {
     return `<div data-act="ctmCancel" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:158">
       <div data-act="noop" style="width:700px;max-width:94vw;max-height:92vh;background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;height:48px;box-sizing:border-box;padding:8px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
-          <span style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">Default Marketing Details</span>
+          <span style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">Charge Type Marketing Details</span>
           <span data-act="ctmCancel" style="display:flex;cursor:pointer">${this.ico('close', 24, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
         </div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:20px">
@@ -4650,20 +4657,20 @@ class Component extends DCLogic {
   roleDupPopup(code, role, where){
     const root = document.querySelector('.rmx'); if (!root) return;
     const old = document.getElementById('m-roledup'); if (old) old.remove();
-    const label = this.leaseRoleLabel(role);
+    const label = role ? this.leaseRoleLabel(role) : '';
     const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;');
     const el = document.createElement('div');
     el.id = 'm-roledup';
     el.setAttribute('style', 'position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:200');
     el.innerHTML = `<div role="alertdialog" aria-labelledby="m-roledup-h" aria-describedby="m-roledup-d" style="width:500px;max-width:94vw;background:#fff;border-radius:4px;box-shadow:0 3px 3px rgba(0,0,0,0.1);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;height:48px;box-sizing:border-box;padding:8px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
-          <span id="m-roledup-h" style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">Duplicate ${esc(label)} Charges</span>
+          <span id="m-roledup-h" style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">${label ? 'Duplicate ' + esc(label) + ' Charges' : 'Existing Charge Error'}</span>
           <span data-x role="button" aria-label="Close" style="display:flex;cursor:pointer">${this.ico('close', 24, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
         </div>
         <div style="display:flex;align-items:flex-start;gap:16px;min-height:124px;box-sizing:border-box;padding:24px 8px 16px 16px">
           <svg width="48" height="48" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5));flex:none"><path d="M40-120 480-880l440 760H40Zm440-120q17 0 28.5-11.5T520-280q0-17-11.5-28.5T480-320q-17 0-28.5 11.5T440-280q0 17 11.5 28.5T480-240Zm-40-120h80v-200h-80v200Z"/></svg>
           <span style="flex:1;min-width:0;max-width:400px;padding-right:8px;display:flex;flex-direction:column;gap:16px;font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">
-            <span id="m-roledup-d">A charge using the ${esc(code)} charge type is already the ${esc(label)} ${esc(where)}.</span>
+            <span id="m-roledup-d">${label ? `A charge using the ${esc(code)} charge type is already the ${esc(label)} ${esc(where)}.` : `A charge using the ${esc(code)} charge type exists ${esc(where)}.`}</span>
             <span>To add this charge, exclude it from displaying on listings, change the charge level it applies to, or change the charge type.</span>
           </span>
         </div>
@@ -5193,7 +5200,7 @@ class Component extends DCLogic {
     const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
     const INK = 'var(--rmx-brand-dark, #13314c)', GREY = 'var(--rmx-text, #666666)';
     const link = (t, act, arg) => `<span data-act="${act}"${arg ? ` data-arg="${esc(arg)}"` : ''} style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${t}</span>`;
-    const title = ((x) => x ? 'Duplicate ' + esc(x) : 'Duplicate Charges')(g && g.role ? this.leaseRoleLabel(g.role) : '');
+    const title = ((x) => x ? 'Resolve Duplicate ' + esc(x) + ' Charges' : 'Resolve Duplicate Charges')(g && g.role ? this.leaseRoleLabel(g.role) : '');
     const shell = (inner) => `<div data-act="dupHelpClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:160">
       <div data-act="noop" role="dialog" aria-label="${title}" style="width:720px;max-width:94vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;gap:16px;height:48px;box-sizing:border-box;padding:0 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
@@ -5224,25 +5231,25 @@ class Component extends DCLogic {
         ${col('From – To', dates, false, 0.9)}
         ${col('Amount', esc(r.amount || ''), true, 0.8)}
       </div>`; };
-    // Version A of the UX-copy pass (2026-10-21, the user's pick): one rule, the charges, then each way out as a
-    // bare bullet under one of two headings — no descriptions, numbers or grey bands.
+    // The Zeplin screens (2026-10-21) settle it as two sentences — how to list both, how to list only one — under the
+    // rule and the charges, with Close alone in the footer. What doesn't apply drops out of each sentence.
     const lead = `Only one ${esc(what)} can apply to a unit at a time. Change one of these charges.`;
-    const list = (title, items) => `<div style="display:flex;flex-direction:column;gap:8px">
-        <span style="font-size:14px;line-height:20px;font-weight:600;color:${INK}">${title}</span>
-        <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:14px;line-height:20px;color:${INK}">${items.map(i => `<li>${i}</li>`).join('')}</ul>
-      </div>`;
     const both = [];
-    if (!anyOne) both.push('End one before the other starts');
-    if (g.level !== 'Unit') both.push('Move one to a unit type or unit');
-    if (role && codes.length > 1) both.push('Make one an Additional Charge'); // no Open links (2026-10-21, the user's call)
-    const one = ['Exclude one from listings', anyOne ? 'Delete one' : 'End or delete one'];
+    if (!anyOne) both.push('end one before the other starts');
+    if (g.level !== 'Unit') both.push('move one to a different charge level');
+    if (role && codes.length > 1) both.push(`make one an additional charge instead of ${esc(what.toLowerCase())} on the charge type`);
+    const one = ['exclude one of these charges from listings'];
+    if (!anyOne) one.push('end one before the other charge starts');
+    one.push('delete a charge');
+    const join = (a) => a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ', or ' + a[a.length - 1];
+    const para = (t) => `<span style="font-size:14px;line-height:20px;color:${INK}">${t}</span>`;
     // From inside a charge form, the form is already on the property's Charges, so no View Charges.
-    const viewBtn = this.state.modal ? '' : `<button data-act="openFeeProfile" data-arg="${esc(g.prop)}" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">View Charges</button>`;
+    const viewBtn = '';
     return shell(`<div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:16px">
         <span style="font-size:14px;line-height:20px;color:${INK}">${lead}</span>
         <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px">${g.rows.map(chargeRow).join('')}</div>
-        ${both.length ? list('To list both', both) : ''}
-        ${list('To list only one', one)}
+        ${both.length ? para('To list both charges, you can ' + join(both) + '.') : ''}
+        ${para('To only list one, you can ' + join(one) + '.')}
       </div>
       <div style="flex:none;display:flex;justify-content:flex-end;gap:16px;padding:12px 16px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7)">
         ${viewBtn}<button data-act="dupHelpClose" class="btn-out" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Close</button>
@@ -5468,24 +5475,28 @@ class Component extends DCLogic {
       : state === 'Focused'
       ? `<span style="width:24px;height:24px;box-sizing:border-box;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid var(--ac,var(--rmx-brand, #008dd5));color:var(--ac,var(--rmx-brand, #008dd5));box-shadow:2px 2px 12px -5px rgba(76,76,76,0.08),0 4px 15px -5px rgba(76,76,76,0.08),0 -1px 20px -5px rgba(76,76,76,0.02)">${this.rmxIco('edit-filled', 16)}</span>`
       : `<span style="width:24px;height:24px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;background:#737373;font-size:12px;color:#fff">${n}</span>`;
-    const stepHead = (state, n, label, right, pad) => `<div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;padding:${pad}">
-      <div style="flex:1 1 200px;min-width:0;display:flex;align-items:center;gap:8px">${avatar(state, n)}<span style="min-width:0;font-size:14px;line-height:20px;${state === 'Focused' ? 'font-weight:600;' : ''}${INK}">${label}</span></div>
-      <div style="display:flex;align-items:center;gap:12px;margin-left:auto;flex:none">${right || ''}</div>
+    // Each step is collapsible (Figma Zeplin screens, 2026-10-21): the status sits right after the label, any
+    // action on the right, then the chevron. The whole header toggles it (`ftStepToggle`); a button in it acts.
+    const stepHead = (state, n, label, status, right, open) => `<div data-act="ftStepToggle" data-arg="${n}" role="button" aria-expanded="${open ? 'true' : 'false'}" style="display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;padding:${open ? '16px' : '12px 16px'};cursor:pointer">
+      <div style="flex:1 1 240px;min-width:0;display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px">${avatar(state, n)}<span style="min-width:0;font-size:14px;line-height:20px;${state === 'Focused' ? 'font-weight:600;' : ''}${INK}">${label}</span>${status}</div>
+      <div style="display:flex;align-items:center;gap:16px;margin-left:auto;flex:none">${right || ''}${this.ico(open ? 'keyboard_arrow_up' : 'keyboard_arrow_down', 24, 'color:var(--rmx-brand-dark, #13314c);flex:none')}</div>
     </div>`;
+    const stepOpen = (n, dflt) => { const v = (st.steps || {})[n]; return v == null ? dflt : !!v; };
+    const body = (inner) => `<div style="padding:0 16px 16px;display:flex;flex-direction:column;gap:12px">${inner}</div>`;
     const card = (focused, inner) => `<div style="flex:none;background:#fff;border:1px solid ${focused ? 'var(--ac,var(--rmx-brand, #008dd5))' : 'var(--rmx-line, #cedbe7)'};border-radius:4px;display:flex;flex-direction:column">${inner}</div>`;
 
     // ---- Step 1: marketing details on charge types ----
     const shortCodes = Object.keys(S.miss).sort();
     const s1State = S.done ? 'Complete' : 'Focused';
+    // Open while there's work; once every charge type is ready it collapses, and still opens on its chevron.
+    const s1Open = stepOpen(1, !S.done);
     const step1 = card(!S.done, stepHead(s1State, 1, 'Add Marketing Details to Charge Types',
-        dotLoz(`${S.ready} of ${S.total} Ready`, S.done ? GREEN : AMBER), '16px')
-      + (S.done ? '' : `<div style="padding:0 16px 16px 48px;display:flex;flex-direction:column;gap:12px">
-          ${DESC('Set once on the charge type. Every charge that uses it, at every property, is advertised with those details.')}
+        dotLoz(`${S.ready} of ${S.total} Ready`, S.done ? GREEN : AMBER), '', s1Open)
+      + (!s1Open ? '' : body(`${DESC('Set once on the charge type. Every charge that uses it, at every property, is advertised with those details.')}
           <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
             <button data-act="ftMassEdit" data-arg="${esc(shortCodes.join(','))}" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">Mass Edit Marketing</button>
             ${link('View Charge Types', 'navChargeTypes')}
-          </div>
-        </div>`));
+          </div>`)));
 
     // ---- Step 2: activate properties ----
     // Only properties still to activate; the activated ones count as done in the progress bar alone.
@@ -5494,23 +5505,23 @@ class Component extends DCLogic {
     const s2State = allDone ? 'Complete' : S.done ? 'Focused' : 'Default';
     // Collapsed to its header until a charge type is ready (or a property is): before that every property
     // would only read Not Ready for the reason step 1 already gives.
-    const s2Open = S.ready > 0 || okN > 0 || doneN > 0;
-    const s2Right = (s2Open && canGo.length > 1 ? `<button data-act="ftActivateReady" style="display:inline-flex;align-items:center;height:24px;box-sizing:border-box;padding:0 16px;border:1px solid var(--ac,var(--rmx-brand, #008dd5));border-radius:4px;background:#fff;color:var(--ac,var(--rmx-brand, #008dd5));font:400 14px Roboto,sans-serif;white-space:nowrap;cursor:pointer;flex:none">Bulk Activate</button>` : '')
-      + dotLoz(`${okN} of ${rows.length} Ready`, allDone ? GREEN : AMBER);
+    const s2Open = stepOpen(2, S.ready > 0 || okN > 0 || doneN > 0);
+    // Bulk Activate is the RMX primary button, named in full (Figma Zeplin screens, 2026-10-21).
+    const s2Right = canGo.length > 1 ? `<button data-act="ftActivateReady" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap;flex:none">Bulk Activate Fee Transparency</button>` : '';
+    const s2Status = dotLoz(`${okN} of ${rows.length} Ready`, allDone ? GREEN : AMBER);
     const open = (r) => !!(st.props || {})[r.p];
-    const step2 = card(s2State === 'Focused', stepHead(s2State, 2, 'Activate Properties', s2Right, '8px 16px')
-      + (!s2Open ? '' : `<div style="padding:4px 16px 16px 52px;display:flex;flex-direction:column;gap:12px">
-          ${DESC('A property can activate once every charge type it uses is ready and every unit has a Base Rent.')}
+    // From a property's own Marketing Setup the step names that property.
+    const step2 = card(s2State === 'Focused', stepHead(s2State, 2, st.only ? 'Activate ' + esc(st.only) : 'Activate Properties', s2Status, s2Right, s2Open)
+      + (!s2Open ? '' : body(`${DESC('A property can activate once every charge type it uses is ready and every unit has a Base Rent.')}
           ${rows.length ? `<div style="display:flex;flex-direction:column;gap:8px">${rows.map(r => this.ftPropRow(r, open(r))).join('')}</div>`
-            : DESC(doneN ? 'Every property is fee transparent.' : 'No properties are enabled for online listings yet.')}
-        </div>`));
+            : DESC(doneN ? 'Every property is fee transparent.' : 'No properties are enabled for online listings yet.')}`)));
 
     // The whole setup: charge types ready plus properties activated, over all of them. RMX ProgressBar.
     const items = S.total + all.length, doneItems = S.ready + doneN;
     const pct = items ? Math.round(doneItems / items * 100) : 100;
     const bar = `<div role="progressbar" aria-label="Setup progress" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" style="display:flex;align-items:center;gap:16px;width:240px;flex:none">
       <span style="flex:1;height:12px;border-radius:200px;background:#e5e5e5;overflow:hidden"><span style="display:block;height:100%;width:${pct}%;border-radius:200px;background:var(--ac,var(--rmx-brand, #008dd5))"></span></span>
-      <span style="width:30px;font-size:12px;color:var(--rmx-text, #666666);text-align:right">${pct}%</span>
+      <span style="width:30px;font-size:12px;color:var(--rmx-text, #666666);text-align:right">${pct ? pct + '%' : ''}</span>
     </div>`;
     const intro = `<div style="flex:none;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
       <div style="flex:1;min-width:240px;display:flex;flex-direction:column;gap:4px">
@@ -5991,12 +6002,15 @@ class Component extends DCLogic {
     const chargeItem = (c) => c.noRent
       ? itemRow('No Base Rent', this.statusDot('Missing Base Rent', 'var(--rmx-error, #eb343c)'), 'No charge on a Base Rent charge type reaches unit ' + escA(l.unit) + ', so the listing has no rent to send.', itemLink('View Charges', 'openFeeProfile', l.prop))
       : c.dup
-      ? itemRow(c.name, this.statusDot('Duplicate Charge', 'var(--rmx-error, #eb343c)'), 'They ' + this.dupWhy(c.dup) + '.', itemLink('How do I resolve this?', 'dupOpen', c.dup.prop + '::' + c.dup.key))
-      : itemRow(`${c.code}${ctNames[c.code] ? ' – ' + ctNames[c.code] : ''}`, this.statusDot('Missing Required Fields', 'var(--rmx-error, #eb343c)'), `Missing: ${c.missing.join(', ')}`, this.ctmOverridden(l.prop, c.code) ? itemLink('Edit Override', 'ctmOpen', l.prop + '::' + c.code) : itemLink('Edit Charge Type', 'ctOpen', c.code));
+      // Item names follow the Zeplin screens (2026-10-21): *2 Charge Types labeled as Base Rent*, *Charge Type: DOGFEE – Dog Rent*.
+      ? itemRow(((g) => { const codes = []; g.rows.forEach(r => { const k = String(r.mits || '').toUpperCase(); if (codes.indexOf(k) < 0) codes.push(k); });
+          return g.role ? (codes.length > 1 ? g.rows.length + ' Charge Types labeled as ' : g.rows.length + ' ' + codes[0] + ' charges labeled as ') + this.leaseRoleLabel(g.role) : c.name; })(c.dup),
+          this.statusDot('Duplicate Charge', 'var(--rmx-error, #eb343c)'), 'They ' + this.dupWhy(c.dup) + '.', itemLink('How do I resolve this?', 'dupOpen', c.dup.prop + '::' + c.dup.key))
+      : itemRow(`Charge Type: ${c.code}${ctNames[c.code] ? ' – ' + ctNames[c.code] : ''}`, this.statusDot('Missing Required Fields', 'var(--rmx-error, #eb343c)'), `Missing: ${c.missing.join(', ')}`, this.ctmOverridden(l.prop, c.code) ? itemLink('Edit Override', 'ctmOpen', l.prop + '::' + c.code) : itemLink('Edit Charge Type', 'ctOpen', c.code));
     return `<div data-act="ltErrClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:150">
       <div data-act="noop" style="width:714px;max-width:94vw;max-height:90vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="flex:none;display:flex;align-items:center;gap:12px;height:48px;box-sizing:border-box;padding:0 16px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
-          <span style="flex:1;min-width:0;font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Errors: ${this.ltLabel(l)}</span>
+          <span style="flex:1;min-width:0;font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Feed Status: ${l.prop}${l.unit ? ' ' + l.unit : ''}</span>
           <svg class="ico" width="24" height="24" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" data-act="ltErrClose" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;flex:none"><path d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"/></svg>
         </div>
         <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px">
@@ -6614,8 +6628,12 @@ class Component extends DCLogic {
           </span>
         </div>
         <div style="flex:1;min-height:0;display:flex;flex-direction:column;gap:16px;padding:16px;position:relative">
-          <span style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">Set the marketing details for every charge that uses this charge type. Charges will display on listings as they are here.</span>
-          ${only ? `<span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">Showing ${only.length === 1 ? 'the charge type' : only.length + ' charge types'} missing marketing details: <strong style="font-weight:600">${only.map(esc).join(', ')}</strong><span data-act="ctMassAll" style="color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Show All Charge Types</span></span>` : ''}
+          <!-- The Zeplin screens (2026-10-21): the filter is a checkbox beside the intro, where it was a Showing … line
+               with Show All Charge Types. Setup's Mass Edit Marketing still opens it ticked. -->
+          <div style="display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap">
+            <span style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">Set the marketing details for every charge that uses this charge type. Charges will display on listings as they are here.</span>
+            <label data-act="ctMassOnly" style="display:inline-flex;align-items:center;gap:8px;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap">${this.rmxCheckbox(!!only, false)}Only show charge types with missing required fields</label>
+          </div>
           <div data-rreg-me onmousedown="window.__meOutside(event)" onscroll="window.__meClose(true);this.querySelectorAll('[data-pillpnl]').forEach(p=>p.style.display='none')" style="flex:1;min-height:0;overflow:auto;border:1px solid var(--rmx-line, #cedbe7)">
             <div style="min-width:1400px">
               <div style="display:grid;grid-template-columns:${tracks};background:var(--rmx-register-header, #737373);position:sticky;top:0;z-index:3">
@@ -10030,7 +10048,7 @@ class Component extends DCLogic {
 
     // ---- Charge Application + its target field ----
     // A charge added from a unit's or a unit type's page starts at that level, pointed at it
-    // (`m.preset`, set by `addopen`); the level can still be changed.
+    // (`m.preset`, set by `addopen`); since 2026-10-21 the level and target are locked there.
     const pre = (!ed && m.preset) || null;
     const app = ed ? (ed.level || 'Property') : (pre ? pre.level : 'Property');
     const preTgt = (lvl) => (pre && pre.level === lvl) ? pre.target : '';
@@ -10070,9 +10088,12 @@ class Component extends DCLogic {
     </div>`;
     // Charge Level leads the top row of General Details; the charge type and comment finish it, and
     // a level target slots in between when the level has one.
-    const levelFields = `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Level *')}${dd('m-app',['Property','Unit Type','Unit'].concat(cre ? [] : [{ value:'ORI', label:'Other Rentable Item' }]),app,{noSearch:true,js:appToggle})}</div>
+    // Added from a unit's or unit type's page, Charge Level and that unit (type) are locked to it, in the RMX
+    // disabled style (Figma Zeplin *Add Charge From a Unit*, 2026-10-21; they could be changed before).
+    const lockCss = pre ? `<style>.cf-lock input{pointer-events:none;color:#b3b3b3 !important;-webkit-text-fill-color:#b3b3b3}.cf-lock div[onclick*="style.display==='block'"]{pointer-events:none;background:#f2f2f2 !important;border-color:#ebf1f5 !important}.cf-lock div[onclick*="style.display==='block'"] *{color:#b3b3b3 !important}</style>` : '';
+    const levelFields = `${lockCss}<div class="${pre ? 'cf-lock' : ''}" style="display:contents"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">${lab('Charge Level *')}${dd('m-app',['Property','Unit Type','Unit'].concat(cre ? [] : [{ value:'ORI', label:'Other Rentable Item' }]),app,{noSearch:true,js:appToggle})}</div>
       ${tgt('ut','Unit Type','Unit Type','m-appt-ut', app==='Unit Type'?(ed&&ed.target||preTgt('Unit Type')):'', '2BR/2BA', this.utData().map(t=>t.name))}
-      ${tgt('unit','Unit','Unit','m-appt-unit', app==='Unit'?(ed&&ed.target||preTgt('Unit')):'', '2C', this.units().map(u=>u.u))}`;
+      ${tgt('unit','Unit','Unit','m-appt-unit', app==='Unit'?(ed&&ed.target||preTgt('Unit')):'', '2C', this.units().map(u=>u.u))}</div>`;
     // An Other Rentable Item charge names its property and item type first, so on ORI they take the
     // top row beside Charge Level and Charge Type / Comment drop to the row under it. Moving between
     // the two is DOM-only (`__lvlChange`), since a re-render would wipe the form.
@@ -10379,9 +10400,10 @@ class Component extends DCLogic {
         <span style="flex:1;min-width:0;font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">Amount and Amount Method come from the <strong style="font-weight:600" id="m-pet-amt-name"></strong> pet type.</span>
       </div>
       <span id="m-calc-note" style="display:${calcNote};font-size:12px;color:var(--rmx-text, #666666);line-height:1.45">Calculated charges may be labeled as a <i>Varying Amount</i> on the listing provider site.</span>`;
-    // A charge of nothing is a listing problem, so its warning sits in Marketing Details (2026-10-14).
-    const amtNote = `<div id="m-amt-note" style="display:none;align-items:flex-start;gap:10px;padding:12px 14px;background:#fdf3e7;border:1px solid var(--rmx-attention, #f58220);border-radius:4px">
-        ${this.ico('error', 20, 'color:var(--rmx-attention, #f58220);flex:none;margin-top:1px')}
+    // A charge of nothing: RMX's Warning Callout in General, under the Amount it is about (Figma Zeplin screens,
+    // 2026-10-21; from 2026-10-14 it sat at the top of Marketing Details) — white, a 1px orange edge, the amber triangle.
+    const amtNote = `<div id="m-amt-note" style="display:none;align-items:flex-start;gap:8px;padding:8px 12px;background:#fff;border:1px solid var(--rmx-attention, #f58220);border-radius:4px">
+        ${this.ico('warning', 20, 'color:var(--rmx-notice, #faa61c);flex:none')}
         <span style="flex:1;min-width:0;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)"><span id="m-amt-note-t"></span> Listing sites have no price to advertise for it, so it may not display as intended. If this is a concession or a discount, describe it in the <strong style="font-weight:600">Promotional Description</strong> on the property's Marketing Setup.</span>
       </div>`;
 
@@ -10432,7 +10454,8 @@ class Component extends DCLogic {
       ${chargeApp}
       ${freqRow}
       ${proRow}
-      ${amount}`;
+      ${amount}
+      ${amtNote}`;
 
     // ---- CRE-only distribution sections (mock 2593-104495) ----
     // A commercial charge is spread across tenants rather than billed flat, so it carries a
@@ -10863,7 +10886,7 @@ class Component extends DCLogic {
     const dupMsg = !dupG ? '' : `
         <div id="m-dup-msg" style="display:none;align-items:center;gap:8px;padding:12px 8px;border:1px solid ${dupAct ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-notice, #faa61c)'};border-radius:4px;background:#fff">
           ${this.filledIco(dupAct ? 'error' : 'warning', 20, 'flex:none;color:' + (dupAct ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-notice, #faa61c)'))}
-          <span style="flex:1;min-width:0;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">${esc(this.dupLabel(dupG))} ${this.dupWhy(dupG)}, so neither is listed.</span>
+          <span style="flex:1;min-width:0;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">${esc(dupG.rows.length + ' charges ' + this.dupWhere(dupG.level, dupG.target))} ${this.dupWhy(dupG)}, so neither is listed.</span>
           <a data-act="dupOpen" data-arg="${esc(dupG.prop)}::${esc(dupG.key)}" style="flex:none;padding:0 8px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">How do I resolve this?</a>
         </div>`;
     // One block inside the card, written live by `__mitsRecheck`, carrying whichever of the four
@@ -10931,7 +10954,6 @@ class Component extends DCLogic {
           ${mktNote}
         </div>
         <div id="m-mkt-body" style="display:none;flex-direction:column;gap:14px">
-          ${amtNote}
           <div style="display:none">${roleCard}</div>
           <div id="m-mkt-card" style="display:flex;flex-direction:column;gap:12px;padding:16px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px">
             <div id="m-mkt-static">${this.chargeMktStaticHTML((ed && ed.mits) || '', isOne, { live: this.ftApplicable(this.state.property) && swOn, act: !!this.state.publishedProps[this.state.property], dim: this.ftApplicable(this.state.property) && !swOn })}</div>
@@ -11202,7 +11224,7 @@ class Component extends DCLogic {
       ${preview}
       <div style="display:flex;flex-direction:column">
         ${stepRow(1,'Add Marketing Details to Charge Types','Set each charge type&#39;s marketing details once, and every charge that uses it, at every property, is advertised with them. Edit one at a time, or several at once with Mass Edit.')}
-        ${stepRow(2,'Activate Fee Transparency','Once every unit has a Base Rent and every charge type a property lists has its marketing details, activate it from Fee Transparency Setup on Listings. Its listings then show a Total Monthly Price.','If you list online &amp; fee transparency is available',true)}
+        ${stepRow(2,'Activate Fee Transparency on Properties','Once every unit has a Base Rent and every charge type a property lists has its marketing details, activate it from Fee Transparency Setup on Listings. Its listings then show a Total Monthly Price.','If you list online &amp; fee transparency is available',true)}
       </div>
       <div style="height:1px;background:var(--rmx-line, #cedbe7)"></div>
       <div style="display:flex;align-items:center;gap:10px">
@@ -11533,8 +11555,8 @@ class Component extends DCLogic {
             : `<div style="display:flex;flex-direction:column;gap:4px">${lab('Pets')}
             <div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;background:#fff;border:1px solid var(--rmx-attention, #f58220);border-radius:4px;padding:11px 13px">
               <svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5));flex:none;margin-top:1px"><path d="M453-280h60v-240h-60v240Zm50.5-323.2q9.5-9.2 9.5-22.8 0-14.45-9.48-24.22-9.48-9.78-23.5-9.78t-23.52 9.78Q447-640.45 447-626q0 13.6 9.48 22.8 9.48 9.2 23.5 9.2t23.52-9.2ZM480.27-80q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"/></svg>
-              <span style="flex:1 1 120px;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Pet details can be added on any charges with a PET charge category.</span>
-              <a data-act="openFeeProfile" data-arg="${mkProp}" style="flex:none;margin-top:1px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">View Charges</a>
+              <span style="flex:1 1 120px;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.5">Pet details can be added on any Charge Types with a PET Charge Category.</span>
+              <a data-act="mktAdvCT" style="flex:none;margin-top:1px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">View Charge Types</a>
             </div>
           </div>`}
           ${field('Included Utilities', { t:'' })}
@@ -11610,7 +11632,7 @@ class Component extends DCLogic {
     const ctmHead = (t, extra) => `<span style="display:flex;align-items:center;min-height:36px;box-sizing:border-box;padding:0 14px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;${extra||''}">${t}</span>`;
     const ctmCell = (t, extra) => `<span style="display:flex;align-items:center;min-height:38px;box-sizing:border-box;padding:0 14px;font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;${extra||''}">${t}</span>`;
     const CTMCOLS = 'minmax(90px,1.2fr) minmax(90px,1.2fr) minmax(150px,1.6fr) 44px';
-    const ctm = card('Default Marketing Details', `
+    const ctm = card('Charge Type Marketing Details', `
       <div style="margin:-14px -16px;overflow-x:auto">
         <div style="min-width:374px;display:grid;grid-template-columns:${CTMCOLS};border-bottom:1px solid var(--rmx-line, #cedbe7)">
           ${ctmHead('Charge Type')}${ctmHead('Charges')}${ctmHead('Property Override')}${ctmHead('')}

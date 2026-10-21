@@ -31,6 +31,39 @@ property not in `publishedProps`), so Post Conversion shows none and Happy Path 
 Riverview activates. A property it can't apply to never activates, so it can't hold the banner on
 screen (2026-10-07; it used to wait on every listing advertising a complete price).
 
+**Aligned with the Figma Zeplin screens (section `4130:152905`) on 2026-10-21.** What changed in the prototype:
+- **Setup's steps collapse**: each step header carries a chevron at the far right and toggles (`ftStepToggle`,
+  `ftSetup.steps`; unset means the default — step 1 open while charge types are short, step 2 by the old `s2Open` rule);
+  the *n of m Ready* status sits right after the label; bodies sit 16px in, not under the label; **Bulk Activate Fee
+  Transparency** is the 36px primary button; no percentage at 0%; opened from a property's Marketing Setup, step 2 reads
+  **Activate <Property>**.
+- **The duplicate explainer** is titled **Resolve Duplicate Base Rent Charges** and, under the rule and the charges table,
+  reads two sentences — *To list both charges, you can end one before the other starts, move one to a different charge
+  level, or make one an additional charge instead of base rent on the charge type.* / *To only list one, you can exclude
+  one of these charges from listings, end one before the other charge starts, or delete a charge.* (what doesn't apply drops
+  out) — with **Close** alone.
+- **Existing Charge Error**: a duplicate additional charge (same charge type and comment) raises the same Pop Up as the
+  Base Rent one (`roleDupPopup` with no role): *A charge using the APPFEE charge type exists at the property.* over the
+  same fix line, OK.
+- **The $0.00 note** is an RMX Warning Callout (white, 1px orange edge, amber `warning`) in **General**, under the Amount.
+- **The charge form's duplicate callout** reads *2 charges at the property can't both be the Base Rent for the same units at
+  the same time, so neither is listed.*
+- **A charge added from a unit or unit type** has Charge Level and that unit (type) locked, in the RMX disabled style
+  (`.cf-lock`).
+- **Listing Errors** is titled **Feed Status: Riverview Apartments 3B**; a missing-fields item reads **Charge Type: DOGFEE –
+  Dog Rent**, a duplicate **2 Charge Types labeled as Base Rent** (*2 RC charges labeled as …* when one type).
+- **Mass Edit's filter is a checkbox**, *Only show charge types with missing required fields* beside the intro
+  (`ctMassOnly`), replacing the *Showing … · Show All Charge Types* line; Setup's Mass Edit still opens it ticked.
+- **Charge Type Marketing Details** names Marketing Setup's tile and the property override dialog (was *Default Marketing
+  Details*).
+- After activation, Features › Pets reads *Pet details can be added on any Charge Types with a PET Charge Category.* with
+  **View Charge Types** (`mktAdvCT`).
+- The announcement's step 2 is **Activate Fee Transparency on Properties**.
+Figma frames older than a later prototype change were left as the prototype has them: the Charge Types register's
+*Listing Status* (now *Status*), *Mass Edit Marketing Details* (now *Mass Edit Marketing*), the announcement step 2 body
+without the Base Rent condition, *Pet Details* without *(Optional)*, Tenant Charge Setup's banner copy, the Pricing Tools
+frames' prospect (now Jordan Ellis), and the Sent, Incomplete overlay's *General Marketing Errors* / *Zillow Errors*.
+
 **Fee Transparency Setup is Figma `4102:195176`** (2026-10-20, the user's new design; three frames: nothing ready
 `4097:82767`, charge types 8 of 9 `4100:85395`, charge types done `4102:194717`). An 800px dialog: the 48px header with
 **help** (`ftHelpOpen`) and close 16px apart; an intro, *2 Steps to Fee Transparent Listings* over *New to fee
