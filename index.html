@@ -2390,6 +2390,10 @@ class Component extends DCLogic {
       desc: v('m-comment'), from: isOneNow ? '' : v('m-from'), to: isOneNow ? '' : v('m-to') }, this.state.property, m.edit ? m.edit.id : null);
     const dup = hit && (!roleNow || activated) ? hit : null;
     this._roleFlag = hit && roleNow && !activated ? { dup: hit, role: roleNow, where: this.dupWhere(app, target) } : null;
+    // After activation, a Base Rent / Security Deposit conflict raises RMX's warning Pop Up over the form (Figma
+    // 4110:114732, 2026-10-21) rather than the inline error. It is DOM-only, so the form keeps what was typed.
+    if (dup && roleNow) { this.roleDupPopup(String(dup.mits || '').toUpperCase(), roleNow, this.dupWhere(app, target));
+      const eb0 = this.q('#m-err'); if (eb0) eb0.style.display = 'none'; return false; }
     if (dup) {
       const role = roleNow;
       const where = this.dupWhere(app, target);
@@ -4640,6 +4644,37 @@ class Component extends DCLogic {
   // RMX PopUp (RMX Components `4193:45458`): a Rent or Security Deposit Charge Type that can't come off
   // its list because a charge on it holds the role. The PopUp's 48px Brand `warning-filled` icon beside
   // the text, content padded 24/8/16/16, `dropshadow-lg`; one button, since there is nothing to confirm.
+  // RMX Pop Up (warning), Figma 4110:114732: a new Base Rent / Security Deposit charge would conflict with one
+  // already there at an activated property. Built in the DOM beside the app, not through state, because a
+  // re-render would clear the charge form behind it; OK just removes it.
+  roleDupPopup(code, role, where){
+    const root = document.querySelector('.rmx'); if (!root) return;
+    const old = document.getElementById('m-roledup'); if (old) old.remove();
+    const label = this.leaseRoleLabel(role);
+    const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    const el = document.createElement('div');
+    el.id = 'm-roledup';
+    el.setAttribute('style', 'position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:200');
+    el.innerHTML = `<div role="alertdialog" aria-labelledby="m-roledup-h" aria-describedby="m-roledup-d" style="width:500px;max-width:94vw;background:#fff;border-radius:4px;box-shadow:0 3px 3px rgba(0,0,0,0.1);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;height:48px;box-sizing:border-box;padding:8px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
+          <span id="m-roledup-h" style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">Duplicate ${esc(label)} Charges</span>
+          <span data-x role="button" aria-label="Close" style="display:flex;cursor:pointer">${this.ico('close', 24, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:16px;min-height:124px;box-sizing:border-box;padding:24px 8px 16px 16px">
+          <svg width="48" height="48" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5));flex:none"><path d="M40-120 480-880l440 760H40Zm440-120q17 0 28.5-11.5T520-280q0-17-11.5-28.5T480-320q-17 0-28.5 11.5T440-280q0 17 11.5 28.5T480-240Zm-40-120h80v-200h-80v200Z"/></svg>
+          <span style="flex:1;min-width:0;max-width:400px;padding-right:8px;display:flex;flex-direction:column;gap:16px;font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">
+            <span id="m-roledup-d">A charge using the ${esc(code)} charge type is already the ${esc(label)} ${esc(where)}.</span>
+            <span>To add this charge, exclude it from displaying on listings, change the charge level it applies to, or change the charge type.</span>
+          </span>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:16px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:8px 16px">
+          <button data-x class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">OK</button>
+        </div>
+      </div>`;
+    el.addEventListener('click', (e) => { if (e.target === el || e.target.closest('[data-x]')) { e.stopPropagation(); el.remove(); } else e.stopPropagation(); });
+    root.appendChild(el);
+    const ok = el.querySelector('button'); if (ok) ok.focus();
+  }
   rentCTBlockHTML(){
     const b = this.state.rentCTBlock; if (!b) return '';
     const dep = b.kind === 'deposit';

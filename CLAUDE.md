@@ -1304,6 +1304,14 @@ describes the design before that tag; the code for most of it is still in the fi
     (`roleFlagNote`: *Charge added. RC – Unit rent is also the Base Rent on unit 1A, so both read Duplicate Charge and
     fee transparency can’t be activated until one is resolved.*). Checked in Mid Conversion: a second unit-level RC on
     1A is blocked at Riverview and flagged at The Hamptons.
+  - **After activation the block is RMX's warning Pop Up** (2026-10-21, Figma `4110:114732`): `saveFee` calls
+    `roleDupPopup(code, role, where)` instead of the inline `#m-err` text — *Duplicate Base Rent Charges* (*Security
+    Deposit* for a deposit), the 48px brand warning glyph, *A charge using the RC charge type is already the Base Rent at the
+    property.* (`dupWhere`: *on 2BR/2BA*, *on unit 1A*) over *To add this charge, exclude it from displaying on listings,
+    change the charge level it applies to, or change the charge type.* (Figma's stray comma after *to* dropped), and a
+    lone **OK**. It is built in the DOM beside the app (`#m-roledup`, z-index 200), not through state, so the charge form
+    behind it keeps what was typed; OK, the close or the scrim removes it. Additional-charge duplicates keep the inline
+    error. Before activation nothing changed (the save goes through and both charges read Duplicate Charge).
   - **Deleting a Base Rent after activation asks first, but doesn't block** (2026-10-20, round 2 item 1). `rowDelete`
   checks `rentDelUnits(row)` — at an activated property, the listed units whose `ltChargeHits` include this Base Rent —
   and when there are any raises `rentDelHTML` (`state.rentDel = { id, units }`, z-index 160, modelled on the unit-type
