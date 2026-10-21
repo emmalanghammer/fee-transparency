@@ -1013,7 +1013,13 @@ Charge** / **+ Add One-Time Charge** (`miAddChg`), which open the rent quote's t
 in `this._miUnit` (`miKeep`). Everything but the charges is furniture. **Picking the Unit fills both charge registers with that
 unit's charges** (`miChargeTilesHTML` over `unitRecurring` / `unitOneTime`; Source is the charge's
 level, Charge Type *CODE - Description*, Market Rent the unit's rent, totals in the footer),
-DOM-only through `window.__miUnit` so the rest of the wizard keeps what's typed. Columns wrap and the
+DOM-only through `window.__miUnit` so the rest of the wizard keeps what's typed. **Each charge is a choice unless it's tenant-level**
+(2026-10-21, the user's call): both registers lead with an RMX Checkbox column — ticked to start when the charge type's
+Charge Requirement is *Required*, unticked otherwise — and a charge treated as tenant-level (or added here as a tenant charge)
+has no checkbox, since it always applies (a charge whose exceptions take this unit out isn't listed at all). Ticks live in
+`this._miSel` by charge id (`window.__miPick` redraws the tiles DOM-only), reset when the unit changes or the wizard closes,
+and each tile's Total counts only what's included. Riverview's 3B in Mid Conversion: RC and DOGFEE (Tenant), GARBAG ticked;
+APPFEE, DP and FMR all tenant-level. Columns wrap and the
 registers scroll sideways on a narrow pane. Five Material glyphs were added to the `ico` map for it
 (`cloud_upload`, `content_paste`, `location_on`, `photo_camera`, `phone_iphone`).
 

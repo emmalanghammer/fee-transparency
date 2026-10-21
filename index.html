@@ -1801,8 +1801,8 @@ class Component extends DCLogic {
         this.setState(s => ({ unitSel: null, rq: Object.assign({}, s.rq, { unit: pick }) })); break; }
       case 'rqOpen': this.setState({ rq: this.rqBlank() }); break;
       // The Move In wizard (RMX Pages `4671:33014`).
-      case 'miOpen': this._miUnit = ''; this._miExtra = []; this.setState({ mi: { prop: 'Riverview Apartments' } }); break;
-      case 'miClose': this._miUnit = ''; this._miExtra = []; this.setState({ mi: null }); break;
+      case 'miOpen': this._miUnit = ''; this._miExtra = []; this._miSel = {}; this.setState({ mi: { prop: 'Riverview Apartments' } }); break;
+      case 'miClose': this._miUnit = ''; this._miExtra = []; this._miSel = {}; this.setState({ mi: null }); break;
       case 'miSave': { const u = (this.q('#mi-unit') || {}).value || '';
         this.setState({ mi: null }); this.flash('Jordan Ellis moved in' + (u ? ' to ' + u : '')); break; }
       case 'rqClose': this.setState({ rq: null, rqAdd: null }); break;
@@ -8387,16 +8387,27 @@ class Component extends DCLogic {
     const one = (info ? this.unitOneTime(unit) : []).concat(ten.filter(x => x.one));
     // A charge treated as tenant-level arrives on the tenant as their own, so Source reads Tenant.
     const src = (f) => f.level === 'Tenant' || this.tenantLevelOf(f) ? 'Tenant' : this.levelLabel(f.level || 'Property');
+    // Which charges the move in takes (2026-10-21, the user's call). A tenant-level charge — treated as one, or added
+    // here — always applies, so it has no checkbox; any other is a checkbox, ticked to start when its charge type makes
+    // it Required. What's been ticked lives in \`this._miSel\` (by charge id) until the unit changes or the wizard closes.
+    const fixed = (f) => f.level === 'Tenant' || this.tenantLevelOf(f);
+    const SEL = this._miSel || (this._miSel = {});
+    const on = (f) => fixed(f) || (f.id in SEL ? SEL[f.id] : (this.resolvedListing(f).requirement || '') === 'Required');
+    if (!window.__miPick) window.__miPick = (el) => { const id = el.getAttribute('data-mi-id'), cur = el.getAttribute('aria-checked') === 'true';
+      (this._miSel || (this._miSel = {}))[id] = !cur;
+      const host = document.getElementById('mi-charges'); if (host) host.innerHTML = this.miChargeTilesHTML(this._miUnit || ''); };
+    const box = (f) => fixed(f) ? blank
+      : `<span style="display:flex;align-items:center;justify-content:center;height:44px;border-bottom:1px solid var(--rmx-line-soft, #ebf1f5)">${this.rmxCheckbox(on(f), false, ` data-mi-id="${f.id}" aria-label="Include ${String(f.mits || '').replace(/"/g, '&quot;')}" onclick="window.__miPick(this)"`)}</span>`;
     const RC = '40px minmax(90px,1fr) minmax(130px,1.3fr) minmax(110px,1fr) minmax(60px,119px) minmax(96px,120px) minmax(96px,119px) minmax(96px,120px) 40px';
-    const OC = 'minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 120px 40px';
+    const OC = '40px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 120px 40px';
     const msg = 'Select a unit to fill its charges.';
     const add = (t, kind) => `<span data-act="miAddChg" data-arg="${kind}" style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${this.ico('add', 18, 'color:var(--ac,var(--rmx-brand, #008dd5))')}${t}</span>`;
     const recReg = `<div style="display:grid;grid-template-columns:${RC}">${hd('')}${hd('Source')}${hd('Charge Type')}${hd('Comment')}${hd('Freq')}${hd('From Date')}${hd('To Date')}${hd('Amount')}${hd('')}
-      ${rec.length ? rec.map(f => blank + cl(src(f)) + cl(ctLabel(f.mits)) + cl(f.desc || '') + cl(this.freqNum(f) || '1') + cl(short(f.from)) + cl(short(f.to)) + cl(dec(amtOf(f))) + keb).join('') : none(info ? 'No recurring charges reach this unit.' : msg)}</div>`;
-    const oneReg = `<div style="display:grid;grid-template-columns:${OC}">${hd('Date')}${hd('Charge Type')}${hd('Reference')}${hd('Comment')}${hd('Amount')}${hd('')}
-      ${one.length ? one.map(f => cl(short(f.from)) + cl(ctLabel(f.mits)) + cl('') + cl(f.desc || '') + cl(dec(amtOf(f))) + keb).join('') : none(info ? 'No one-time charges reach this unit.' : msg)}</div>`;
-    return this.miTile('Recurring Charges', `<div style="overflow-x:auto"><div style="min-width:760px">${recReg}</div></div>` + tot(rec.reduce((n, f) => n + amtOf(f), 0)), { flush:true, id:'mi-sec-charges', right: add('Add Recurring Charge', 'rec') })
-      + this.miTile('One-Time Charges', `<div style="overflow-x:auto"><div style="min-width:640px">${oneReg}</div></div>` + tot(one.reduce((n, f) => n + amtOf(f), 0)), { flush:true, right: add('Add One-Time Charge', 'one') });
+      ${rec.length ? rec.map(f => box(f) + cl(src(f)) + cl(ctLabel(f.mits)) + cl(f.desc || '') + cl(this.freqNum(f) || '1') + cl(short(f.from)) + cl(short(f.to)) + cl(dec(amtOf(f))) + keb).join('') : none(info ? 'No recurring charges reach this unit.' : msg)}</div>`;
+    const oneReg = `<div style="display:grid;grid-template-columns:${OC}">${hd('')}${hd('Date')}${hd('Charge Type')}${hd('Reference')}${hd('Comment')}${hd('Amount')}${hd('')}
+      ${one.length ? one.map(f => box(f) + cl(short(f.from)) + cl(ctLabel(f.mits)) + cl('') + cl(f.desc || '') + cl(dec(amtOf(f))) + keb).join('') : none(info ? 'No one-time charges reach this unit.' : msg)}</div>`;
+    return this.miTile('Recurring Charges', `<div style="overflow-x:auto"><div style="min-width:760px">${recReg}</div></div>` + tot(rec.filter(on).reduce((n, f) => n + amtOf(f), 0)), { flush:true, id:'mi-sec-charges', right: add('Add Recurring Charge', 'rec') })
+      + this.miTile('One-Time Charges', `<div style="overflow-x:auto"><div style="min-width:640px">${oneReg}</div></div>` + tot(one.filter(on).reduce((n, f) => n + amtOf(f), 0)), { flush:true, right: add('Add One-Time Charge', 'one') });
   }
   // A Content tile with the overline, as overlay forms use it: a 36px header over a 2px brand rule.
   miTile(title, body, o){
@@ -8426,7 +8437,7 @@ class Component extends DCLogic {
     const units = this.units().map(u => ({ value:u.u, label:u.u + ' - ' + u.type }));
     const unitSel = `<div style="display:flex;flex-direction:column;gap:4px;min-width:0">${lab('Unit')}<div style="display:flex;gap:8px;align-items:center"><div style="flex:1;min-width:0">${this.singleSelect('mi-unit', units, this._miUnit || '', { placeholder:' ', js:"if(window.__miUnit)window.__miUnit()" })}</div>${sqBtn('apartment')}</div></div>`;
     if (!window.__miUnit) window.__miUnit = () => {
-      const u = (document.getElementById('mi-unit') || {}).value || ''; this._miUnit = u;
+      const u = (document.getElementById('mi-unit') || {}).value || ''; if (u !== this._miUnit) this._miSel = {}; this._miUnit = u;
       const host = document.getElementById('mi-charges'); if (host) host.innerHTML = this.miChargeTilesHTML(u);
     };
     const T = (id, title, body, o) => this.miTile(title, body, Object.assign({ id }, o || {}));
