@@ -8133,8 +8133,9 @@ class Component extends DCLogic {
       if (unit && (ex.types || []).indexOf(unit.type) >= 0) return false;
       return true;
     };
-    // A charge can only be held on the quote if the charge itself says it is required — every other
-    // one, rent included, is the leasing agent's to drop.
+    // Move In's rule (2026-10-21, the user's call): a Required charge starts ticked and the agent can untick it; any
+    // other starts unticked. A tenant-level charge always applies, so it has no checkbox (`lock:'tenant'`) and wears
+    // the Tenant tag, as Move In's Source reads Tenant. Required charges used to be locked on.
     const required = (r) => this.resolvedListing(r).requirement === 'Required';
     // A pet charge is taken once per pet, as in the Pricing Preview: it carries the most pets the
     // pet type allows and, where the pet type sets one, the most the resident pays however many.
@@ -8143,12 +8144,12 @@ class Component extends DCLogic {
     const reach = this.appliedRows(q.prop).filter(applies);
     const primary = this.mostSpecific(reach, { single: true, unit: q.unit });
     const rows = reach
-      .map(r => { const top = primary.indexOf(r) >= 0; return { id:'c' + r.id, level:r.level || 'Property', type:r.mits, comment:r.desc || '',
+      .map(r => { const top = primary.indexOf(r) >= 0; return { id:'c' + r.id, level:top && this.tenantLevelOf(r, q.prop) ? 'Tenant' : (r.level || 'Property'), type:r.mits, comment:r.desc || '',
         amount:amount(r), one:/-one$/.test(r.group),
-        def:top && r.group.indexOf('req') === 0, lock:top && required(r) ? 'grey' : null,
+        def:top && required(r), lock:top && this.tenantLevelOf(r, q.prop) ? 'tenant' : null,
         pet:this.chargeCategoryFor(r.mits) === 'Pet', max:this.ppPetMax(r, q.prop), cap:this.petCapOf(r) }; });
     // Charges added on the quote itself are the tenant's own, so they sit after the property's.
-    (q.extra || []).forEach(x => rows.push(Object.assign({ def:true, lock:null }, x)));
+    (q.extra || []).forEach(x => rows.push(Object.assign({ def:true, lock:'tenant' }, x)));
     // A property with no rent charge to read has nothing to price from, so the quote
     // still carries the rent typed in step one rather than pricing at zero. It has no Charge
     // Requirement behind it either, so it stays held the way it always was.
@@ -8542,7 +8543,9 @@ class Component extends DCLogic {
     const groupLbl = (t) => `<span style="display:block;padding:8px 12px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span>`;
     // RMX Checkbox (State=Default). A charge that can't come off — required, or brought by a rentable
     // item — is the Disabled checked variant rather than a colour of its own.
-    const box = (on, lock, id) => this.rmxCheckbox(on, !!lock, lock ? '' : ` data-act="rqTog" data-arg="${id}"`);
+    // A tenant-level charge has no checkbox: a 20px gap keeps its tag in line with the rows above and below.
+    const box = (on, lock, id) => lock === 'tenant' ? '<span style="width:20px;flex:none"></span>'
+      : this.rmxCheckbox(on, !!lock, lock ? '' : ` data-act="rqTog" data-arg="${id}"`);
     const recRow = (r) => {
       const on = r.lock ? true : this.rqOn(r);
       return `<span style="display:flex;align-items:center;justify-content:center;min-height:34px">${box(on, r.lock, r.id)}</span>`

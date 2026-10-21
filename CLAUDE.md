@@ -2261,6 +2261,13 @@ Charges tile and overlay, Move In), the unit type scope of `chargeScope`, `rqRow
 the Pricing Preview, which also now offers only charges that reach the previewed unit
 (`chargeReachesUnit`, exceptions included) where it used to list every charge on the property.
 
+**The rent quote's charge step follows Move In's include rule** (2026-10-21, the user's call): a charge whose type is
+*Required* starts ticked and can be unticked (Required charges used to be locked on), any other starts unticked, and a
+tenant-level charge — treated as one (`tenantLevelOf`), or added on the quote — has **no checkbox** and always counts
+(`lock:'tenant'`, a 20px gap in its place) and wears the **T** tag. A charge an ORI brings stays the disabled checked box. Riverview
+3B in Mid Conversion: Base rent, Dog rent, Application fee, Security deposit and First month's rent are tenant-level, Trash
+collection ticked — $1,428.00/mo, the same as Move In (it read $1,403.00 before Dog rent counted).
+
 **Rent quotes and the Pricing Preview tick one charge per charge type** (2026-10-14; for an hour it hid
 the rest, and the user asked for them back). Every charge that reaches the unit is listed, but only
 `mostSpecific(rows, { single: true, unit })`'s pick starts ticked — the most specific level, and where two
