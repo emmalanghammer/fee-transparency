@@ -1153,9 +1153,12 @@ describes the design before that tag; the code for most of it is still in the fi
   announcement's miniature, and the window's own title) beside Add Charge Type on the Charge Types page opens `ctMassHTML` (`state.ctMass`, z-index 150, 1572px wide):
   the 48px header with a help (`todo`) and close, *"Set the marketing information for every charge that
   uses this charge type. Charges will display on listings as they are here."*, then one register row per
-  active charge type — **Charge Type · Properties · Charge Role · Name · Charge Category · Marketing
+  active charge type — **Charge Type · Properties · Base Rent · Security Deposit · Name · Charge Category · Marketing
   Description · Charge Requirement · Charge Schedule · Charge Timing · Refundability** — grey Register
-  header, striped rows that tint `#ebf1f5` on hover. A 1px rule runs down the right of **Properties** (white at 70% in the header,
+  header, striped rows that tint `#ebf1f5` on hover. **Charge Role is two RMX Checkbox columns** (2026-10-21, the user's call; it was a
+  *Charge Role* dropdown cell): **Base Rent** and **Security Deposit** (`window.__meRole`, DOM-only), one or the other —
+  ticking one clears the other — and neither ticked is an Additional Charge; the row's Name and Category repaint, since a role
+  fixes them. A 1px rule runs down the right of **Properties** (white at 70% in the header,
   `--rmx-line` in the rows), between what identifies a row and what can be edited (2026-10-15). **Charge Type and Properties are frozen** when the register scrolls sideways (2026-10-20):
   `position:sticky` at `left:0` / `left:100px`, the row's background inherited so hover still tints, the header row at z-index 3. **Properties** reads *All Properties*, one property's
   code, or the first code then RMX's dropdown Pill *+n* (`morePill`, 2026-10-15) whose panel lists every
@@ -1167,9 +1170,8 @@ describes the design before that tag; the code for most of it is still in the fi
   1px brand border, focused with its text selected; a field with choices as the same blue-edged box with
   its options already open under it, led by a blank option that clears the field (not on Charge Role), the current value in the primary blue with white text (`#me-pnl`, fixed, kept inside the window), a pick closing it. Enter or
   a click elsewhere in the register keeps the value, Escape drops it, scrolling closes it. What is kept
-  lives in `this._meVals[code][field]` and the cell reads it back as text. A navy bar floats over the register — *"You are in Mass Edit mode for marketing details.
-  Select any field to update its value."*, *n charge types changed* (its own Save / Cancel came off on
-  2026-10-15; the footer's are the ones). **Save** (`ctMassSave`) writes `_meVals` into
+  lives in `this._meVals[code][field]` and the cell reads it back as text. The navy *You are in Mass Edit mode…* bar that floated over the register, with its *n charge types changed*, came off on
+  2026-10-21 (the user's call). **Save** (`ctMassSave`) writes `_meVals` into
   `mktDef`, so every charge of those types changes at once, and flashes *Marketing details saved for n
   charge types*.
 - **Listing ready has two causes, and each goes to its own fix** (2026-10-15, after a critique of the whole

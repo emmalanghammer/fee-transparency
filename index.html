@@ -6538,7 +6538,6 @@ class Component extends DCLogic {
     // Columns, to the Figma frame: what each edits, its options (none = free text), whether an empty
     // value is Missing (required for listings) or a dash (optional), and its width.
     const COLS = [
-      { f:'role', h:'Charge Role', opts: ROLE, req:false, w:'150px' },
       { f:'name', h:'Name', req:true, w:'170px' },
       { f:'category', h:'Charge Category', opts: this.chargeCategoryOptions(), req:true, w:'140px' },
       { f:'marketing', h:'Marketing Description', req:false, w:'minmax(200px,1fr)' },
@@ -6547,7 +6546,10 @@ class Component extends DCLogic {
       { f:'feeDue', h:'Charge Timing', opts: DUE, req:true, w:'140px' },
       { f:'refundable', h:'Refundability', opts: REF, req:false, w:'130px' }
     ];
-    const tracks = '100px 120px ' + COLS.map(c => c.w).join(' ');
+    // Charge Role is two checkbox columns (2026-10-21, the user's call): Base Rent and Security Deposit. One or
+    // the other, never both; neither ticked is an Additional Charge.
+    const RC = [{ f:'rent', h:'Base Rent', w:'110px' }, { f:'deposit', h:'Security Deposit', w:'150px' }];
+    const tracks = '100px 120px ' + RC.map(c => c.w).join(' ') + ' ' + COLS.map(c => c.w).join(' ');
     const head = (t, extra) => `<span style="${extra || ''}display:flex;align-items:center;height:28px;box-sizing:border-box;padding:0 8px;font:500 12.6px Roboto,sans-serif;letter-spacing:1.134px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>`;
     // An empty required field (2026-10-15, the user's call; it was an amber *Missing* lozenge, then the
     // glyph with red words): the filled red error glyph alone, *Required for listings* on hover.
@@ -6573,9 +6575,15 @@ class Component extends DCLogic {
     const BRAND = 'var(--ac,var(--rmx-brand, #008dd5))';
     const paint = (el) => { const c = COLS.filter(x => x.f === el.getAttribute('data-f'))[0];
       el.innerHTML = showW(c, V(el.getAttribute('data-code'), c.f), el.getAttribute('data-code')); el.removeAttribute('data-editing'); };
-    const count = () => { const n = Object.keys(this._meVals || {}).length, t = document.getElementById('me-count');
-      if (t) t.textContent = n ? n + ' charge type' + (n === 1 ? '' : 's') + ' changed' : ''; };
-    const keep = (code, f, v) => { ((this._meVals || (this._meVals = {}))[code] || (this._meVals[code] = {}))[f] = v; count(); };
+    const keep = (code, f, v) => { ((this._meVals || (this._meVals = {}))[code] || (this._meVals[code] = {}))[f] = v; };
+    const roleBox = (code, k) => this.rmxCheckbox(V(code, 'role') === k, false);
+    // Ticking one role clears the other; unticking leaves an Additional Charge. The row's Name and Category
+    // follow, since a role fixes them (or frees them).
+    window.__meRole = (el) => { window.__meClose(true);
+      const code = el.getAttribute('data-code'), k = el.getAttribute('data-role');
+      const v = V(code, 'role') === k ? '' : k; if (v !== V(code, 'role')) keep(code, 'role', v);
+      document.querySelectorAll('[data-rreg-me] [data-code="' + code + '"][data-role]').forEach(b => { b.innerHTML = roleBox(code, b.getAttribute('data-role')); b.setAttribute('aria-checked', V(code, 'role') === b.getAttribute('data-role') ? 'true' : 'false'); });
+      document.querySelectorAll('[data-rreg-me] [data-code="' + code + '"][data-f="name"], [data-rreg-me] [data-code="' + code + '"][data-f="category"]').forEach(paint); };
     window.__meClose = (save) => {
       const pnl = document.getElementById('me-pnl'); if (pnl) pnl.remove();
       const el = document.querySelector('[data-rreg-me] [data-editing]'); if (!el) return;
@@ -6637,10 +6645,10 @@ class Component extends DCLogic {
       const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:36px;box-sizing:border-box;padding:0 8px;font-size:14px;${INK};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra || ''}">${t}</span>`;
       return `<div onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background='${bg}'" style="display:grid;grid-template-columns:${tracks};align-items:center;background:${bg};border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)">
         ${cell(esc(r.code), 'position:sticky;left:0;z-index:1;background:inherit;align-self:stretch')}${cell(props(r), 'overflow:visible;align-self:stretch;border-right:1px solid var(--rmx-line, #cedbe7);position:sticky;left:100px;z-index:1;background:inherit')}
+        ${RC.map(c => `<span data-code="${esc(r.code)}" data-role="${c.f}" role="checkbox" aria-checked="${V(r.code, 'role') === c.f ? 'true' : 'false'}" aria-label="${c.h}" onclick="window.__meRole(this)" style="display:flex;align-items:center;min-height:36px;box-sizing:border-box;padding:0 8px;cursor:pointer">${roleBox(r.code, c.f)}</span>`).join('')}
         ${COLS.map(c => `<span data-code="${esc(r.code)}" data-f="${c.f}" onclick="window.__meEdit(this)" title="Select to edit" style="display:flex;align-items:center;min-height:36px;min-width:0;box-sizing:border-box;padding:2px 8px;font-size:14px;${INK};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer">${showW(c, V(r.code, c.f), r.code)}</span>`).join('')}
       </div>`;
     }).join('');
-    const PEN = this.ico('edit_square', 20, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none');
     return `<div style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:150">
       <div data-act="noop" style="width:1572px;max-width:96vw;height:909px;max-height:94vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;height:48px;box-sizing:border-box;padding:8px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
@@ -6660,16 +6668,9 @@ class Component extends DCLogic {
           <div data-rreg-me onmousedown="window.__meOutside(event)" onscroll="window.__meClose(true);this.querySelectorAll('[data-pillpnl]').forEach(p=>p.style.display='none')" style="flex:1;min-height:0;overflow:auto;border:1px solid var(--rmx-line, #cedbe7)">
             <div style="min-width:1400px">
               <div style="display:grid;grid-template-columns:${tracks};background:var(--rmx-register-header, #737373);position:sticky;top:0;z-index:3">
-                ${head('Charge Type', 'position:sticky;left:0;z-index:1;background:var(--rmx-register-header, #737373);')}${head('Properties', 'border-right:1px solid rgba(255,255,255,0.7);position:sticky;left:100px;z-index:1;background:var(--rmx-register-header, #737373);')}${COLS.map(c => head(c.h)).join('')}
+                ${head('Charge Type', 'position:sticky;left:0;z-index:1;background:var(--rmx-register-header, #737373);')}${head('Properties', 'border-right:1px solid rgba(255,255,255,0.7);position:sticky;left:100px;z-index:1;background:var(--rmx-register-header, #737373);')}${RC.map(c => head(c.h)).join('')}${COLS.map(c => head(c.h)).join('')}
               </div>
               ${body}
-              <div style="height:72px"></div>
-            </div>
-          </div>
-          <div style="position:absolute;left:0;right:0;bottom:32px;display:flex;justify-content:center;pointer-events:none">
-            <div style="pointer-events:auto;display:flex;align-items:center;gap:24px;flex-wrap:wrap;max-width:calc(100% - 32px);box-sizing:border-box;padding:8px;border-radius:4px;background:var(--rmx-brand-dark, #13314c);box-shadow:0 3px 6px rgba(0,0,0,0.25)">
-              <span style="display:flex;align-items:center;gap:8px;font-size:14px;line-height:20px;color:#fff">${PEN}You are in Mass Edit mode for marketing details. Select any field to update its value.<span id="me-count" style="color:var(--rmx-bg-muted, #f2f2f2);opacity:.8"></span></span>
-              
             </div>
           </div>
         </div>
