@@ -2086,7 +2086,9 @@ figure, else its `est`). `roleState` is `set` when every group is marked, `none`
   renames the fields** (2026-10-14): Listing Details' Price and Deposit Fee(s) become **Base Rent** and
   **Security Deposit** (its *Change in Charges* link came off on 2026-10-14); the floor plan's Price becomes **Base Rent**,
   just its range in SemiBold (*$990.00 – $995.00*, `roleTotalRange(…, true)`; `—` with none) — **no charge box** since
-  2026-10-21 (the user's call; from 2026-10-14 the range sat over `roleBoxHTML(…, { unitType })`), over a read-only **Total Monthly Price** field, *$x – $y*
+  2026-10-21 (the user's call; from 2026-10-14 the range sat over `roleBoxHTML(…, { unitType })`), and it reads **each unit's own
+  Base Rent first** (2026-10-21): a Base Rent written on a unit, else its unit type's, else the property's, so a unit's own
+  Base Rent widens its floor plan's range (and Total Monthly Price, and the Floor Plans tile's dropdown), over a read-only **Total Monthly Price** field, *$x – $y*
   (`roleTotalRange`; it was a grey line until 2026-10-14), with a hidden `#fp-price` keeping the mapping.
   The Floor Plans tile's dropdown does the same after activation: **Base Rent** (`roleTotalRange(prop,
   type, true)`, the rent alone) and **Total Monthly Price** (plus the required monthly fees,

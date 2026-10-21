@@ -5173,10 +5173,14 @@ class Component extends DCLogic {
     return lo === hi ? this.money(lo) : this.money(lo) + ' – ' + this.money(hi);
   }
   roleTotalRange(prop, unitType, rentOnly){
-    const g = (() => { const gs = this.roleGroups(prop, 'rent'); return gs.filter(x => x.level === 'Unit Type' && x.target === unitType)[0] || gs.filter(x => x.level === 'Property')[0]; })();
-    if (!g) return '';
+    // Each unit of the floor plan reads its own Base Rent: one set on the unit, else its unit type's, else the
+    // property's (2026-10-21, the user's call — a unit's own Base Rent used to be skipped here).
+    const gs = this.roleGroups(prop, 'rent');
+    const ut = gs.filter(x => x.level === 'Unit Type' && x.target === unitType)[0] || gs.filter(x => x.level === 'Property')[0];
     const fees = rentOnly ? 0 : this.ltMonthlyFees(prop);
-    const vals = this.units().filter(u => u.type === unitType).map(u => this.chargeAmt(g.chosen, u.u) + fees);
+    const vals = this.units().filter(u => u.type === unitType).map(u => {
+      const g = gs.filter(x => x.level === 'Unit' && String(x.target) === String(u.u))[0] || ut;
+      return g ? this.chargeAmt(g.chosen, u.u) + fees : null; }).filter(v => v != null);
     if (!vals.length) return '';
     const lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
     return lo === hi ? this.money(lo) : this.money(lo) + ' – ' + this.money(hi);
