@@ -4565,11 +4565,12 @@ class Component extends DCLogic {
     const ftOn = this.ftApplicable(prop);
     const small = (icon, txt) => `<span style="display:flex;align-items:flex-start;gap:6px;padding-top:4px;font-size:12px;line-height:16px;color:var(--rmx-text, #666666)">${icon}<span style="flex:1;min-width:0">${txt}</span></span>`;
     const total = ftOn && !preFT && fp.type ? this.roleTotalRange(prop, fp.type) : '';
-    // The Base Rent's own range for these units, between its label and its charge (2026-10-14).
+    // The Base Rent's own range for these units, and nothing else: the charge behind it isn't shown
+    // (2026-10-21, the user's call; it sat over the charge box from 2026-10-14).
     const rentRange = ftOn && !preFT && fp.type ? this.roleTotalRange(prop, fp.type, true) : '';
     const priceBlock = !ftOn ? fld('Price', dd('fp-price', S.price, fp.price))
       : preFT ? fld('Base Rent', dd('fp-price', S.price, fp.price))
-      : `<div style="display:flex;flex-direction:column;gap:4px;min-width:0">${lab('Base Rent')}${rentRange ? `<span style="font-size:14px;line-height:20px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${rentRange}</span>` : ''}<input type="hidden" id="fp-price" value="${esc(fp.price)}">${this.roleBoxHTML(prop, 'rent', fp.type ? { unitType: fp.type, bare: true } : { bare: true })}</div>` + (total ? fld('Total Monthly Price', `<span style="font-size:14px;line-height:20px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${total}</span>`) : '');
+      : `<div style="display:flex;flex-direction:column;gap:4px;min-width:0">${lab('Base Rent')}<span style="font-size:14px;line-height:20px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${rentRange || '—'}</span><input type="hidden" id="fp-price" value="${esc(fp.price)}"></div>` + (total ? fld('Total Monthly Price', `<span style="font-size:14px;line-height:20px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${total}</span>`) : '');
     const ERR = `<svg class="ico" width="18" height="18" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--rmx-error, #eb343c);flex:none"><path d="M453-433h60v-253h-60v253Zm27 147q14 0 23.5-9.5T513-319q0-14-9.5-23.5T480-352q-14 0-23.5 9.5T447-319q0 14 9.5 23.5T480-286Zm0 206q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z"/></svg>`;
     const card = (head, inner) => `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;background:#fff;display:flex;flex-direction:column;flex:none">
         <div style="display:flex;align-items:center;gap:16px;min-height:44px;box-sizing:border-box;padding:8px 12px;border-bottom:1px solid var(--rmx-line, #cedbe7)">${head}</div>${inner}</div>`;
@@ -5496,7 +5497,7 @@ class Component extends DCLogic {
     // ---- Step 1: marketing details on charge types ----
     const shortCodes = Object.keys(S.miss).sort();
     const s1State = S.done ? 'Complete' : 'Focused';
-    // Open while there's work; once every charge type is ready it collapses, and still opens on its chevron.
+    // Open while it's the focused step; once every charge type is ready it collapses, and still opens on its chevron.
     const s1Open = stepOpen(1, !S.done);
     const step1 = card(!S.done, stepHead(s1State, 1, 'Add Marketing Details to Charge Types',
         dotLoz(`${S.ready} of ${S.total} Ready`, S.done ? GREEN : AMBER), '', s1Open)
@@ -5511,9 +5512,9 @@ class Component extends DCLogic {
     const okN = rows.filter(r => r.ready).length, doneN = all.length - rows.length;
     const allDone = !rows.length && doneN > 0;
     const s2State = allDone ? 'Complete' : S.done ? 'Focused' : 'Default';
-    // Collapsed to its header until a charge type is ready (or a property is): before that every property
-    // would only read Not Ready for the reason step 1 already gives.
-    const s2Open = stepOpen(2, S.ready > 0 || okN > 0 || doneN > 0);
+    // Only the focused step opens by default (2026-10-21, the user's call): while charge types are still
+    // short, step 1 is the one being worked and step 2 stays collapsed to its header; its chevron opens it.
+    const s2Open = stepOpen(2, s2State === 'Focused');
     // Bulk Activate is the RMX primary button, named in full (Figma Zeplin screens, 2026-10-21).
     const s2Right = canGo.length > 1 ? `<button data-act="ftActivateReady" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap;flex:none">Bulk Activate Fee Transparency</button>` : '';
     const s2Status = dotLoz(`${okN} of ${rows.length} Ready`, allDone ? GREEN : AMBER);
@@ -6112,12 +6113,12 @@ class Component extends DCLogic {
           </div>
         </span>
       </div>
-      ${this.regCheck('Group by property', 'ltGroupToggle', grouped)}
       <div class="lt-ms" style="display:flex;flex-direction:column;gap:4px;width:200px">
         <span style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))">Feed Status</span>
         ${this.multiSelect('lt-status', [{ value:'sent', label:'Sent' }, { value:'missing', label:'Sent, Incomplete' }, { value:'action', label:'Not Sent' }],
           (this.state.ltStatus || []).length ? this.state.ltStatus : ['sent','missing','action'], 'if(window.__ltStatus)window.__ltStatus()')}
       </div>
+      ${this.regCheck('Group by property', 'ltGroupToggle', grouped)}
       <div style="flex:1"></div>
       <button data-act="todo" data-arg="Update Listings Feed" class="btn-pri" style="display:inline-flex;align-items:center;gap:8px;height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">${this.ico('autorenew', 18)}Update Listings Feed</button>
     </div>`;

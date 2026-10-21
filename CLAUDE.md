@@ -41,7 +41,7 @@ but *Select a charge type to view marketing details.* in grey italic (the full s
 
 **Aligned with the Figma Zeplin screens (section `4130:152905`) on 2026-10-21.** What changed in the prototype:
 - **Setup's steps collapse**: each step header carries a chevron at the far right and toggles (`ftStepToggle`,
-  `ftSetup.steps`; unset means the default — step 1 open while charge types are short, step 2 by the old `s2Open` rule);
+  `ftSetup.steps`; unset means the default — **only the focused step opens** (2026-10-21, the user's call): step 1 while charge types are short, step 2 once they're all ready);
   the *n of m Ready* status sits right after the label; bodies sit 16px in, not under the label; **Bulk Activate Fee
   Transparency** is the 36px primary button; no percentage at 0%; opened from a property's Marketing Setup, step 2 reads
   **Activate <Property>**.
@@ -93,8 +93,8 @@ at 12px; the whole setup — charge types ready plus properties activated, over 
   steps** — step 1 counts only the charge types the not-yet-activated properties list, step 2 lists only them. Activated
   properties count as done in the progress bar alone; what they still need shows on Listings.
 - **Step 2 · Activate Properties** (header 8px/16px): **Bulk Activate** (24px secondary, `ftActivateReady`) when
-  `ftReadyProps()` has more than one, then *n of m Ready* over the properties still to activate. It stays **collapsed to its header until a charge type or a property is ready** (On Rollout opens on it
-  collapsed). Open: *A property can activate once every charge type it uses is ready and every unit has a Base Rent.*, then
+  `ftReadyProps()` has more than one, then *n of m Ready* over the properties still to activate. It stays **collapsed to its header unless it is the focused step** (2026-10-21: only once every charge type is ready;
+  it used to open as soon as one charge type or property was). Open: *A property can activate once every charge type it uses is ready and every unit has a Base Rent.*, then
   one card per property (`ftPropRow(r, open)`): the house glyph, the name, then **Activate Fee Transparency** (`pubOpen`) + a
   green **Ready** lozenge — **no chevron, and it doesn't open**, since nothing is left — or a **Not Ready** lozenge
   (`#fdf3e7`, the outlined amber `warning` — the user's outlined-glyph rule over Figma's filled one) and a chevron. The row
@@ -215,8 +215,8 @@ Status Key is Setup's own **Not Ready / Ready / Fee Transparent** (`ftHelpLoz` d
 and the other old rungs are gone); Column Descriptions are **Base Rent, Security Deposit, Total Monthly Price, Available,
 Charge Types, Feed Status**.
 
-**Group by property** (`ltGroupToggle`, `state.ltGroupBy`, on by default) is the toolbar checkbox
-between Property and Hide listings without errors. On, the page reads at the property — the level
+**Group by property** (`ltGroupToggle`, `state.ltGroupBy`, on by default) is the toolbar checkbox,
+the **last filter**, after Feed Status (2026-10-21, the user's call; it sat between Property and Feed Status). On, the page reads at the property — the level
 the charge work happens at. Off, the same listings are one register whose first column is
 **Property**, for when you are looking for a unit rather than reviewing a property.
 
@@ -2080,8 +2080,8 @@ figure, else its `est`). `roleState` is `set` when every group is marked, `none`
 - **`roleBoxHTML` is what Listing Details and Edit Floor Plan show after activation**, and **activating
   renames the fields** (2026-10-14): Listing Details' Price and Deposit Fee(s) become **Base Rent** and
   **Security Deposit** (its *Change in Charges* link came off on 2026-10-14); the floor plan's Price becomes **Base Rent**,
-  `roleBoxHTML(…, { unitType })` with its own range between the label and the charge box in SemiBold (*$990.00 – $995.00*,
-  `roleTotalRange(…, true)`, 2026-10-14), over a read-only **Total Monthly Price** field, *$x – $y*
+  just its range in SemiBold (*$990.00 – $995.00*, `roleTotalRange(…, true)`; `—` with none) — **no charge box** since
+  2026-10-21 (the user's call; from 2026-10-14 the range sat over `roleBoxHTML(…, { unitType })`), over a read-only **Total Monthly Price** field, *$x – $y*
   (`roleTotalRange`; it was a grey line until 2026-10-14), with a hidden `#fp-price` keeping the mapping.
   The Floor Plans tile's dropdown does the same after activation: **Base Rent** (`roleTotalRange(prop,
   type, true)`, the rent alone) and **Total Monthly Price** (plus the required monthly fees,
