@@ -1016,7 +1016,7 @@ level, Charge Type *CODE - Description*, Market Rent the unit's rent, totals in 
 DOM-only through `window.__miUnit` so the rest of the wizard keeps what's typed. **Each charge is a choice unless it's tenant-level**
 (2026-10-21, the user's call): both registers lead with an RMX Checkbox column — ticked to start when the charge type's
 Charge Requirement is *Required*, unticked otherwise — and a charge treated as tenant-level (or added here as a tenant charge)
-has no checkbox, since it always applies (a charge whose exceptions take this unit out isn't listed at all). Ticks live in
+is the **Disabled checked** checkbox (it had none for an hour), since it always applies (a charge whose exceptions take this unit out isn't listed at all). Ticks live in
 `this._miSel` by charge id (`window.__miPick` redraws the tiles DOM-only), reset when the unit changes or the wizard closes,
 and each tile's Total counts only what's included. Riverview's 3B in Mid Conversion: RC and DOGFEE (Tenant), GARBAG ticked;
 APPFEE, DP and FMR all tenant-level. Columns wrap and the
@@ -2263,8 +2263,8 @@ the Pricing Preview, which also now offers only charges that reach the previewed
 
 **The rent quote's charge step follows Move In's include rule** (2026-10-21, the user's call): a charge whose type is
 *Required* starts ticked and can be unticked (Required charges used to be locked on), any other starts unticked, and a
-tenant-level charge — treated as one (`tenantLevelOf`), or added on the quote — has **no checkbox** and always counts
-(`lock:'tenant'`, a 20px gap in its place) and wears the **T** tag. A charge an ORI brings stays the disabled checked box. Riverview
+tenant-level charge — treated as one (`tenantLevelOf`), or added on the quote — always counts: its checkbox is the RMX
+**Disabled checked** variant (`lock:'tenant'`; for an hour it had none) and it wears the **T** tag. A charge an ORI brings stays the disabled checked box. Riverview
 3B in Mid Conversion: Base rent, Dog rent, Application fee, Security deposit and First month's rent are tenant-level, Trash
 collection ticked — $1,428.00/mo, the same as Move In (it read $1,403.00 before Dog rent counted).
 

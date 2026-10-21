@@ -8134,8 +8134,8 @@ class Component extends DCLogic {
       return true;
     };
     // Move In's rule (2026-10-21, the user's call): a Required charge starts ticked and the agent can untick it; any
-    // other starts unticked. A tenant-level charge always applies, so it has no checkbox (`lock:'tenant'`) and wears
-    // the Tenant tag, as Move In's Source reads Tenant. Required charges used to be locked on.
+    // other starts unticked. A tenant-level charge always applies, so its checkbox is disabled and checked
+    // (`lock:'tenant'`) and it wears the Tenant tag, as Move In's Source reads Tenant. Required charges used to be locked on.
     const required = (r) => this.resolvedListing(r).requirement === 'Required';
     // A pet charge is taken once per pet, as in the Pricing Preview: it carries the most pets the
     // pet type allows and, where the pet type sets one, the most the resident pays however many.
@@ -8389,7 +8389,7 @@ class Component extends DCLogic {
     // A charge treated as tenant-level arrives on the tenant as their own, so Source reads Tenant.
     const src = (f) => f.level === 'Tenant' || this.tenantLevelOf(f) ? 'Tenant' : this.levelLabel(f.level || 'Property');
     // Which charges the move in takes (2026-10-21, the user's call). A tenant-level charge — treated as one, or added
-    // here — always applies, so it has no checkbox; any other is a checkbox, ticked to start when its charge type makes
+    // here — always applies, so its checkbox is disabled and checked; any other is a checkbox, ticked to start when its charge type makes
     // it Required. What's been ticked lives in \`this._miSel\` (by charge id) until the unit changes or the wizard closes.
     const fixed = (f) => f.level === 'Tenant' || this.tenantLevelOf(f);
     const SEL = this._miSel || (this._miSel = {});
@@ -8397,7 +8397,7 @@ class Component extends DCLogic {
     if (!window.__miPick) window.__miPick = (el) => { const id = el.getAttribute('data-mi-id'), cur = el.getAttribute('aria-checked') === 'true';
       (this._miSel || (this._miSel = {}))[id] = !cur;
       const host = document.getElementById('mi-charges'); if (host) host.innerHTML = this.miChargeTilesHTML(this._miUnit || ''); };
-    const box = (f) => fixed(f) ? blank
+    const box = (f) => fixed(f) ? `<span style="display:flex;align-items:center;justify-content:center;height:44px;border-bottom:1px solid var(--rmx-line-soft, #ebf1f5)">${this.rmxCheckbox(true, true)}</span>`
       : `<span style="display:flex;align-items:center;justify-content:center;height:44px;border-bottom:1px solid var(--rmx-line-soft, #ebf1f5)">${this.rmxCheckbox(on(f), false, ` data-mi-id="${f.id}" aria-label="Include ${String(f.mits || '').replace(/"/g, '&quot;')}" onclick="window.__miPick(this)"`)}</span>`;
     const RC = '40px minmax(90px,1fr) minmax(130px,1.3fr) minmax(110px,1fr) minmax(60px,119px) minmax(96px,120px) minmax(96px,119px) minmax(96px,120px) 40px';
     const OC = '40px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 120px 40px';
@@ -8543,9 +8543,9 @@ class Component extends DCLogic {
     const groupLbl = (t) => `<span style="display:block;padding:8px 12px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${t}</span>`;
     // RMX Checkbox (State=Default). A charge that can't come off — required, or brought by a rentable
     // item — is the Disabled checked variant rather than a colour of its own.
-    // A tenant-level charge has no checkbox: a 20px gap keeps its tag in line with the rows above and below.
-    const box = (on, lock, id) => lock === 'tenant' ? '<span style="width:20px;flex:none"></span>'
-      : this.rmxCheckbox(on, !!lock, lock ? '' : ` data-act="rqTog" data-arg="${id}"`);
+    // A tenant-level charge always applies, so it is the Disabled checked variant (2026-10-21, the user's call; for an
+    // hour it had no checkbox at all), as is one a rentable item brings.
+    const box = (on, lock, id) => this.rmxCheckbox(on, !!lock, lock ? '' : ` data-act="rqTog" data-arg="${id}"`);
     const recRow = (r) => {
       const on = r.lock ? true : this.rqOn(r);
       return `<span style="display:flex;align-items:center;justify-content:center;min-height:34px">${box(on, r.lock, r.id)}</span>`
