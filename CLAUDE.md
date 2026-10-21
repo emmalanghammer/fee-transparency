@@ -2190,6 +2190,14 @@ canvas *Confirm Base Rent & Deposit*).
   3BR/2BA ($750). So its counts read four charges more than before; Riverview's baselines are unchanged.
   Every glyph used is in the `ico` map (`info`, not `info_outline`, which isn't).
 
+**Treat as tenant-level charge** (2026-10-21, the user's call). Every recurring and one-time charge but NSF / Late carries
+the checkbox in General, under Amount Method / Amount (and Prorate on a one-time charge), with an RMX Tooltip: *When a
+tenant moves in or is added, this charge is added to them as a tenant-level charge they can edit. The charge here doesn't
+change.* Saved as `row.tenantLevel`; `tenantLevelOf(r, prop)` reads it, and where a charge has never answered, a
+**property** charge the rollout brought from Tenant Charge Setup is ticked — the property's override list where it has one
+(Riverview: RC, DOGFEE, DP, FMR, APPFEE), else System Preferences' (RC, DOGFEE, DP, FMR); everything else unticked. The
+Move In wizard's Recurring Charges read **Tenant** in Source for a ticked charge.
+
 **At rollout, Tenant Charge Setup's charges became property charges on every property** (2026-10-07).
 Each default (RC and DOGFEE recurring, DP and FMR one-time) was added as a property-level charge with the
 same charge source on the properties that use it. Rent quotes and the Move In and Add Tenant wizards
