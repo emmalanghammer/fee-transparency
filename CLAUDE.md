@@ -34,7 +34,10 @@ screen (2026-10-07; it used to wait on every listing advertising a complete pric
 **Two follow-ups the same day (2026-10-21, the user's calls):** an additional charge excluded from listings no longer
 counts as a duplicate, either way round (`chargeConflictFor`), so Existing Charge Error's *exclude it from displaying on
 listings* really clears it; and the charge form's **Missing Required Fields** dot is red before activation too (it was
-amber until a property activated).
+amber until a property activated). And a **new charge with no charge type yet** shows no status in its Marketing Details
+header — no Missing Required Fields, no *n Listings Not Sent* (the count used to read the property's whole listing set) —
+but *Select a charge type to view marketing details* in grey italic, with no chevron and no toggle (`#m-mkt-head`
+`data-off`, set by a wrapper around `__mitsRecheck`); picking a charge type restores it.
 
 **Aligned with the Figma Zeplin screens (section `4130:152905`) on 2026-10-21.** What changed in the prototype:
 - **Setup's steps collapse**: each step header carries a chevron at the far right and toggles (`ftStepToggle`,
