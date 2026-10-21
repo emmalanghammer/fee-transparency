@@ -53,7 +53,8 @@ but *Select a charge type to view marketing details* in grey italic, with no che
 - **Existing Charge Error**: a duplicate additional charge (same charge type and comment) raises the same Pop Up as the
   Base Rent one (`roleDupPopup` with no role): *A charge using the APPFEE charge type exists at the property.* over the
   same fix line, OK.
-- **The $0.00 note** is an RMX Warning Callout (white, 1px orange edge, amber `warning`) in **General**, under the Amount.
+- **The $0.00 note** opens *This charge is $0.00 or negative.* for either case (it read *…a negative amount.* for a
+  negative one) and is an RMX Warning Callout (white, 1px orange edge, amber `warning`) in **General**, under the Amount.
 - **The charge form's duplicate callout** reads *2 charges at the property can't both be the Base Rent for the same units at
   the same time, so neither is listed.*
 - **A charge added from a unit or unit type** has Charge Level and that unit (type) locked, in the RMX disabled style
