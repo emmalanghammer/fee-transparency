@@ -1164,7 +1164,9 @@ describes the design before that tag; the code for most of it is still in the fi
   `position:sticky` at `left:0` / `left:100px`, the row's background inherited so hover still tints, the header row at z-index 3. **Properties** reads *All Properties*, one property's
   code, or the first code then RMX's dropdown Pill *+n* (`morePill`, 2026-10-15) whose panel lists every
   one — only properties in the scenario's portfolio. The Pill's handler is shared with the Review
-  overlay's missing floor plans (`pillInstall` / `window.__rolePill`). An empty required field reads a filled red `error` glyph
+  overlay's missing floor plans (`pillInstall` / `window.__rolePill`). Its panel opens over the register (2026-10-21): it lives in the frozen Properties cell, whose
+  stacking context let the rows below paint over it, so while open that cell is lifted to z-index 5 and `window.__pillReset`
+  (outside click, scroll, another Pill) closes the panel and puts the cell back. An empty required field reads a filled red `error` glyph
   alone, *Required for listings* on hover (it was an amber **Missing** lozenge, then the glyph with the words), an optional one `-`. **One cell is edited at a time, as production's mass edit does**
   (2026-10-15, DOM-only): clicking a cell (`window.__meEdit`) closes whichever was open, keeping its
   value (`window.__meClose`), and opens this one — Name and Marketing Description as a white input with a

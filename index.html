@@ -6503,10 +6503,18 @@ class Component extends DCLogic {
   // stands for. One handler, `window.__rolePill`, for the Review overlay's missing floor plans and Mass
   // Edit's Properties column.
   pillInstall(){
+    // A panel inside a frozen (sticky) cell sits in that cell's stacking context, so the next rows' frozen
+    // cells painted over it (2026-10-21). While it's open its cell is lifted above the register, header
+    // included; `__pillReset` closes every panel and puts the cell back.
+    if (!window.__pillReset) window.__pillReset = () => {
+      document.querySelectorAll('[data-pillpnl]').forEach(p => { p.style.display = 'none'; const b = p.parentNode.querySelector('[aria-expanded]'); if (b) b.setAttribute('aria-expanded', 'false'); });
+      document.querySelectorAll('[data-pillraise]').forEach(c => { c.style.zIndex = c.getAttribute('data-pillraise'); c.removeAttribute('data-pillraise'); }); };
     if (!window.__rolePill) window.__rolePill = (btn, ev) => { if (ev) ev.stopPropagation();
       const pnl = btn.parentNode.querySelector('[data-pillpnl]'); if (!pnl) return;
-      const on = pnl.style.display === 'none'; pnl.style.display = on ? 'block' : 'none'; btn.setAttribute('aria-expanded', on);
+      const on = pnl.style.display === 'none'; window.__pillReset(); btn.setAttribute('aria-expanded', on);
       if (!on) return;
+      pnl.style.display = 'block';
+      const cell = btn.closest('[style*="sticky"]'); if (cell) { cell.setAttribute('data-pillraise', cell.style.zIndex || ''); cell.style.zIndex = '5'; }
       const r = btn.getBoundingClientRect(), w = pnl.offsetWidth, h = pnl.offsetHeight;
       let l = r.left; if (l + w > window.innerWidth - 8) l = window.innerWidth - 8 - w; if (l < 8) l = 8;
       let t = r.bottom + 4; if (t + h > window.innerHeight - 8) t = r.top - h - 4; if (t < 8) t = 8;
@@ -6631,7 +6639,7 @@ class Component extends DCLogic {
       pnl.style.left = Math.max(8, Math.min(r.left + 4, window.innerWidth - pnl.offsetWidth - 8)) + 'px'; pnl.style.top = Math.max(8, top) + 'px';
     };
     // A click anywhere in the overlay that isn't the open cell or its options closes it, keeping the value.
-    window.__meOutside = (e) => { document.querySelectorAll('[data-pillpnl]').forEach(p => { if (!p.contains(e.target)) p.style.display = 'none'; });
+    window.__meOutside = (e) => { if (!e.target.closest('[data-pillpnl]') && !e.target.closest('[aria-expanded]')) window.__pillReset();
       if (e.target.closest('[data-editing]') || e.target.closest('#me-pnl')) return;
       if (e.target.closest('[data-f]')) return; window.__meClose(true); };
     // One property reads as its code; several read the first, then the Pill counting the rest (2026-10-15).
@@ -6666,7 +6674,7 @@ class Component extends DCLogic {
             <span style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">Set the marketing details for every charge that uses this charge type. Charges will display on listings as they are here.</span>
             <label data-act="ctMassOnly" style="display:inline-flex;align-items:center;gap:8px;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap">${this.rmxCheckbox(!!only, false)}Only show charge types with missing required fields</label>
           </div>
-          <div data-rreg-me onmousedown="window.__meOutside(event)" onscroll="window.__meClose(true);this.querySelectorAll('[data-pillpnl]').forEach(p=>p.style.display='none')" style="flex:1;min-height:0;overflow:auto;border:1px solid var(--rmx-line, #cedbe7)">
+          <div data-rreg-me onmousedown="window.__meOutside(event)" onscroll="window.__meClose(true);window.__pillReset()" style="flex:1;min-height:0;overflow:auto;border:1px solid var(--rmx-line, #cedbe7)">
             <div style="min-width:1400px">
               <div style="display:grid;grid-template-columns:${tracks};background:var(--rmx-register-header, #737373);position:sticky;top:0;z-index:3">
                 ${head('Charge Type', 'position:sticky;left:0;z-index:1;background:var(--rmx-register-header, #737373);')}${head('Properties', 'border-right:1px solid rgba(255,255,255,0.7);position:sticky;left:100px;z-index:1;background:var(--rmx-register-header, #737373);')}${RC.map(c => head(c.h, 'justify-content:center;')).join('')}${COLS.map(c => head(c.h)).join('')}
