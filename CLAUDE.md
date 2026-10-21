@@ -100,7 +100,10 @@ at 12px; the whole setup — charge types ready plus properties activated, over 
   (`#fdf3e7`, the outlined amber `warning` — the user's outlined-glyph rule over Figma's filled one) and a chevron. The row
   toggles it (`ftSetupProp`). Open, grey 36px sub-rows say what's left: *Duplicate Charges: Base Rent* · **How do I
   resolve this?** (`dupOpen`); *n Charge Types Missing Required Fields* (the codes in a `title`) · **Mass Edit Marketing**
-  (`ftMassEdit` with that property's codes), or **Edit Charge Type** (`ctOpen`) when only one is short; *Base Rent Missing: n units* · **View Charges**.
+  (`ftMassEdit` with that property's codes), or **Edit Charge Type** (`ctOpen`) when only one is short; *Base Rent Missing: n units* · **View Charges**; with no charge type set as the Base Rent at all, **Missing Base Rent
+  Charge Type** with an RMX Tooltip (*None of this property's charges use a charge type set as the Base Rent, so its
+  listings have no rent to show. On the charge type you use for rent, set Charge Role to Base Rent.*) · **View Charge
+  Types** (2026-10-21; it read *Base Rent Missing: no Base Rent charge* · View Charges).
 - Opening Setup from Listings opens the **first Not Ready property**; from Marketing Setup, that property. Rows and
   headers wrap on a narrow pane.
 - **Learning is the help panel, not a step.** `ftHelpHTML` carries *What is fee transparency?*; it sits at z-index 156 over

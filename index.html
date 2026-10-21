@@ -5406,7 +5406,11 @@ class Component extends DCLogic {
       r.short.length === 1 ? link('Edit Charge Type', 'ctOpen', r.short[0]) : link('Mass Edit Marketing', 'ftMassEdit', r.short.join(',')), esc(r.short.join(', '))]);
     { const rs = this.roleSetupState(r.p);
       if (rs === 'none' || rs === 'gap') { const n = this.roleRentGap(r.p);
-        subs.push([rs === 'none' ? 'Base Rent Missing: no Base Rent charge' : `Base Rent Missing: ${n} unit${n === 1 ? '' : 's'}`, link('View Charges', 'openFeeProfile', r.p)]); } }
+        // No charge type carries the Base Rent role at all (2026-10-21, the user's call): the fix is on a charge type,
+        // so the row names that, explains it in a tooltip, and goes to Charge Types.
+        subs.push(rs === 'none'
+          ? [`<span style="display:inline-flex;align-items:center;gap:6px">Missing Base Rent Charge Type${this.infoTip('<span style="display:block;white-space:normal">None of this property’s charges use a charge type set as the Base Rent, so its listings have no rent to show. On the charge type you use for rent, set Charge Role to Base Rent.</span>')}</span>`, link('View Charge Types', 'navChargeTypes')]
+          : [`Base Rent Missing: ${n} unit${n === 1 ? '' : 's'}`, link('View Charges', 'openFeeProfile', r.p)]); } }
     const sub = (x, i) => `<div style="display:flex;align-items:center;gap:12px;min-height:36px;box-sizing:border-box;padding:8px;background:var(--rmx-bg-subtle, #f5f8fa);${i ? 'border-top:1px solid var(--rmx-line, #cedbe7);' : ''}">
       <span${x[2] ? ` title="${x[2]}"` : ''} style="flex:1;min-width:0;font-size:14px;line-height:20px;${INK}">${x[0]}</span>${x[1]}
     </div>`;
