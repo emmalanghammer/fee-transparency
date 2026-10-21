@@ -77,7 +77,8 @@ frames' prospect (now Jordan Ellis). The Sent, Incomplete overlay's *General Mar
 **Fee Transparency Setup is Figma `4102:195176`** (2026-10-20, the user's new design; three frames: nothing ready
 `4097:82767`, charge types 8 of 9 `4100:85395`, charge types done `4102:194717`). An 800px dialog: the 48px header with
 **help** (`ftHelpOpen`) and close 16px apart; an intro, *2 Steps to Fee Transparent Listings* over *New to fee
-transparency? Read how it works*, with RMX's ProgressBar on the right (240px, `#e5e5e5` track, brand fill, the percentage
+transparency? **Learn More*** (`todo` since 2026-10-21: in the product it opens a help article outside the prototype, so it
+opens nothing here; it read *Read how it works* and opened the help panel), with RMX's ProgressBar on the right (240px, `#e5e5e5` track, brand fill, the percentage
 at 12px; the whole setup — charge types ready plus properties activated, over all of them); then two step cards.
 - **A step card** is a 1px border (brand on the **current** step, `--rmx-line` otherwise), its header an RMX Workflow Step
   avatar — white with a brand border and the `edit-filled` pencil when current, green with a white check when complete, a
