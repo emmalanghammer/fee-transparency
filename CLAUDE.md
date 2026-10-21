@@ -62,7 +62,8 @@ screen (2026-10-07; it used to wait on every listing advertising a complete pric
 Figma frames older than a later prototype change were left as the prototype has them: the Charge Types register's
 *Listing Status* (now *Status*), *Mass Edit Marketing Details* (now *Mass Edit Marketing*), the announcement step 2 body
 without the Base Rent condition, *Pet Details* without *(Optional)*, Tenant Charge Setup's banner copy, the Pricing Tools
-frames' prospect (now Jordan Ellis), and the Sent, Incomplete overlay's *General Marketing Errors* / *Zillow Errors*.
+frames' prospect (now Jordan Ellis). The Sent, Incomplete overlay's *General Marketing Errors* / *Zillow Errors* were renamed in Figma to the prototype's
+**Marketing Errors** / **Listing Provider Errors** (the user's call).
 
 **Fee Transparency Setup is Figma `4102:195176`** (2026-10-20, the user's new design; three frames: nothing ready
 `4097:82767`, charge types 8 of 9 `4100:85395`, charge types done `4102:194717`). An 800px dialog: the 48px header with
