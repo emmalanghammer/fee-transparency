@@ -9661,16 +9661,8 @@ class Component extends DCLogic {
       .concat([rRow('Tenant', 'RC', 'Rent', money(this.tenantRent()), recRows.length)]).join('');
     // The footer quotes the total the way the mock does — dollars, and cents only when there are any.
     const loose = (n) => n.toLocaleString('en-US', { minimumFractionDigits:0, maximumFractionDigits:2 });
-    // Where a tenant's charges come from is worth saying on a converted property: new ones follow
-    // the property's charges, while the ones already on this account stay as they were billed.
-    const tntManaged = !!this.state.publishedProps[prop]
-      ? `<div style="display:flex;align-items:center;gap:10px;background:var(--rmx-brand-tint-bg, #ebf1f5);border-bottom:1px solid var(--rmx-line, #cedbe7);padding:9px 14px">
-          ${this.ico('info', 17, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none')}
-          <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b);line-height:1.45">New charges come from the property's charges. The charges already on this tenant stay as they were written.</span>
-        </div>`
-      : '';
     const recurring = tile('Recurring Charges', link('Add Charge') + link('Add CRE') + openIcon('Recurring Charges'),
-      tntManaged + `<div style="overflow-x:auto"><div style="display:flex;flex-direction:column;min-width:780px">
+      `<div style="overflow-x:auto"><div style="display:flex;flex-direction:column;min-width:780px">
         ${mHead(rKey, rCols, mh('Charge Level') + mh('Charge Type') + mh('Comment') + mh('Frequency', true) + mh('From Date') + mh('To Date') + mh('Amount', true))}
         ${recLines}
       </div></div><div style="flex:1"></div>`
