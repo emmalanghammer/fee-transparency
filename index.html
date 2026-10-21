@@ -6547,8 +6547,9 @@ class Component extends DCLogic {
       { f:'refundable', h:'Refundability', opts: REF, req:false, w:'130px' }
     ];
     // Charge Role is two checkbox columns (2026-10-21, the user's call): Base Rent and Security Deposit. One or
-    // the other, never both; neither ticked is an Additional Charge.
-    const RC = [{ f:'rent', h:'Base Rent', w:'110px' }, { f:'deposit', h:'Security Deposit', w:'150px' }];
+    // the other, never both; neither ticked is an Additional Charge. Each column is as narrow as its header
+    // allows (the label plus 8px either side), with the label and the checkbox centred in it.
+    const RC = [{ f:'rent', h:'Base Rent', w:'84px' }, { f:'deposit', h:'Security Deposit', w:'128px' }];
     const tracks = '100px 120px ' + RC.map(c => c.w).join(' ') + ' ' + COLS.map(c => c.w).join(' ');
     const head = (t, extra) => `<span style="${extra || ''}display:flex;align-items:center;height:28px;box-sizing:border-box;padding:0 8px;font:500 12.6px Roboto,sans-serif;letter-spacing:1.134px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>`;
     // An empty required field (2026-10-15, the user's call; it was an amber *Missing* lozenge, then the
@@ -6645,7 +6646,7 @@ class Component extends DCLogic {
       const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:36px;box-sizing:border-box;padding:0 8px;font-size:14px;${INK};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${extra || ''}">${t}</span>`;
       return `<div onmouseover="this.style.background='var(--rmx-brand-tint-bg, #ebf1f5)'" onmouseout="this.style.background='${bg}'" style="display:grid;grid-template-columns:${tracks};align-items:center;background:${bg};border-bottom:1px solid var(--rmx-brand-tint-bg, #ebf1f5)">
         ${cell(esc(r.code), 'position:sticky;left:0;z-index:1;background:inherit;align-self:stretch')}${cell(props(r), 'overflow:visible;align-self:stretch;border-right:1px solid var(--rmx-line, #cedbe7);position:sticky;left:100px;z-index:1;background:inherit')}
-        ${RC.map(c => `<span data-code="${esc(r.code)}" data-role="${c.f}" role="checkbox" aria-checked="${V(r.code, 'role') === c.f ? 'true' : 'false'}" aria-label="${c.h}" onclick="window.__meRole(this)" style="display:flex;align-items:center;min-height:36px;box-sizing:border-box;padding:0 8px;cursor:pointer">${roleBox(r.code, c.f)}</span>`).join('')}
+        ${RC.map(c => `<span data-code="${esc(r.code)}" data-role="${c.f}" role="checkbox" aria-checked="${V(r.code, 'role') === c.f ? 'true' : 'false'}" aria-label="${c.h}" onclick="window.__meRole(this)" style="display:flex;align-items:center;justify-content:center;min-height:36px;box-sizing:border-box;padding:0 8px;cursor:pointer">${roleBox(r.code, c.f)}</span>`).join('')}
         ${COLS.map(c => `<span data-code="${esc(r.code)}" data-f="${c.f}" onclick="window.__meEdit(this)" title="Select to edit" style="display:flex;align-items:center;min-height:36px;min-width:0;box-sizing:border-box;padding:2px 8px;font-size:14px;${INK};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer">${showW(c, V(r.code, c.f), r.code)}</span>`).join('')}
       </div>`;
     }).join('');
@@ -6668,7 +6669,7 @@ class Component extends DCLogic {
           <div data-rreg-me onmousedown="window.__meOutside(event)" onscroll="window.__meClose(true);this.querySelectorAll('[data-pillpnl]').forEach(p=>p.style.display='none')" style="flex:1;min-height:0;overflow:auto;border:1px solid var(--rmx-line, #cedbe7)">
             <div style="min-width:1400px">
               <div style="display:grid;grid-template-columns:${tracks};background:var(--rmx-register-header, #737373);position:sticky;top:0;z-index:3">
-                ${head('Charge Type', 'position:sticky;left:0;z-index:1;background:var(--rmx-register-header, #737373);')}${head('Properties', 'border-right:1px solid rgba(255,255,255,0.7);position:sticky;left:100px;z-index:1;background:var(--rmx-register-header, #737373);')}${RC.map(c => head(c.h)).join('')}${COLS.map(c => head(c.h)).join('')}
+                ${head('Charge Type', 'position:sticky;left:0;z-index:1;background:var(--rmx-register-header, #737373);')}${head('Properties', 'border-right:1px solid rgba(255,255,255,0.7);position:sticky;left:100px;z-index:1;background:var(--rmx-register-header, #737373);')}${RC.map(c => head(c.h, 'justify-content:center;')).join('')}${COLS.map(c => head(c.h)).join('')}
               </div>
               ${body}
             </div>
