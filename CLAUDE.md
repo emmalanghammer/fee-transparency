@@ -2258,6 +2258,15 @@ One-Time Charges**, Charge Type · Charge Source, with a lone **Close**. `tcsSys
 System Preferences list, read by both surfaces. `tcsOverrides()` holds the properties that overrode
 it: only **Riverview Apartments**, whose list adds APPFEE.
 
+**The note's copy was tightened on 2026-10-21** (the user's call, with a line for Treat as tenant-level charge). The lead
+is *These charges became property-level charges on every property. This page is now read-only.* (*…on **<Property>**.
+This setup is now read-only.* on a property), then three bullets: **Edit them in the property's Charges.** *Rent quotes,
+Move In and Add Tenant add charges from there.* · **New tenants get their own copy.** *These charges have Treat as
+tenant-level charge ticked, so each tenant who moves in or is added gets a tenant-level charge they can edit.* · **Charge
+Source is now the charge's Amount.** *Unit Market Rent became a Reference amount; flat and pet type amounts are
+unchanged.* System Preferences ends *These properties had their own tenant charge setup, so their charges may differ:
+**Riverview Apartments***. The titles and the property's button are as below.
+
 **Both Tenant Charge Setups share one note, `tcsBanner(prop)`** (2026-10-07). It answers two
 questions, in order: where to edit these charges now, and what happened to their Charge Source. The
 title is *Tenant charges are now edited on each property* on System Preferences, and *These
