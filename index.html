@@ -231,7 +231,8 @@ class Component extends DCLogic {
     ctmMode: 'inherit',
  // Listings page: hide listings without errors
     ltErr: null, // { i, open } — Listing Errors popup for one listing
-    dupResolve: null, // { prop, key } — Resolve Duplicate Charges (2026-10-15)
+    dupResolve: null, // { prop, key } — Resolve Duplicate Charges (2026-10-15); unreachable since 2026-10-21
+    dupHelp: null,    // { prop, key } — How do I resolve this? (2026-10-21), which replaced it
     ltTypes: null, // { i } — the Charge Types overlay for one listing (2026-10-15)
     // Charges register columns: chgCols is the chosen keys in order (null = defaults), colNames holds
     // any renamed headers, colSetup opens the Customize Column Setup dialog.
@@ -1562,8 +1563,13 @@ class Component extends DCLogic {
       case 'ctMassAll': this.setState({ ctMass: true }); break;
       case 'ltTypesOpen': this.setState({ ltTypes: { i: parseInt(arg, 10) || 0 } }); break;
       case 'ltTypesClose': this.setState({ ltTypes: null }); break;
-      case 'dupOpen': { const k = String(arg).indexOf('::'); this._dupEndVal = ''; window.__C_dupEnd = (v) => { this._dupEndVal = v; };
-        this.setState({ rowMenu: null, dupResolve: { prop: String(arg).slice(0, k), key: String(arg).slice(k + 2), step: 1, keep: null, act: null } }); break; }
+      // Every *How do I resolve this?* opens the explainer (2026-10-21, the user's call), not the Resolve task.
+      case 'dupOpen': { const k = String(arg).indexOf('::');
+        this.setState({ rowMenu: null, dupHelp: { prop: String(arg).slice(0, k), key: String(arg).slice(k + 2) } }); break; }
+      case 'dupHelpClose': this.setState({ dupHelp: null }); break;
+      // Its charge type link closes it, so Charge Type Details isn't opened underneath.
+      case 'dupHelpCT': this._chgKeep = this.q('#m-ctype') ? this.chgFormSnap() : null; this._chgKeepModal = this.state.modal; this.chgKeepWatch();
+        this.setState({ dupHelp: null, ctDetail: arg }); break;
       case 'dupClose': this.setState({ dupResolve: null }); break;
       case 'dupKeep': this.setState(s => ({ dupResolve: Object.assign({}, s.dupResolve, { keep: String(arg) }) })); break;
       case 'dupNext': this.setState(s => ({ dupResolve: Object.assign({}, s.dupResolve, { step: 2 }) })); break;
@@ -2098,7 +2104,7 @@ class Component extends DCLogic {
         // Reached from the Errors breakdown as well as the property page, so the dialog it was
         // opened from has to close behind it.
         // The read-only charge form opened from a unit or unit type links here too, so it closes as well.
-        this.setState({ recView: null, mktSetup: false, mktAdv: false, ltErr: null, ftSetup: null, tcsProp: null, modal: null, rowMenu: null, fpEdit: null });
+        this.setState({ recView: null, mktSetup: false, mktAdv: false, ltErr: null, ftSetup: null, tcsProp: null, modal: null, rowMenu: null, fpEdit: null, dupHelp: null });
         // Opened from Listings (the count, Setup's View Charges, the Errors breakdown) or from a unit's
         // View Recurring Charges, it closes back there rather than stranding you on the property page
         // it sits over.
@@ -5143,6 +5149,82 @@ class Component extends DCLogic {
   // steps. 1 — pick the charge listings should show (radio selector cards). 2 — say what happens to the
   // unselected one(s): Exclude from listings, or End the charge (recurring only) with an End Date. Back /
   // progress dots / Next or Save. `state.dupResolve` is `{ prop, key, step, keep, act }`.
+  // *How do I resolve this?* (2026-10-21, the user's call; it replaced the two-step Resolve task). It explains
+  // rather than acts: which charges conflict, then every way out, split by whether both charges should stay
+  // on listings or only one. Each way names where it's done; the footer goes to the property's Charges.
+  dupHelpHTML(){
+    const st = this.state.dupHelp; if (!st) return '';
+    const g = this.chargeDupes(st.prop).filter(x => x.key === st.key)[0];
+    const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+    const INK = 'var(--rmx-brand-dark, #13314c)', GREY = 'var(--rmx-text, #666666)';
+    const link = (t, act, arg) => `<span data-act="${act}"${arg ? ` data-arg="${esc(arg)}"` : ''} style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${t}</span>`;
+    const shell = (inner) => `<div data-act="dupHelpClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:160">
+      <div data-act="noop" role="dialog" aria-label="How to resolve duplicate charges" style="width:720px;max-width:94vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:16px;height:48px;box-sizing:border-box;padding:0 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
+          <span style="flex:1;min-width:0;font:400 20px/28px Roboto,sans-serif;color:${INK};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">How to Resolve Duplicate Charges</span>
+          <span data-act="dupHelpClose" role="button" aria-label="Close" style="display:flex;cursor:pointer">${this.ico('close', 24, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
+        </div>
+        ${inner}
+      </div></div>`;
+    // Resolved while it was open (or gone): say so rather than describing a conflict that isn't there.
+    if (!g) return shell(`<div style="padding:16px;font-size:14px;line-height:20px;color:${INK}">These charges no longer conflict.</div>
+      <div style="display:flex;justify-content:flex-end;gap:16px;padding:12px 16px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7)"><button data-act="dupHelpClose" class="btn-out" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Close</button></div>`);
+    const names = {}; this.chargeTypeListAll().forEach(t => { names[t[0]] = t[1]; });
+    const role = g.role ? this.leaseRoleLabel(g.role) : '';
+    const what = role || 'charge';
+    const lvlName = g.level === 'Property' ? g.prop : g.target;
+    const act = !!this.state.publishedProps[g.prop];
+    const codes = []; g.rows.forEach(r => { const c = String(r.mits || '').toUpperCase(); if (c && codes.indexOf(c) < 0) codes.push(c); });
+    const anyOne = g.rows.some(r => /-one$/.test(r.group || ''));
+    // The charges in conflict, as the Resolve task drew them: Charge Type · Charge Level · From – To · Amount.
+    const col = (label, value, bold, grow) => `<div style="flex:${grow || 1} 1 0;min-width:0;display:flex;flex-direction:column;gap:2px;overflow:hidden">
+        <span style="font-size:12px;color:${GREY};white-space:nowrap">${label}</span>
+        <span style="font-size:14px;line-height:20px;color:${INK};${bold ? 'font-weight:600;' : ''}white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${value}</span></div>`;
+    const chargeRow = (r, i) => { const code = String(r.mits || '').toUpperCase();
+      const dates = /-one$/.test(r.group || '') ? '—' : esc(r.from || '') + ' –' + (r.to ? ' ' + esc(r.to) : '');
+      return `<div style="display:flex;align-items:flex-start;gap:24px;padding:8px 12px;${i ? 'border-top:1px solid var(--rmx-line, #cedbe7);' : ''}">
+        ${col('Charge Type', esc(code + ' – ' + (names[code] || r.name || '')) + (r.desc ? `<span style="color:${GREY}"> · ${esc(r.desc)}</span>` : ''), false, 1.6)}
+        ${col('Charge Level', `<span style="display:inline-flex;align-items:center;gap:8px;max-width:100%">${this.chargeLevelCell(g.level, lvlName)}</span>`, false, 1.2)}
+        ${col('From – To', dates, false, 0.9)}
+        ${col('Amount', esc(r.amount || ''), true, 0.8)}
+      </div>`; };
+    const lead = `${esc(g.rows.length === 2 ? 'Both' : 'These')} charges are the ${esc(what)} ${esc(this.dupWhere(g.level, g.target))} for the same dates. Listings can show only one ${esc(what)} for a unit, so ${act
+      ? 'listings for those units aren’t sent until this is resolved.' : esc(g.prop) + ' can’t activate fee transparency until this is resolved.'}`;
+    // One way out: a number, its name in SemiBold, what it does in grey, and where it's done.
+    const way = (n, t, d, extra) => `<div style="display:flex;align-items:flex-start;gap:12px">
+        <span style="flex:none;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--rmx-bg-muted, #f2f2f2);font-size:12px;color:${INK}">${n}</span>
+        <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+          <span style="font-size:14px;line-height:20px;font-weight:600;color:${INK}">${t}</span>
+          <span style="font-size:14px;line-height:20px;color:${GREY}">${d}</span>
+          ${extra ? `<span style="display:flex;flex-wrap:wrap;gap:4px 16px;padding-top:2px">${extra}</span>` : ''}
+        </span></div>`;
+    const section = (title, sub, ways) => `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;display:flex;flex-direction:column">
+        <div style="display:flex;flex-direction:column;gap:2px;padding:12px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);background:var(--rmx-bg-subtle, #f5f8fa)">
+          <span style="font-size:14px;line-height:20px;font-weight:600;color:${INK}">${title}</span>
+          <span style="font-size:14px;line-height:20px;color:${GREY}">${sub}</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px;padding:16px">${ways.map((w, i) => way(i + 1, w[0], w[1], w[2])).join('')}</div>
+      </div>`;
+    const both = [];
+    if (!anyOne) both.push(['Give them dates that don’t overlap', `End one charge before the other starts, so each is the ${esc(what)} for its own dates.`]);
+    if (g.level !== 'Unit') both.push(['Move one to a unit type or unit', `The most specific ${esc(what)} applies, so a charge on a unit type or unit replaces the ${esc(g.level === 'Property' ? 'property’s' : 'unit type’s')} for those units only.`]);
+    if (role && codes.length > 1) both.push(['Make one an additional charge', `Change its charge type’s Charge Role to Additional Charge. Every charge of that charge type, at every property, changes with it.`,
+      codes.map(c => link('Open ' + esc(c) + ' Charge Type', 'dupHelpCT', c)).join('')]);
+    const one = [['Exclude one from listings', 'Open the charge and turn off Include on listings. It’s still billed; listings just won’t show it.']];
+    if (!anyOne) one.push(['End one charge', 'Set its To date. Ending it today resolves this now; a later date keeps both off listings until then.']);
+    one.push(['Delete one charge', 'If one was added by mistake, delete it.']);
+    // From inside a charge form, the form is already on the property's Charges, so no View Charges.
+    const viewBtn = this.state.modal ? '' : `<button data-act="openFeeProfile" data-arg="${esc(g.prop)}" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">View Charges</button>`;
+    return shell(`<div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:16px">
+        <span style="font-size:14px;line-height:20px;color:${INK}">${lead}</span>
+        <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px">${g.rows.map(chargeRow).join('')}</div>
+        ${both.length ? section('Keep both charges on listings', `Change them so only one is the ${esc(what)} for a unit at any time.`, both) : ''}
+        ${section('List only one charge', 'Keep the other off listings, or stop it.', one)}
+      </div>
+      <div style="flex:none;display:flex;justify-content:flex-end;gap:16px;padding:12px 16px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7)">
+        ${viewBtn}<button data-act="dupHelpClose" class="btn-out" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Close</button>
+      </div>`);
+  }
   dupResolveHTML(){
     const st = this.state.dupResolve; if (!st) return '';
     const g = this.chargeDupes(st.prop).filter(x => x.key === st.key)[0];
@@ -5711,7 +5793,11 @@ class Component extends DCLogic {
   // carries the outlined set, which reads as a drawing at 16px. Anything else falls back to `ico`.
   // `error` and `warning` are drawn outlined everywhere (2026-10-16, the user's call); only
   // `check_circle` is still the filled glyph.
-  filledIco(name, size, style){
+  filledIco(name, size, style, solid){
+    // Feed Status is the exception to the outlined rule (2026-10-21, the user's call): its column and
+    // the Listing Errors overlay always draw the filled error and warning.
+    const S = solid ? { error: 'M480-280q17 0 28.5-11.5T520-320q0-17-11.5-28.5T480-360q-17 0-28.5 11.5T440-320q0 17 11.5 28.5T480-280Zm-40-160h80v-240h-80v240Zm40 360q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z', warning: 'm40-120 440-760 440 760H40Zm440-120q17 0 28.5-11.5T520-280q0-17-11.5-28.5T480-320q-17 0-28.5 11.5T440-280q0 17 11.5 28.5T480-240Zm-40-120h80v-200h-80v200Z' } : {};
+    if (S[name]) { const n = size || 20; return `<svg class="ico" width="${n}" height="${n}" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="${style || ''}"><path d="${S[name]}"/></svg>`; }
     const P = {
       check_circle: 'm424-296 282-282-56-56-226 226-114-114-56 56 170 170Zm56 216q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z',
     };
@@ -5723,7 +5809,7 @@ class Component extends DCLogic {
     const f = this.ltFeedState(l);
     const go = f.key !== 'sent';
     return `<span class="${go ? 'lt-st' : ''}" style="display:inline-flex;align-items:center;gap:8px;height:24px;box-sizing:border-box;padding:0 ${go ? '4px' : '8px'} 0 8px;border-radius:4px;background:${f.bg};white-space:nowrap;flex:none;transition:box-shadow .12s">`
-      + this.filledIco(f.ico, 16, 'color:' + f.fg + ';flex:none')
+      + this.filledIco(f.ico, 16, 'color:' + f.fg + ';flex:none', true)
       + `<span class="lt-st-l" style="font-size:14px;line-height:16px;color:var(--rmx-brand-dark, #13314c)">${f.label}</span>`
       + (go ? this.ico('chevron_right', 16, 'color:var(--rmx-brand-dark, #13314c);flex:none;margin-left:-4px') : '')
       + `</span>`
@@ -5773,7 +5859,7 @@ class Component extends DCLogic {
     const c = (inner, extra) => `<div style="display:flex;align-items:center;gap:8px;min-width:0;min-height:44px;box-sizing:border-box;padding:6px 12px;border-top:1px solid var(--rmx-brand-tint-bg, #ebf1f5);font-size:14px;color:var(--rmx-brand-dark, #13314c);${extra || ''}">${inner}</div>`;
     const rows = types.map(t => c(`<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><strong style="font-weight:600">${esc(t.code)}</strong> – ${esc(t.desc)}</span>`)
       // Where this property overrides the charge type, its listings read the override, so that is what's edited.
-      + c(status(t)) + c(t.dup ? link('Resolve', 'dupOpen', t.dup.prop + '::' + t.dup.key)
+      + c(status(t)) + c(t.dup ? link('How do I resolve this?', 'dupOpen', t.dup.prop + '::' + t.dup.key)
         : this.ctmOverridden(l.prop, t.code) ? link('Edit Override', 'ctmOpen', l.prop + '::' + t.code) : link('Edit Charge Type', 'ctOpen', t.code), 'justify-content:flex-end')).join('');
     const lead = bad.length
       ? `${bad.length} of ${types.length} charge type${types.length === 1 ? '' : 's'} on this listing ${bad.length === 1 ? 'isn’t' : 'aren’t'} listing ready.`
@@ -5822,8 +5908,8 @@ class Component extends DCLogic {
     // solid glyph. A section header carries no leading icon at all — its state is already said on
     // the right, and by the card's own colour, so a third copy of it was only decoration.
     const fill = (d, col, sz) => `<svg class="ico" width="${sz || 20}" height="${sz || 20}" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:${col};flex:none"><path d="${d}"/></svg>`;
-    const D_ERR = 'M503.5-289.48q9.5-9.48 9.5-23.5t-9.48-23.52q-9.48-9.5-23.5-9.5t-23.52 9.48q-9.5 9.48-9.5 23.5t9.48 23.52q9.48 9.5 23.5 9.5t23.52-9.48ZM453-433h60v-253h-60v253Zm27.27 353q-82.74 0-155.5-31.5Q252-143 197.5-197.5t-86-127.34Q80-397.68 80-480.5t31.5-155.66Q143-709 197.5-763t127.34-85.5Q397.68-880 480.5-880t155.66 31.5Q709-817 763-763t85.5 127Q880-563 880-480.27q0 82.74-31.5 155.5Q817-252 763-197.68q-54 54.31-127 86Q563-80 480.27-80Zm.23-60Q622-140 721-239.5t99-241Q820-622 721.19-721T480-820q-141 0-240.5 98.81T140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z';
-    const D_WARN = 'm40-120 440-760 440 760H40Zm104-60h672L480-760 144-180Zm361.5-65.68q8.5-8.67 8.5-21.5 0-12.82-8.68-21.32-8.67-8.5-21.5-8.5-12.82 0-21.32 8.68-8.5 8.67-8.5 21.5 0 12.82 8.68 21.32 8.67 8.5 21.5 8.5 12.82 0 21.32-8.68ZM454-348h60v-224h-60v224Zm26-122Z';
+    const D_ERR = 'M480-280q17 0 28.5-11.5T520-320q0-17-11.5-28.5T480-360q-17 0-28.5 11.5T440-320q0 17 11.5 28.5T480-280Zm-40-160h80v-240h-80v240Zm40 360q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z';
+    const D_WARN = 'm40-120 440-760 440 760H40Zm440-120q17 0 28.5-11.5T520-280q0-17-11.5-28.5T480-320q-17 0-28.5 11.5T440-280q0 17 11.5 28.5T480-240Zm-40-120h80v-200h-80v200Z';
     const loz = (label, fg, bg, bold) => `<span style="display:inline-flex;align-items:center;gap:8px;height:24px;box-sizing:border-box;padding:0 8px;border-radius:4px;background:${bg};white-space:nowrap;flex:none">`
       + fill(label === 'Sent, Incomplete' ? D_WARN : D_ERR, fg, 16)
       + `<span style="font-size:14px;line-height:16px;${bold ? 'font-weight:600;' : ''}color:var(--rmx-brand-dark, #13314c)">${label}</span></span>`;
@@ -5882,7 +5968,7 @@ class Component extends DCLogic {
     const chargeItem = (c) => c.noRent
       ? itemRow('No Base Rent', this.statusDot('Missing Base Rent', 'var(--rmx-error, #eb343c)'), 'No charge on a Base Rent charge type reaches unit ' + escA(l.unit) + ', so the listing has no rent to send.', itemLink('View Charges', 'openFeeProfile', l.prop))
       : c.dup
-      ? itemRow(c.name, this.statusDot('Duplicate Charge', 'var(--rmx-error, #eb343c)'), 'They ' + this.dupWhy(c.dup) + '.', itemLink('Resolve', 'dupOpen', c.dup.prop + '::' + c.dup.key))
+      ? itemRow(c.name, this.statusDot('Duplicate Charge', 'var(--rmx-error, #eb343c)'), 'They ' + this.dupWhy(c.dup) + '.', itemLink('How do I resolve this?', 'dupOpen', c.dup.prop + '::' + c.dup.key))
       : itemRow(`${c.code}${ctNames[c.code] ? ' – ' + ctNames[c.code] : ''}`, this.statusDot('Missing Required Fields', 'var(--rmx-error, #eb343c)'), `Missing: ${c.missing.join(', ')}`, this.ctmOverridden(l.prop, c.code) ? itemLink('Edit Override', 'ctmOpen', l.prop + '::' + c.code) : itemLink('Edit Charge Type', 'ctOpen', c.code));
     return `<div data-act="ltErrClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:150">
       <div data-act="noop" style="width:714px;max-width:94vw;max-height:90vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
@@ -7292,7 +7378,7 @@ class Component extends DCLogic {
     const tone = act ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-attention, #f58220)';
     // No fill (2026-10-15, the user's call): the icon and the words, aligned with the bare check on ready rows.
     const pill = (t, extra) => `<span ${extra || ''} style="display:inline-flex;align-items:center;gap:5px;padding:2px 0;cursor:${extra ? 'pointer' : 'default'}">${this.filledIco('error', 14, 'color:' + tone + ';flex:none')}<span style="font-size:14px;color:${act ? '#a3252c' : '#7a5a2a'};white-space:nowrap">${t}</span></span>`;
-    if (dup) return pill('Duplicate', `data-act="dupOpen" data-arg="${String(dup.prop + '::' + dup.key).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" title="${this.dupLabelAt(dup)} ${this.dupWhy(dup)}. Select to resolve."`);
+    if (dup) return pill('Duplicate', `data-act="dupOpen" data-arg="${String(dup.prop + '::' + dup.key).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" title="${this.dupLabelAt(dup)} ${this.dupWhy(dup)}. Select to see how to resolve it."`);
     if (missing && missing.length) return this.infoTip(
       `<span style="display:block;white-space:normal;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);padding-bottom:9px;border-bottom:1px solid var(--rmx-line, #cedbe7)">Required for listings, missing on the ${String(code || '').toUpperCase()} charge type:</span>`
       + `<span style="display:flex;flex-direction:column;gap:10px;padding-top:11px">${missing.map(n => `<span style="font-size:14px;color:var(--rmx-brand-dark, #13314c);white-space:nowrap">${n}</span>`).join('')}</span>`, undefined, { trigger: pill('Missing Details') });
@@ -7678,7 +7764,7 @@ class Component extends DCLogic {
       link('Mass Edit Marketing', 'ftMassEdit', codes.join(','))));
     dupes.forEach(g => parts.push(line(`${this.dupLabel(g)[0].toUpperCase() + this.dupLabel(g).slice(1)} can’t both show on listings`,
       'They ' + this.dupWhy(g) + ', so listings using them won’t be sent until one is excluded, ended or changed to another charge type.',
-      link('Resolve', 'dupOpen', g.prop + '::' + g.key))));
+      link('How do I resolve this?', 'dupOpen', g.prop + '::' + g.key))));
     return `<div style="flex:none;display:flex;align-items:flex-start;gap:12px;padding:14px 16px;background:#fdecee;border:1px solid var(--rmx-error, #eb343c);border-radius:4px">
       ${this.ico('error', 20, 'color:var(--rmx-error, #eb343c);flex:none;margin-top:1px')}
       <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:14px">${parts.join('')}</span>
@@ -9036,7 +9122,6 @@ class Component extends DCLogic {
               <button data-act="addopen" data-arg="req-rec" class="btn-pri" style="height:36px;min-height:36px;padding:0 14px;border-radius:4px 0 0 4px;font-size:14px;white-space:nowrap">Add Charge</button>
               <button data-act="todo" data-arg="Add charge options" class="btn-pri" aria-label="More ways to add" style="height:36px;min-height:36px;width:32px;padding:0;border-radius:0 4px 4px 0;border-left:1px solid rgba(255,255,255,0.5);display:inline-flex;align-items:center;justify-content:center">${this.ico('arrow_drop_down', 20)}</button>
             </span>
-            <span data-act="todo" data-arg="More actions" title="More actions" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;cursor:pointer">${this.ico('more_vert', 20, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
           </div>
         </div>
         ${sections}
@@ -10756,7 +10841,7 @@ class Component extends DCLogic {
         <div id="m-dup-msg" style="display:none;align-items:center;gap:8px;padding:12px 8px;border:1px solid ${dupAct ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-notice, #faa61c)'};border-radius:4px;background:#fff">
           ${this.filledIco(dupAct ? 'error' : 'warning', 20, 'flex:none;color:' + (dupAct ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-notice, #faa61c)'))}
           <span style="flex:1;min-width:0;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">${esc(this.dupLabel(dupG))} ${this.dupWhy(dupG)}, so neither is listed.</span>
-          <a data-act="dupOpen" data-arg="${esc(dupG.prop)}::${esc(dupG.key)}" style="flex:none;padding:0 8px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">Resolve</a>
+          <a data-act="dupOpen" data-arg="${esc(dupG.prop)}::${esc(dupG.key)}" style="flex:none;padding:0 8px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">How do I resolve this?</a>
         </div>`;
     // One block inside the card, written live by `__mitsRecheck`, carrying whichever of the four
     // states this property is in. It sits with the fields because it is about them — it read as a
@@ -11770,6 +11855,7 @@ class Component extends DCLogic {
     out += this.rentDelHTML();
     out += this.ltErrHTML();
     out += this.dupResolveHTML();
+    out += this.dupHelpHTML();
     out += this.ltTypesHTML();
     out += this.colSetupHTML();
     out += this.addPropHTML();

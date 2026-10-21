@@ -245,6 +245,8 @@ badge, the banner above and the strip's Convert button all move while the overla
 
 **Error and warning glyphs are outlined everywhere** (2026-10-16, the user's call): `filledIco` draws only `check_circle` filled now, and `error` / `warning` fall through to the outlined `ico` glyphs, as do the Listing Errors lozenge's `D_ERR` / `D_WARN`. Notes below that say *filled* `error` or `warning` predate this.
 
+**Except Feed Status, which is always filled** (2026-10-21, the user's call): the Listings Feed Status column (`ltFeedLoz` passes `filledIco`'s new fourth `solid` argument) and the Listing Errors overlay's lozenges (`D_ERR` / `D_WARN` are the filled paths again) draw the filled `error` and `warning`, beside the filled `check_circle` Sent already had.
+
 **Text buttons never underline** (2026-10-14, the user's rule). Links and text buttons say they're
 clickable by colour alone: `a:hover` and the design system's `.rmx a:hover` (which underlines, and lives in
 `ds/`, so it is overridden in `index.html`'s head) only darken to `--rmx-brand-hover`; breadcrumbs do the
@@ -318,8 +320,8 @@ design canvas *Standardized Charges Tiles*, <https://claude.ai/artifact/3rJtePCj
   **Charges** (20px Regular) with **All `<Property>` Charges** and the close; then on the `#f3f4f8`
   ground, with no rules between bands, the unit scoreboard, a toolbar with **Past / Future /
   Exceptions** checkboxes on the left (where the property's level tabs sit — a unit has no levels to
-  pick) and **Preview Pricing** (under `ftApplicable`), **Add Charge** split and a kebab on the
-  right; **Recurring Charges (n)** and **One-Time Charges (n)** as white collapsible cards whose
+  pick) and **Preview Pricing** (under `ftApplicable`), **Add Charge** split on the
+  right (its kebab came off on 2026-10-21, the user's call); **Recurring Charges (n)** and **One-Time Charges (n)** as white collapsible cards whose
   register sits 16px in from the edges, **unstriped** (`striped:false`; the tile keeps its stripes), each row led by an orange **include** checkbox (visual only)
   and ending in Listing Ready and a kebab, with *+ Add … Charge* rows; and the totals footer. No
   Situational section and no filter button. Print is gone from it.
@@ -1153,6 +1155,17 @@ describes the design before that tag; the code for most of it is still in the fi
     it conflicts with the property's RC by role, not by type (it was a $150 RC *Short-term premium*): on listings in
     On Rollout / No ILS (The Berkshires isn't in Mid Conversion), so it reads 5/8 charge types there; excluded in Happy Path and Post Conversion (and `listingReadyRows` now keeps an
     excluded reference charge off listings), so those stay finished.
+  - **Duplicates explain rather than resolve** (2026-10-21, the user's call). Every way in — Setup's sub-row, Listing Errors'
+    Charge Errors item, the charge form's duplicate callout, the Charges register's Duplicate pill and `mitsBanner` — reads
+    **How do I resolve this?** and opens `dupHelpHTML` (`dupOpen` → `state.dupHelp = { prop, key }`, z-index 160, 720px):
+    *How to Resolve Duplicate Charges*, a lead (*Both charges are the Base Rent at the property for the same dates. Listings
+    can show only one Base Rent for a unit, so <property> can't activate fee transparency* / *…listings for those units
+    aren't sent* *until this is resolved.*), the charges (Charge Type · Charge Level · From – To · Amount), then two cards of
+    numbered ways: **Keep both charges on listings** — dates that don't overlap (recurring only), move one to a unit type or
+    unit (not when already on a unit), make one an additional charge (only when the charge types differ; **Open CODE Charge
+    Type** links, `dupHelpCT`) — and **List only one charge** — exclude one from listings, end one (recurring only), delete
+    one. Footer **View Charges** (`openFeeProfile`, hidden when opened from a charge form) and Close. The two-step task below
+    (`dupResolveHTML`, `dupKeep` / `dupSave` …) is unreachable.
   - **Resolve Duplicate Charges is a two-step RMX Task Overlay** (2026-10-19, the user's Figma flow `4054:91161`,
     built from canvas <https://claude.ai/artifact/BkcxqtD2jnM3Epsdwso6NR>): 769px, 24px padding, centred 24/32 SemiBold
     grey title, close X top right. **Step 1** — *Only one Base Rent charge can display on listing provider sites. Select
