@@ -5158,10 +5158,11 @@ class Component extends DCLogic {
     const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
     const INK = 'var(--rmx-brand-dark, #13314c)', GREY = 'var(--rmx-text, #666666)';
     const link = (t, act, arg) => `<span data-act="${act}"${arg ? ` data-arg="${esc(arg)}"` : ''} style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap">${t}</span>`;
+    const title = ((x) => x ? 'Duplicate ' + esc(x) : 'Duplicate Charges')(g && g.role ? this.leaseRoleLabel(g.role) : '');
     const shell = (inner) => `<div data-act="dupHelpClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:160">
-      <div data-act="noop" role="dialog" aria-label="How to resolve duplicate charges" style="width:720px;max-width:94vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
+      <div data-act="noop" role="dialog" aria-label="${title}" style="width:720px;max-width:94vw;max-height:92vh;background:#fff;border-radius:4px;box-shadow:0 8px 28px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;gap:16px;height:48px;box-sizing:border-box;padding:0 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);flex:none">
-          <span style="flex:1;min-width:0;font:400 20px/28px Roboto,sans-serif;color:${INK};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">How to Resolve Duplicate Charges</span>
+          <span style="flex:1;min-width:0;font:400 20px/28px Roboto,sans-serif;color:${INK};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${title}</span>
           <span data-act="dupHelpClose" role="button" aria-label="Close" style="display:flex;cursor:pointer">${this.ico('close', 24, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
         </div>
         ${inner}
@@ -5188,38 +5189,25 @@ class Component extends DCLogic {
         ${col('From – To', dates, false, 0.9)}
         ${col('Amount', esc(r.amount || ''), true, 0.8)}
       </div>`; };
-    const lead = `${esc(g.rows.length === 2 ? 'Both' : 'These')} charges are the ${esc(what)} ${esc(this.dupWhere(g.level, g.target))} for the same dates. Listings can show only one ${esc(what)} for a unit, so ${act
-      ? 'listings for those units aren’t sent until this is resolved.' : esc(g.prop) + ' can’t activate fee transparency until this is resolved.'}`;
-    // One way out: a number, its name in SemiBold, what it does in grey, and where it's done.
-    const way = (n, t, d, extra) => `<div style="display:flex;align-items:flex-start;gap:12px">
-        <span style="flex:none;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--rmx-bg-muted, #f2f2f2);font-size:12px;color:${INK}">${n}</span>
-        <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
-          <span style="font-size:14px;line-height:20px;font-weight:600;color:${INK}">${t}</span>
-          <span style="font-size:14px;line-height:20px;color:${GREY}">${d}</span>
-          ${extra ? `<span style="display:flex;flex-wrap:wrap;gap:4px 16px;padding-top:2px">${extra}</span>` : ''}
-        </span></div>`;
-    const section = (title, sub, ways) => `<div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;display:flex;flex-direction:column">
-        <div style="display:flex;flex-direction:column;gap:2px;padding:12px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7);background:var(--rmx-bg-subtle, #f5f8fa)">
-          <span style="font-size:14px;line-height:20px;font-weight:600;color:${INK}">${title}</span>
-          <span style="font-size:14px;line-height:20px;color:${GREY}">${sub}</span>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:16px;padding:16px">${ways.map((w, i) => way(i + 1, w[0], w[1], w[2])).join('')}</div>
+    // Version A of the UX-copy pass (2026-10-21, the user's pick): one rule, the charges, then each way out as a
+    // bare bullet under one of two headings — no descriptions, numbers or grey bands.
+    const lead = `Only one ${esc(what)} can apply to a unit at a time. Change one of these charges.`;
+    const list = (title, items) => `<div style="display:flex;flex-direction:column;gap:8px">
+        <span style="font-size:14px;line-height:20px;font-weight:600;color:${INK}">${title}</span>
+        <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:14px;line-height:20px;color:${INK}">${items.map(i => `<li>${i}</li>`).join('')}</ul>
       </div>`;
     const both = [];
-    if (!anyOne) both.push(['Give them dates that don’t overlap', `End one charge before the other starts, so each is the ${esc(what)} for its own dates.`]);
-    if (g.level !== 'Unit') both.push(['Move one to a unit type or unit', `The most specific ${esc(what)} applies, so a charge on a unit type or unit replaces the ${esc(g.level === 'Property' ? 'property’s' : 'unit type’s')} for those units only.`]);
-    if (role && codes.length > 1) both.push(['Make one an additional charge', `Change its charge type’s Charge Role to Additional Charge. Every charge of that charge type, at every property, changes with it.`,
-      codes.map(c => link('Open ' + esc(c) + ' Charge Type', 'dupHelpCT', c)).join('')]);
-    const one = [['Exclude one from listings', 'Open the charge and turn off Include on listings. It’s still billed; listings just won’t show it.']];
-    if (!anyOne) one.push(['End one charge', 'Set its To date. Ending it today resolves this now; a later date keeps both off listings until then.']);
-    one.push(['Delete one charge', 'If one was added by mistake, delete it.']);
+    if (!anyOne) both.push('End one before the other starts');
+    if (g.level !== 'Unit') both.push('Move one to a unit type or unit');
+    if (role && codes.length > 1) both.push('Make one an Additional Charge' + codes.map(c => ` <span style="color:${GREY}">·</span> ` + link('Open ' + esc(c), 'dupHelpCT', c)).join(''));
+    const one = ['Exclude one from listings', anyOne ? 'Delete one' : 'End or delete one'];
     // From inside a charge form, the form is already on the property's Charges, so no View Charges.
     const viewBtn = this.state.modal ? '' : `<button data-act="openFeeProfile" data-arg="${esc(g.prop)}" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap">View Charges</button>`;
     return shell(`<div style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:16px">
         <span style="font-size:14px;line-height:20px;color:${INK}">${lead}</span>
         <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px">${g.rows.map(chargeRow).join('')}</div>
-        ${both.length ? section('Keep both charges on listings', `Change them so only one is the ${esc(what)} for a unit at any time.`, both) : ''}
-        ${section('List only one charge', 'Keep the other off listings, or stop it.', one)}
+        ${both.length ? list('To list both', both) : ''}
+        ${list('To list only one', one)}
       </div>
       <div style="flex:none;display:flex;justify-content:flex-end;gap:16px;padding:12px 16px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7)">
         ${viewBtn}<button data-act="dupHelpClose" class="btn-out" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Close</button>

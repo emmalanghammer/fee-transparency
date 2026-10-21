@@ -1155,6 +1155,12 @@ describes the design before that tag; the code for most of it is still in the fi
     it conflicts with the property's RC by role, not by type (it was a $150 RC *Short-term premium*): on listings in
     On Rollout / No ILS (The Berkshires isn't in Mid Conversion), so it reads 5/8 charge types there; excluded in Happy Path and Post Conversion (and `listingReadyRows` now keeps an
     excluded reference charge off listings), so those stay finished.
+  - **The explainer was cut to UX-copy version A** (2026-10-21, the user's pick; the description below is the first
+    version): title **Duplicate Base Rent** (*Duplicate Security Deposit*), lead *Only one Base Rent can apply to a unit at a
+    time. Change one of these charges.*, the charges table, then plain bullets — **To list both**: *End one before the other
+    starts*, *Move one to a unit type or unit*, *Make one an Additional Charge · Open RC · Open MTM*; **To list only one**:
+    *Exclude one from listings*, *End or delete one* (*Delete one* for one-time charges). No descriptions, numbers or grey
+    bands; the same conditions hide what doesn't apply.
   - **Duplicates explain rather than resolve** (2026-10-21, the user's call). Every way in — Setup's sub-row, Listing Errors'
     Charge Errors item, the charge form's duplicate callout, the Charges register's Duplicate pill and `mitsBanner` — reads
     **How do I resolve this?** and opens `dupHelpHTML` (`dupOpen` → `state.dupHelp = { prop, key }`, z-index 160, 720px):
