@@ -31,6 +31,11 @@ property not in `publishedProps`), so Post Conversion shows none and Happy Path 
 Riverview activates. A property it can't apply to never activates, so it can't hold the banner on
 screen (2026-10-07; it used to wait on every listing advertising a complete price).
 
+**Two follow-ups the same day (2026-10-21, the user's calls):** an additional charge excluded from listings no longer
+counts as a duplicate, either way round (`chargeConflictFor`), so Existing Charge Error's *exclude it from displaying on
+listings* really clears it; and the charge form's **Missing Required Fields** dot is red before activation too (it was
+amber until a property activated).
+
 **Aligned with the Figma Zeplin screens (section `4130:152905`) on 2026-10-21.** What changed in the prototype:
 - **Setup's steps collapse**: each step header carries a chevron at the far right and toggles (`ftStepToggle`,
   `ftSetup.steps`; unset means the default — step 1 open while charge types are short, step 2 by the old `s2Open` rule);

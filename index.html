@@ -649,7 +649,10 @@ class Component extends DCLogic {
     if (row.propSpecific) return null;
     const k = this.chargeScopeKey(row);
     const others = this.appliedRows(prop).filter(r => r.mits && !r.propSpecific && (exceptId == null || String(r.id) !== String(exceptId)));
-    if (!this.chargeRole(row)) return others.find(r => !this.chargeRole(r) && this.chargeScopeKey(r) === k) || null;
+    // An additional charge kept off listings conflicts with nothing, and nothing conflicts with one (2026-10-21, the
+    // user's call: Existing Charge Error offers *exclude it from displaying on listings* as a fix, so it has to be one).
+    if (!this.chargeRole(row)) return row.ils === false ? null
+      : others.find(r => !this.chargeRole(r) && r.ils && !r.excluded && this.chargeScopeKey(r) === k) || null;
     if (!row.ils || this.chargeEnded(row)) return null;
     return others.find(r => r.ils && !r.excluded && !this.chargeEnded(r)
       && this.chargeScopeKey(r) === k && this.chargeOverlap(r, row)) || null;
@@ -10760,7 +10763,8 @@ class Component extends DCLogic {
     // RMX's Lozenge with no background (Figma `4013:164963`): the dot, then the label in italic navy.
     // Missing fields lead; a duplicate only shows once the fields are whole.
     const lrMarkup = (need, on, act, dup) => !on ? lrDot('var(--rmx-text-muted, #b3b3b3)') + '<span>Excluded from listings</span>'
-      : need ? lrDot(act ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-notice, #faa61c)') + '<span>Missing Required Fields</span>'
+      // Red before activation too (2026-10-21, the user's call), as everywhere else Missing Required Fields shows.
+      : need ? lrDot('var(--rmx-error, #eb343c)') + '<span>Missing Required Fields</span>'
       : dup ? lrDot(act ? 'var(--rmx-error, #eb343c)' : 'var(--rmx-notice, #faa61c)') + '<span>Duplicate Charge</span>'
       : lrDot('var(--rmx-success, #6eb744)') + '<span>Listing Ready</span>';
     // Live re-check: unlocks the toggle as fields are filled, and keeps the heading status, the
