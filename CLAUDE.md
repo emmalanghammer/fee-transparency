@@ -61,6 +61,7 @@ but *Select a charge type to view marketing details.* in grey italic (the full s
   the same time, so neither is listed.*
 - **A charge added from a unit or unit type** has Charge Level and that unit (type) locked, in the RMX disabled style
   (`.cf-lock`).
+- **Feed Status - Not Sent** (`3712:4829`) shows all three Charge Errors fixes since 2026-10-22: *Charge Errors (3)* — the DOGFEE missing-fields item (Edit Charge Type), the duplicate (How do I resolve this?) and *No Base Rent* · *Missing Base Rent* · *No charge on a Base Rent charge type reaches unit 3B, so the listing has no rent to send.* (View Charges), as `ltErrHTML` draws it.
 - **Listing Errors** is titled **Feed Status: Riverview Apartments 3B**; a missing-fields item reads **Charge Type: DOGFEE –
   Dog Rent**, a duplicate **2 Charge Types labeled as Base Rent** (*2 RC charges labeled as …* when one type).
 - **Mass Edit's filter is a checkbox**, *Only show charge types with missing required fields* beside the intro
