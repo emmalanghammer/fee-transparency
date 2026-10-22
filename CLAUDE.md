@@ -2391,10 +2391,12 @@ the Pricing Preview, which also now offers only charges that reach the previewed
 
 **Unticking a Required charge asks first** (2026-10-22, the user's call, rent quotes and Move In alike): `reqDropPopup(label,
 where, onOk)` raises an RMX Pop Up beside the app (`#m-reqdrop`, z-index 200, DOM-built like `roleDupPopup` so Move In keeps what
-was typed) — **Remove Required Charge**, the warning glyph, *“**GARBAG – Trash collection** is a required charge, so every
-resident pays it. Remove it from this quote?”* (*…this move-in?*), **Remove Charge** / Cancel. `rqTog` (rows carry `req`) and
+was typed) — **Remove Required Charge**, the warning glyph, then two lines to the user's Figma (`4240:81994`, Validation ›
+*Remove Required Charge*): *“**GARBAG Trash collection** is set as a required charge.”* (code and comment, no dash, SemiBold in the
+body's grey) over *“Are you sure you would like to remove it from the rent quote?”* (*…from the move-in?*), **Remove Charge** /
+Cancel. `rqTog` (rows carry `req`) and
 `__miPick` (`data-mi-req`, `data-mi-name`) call it only when a ticked charge on a Required charge type is being unticked; ticking,
-or unticking an optional charge, never asks. Figma: **Rent Quote - Remove Required Charge** (`4240:81436`, Pricing Tools).
+or unticking an optional charge, never asks. Figma: the Pop Up is `4240:81994` in Validation (the user moved it there from the Pricing Tools frame `4240:81436`).
 
 **The include rule, as the user specified it (2026-10-22), rent quotes and Move In alike** — Treat as tenant-level charge
 makes no difference:

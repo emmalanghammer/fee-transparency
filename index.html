@@ -1829,7 +1829,7 @@ class Component extends DCLogic {
           const sel = Object.assign({}, q.sel); sel[arg] = next; q.sel = sel; return { rq:q }; });
         // Taking a Required charge off the quote asks first (2026-10-22).
         if (!next && row.req) { const code = String(row.type || '').toUpperCase();
-          this.reqDropPopup(code + ' – ' + (row.comment || this.chargeTypeDesc(code) || ''), 'quote', apply); break; }
+          this.reqDropPopup(code + ' ' + (row.comment || this.chargeTypeDesc(code) || ''), 'rent quote', apply); break; }
         apply(); break; }
       case 'rqQty': { const [id, d] = String(arg).split(':');
         const row = this.rqAllRows().filter(r => r.id === id)[0]; if (!row) break;
@@ -4604,8 +4604,9 @@ class Component extends DCLogic {
     return lv === 'Property' ? 'at the property charge level'
       : (lv === 'Unit' ? 'on unit ' + target : 'on ' + (target || this.levelLabel(lv))) + ' at the ' + this.levelLabel(lv).toLowerCase() + ' charge level';
   }
-  // Unticking a Required charge on a rent quote or in the Move In wizard asks first (2026-10-22, the user's call): an RMX
-  // Pop Up built beside the app, like roleDupPopup, so Move In's typed fields survive. Remove Charge runs `onOk`.
+  // Unticking a Required charge on a rent quote or in the Move In wizard asks first (2026-10-22, the user's call; copy and
+  // layout to Figma 4240:81994): an RMX Pop Up built beside the app, like roleDupPopup, so Move In's typed fields survive.
+  // Remove Charge runs `onOk`.
   reqDropPopup(label, where, onOk){
     const root = document.querySelector('.rmx'); if (!root) return;
     const old = document.getElementById('m-reqdrop'); if (old) old.remove();
@@ -4620,7 +4621,10 @@ class Component extends DCLogic {
         </div>
         <div style="display:flex;align-items:flex-start;gap:16px;min-height:124px;box-sizing:border-box;padding:24px 8px 16px 16px">
           <svg width="48" height="48" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5));flex:none"><path d="M40-120 480-880l440 760H40Zm440-120q17 0 28.5-11.5T520-280q0-17-11.5-28.5T480-320q-17 0-28.5 11.5T440-280q0 17 11.5 28.5T480-240Zm-40-120h80v-200h-80v200Z"/></svg>
-          <span id="m-reqdrop-d" style="flex:1;min-width:0;max-width:400px;padding-right:8px;font-size:14px;line-height:20px;color:var(--rmx-text, #666666)"><strong style="font-weight:600;color:var(--rmx-brand-dark, #13314c)">${esc(label)}</strong> is a required charge, so every resident pays it. Remove it from this ${esc(where)}?</span>
+          <span style="flex:1;min-width:0;max-width:400px;padding-right:8px;display:flex;flex-direction:column;gap:16px;font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">
+            <span id="m-reqdrop-d"><strong style="font-weight:600">${esc(label)}</strong> is set as a required charge.</span>
+            <span>Are you sure you would like to remove it from the ${esc(where)}?</span>
+          </span>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:16px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:8px 16px">
           <button data-ok class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Remove Charge</button>
@@ -8381,7 +8385,7 @@ class Component extends DCLogic {
       if (cur && el.getAttribute('data-mi-req') === '1') { this.reqDropPopup(el.getAttribute('data-mi-name') || '', 'move-in', apply); return; }
       apply(); };
     const box = (f) => fixed(f) ? `<span style="display:flex;align-items:center;justify-content:center;height:44px;border-bottom:1px solid var(--rmx-line-soft, #ebf1f5)">${this.rmxCheckbox(true, true)}</span>`
-      : `<span style="display:flex;align-items:center;justify-content:center;height:44px;border-bottom:1px solid var(--rmx-line-soft, #ebf1f5)">${this.rmxCheckbox(on(f), false, ` data-mi-id="${f.id}"${(this.resolvedListing(f).requirement || '') === 'Required' ? ` data-mi-req="1" data-mi-name="${(String(f.mits || '').toUpperCase() + ' – ' + (f.desc || this.chargeTypeDesc(String(f.mits || '').toUpperCase()) || '')).replace(/"/g, '&quot;')}"` : ''} aria-label="Include ${String(f.mits || '').replace(/"/g, '&quot;')}" onclick="window.__miPick(this)"`)}</span>`;
+      : `<span style="display:flex;align-items:center;justify-content:center;height:44px;border-bottom:1px solid var(--rmx-line-soft, #ebf1f5)">${this.rmxCheckbox(on(f), false, ` data-mi-id="${f.id}"${(this.resolvedListing(f).requirement || '') === 'Required' ? ` data-mi-req="1" data-mi-name="${(String(f.mits || '').toUpperCase() + ' ' + (f.desc || this.chargeTypeDesc(String(f.mits || '').toUpperCase()) || '')).replace(/"/g, '&quot;')}"` : ''} aria-label="Include ${String(f.mits || '').replace(/"/g, '&quot;')}" onclick="window.__miPick(this)"`)}</span>`;
     const RC = '40px minmax(90px,1fr) minmax(130px,1.3fr) minmax(110px,1fr) minmax(60px,119px) minmax(96px,120px) minmax(96px,119px) minmax(96px,120px) 40px';
     const OC = '40px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 120px 40px';
     const msg = 'Select a unit to fill its charges.';
