@@ -79,7 +79,7 @@ frames' prospect (now Jordan Ellis). The Sent, Incomplete overlay's *General Mar
 **Fee Transparency Setup is Figma `4177:83065`** (2026-10-22, the user's design). On the Zeplin page since the same day:
 its three dialogs replaced the old one in Setup - Default / Expanded / Ready to Activate, both Activate confirmations, Bulk
 Activate Select Properties and Marketing Setup - Fee Transparency Setup (*8 of 9 Ready*, *3. Activate Riverview Apartments*),
-and **Setup - Fix Issues** (`4186:80162`) was added after Setup - Expanded. A 735px dialog: the 48px header with the close alone; one intro row, *Get Your Properties Ready for
+and **Setup - Fix Issues** (`4186:80162`) was added after Setup - Expanded. Since 2026-10-22 it carries all three kinds of item, in the prototype's order: *Missing Base Rent Charge Type* (The Windermere, an info icon whose Figma annotation holds the tooltip text, **View Charge Types**), *2 Charge Types labeled as Base Rent* (The Berkshires), *Base Rent Missing: 2 units* (Riverview Apartments, **View Charges**) — *Fix Issues (3)*. A 735px dialog: the 48px header with the close alone; one intro row, *Get Your Properties Ready for
 Fee Transparency* (16/24 SemiBold) left and *New to fee transparency? **Learn More*** (`todo`) right; then **three sections as
 an accordion — only one open at a time** (`ftStepToggle` sets `ftSetup.open` to `mkt` / `fix` / `act`, or null when the open
 one is clicked shut; unset, the first with work left opens: charge types short → `mkt`, else any Fix Issues → `fix`, else
