@@ -3151,8 +3151,14 @@ class Component extends DCLogic {
   // control that isn't part of the product. Full Menu › Prototype turns it on, the Rent Manager
   // logo toggles it, and ?test=1 on the URL starts with it showing.
   scenShow(){
-    if (this._scenShow == null) this._scenShow = /[?&]test=1/.test(String(location.search || ''));
+    if (this._scenShow == null) this._scenShow = /[?&]test=1/.test(String(location.search || '')) || this.isArtifact();
     return this._scenShow;
+  }
+  // Running as the published claude.ai artifact rather than the GitHub Pages site or a local preview (2026-10-22, the user's
+  // call): there the Test Feature State picker shows from the start, and On Rollout opens on the launch announcement.
+  isArtifact(){
+    const h = String(location.hostname || '');
+    return location.protocol !== 'file:' && !!h && !/(^|\.)github\.io$|^localhost$|^127\.0\.0\.1$|^\[::1\]$|\.localhost$/.test(h);
   }
   // Toggled straight on the DOM rather than through state: the header sits over every screen, and a
   // re-render here would wipe anything typed into a form that hasn't been saved yet.
@@ -3393,8 +3399,9 @@ class Component extends DCLogic {
     // In C the Listings page **is** the `feetrans` view: `'listings'` is not a view key and falls
     // through to the Unit page, which is where Post Conversion had been landing.
     plan.view = (key === 'mid' || key === 'post') ? 'feetrans' : 'register';
-    // The announcement is opened deliberately from the nav, not thrown at the user on load.
-    plan.announce = false;
+    // The announcement is opened deliberately from the nav, not thrown at the user on load — except in the published
+    // artifact, where On Rollout (launch day) opens on it.
+    plan.announce = key === 'on' && this.isArtifact();
     return plan;
   }
   // The two designs are served as sibling pages, so the switcher's link has to carry the whole

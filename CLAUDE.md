@@ -2544,6 +2544,10 @@ definition of a scenario.
 `scenarioPlan`'s `plan.view` uses that — Post Conversion had been setting `'listings'`, which matches
 nothing and falls through to the Unit page, so that scenario opened on a random unit.
 
+**The published artifact differs in two ways** (2026-10-22, the user's call, *for the artifact only*): `isArtifact()` — any
+host other than GitHub Pages, localhost or a file — shows the Test Feature State picker from the start (`scenShow`), and
+`scenarioPlan` opens **On Rollout on the launch announcement** (`plan.announce`). The site and local previews are unchanged.
+
 The Test Feature State selector starts **hidden**, so a demo never opens with a control that
 isn't part of the product. **Full Menu › Prototype › Show Test Feature State** turns it on (the
 menu item's label flips to Hide), clicking the Rent Manager logo toggles it, and `?test=1` on the
