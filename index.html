@@ -1815,8 +1815,9 @@ class Component extends DCLogic {
       case 'rqNext': this.rqCapture(); if (!(this.state.rq || {}).unit) break; this.setState(s => ({ rq: Object.assign({}, s.rq, { step:2 }) })); break;
       case 'rqBack': this.setState(s => ({ rq: Object.assign({}, s.rq, { step:1 }) })); break;
       case 'rqAddOri': { this.rqCapture();
-        // A rentable item rides along with a unit, so there has to be one first.
-        if (!(this.state.rq && this.state.rq.unit)) { this.flash('Choose the primary unit first', 'error'); break; }
+        // A rentable item rides along with a unit, so there has to be one first. The UI never offers it without one, so the
+        // guard is silent (2026-10-22, the user's call: its toast was unreachable).
+        if (!(this.state.rq && this.state.rq.unit)) break;
         this.setState(s => { const q = Object.assign({}, s.rq);
           q.oris = (q.oris || []).concat([{ prop:'', unit:'', ctype:'', amount:'' }]); return { rq:q }; }); break; }
       case 'rqRmOri': { this.rqCapture(); const i = parseInt(arg, 10);
@@ -1850,7 +1851,7 @@ class Component extends DCLogic {
           const c = Object.assign({}, q.closed); if (c[arg]) delete c[arg]; else c[arg] = true;
           q.closed = c; return { rq:q }; }); break; }
       case 'rqSave': { const q = this.state.rq; if (!q) break;
-        if (!q.unit) { this.flash('Choose a unit before saving the quote', 'error'); break; }
+        if (!q.unit) break;   // step two can't be reached without a unit, so no toast (2026-10-22)
         const rec = this.rqRecurring();
         const monthly = this.rqSum(rec.primary.rows) + rec.oris.reduce((n, g) => n + this.rqSum(g.rows), 0);
         const row = { prop: this.rqShort(q.prop), unit: q.unit || '', amount: monthly,
