@@ -2402,7 +2402,7 @@ class Component extends DCLogic {
     // 4110:114732, 2026-10-21) rather than the inline error. It is DOM-only, so the form keeps what was typed.
     // An additional charge that repeats another's charge type at that level raises the same Pop Up, titled Existing
     // Charge Error (Figma Validation, 2026-10-21); it used to be inline text under the form.
-    if (dup) { this.roleDupPopup(String(dup.mits || '').toUpperCase(), roleNow, this.dupWhere(app, target));
+    if (dup) { this.roleDupPopup(String(dup.mits || '').toUpperCase(), roleNow, this.dupWhere(app, target), this.dupLevelWhere(app, target));
       const eb0 = this.q('#m-err'); if (eb0) eb0.style.display = 'none'; return false; }
     if (dup) {
       const role = roleNow;
@@ -4572,7 +4572,14 @@ class Component extends DCLogic {
   // RMX Pop Up (warning), Figma 4110:114732: a new Base Rent / Security Deposit charge would conflict with one
   // already there at an activated property. Built in the DOM beside the app, not through state, because a
   // re-render would clear the charge form behind it; OK just removes it.
-  roleDupPopup(code, role, where){
+  // Where an additional charge's twin sits, naming the charge level (2026-10-22, the user's call: the same charge type
+  // may well be on another level): *at the property charge level*, *on 2BR/2BA at the unit type charge level*.
+  dupLevelWhere(level, target){
+    const lv = String(level || 'Property');
+    return lv === 'Property' ? 'at the property charge level'
+      : (lv === 'Unit' ? 'on unit ' + target : 'on ' + (target || this.levelLabel(lv))) + ' at the ' + this.levelLabel(lv).toLowerCase() + ' charge level';
+  }
+  roleDupPopup(code, role, where, levelWhere){
     const root = document.querySelector('.rmx'); if (!root) return;
     const old = document.getElementById('m-roledup'); if (old) old.remove();
     const label = role ? this.leaseRoleLabel(role) : '';
@@ -4588,7 +4595,7 @@ class Component extends DCLogic {
         <div style="display:flex;align-items:flex-start;gap:16px;min-height:124px;box-sizing:border-box;padding:24px 8px 16px 16px">
           <svg width="48" height="48" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5));flex:none"><path d="M40-120 480-880l440 760H40Zm440-120q17 0 28.5-11.5T520-280q0-17-11.5-28.5T480-320q-17 0-28.5 11.5T440-280q0 17 11.5 28.5T480-240Zm-40-120h80v-200h-80v200Z"/></svg>
           <span style="flex:1;min-width:0;max-width:400px;padding-right:8px;display:flex;flex-direction:column;gap:16px;font-size:14px;line-height:20px;color:var(--rmx-text, #666666)">
-            <span id="m-roledup-d">${label ? `A charge using the ${esc(code)} charge type is already the ${esc(label)} ${esc(where)}.` : `A charge using the ${esc(code)} charge type exists ${esc(where)}.`}</span>
+            <span id="m-roledup-d">${label ? `A charge using the ${esc(code)} charge type is already the ${esc(label)} ${esc(where)}.` : `A charge using the ${esc(code)} charge type exists ${esc(levelWhere || where)}.`}</span>
             <span>To add this charge, exclude it from displaying on listings, change the charge level it applies to, or change the charge type.</span>
           </span>
         </div>

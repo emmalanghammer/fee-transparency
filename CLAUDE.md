@@ -50,9 +50,11 @@ but *Select a charge type to view marketing details.* in grey italic (the full s
   level, or make one an additional charge instead of base rent on the charge type.* / *To only list one, you can exclude
   one of these charges from listings, end one before the other charge starts, or delete a charge.* (what doesn't apply drops
   out) — with **Close** alone.
-- **Existing Charge Error**: a duplicate additional charge (same charge type and comment) raises the same Pop Up as the
-  Base Rent one (`roleDupPopup` with no role): *A charge using the APPFEE charge type exists at the property.* over the
-  same fix line, OK.
+- **Existing Charge Error**: a duplicate additional charge (same charge type at the same level) raises the same Pop Up as the
+  Base Rent one (`roleDupPopup` with no role): *A charge using the GARBAG charge type exists at the property charge level.*
+  (`dupLevelWhere`, 2026-10-22, the user's call — the type may be on another level too: *on 2BR/2BA at the unit type charge
+  level*, *on unit 1A at the unit charge level*) over the same fix line, OK. The Zeplin Validation section carries it, and
+  since 2026-10-22 a **Duplicate Security Deposit Charges** frame (`4206:79173`) beside the Base Rent one.
 - **The $0.00 note** opens *This charge is $0.00 or negative.* for either case (it read *…a negative amount.* for a
   negative one) and is an RMX Warning Callout (white, 1px orange edge, amber `warning`) in **General**, under the Amount.
 - **The charge form's duplicate callout** reads *2 charges at the property can't both be the Base Rent for the same units at
