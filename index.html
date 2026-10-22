@@ -5339,7 +5339,11 @@ class Component extends DCLogic {
     const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
     const INK = 'color:var(--rmx-brand-dark, #13314c)';
     const loz = (t, bg, icon) => `<span style="display:inline-flex;align-items:center;gap:8px;height:24px;box-sizing:border-box;padding:0 8px;border-radius:4px;background:${bg};font-size:14px;line-height:20px;${INK};white-space:nowrap;flex:none">${icon || ''}${t}</span>`;
-    const right = r.ready
+    // An activated property closes the list (2026-10-22, the user's call): nothing to do, so RMX's Brand lozenge alone
+    // (#cce8f7, the filled check in brand blue) — blue, so it isn't read as the green Ready.
+    const right = r.converted
+      ? loz('Fee Transparent', '#cce8f7', this.filledIco('check_circle', 16, 'color:var(--ac,var(--rmx-brand, #008dd5));flex:none'))
+      : r.ready
       ? `<span data-act="pubOpen" data-arg="${esc(r.p)}" style="font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap;flex:none">Activate Fee Transparency</span>${loz('Ready', 'var(--rmx-success-bg, #e2f1da)')}`
       : `${issues ? `<span style="font-size:14px;line-height:20px;color:var(--rmx-text, #666666);white-space:nowrap;flex:none">${issues} issue${issues === 1 ? '' : 's'}</span>` : ''}${loz('Not Ready', '#fdf3e7', this.ico('warning', 16, 'color:var(--rmx-notice, #faa61c);flex:none'))}`;
     return `<div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:8px;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;background:#fff;flex:none">
@@ -5444,8 +5448,8 @@ class Component extends DCLogic {
     const act = section('act', 3, st.only ? 'Activate ' + esc(st.only) : 'Activate Fee Transparency',
       all.length ? this.statusDot(`${okN} of ${rows.length} Ready`, allDone ? GREEN : AMBER) : '', allDone,
       `<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap"><div style="flex:1 1 240px;min-width:0">${DESC('A property can activate once every charge type used is ready and all units have one Base Rent charge.')}</div>${bulk}</div>
-      ${rows.length ? `<div style="display:flex;flex-direction:column;gap:8px">${rows.map(r => this.ftPropRow(r, r.short.length + fix.filter(f => f.props.indexOf(r.p) >= 0).length)).join('')}</div>`
-        : DESC(doneN ? 'Every property is fee transparent.' : 'No properties are enabled for online listings yet.')}`);
+      ${!rows.length ? DESC(doneN ? 'Every property is fee transparent.' : 'No properties are enabled for online listings yet.') : ''}
+      ${all.length ? `<div style="display:flex;flex-direction:column;gap:8px">${rows.map(r => this.ftPropRow(r, r.short.length + fix.filter(f => f.props.indexOf(r.p) >= 0).length)).join('')}${all.filter(r => r.converted).map(r => this.ftPropRow(r, 0)).join('')}</div>` : ''}`);
 
     const intro = `<div style="flex:none;display:flex;align-items:center;justify-content:space-between;gap:4px 16px;flex-wrap:wrap">
       <span style="font-size:16px;line-height:24px;font-weight:600;${INK}">Get Your Properties Ready for Fee Transparency</span>

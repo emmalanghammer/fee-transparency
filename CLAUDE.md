@@ -105,6 +105,11 @@ one is clicked shut; unset, the first with work left opens: charge types short �
   Base Rent charge.* with **Bulk Activate Fee Transparency** beside it when more than one is ready, then one row per property
   still to activate (`ftPropRow(r, issues)`): house glyph, name, then *n issues* (its short charge types plus its Fix Issues
   items) and **Not Ready**, or **Activate Fee Transparency** and **Ready**. `ftSetupProp` and the per-property sub-rows are gone.
+- **Fee Transparent properties close the Activate list** (2026-10-22, the user's call): after the properties still to
+  activate, every activated one in scope (`ftSetupRows`' `converted`) gets a row with no action and RMX's **Brand** lozenge —
+  `#cce8f7`, the filled `check_circle` in brand blue, *Fee Transparent* — blue so it isn't read as the green Ready. *n of m
+  Ready* still counts only the properties to activate. Mid Conversion: The Estates, The Hamptons, then Riverview and The
+  Windermere. Figma: **Setup - Fee Transparent Properties** (`4218:79158`, under Ready to Activate), The Windermere activated.
 - On Rollout: *2 of 10 Ready* (NSF, LATE), Fix Issues (1) — *Missing Base Rent Charge Type* under all three properties — and
   Riverview *8 issues*. Mid Conversion: *7 of 8 Ready*, Fix Issues (0), The Estates *1 issue*, The Hamptons Ready.
 
