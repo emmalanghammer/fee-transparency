@@ -638,7 +638,7 @@ it has no `data-act`, no chevron and no hover, since there is nothing behind it.
 **Feed Status** dropdown (`multiSelect('lt-status')`, styled white with a brand outline by `.lt-ms`)
 over the three statuses, all ticked to start. `state.ltStatus` holds the keys shown; empty means all,
 and `['none']` stands for nothing ticked. `ltGroups` filters on it. Ticking re-renders, so
-`window.__ltStatus` reopens the panel afterwards. `ltErrOnly` is left for the Marketing Center's
+`window.__ltStatus` reopens the panel afterwards. Figma's **Listings - Not Grouped** (`3713:5513`) shows it open since 2026-10-22: the field in its Selected state over a 200px panel (`4223:79891`) — Search, Select all, a rule, Sent / Sent, Incomplete / Not Sent ticked (RMX Checkbox), a rule, *3 of 3 selected*. Grouped stays the default view. `ltErrOnly` is left for the Marketing Center's
 `mcErrs`.
 
 **C is A minus a page, not a different model.** Marketing details are still edited in Marketing
