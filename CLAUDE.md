@@ -1229,7 +1229,7 @@ describes the design before that tag; the code for most of it is still in the fi
     fields *Recurring Charges Only* / *One-Time Charges Only* (it read *Required: used by 2 recurring charges*
     / *Not needed: …* from `mktUse` briefly; the user asked for the static qualifiers back), and Mass Edit shows a grey dash (not Missing) for a field no charge of the type needs, and
     `-` rather than Missing on a type no listed charge uses (SF).
-  - **Additional charges are duplicates on type + name** (2026-10-19, the fixes brief, item 1): two charges with no
+  - *(Until 2026-10-22, when the Comment stopped counting)* **Additional charges are duplicates on type + name** (2026-10-19, the fixes brief, item 1): two charges with no
     Base Rent / Security Deposit role conflict when they share charge type, **name — the charge's Comment**
     (`chargeNameKey`: trimmed, spaces collapsed, case-blind) — level and target (`chargeScopeKey`'s non-role key; no
     frequency). Different comments are fine. It is **blocked on every save**, on listings or not and whatever the dates:
@@ -1239,12 +1239,16 @@ describes the design before that tag; the code for most of it is still in the fi
     key, so the dialog's skip / replace handles it). Base Rent / Security Deposit keep the rule below.
   - **Additional-charge duplicates are flagged again** (2026-10-22, the user's call: saving can't create one, but charges
     already there — from rollout, say — still have to be caught). `chargeDupes` no longer skips charges without a role: two
-    charges of one charge type with the same name (Comment) at the same level and target, both on listings, live and
-    overlapping, are a duplicate like a role pair — *Duplicate Charge* on the Charges register and charge form, a Fix Issues
+    charges of one charge type — both recurring or both one-time — at the same level and target, both on listings, live and
+    overlapping, are a duplicate like a role pair, **whatever their Comments** (the user's call the same day: a listing names
+    the fee by its marketing Name, which every charge of the type shares, so the Comment can't tell them apart).
+    `chargeScopeKey` is `type|CODE|rec·one|level|target`, read by the save check (`chargeConflictFor`, so Existing Charge
+    Error blocks a second GARBAG at the property whatever it's called) and Add Property's copy (`sameCharge`) too — *Duplicate Charge* on the Charges register and charge form, a Fix Issues
     item in Setup, a Charge Errors item (Not Sent at an activated property). `dupTitle(g)` names both kinds: *2 Charge Types
-    labeled as Base Rent* / *2 GARBAG charges named “Trash collection”*. The explainer is *Resolve Duplicate Charges* with
-    its own lead (*These charges have the same charge type and name at the same charge level, so they’d show on listings as
-    the same fee. Change one of these charges.*) and *give one a different comment* first among the ways to list both.
+    labeled as Base Rent* / *2 GARBAG charges listed as “Garbage Fee”* (the marketing Name). The explainer is *Resolve
+    Duplicate Charges* with its own lead (*These charges use the same charge type at the same charge level, so they’d show on
+    listings as the same fee. Change one of these charges.*) and *change one to a different charge type* among the ways to
+    list both.
     Excluding one clears it. No scenario seeds one, so every baseline is unchanged. The note below is history.
   - **Only Base Rent / Security Deposit conflicts are ever flagged** (2026-10-19, brief item 2): `chargeDupes` skips any
     charge without a role, so an additional charge never reads *Duplicate Charge*, never reaches Resolve, the Listing
