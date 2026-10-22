@@ -706,9 +706,14 @@ screens on the Figma Zeplin page (`3682:13`, section `4130:152905`) in the same 
 
 **Every Zeplin frame tells one story** (the user's call: *I want everything cohesive from section to section*; story *Oakwood
 already live*). Keep new frames inside it.
+**It is the Figma screens' story, not the prototype's** (the user's call, 2026-10-22: *for the prototype I want a true On
+Rollout, but for the Figma screens I want to show all states of the feature*). The prototype's On Rollout is launch day —
+nothing live, nothing filled in but NSF / LATE — so its figures before activation match these frames, and its Mid Conversion
+carries the after-activation states; the frames' portfolio and moments are not a scenario the prototype runs.
 
 - **Portfolio**, in this order everywhere: Riverview Apartments (RIVER), The Berkshires, The Windermere, **Oakwood Manor (live
-  before the release)**, Clearcreek Condominiums (MH Village, N/A). The prototype's On Rollout is the same portfolio.
+  before the release)**, Clearcreek Condominiums (MH Village, N/A). The prototype's On Rollout has the same five, with Oakwood
+  Manor not marketed.
 - **Listings figures** (Base Rent · Security Deposit · Total Monthly Price once live): Riverview 3B 1B/1BA $1,375 · $600 ·
   $1,403; 5A Studio $990 · $500 · $1,018; 4C 3B/2BA $2,050 · $900 · $2,078. Berkshires 214 2B/2BA $750 before / $1,600 live ·
   $750 · $1,628; 302 1B/1BA $810 · $600 · $838. Windermere 12 3B/2.5BA $985 · $900 · $1,007; 4 $1,040 · $900 · $1,062 (always
@@ -1534,13 +1539,8 @@ describes the design before that tag; the code for most of it is still in the fi
 - **Scenarios pick their short type** (`mktDefShort`): Happy Path and Post Conversion none; Mid
   Conversion **DOGFEE** (Riverview activated and drifted, The Estates short, The Windermere complete, The
   Hamptons ready); No ILS **GARBAG**.
-- **On Rollout opens with Oakwood Manor already live** (2026-10-22, the user's story for every Figma frame: *Oakwood already
-  live*). Oakwood Manor lists online (`scenarioMarketed('on')`) and is fee transparent (`scenarioPlan`), so the charge types it
-  runs — RC (Base Rent), GARBAG, APPFEE, DP (Security Deposit), FMR (`rolloutLive()`) — are complete from the start; every
-  other type is as below (blank but for NSF / LATE). Setup opens on **7 of 10 Ready** (COVPARK, DOGFEE, MTM short), Fix Issues
-  (0), Riverview / The Berkshires / The Windermere Not Ready and Oakwood Manor Fee Transparent; Listings shows Oakwood's
-  $924 / $1,184 and every other listing Sent with —. What follows was the rule before; it still holds for the types Oakwood
-  doesn't use.
+- *(Undone the same day)* On Rollout briefly opened with Oakwood Manor live and its charge types complete; the user wanted the
+  prototype to be **a true On Rollout** and the Oakwood-live story kept to the Figma screens (below, *The Zeplin story*).
 - **On Rollout has no marketing details at all** (2026-10-20, the user's calls: "truly on rollout", then the defaults).
   `mktDefAll` gives every charge type an entry with Marketing Description, Charge Requirement, Charge Schedule, Charge
   Timing and Refundability blank, the **Name defaulting to the charge type's description** (*Rent*, *Garbage Fee*), the
