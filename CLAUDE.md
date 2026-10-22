@@ -702,6 +702,35 @@ Header + Cell, and fields are `Input Field`. Page `3465:40468` ("V2") holds the 
 **Keep Figma in step** (2026-10-21, the user's call): from here on a change to the prototype is also made to the matching
 screens on the Figma Zeplin page (`3682:13`, section `4130:152905`) in the same turn.
 
+## The Zeplin story (2026-10-22)
+
+**Every Zeplin frame tells one story** (the user's call: *I want everything cohesive from section to section*; story *Oakwood
+already live*). Keep new frames inside it.
+
+- **Portfolio**, in this order everywhere: Riverview Apartments (RIVER), The Berkshires, The Windermere, **Oakwood Manor (live
+  before the release)**, Clearcreek Condominiums (MH Village, N/A). The prototype's On Rollout is the same portfolio.
+- **Listings figures** (Base Rent · Security Deposit · Total Monthly Price once live): Riverview 3B 1B/1BA $1,375 · $600 ·
+  $1,403; 5A Studio $990 · $500 · $1,018; 4C 3B/2BA $2,050 · $900 · $2,078. Berkshires 214 2B/2BA $750 before / $1,600 live ·
+  $750 · $1,628; 302 1B/1BA $810 · $600 · $838. Windermere 12 3B/2.5BA $985 · $900 · $1,007; 4 $1,040 · $900 · $1,062 (always
+  Sent, Incomplete). Oakwood 5 1B/1BA $890 · $600 · $924; 22 2B/2BA $1,150 · $750 · $1,184. Clearcreek 7 2B/1BA $1,080 · — ·
+  N/A. A property not yet live reads — for Total Monthly Price.
+- **Moments.** *Rollout* — only Oakwood live; 7 of 10 charge types ready (COVPARK, DOGFEE, MTM short); Fix Issues (1): Riverview's
+  units without a Base Rent. *Fix Issues* — MTM marked Base Rent makes The Berkshires' duplicate (resolved by excluding MTM).
+  *Ready to Activate* — Fix Issues (1), Riverview *1 issue*, Berkshires and Windermere Ready, 2 of 3 Ready; the confirmations
+  activate The Berkshires (one) or The Berkshires and The Windermere (multiple). *Activated* — the toast names The Berkshires
+  and The Windermere. *All live* — Riverview activated too, so the Listings banner is gone; Feed Status - Not Sent is Riverview
+  after DOGFEE drifted (Missing: Charge Requirement, Charge Schedule; *3 Listings Not Sent* on the DOGFEE charge form).
+- **Frames by moment.** Rollout: Setup - Default, Setup - Fix Issues, Ready to Activate and the three dialogs over it, Charge
+  Types Register, Mass Edit, the Charge Type Details frames, Property Charges / Charge Exceptions (COVPARK and DOGFEE Missing
+  Required Fields), Marketing Setup - Before / FT Setup (*7 of 9 Ready*), Pricing Preview - Before, the overrides. Activated:
+  Fee Transparency Activated. All live: Marketing Setup / Pricing Preview / Edit Floor Plan - After Activation and both Feed
+  Status overlays. **The Listings default view** (Listings - Grouped / Not Grouped) shows every kind of listing (the user's
+  call): Berkshires, Windermere and Oakwood live, Riverview not (Sent, —), Clearcreek N/A, and all three statuses — Berkshires
+  302 Not Sent (the property's RC / MTM Base Rent duplicate reaches it; 214 has its own unit-type Base Rent).
+- **People.** The prospect is Jordan Ellis (JE, account 516, reserved unit 2B, jellis@lcs.com); Charlie Apegian is 1B's tenant.
+- Pet Type Lock (DOGFEE) and Other Rentable Item (COVPARK) forms read Listing Ready: they sit after those types were filled in.
+  GARBAG is never short (Oakwood runs it); the $0.00 and Recurring charge forms show it Listing Ready.
+
 ## Branches
 
 - **`experiment`** is where the work happens, and it is what GitHub Pages serves.
