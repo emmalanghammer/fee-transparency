@@ -74,8 +74,10 @@ without the Base Rent condition, *Pet Details* without *(Optional)*, Tenant Char
 frames' prospect (now Jordan Ellis). The Sent, Incomplete overlay's *General Marketing Errors* / *Zillow Errors* were renamed in Figma to the prototype's
 **Marketing Errors** / **Listing Provider Errors** (the user's call).
 
-**Fee Transparency Setup is Figma `4177:83065`** (2026-10-22, the user's design; not yet on the Zeplin page — the user
-asked to hold Figma). A 735px dialog: the 48px header with the close alone; one intro row, *Get Your Properties Ready for
+**Fee Transparency Setup is Figma `4177:83065`** (2026-10-22, the user's design). On the Zeplin page since the same day:
+its three dialogs replaced the old one in Setup - Default / Expanded / Ready to Activate, both Activate confirmations, Bulk
+Activate Select Properties and Marketing Setup - Fee Transparency Setup (*8 of 9 Ready*, *3. Activate Riverview Apartments*),
+and **Setup - Fix Issues** (`4186:80162`) was added after Setup - Expanded. A 735px dialog: the 48px header with the close alone; one intro row, *Get Your Properties Ready for
 Fee Transparency* (16/24 SemiBold) left and *New to fee transparency? **Learn More*** (`todo`) right; then **three sections as
 an accordion — only one open at a time** (`ftStepToggle` sets `ftSetup.open` to `mkt` / `fix` / `act`, or null when the open
 one is clicked shut; unset, the first with work left opens: charge types short → `mkt`, else any Fix Issues → `fix`, else
