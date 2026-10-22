@@ -111,6 +111,9 @@ one is clicked shut; unset, the first with work left opens: charge types short �
   `#cce8f7`, the filled `check_circle` in brand blue, *Fee Transparent* — blue so it isn't read as the green Ready. *n of m
   Ready* still counts only the properties to activate. Mid Conversion: The Estates, The Hamptons, then Riverview and The
   Windermere. Figma: **Setup - Fee Transparent Properties** (`4218:79158`, under Ready to Activate), The Windermere activated.
+  Since 2026-10-22 the other Setup frames with the list open — Ready to Activate, both Activate confirmations and Bulk
+  Activate Select Properties — end in an **Oakwood Manor** Fee Transparent row (the activated property their Listings
+  backgrounds show, with Total Monthly Prices).
 - On Rollout: *2 of 10 Ready* (NSF, LATE), Fix Issues (1) — *Missing Base Rent Charge Type* under all three properties — and
   Riverview *8 issues*. Mid Conversion: *7 of 8 Ready*, Fix Issues (0), The Estates *1 issue*, The Hamptons Ready.
 
