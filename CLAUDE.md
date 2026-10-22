@@ -174,6 +174,11 @@ charge types*, step 2 was a **Property · Types Ready · What's Left · Status**
   separate green *Ready to display all charges?* strip and the *Add GARBAG marketing details* next steps
   are gone with this revision.
 
+**The explainer's charges table wraps** (2026-10-22): `dupHelpHTML`'s `col()` values wrap rather than ellipsize, at
+Charge Type 1.5 · Charge Level 1.2 · From – To 1 · Amount 1.1, so *Unit Market Rent* and *MTM – Month-to-Month Rent* read
+in full. Figma `4130:152751` matches (the property name beside the P tag, *Close*). Every Figma register's Amount column is
+210px, so *Unit Default Security Deposit* fits; Comment gave up the width.
+
 **Bulk Activate is conditional, and that is the point.** **Bulk Activate Fee Transparency**
 (`ftActivateReady`; the header button of Activate Properties since 2026-10-15) renders only when `ftReadyProps()` is non-empty —
 properties that are applicable, carry charges, have none outstanding and haven't converted. That

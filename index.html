@@ -5151,14 +5151,14 @@ class Component extends DCLogic {
     // The charges in conflict, as the Resolve task drew them: Charge Type · Charge Level · From – To · Amount.
     const col = (label, value, bold, grow) => `<div style="flex:${grow || 1} 1 0;min-width:0;display:flex;flex-direction:column;gap:2px;overflow:hidden">
         <span style="font-size:12px;color:${GREY};white-space:nowrap">${label}</span>
-        <span style="font-size:14px;line-height:20px;color:${INK};${bold ? 'font-weight:600;' : ''}white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${value}</span></div>`;
+        <span style="font-size:14px;line-height:20px;color:${INK};${bold ? 'font-weight:600;' : ''}overflow-wrap:anywhere">${value}</span></div>`;
     const chargeRow = (r, i) => { const code = String(r.mits || '').toUpperCase();
       const dates = /-one$/.test(r.group || '') ? '—' : esc(r.from || '') + ' –' + (r.to ? ' ' + esc(r.to) : '');
       return `<div style="display:flex;align-items:flex-start;gap:24px;padding:8px 12px;${i ? 'border-top:1px solid var(--rmx-line, #cedbe7);' : ''}">
-        ${col('Charge Type', esc(code + ' – ' + (names[code] || r.name || '')) + (r.desc ? `<span style="color:${GREY}"> · ${esc(r.desc)}</span>` : ''), false, 1.6)}
+        ${col('Charge Type', esc(code + ' – ' + (names[code] || r.name || '')) + (r.desc ? `<span style="color:${GREY}"> · ${esc(r.desc)}</span>` : ''), false, 1.5)}
         ${col('Charge Level', `<span style="display:inline-flex;align-items:center;gap:8px;max-width:100%">${this.chargeLevelCell(g.level, lvlName)}</span>`, false, 1.2)}
-        ${col('From – To', dates, false, 0.9)}
-        ${col('Amount', esc(r.amount || ''), true, 0.8)}
+        ${col('From – To', dates, false, 1)}
+        ${col('Amount', esc(r.amount || ''), true, 1.1)}
       </div>`; };
     // The Zeplin screens (2026-10-21) settle it as two sentences — how to list both, how to list only one — under the
     // rule and the charges, with Close alone in the footer. What doesn't apply drops out of each sentence.
