@@ -1237,6 +1237,15 @@ describes the design before that tag; the code for most of it is still in the fi
     filters for these; inline `#m-err`: *APPFEE charge “Pet application” already exists on unit 1A. Give this charge a
     different comment, or edit the other one.*), Bulk Update (`#bu-err`, same key) and Copy (`sameCharge` is the same
     key, so the dialog's skip / replace handles it). Base Rent / Security Deposit keep the rule below.
+  - **Additional-charge duplicates are flagged again** (2026-10-22, the user's call: saving can't create one, but charges
+    already there — from rollout, say — still have to be caught). `chargeDupes` no longer skips charges without a role: two
+    charges of one charge type with the same name (Comment) at the same level and target, both on listings, live and
+    overlapping, are a duplicate like a role pair — *Duplicate Charge* on the Charges register and charge form, a Fix Issues
+    item in Setup, a Charge Errors item (Not Sent at an activated property). `dupTitle(g)` names both kinds: *2 Charge Types
+    labeled as Base Rent* / *2 GARBAG charges named “Trash collection”*. The explainer is *Resolve Duplicate Charges* with
+    its own lead (*These charges have the same charge type and name at the same charge level, so they’d show on listings as
+    the same fee. Change one of these charges.*) and *give one a different comment* first among the ways to list both.
+    Excluding one clears it. No scenario seeds one, so every baseline is unchanged. The note below is history.
   - **Only Base Rent / Security Deposit conflicts are ever flagged** (2026-10-19, brief item 2): `chargeDupes` skips any
     charge without a role, so an additional charge never reads *Duplicate Charge*, never reaches Resolve, the Listing
     Errors or Charge Types overlays, and `chargeReady` never fails on one — a duplicate of one is blocked at save

@@ -591,8 +591,9 @@ class Component extends DCLogic {
   // From–To windows overlap (To exclusive; a one-time charge has no window, so it always overlaps).
   //   · Role: two Base Rent charges (recurring, on Base Rent charge types, whichever types) or two
   //     Security Deposit charges (one-time, on Security Deposit types) — B-/A-/P-/D- rows.
-  //   · Additional charges are never flagged here (2026-10-19, fixes brief item 2): a duplicate of one is
-  //     blocked when it is saved (`chargeConflictFor`), so it can't exist to be resolved.
+  //   · Additional charges: two of one charge type with the same name (Comment) at the same level and target
+  //     (2026-10-22, the user's call — saving can't create one, but charges already there, e.g. from rollout,
+  //     still have to be caught; from 2026-10-19 this skipped them).
   // Only charges on listings count: excluding one resolves it. A charge that has ended doesn't.
   // Groups are `{ key, prop, code, codes, role, level, target, kind, rows, ids }`, cached per property.
   chargeDupes(prop){
@@ -602,7 +603,7 @@ class Component extends DCLogic {
     if (this._dupCache[p]) return this._dupCache[p];
     const G = {};
     this.appliedRows(p).forEach(r => {
-      if (!r.ils || !r.mits || r.propSpecific || r.excluded || this.chargeEnded(r) || !this.chargeRole(r)) return;
+      if (!r.ils || !r.mits || r.propSpecific || r.excluded || this.chargeEnded(r)) return;
       const k = this.chargeScopeKey(r);
       (G[k] = G[k] || []).push(r);
     });
@@ -707,6 +708,12 @@ class Component extends DCLogic {
   dupLabel(g){ return g.rows.length + ' ' + this.dupWhat(g) + ' charges ' + this.dupWhere(g.level, g.target); }
   // The same, naming the property: *2 Base Rent charges at The Berkshires*, *2 RC charges on 2BR/2BA at The Berkshires*.
   dupLabelAt(g){ return g.level === 'Property' ? g.rows.length + ' ' + this.dupWhat(g) + ' charges at ' + g.prop : this.dupLabel(g) + ' at ' + g.prop; }
+  // A duplicate's name as an item title: *2 Charge Types labeled as Base Rent* (*2 RC charges labeled as …* for one
+  // type), or for additional charges *2 APPFEE charges named “Application fee”* (2026-10-22).
+  dupTitle(g){ const codes = []; g.rows.forEach(r => { const k = String(r.mits || '').toUpperCase(); if (codes.indexOf(k) < 0) codes.push(k); });
+    if (g.role) return (codes.length > 1 ? g.rows.length + ' Charge Types labeled as ' : g.rows.length + ' ' + codes[0] + ' charges labeled as ') + this.leaseRoleLabel(g.role);
+    const nm = String((g.rows[0] && g.rows[0].desc) || '').trim();
+    return g.rows.length + ' ' + codes[0] + ' charges' + (nm ? ' named “' + nm.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '”' : ''); }
   // Why the pair can't both list, in a sentence's middle.
   dupWhy(g){ return g.role ? 'can’t both be the ' + this.leaseRoleLabel(g.role) + ' for the same units at the same time' : 'would show on listings as the same fee'; }
   // How a charge type is used on listings, across the properties fee transparency applies to: how many
@@ -5234,8 +5241,10 @@ class Component extends DCLogic {
       </div>`; };
     // The Zeplin screens (2026-10-21) settle it as two sentences — how to list both, how to list only one — under the
     // rule and the charges, with Close alone in the footer. What doesn't apply drops out of each sentence.
-    const lead = `Only one ${esc(what)} can apply to a unit at a time. Change one of these charges.`;
+    const lead = role ? `Only one ${esc(what)} can apply to a unit at a time. Change one of these charges.`
+      : `These charges have the same charge type and name at the same charge level, so they’d show on listings as the same fee. Change one of these charges.`;
     const both = [];
+    if (!role) both.push('give one a different comment');
     if (!anyOne) both.push('end one before the other starts');
     if (g.level !== 'Unit') both.push('move one to a different charge level');
     if (role && codes.length > 1) both.push(`make one an additional charge instead of ${esc(what.toLowerCase())} on the charge type`);
@@ -5391,10 +5400,8 @@ class Component extends DCLogic {
     const link = (t, act, arg) => `<span data-act="${act}"${arg ? ` data-arg="${esc(arg)}"` : ''} style="font-size:14px;line-height:20px;color:var(--ac,var(--rmx-brand, #008dd5));cursor:pointer;white-space:nowrap;flex:none">${t}</span>`;
     const out = [], none = [];
     rows.forEach(r => {
-      r.dupes.forEach(g => { const codes = [];
-        g.rows.forEach(x => { const k = String(x.mits || '').toUpperCase(); if (codes.indexOf(k) < 0) codes.push(k); });
-        out.push({ title: g.role ? (codes.length > 1 ? g.rows.length + ' Charge Types labeled as ' : g.rows.length + ' ' + codes[0] + ' charges labeled as ') + this.leaseRoleLabel(g.role) : esc(this.dupLabelAt(g)),
-          dot: 'Duplicate Charge', props: [r.p], action: link('How do I resolve this?', 'dupOpen', r.p + '::' + g.key) }); });
+      r.dupes.forEach(g => out.push({ title: this.dupTitle(g), dot: 'Duplicate Charge', props: [r.p],
+        action: link('How do I resolve this?', 'dupOpen', r.p + '::' + g.key) }));
       const rs = this.roleSetupState(r.p);
       if (rs === 'none') none.push(r.p);
       else if (rs === 'gap') { const n = this.roleRentGap(r.p);
@@ -6016,8 +6023,7 @@ class Component extends DCLogic {
       ? itemRow('No Base Rent', this.statusDot('Missing Base Rent', 'var(--rmx-error, #eb343c)'), 'No charge on a Base Rent charge type reaches unit ' + escA(l.unit) + ', so the listing has no rent to send.', itemLink('View Charges', 'openFeeProfile', l.prop))
       : c.dup
       // Item names follow the Zeplin screens (2026-10-21): *2 Charge Types labeled as Base Rent*, *Charge Type: DOGFEE – Dog Rent*.
-      ? itemRow(((g) => { const codes = []; g.rows.forEach(r => { const k = String(r.mits || '').toUpperCase(); if (codes.indexOf(k) < 0) codes.push(k); });
-          return g.role ? (codes.length > 1 ? g.rows.length + ' Charge Types labeled as ' : g.rows.length + ' ' + codes[0] + ' charges labeled as ') + this.leaseRoleLabel(g.role) : c.name; })(c.dup),
+      ? itemRow(this.dupTitle(c.dup),
           this.statusDot('Duplicate Charge', 'var(--rmx-error, #eb343c)'), 'They ' + this.dupWhy(c.dup) + '.', itemLink('How do I resolve this?', 'dupOpen', c.dup.prop + '::' + c.dup.key))
       : itemRow(`Charge Type: ${c.code}${ctNames[c.code] ? ' – ' + ctNames[c.code] : ''}`, this.statusDot('Missing Required Fields', 'var(--rmx-error, #eb343c)'), `Missing: ${c.missing.join(', ')}`, this.ctmOverridden(l.prop, c.code) ? itemLink('Edit Override', 'ctmOpen', l.prop + '::' + c.code) : itemLink('Edit Charge Type', 'ctOpen', c.code));
     return `<div data-act="ltErrClose" style="position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:150">
