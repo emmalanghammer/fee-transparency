@@ -2350,6 +2350,19 @@ Charges tile and overlay, Move In), the unit type scope of `chargeScope`, `rqRow
 the Pricing Preview, which also now offers only charges that reach the previewed unit
 (`chargeReachesUnit`, exceptions included) where it used to list every charge on the property.
 
+**The include rule, as the user specified it (2026-10-22), rent quotes and Move In alike** — Treat as tenant-level charge
+makes no difference:
+
+| Charge Requirement | Tenant-level | Checkbox |
+|---|---|---|
+| Required | No | Checked, active |
+| Required | Yes | Checked, active |
+| Optional or none | No | Unchecked, active |
+| Optional or none | Yes | Unchecked, active |
+
+Verified the same day at Riverview 3B in Mid Conversion: RC, APPFEE, DP, FMR (Required, tenant-level) and GARBAG (Required)
+checked; DOGFEE (no requirement, tenant-level) unchecked; every box active.
+
 **Tenant-level charges follow their Charge Requirement** (2026-10-22, the user's call, rent quote and Move In alike): a charge
 treated as tenant-level is an ordinary checkbox — ticked to start when its charge type is *Required*, unticked otherwise, and
 either way the agent's to change — where it was the Disabled checked variant. It keeps the **T** tag / *Tenant* Source. Only a
