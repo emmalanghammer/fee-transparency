@@ -136,8 +136,9 @@ at 12px; the whole setup — charge types ready plus properties activated, over 
   Types** (2026-10-21; it read *Base Rent Missing: no Base Rent charge* · View Charges).
 - Opening Setup from Listings opens the **first Not Ready property**; from Marketing Setup, that property. Rows and
   headers wrap on a narrow pane.
-- **Learning is the help panel, not a step.** `ftHelpHTML` carries *What is fee transparency?*; it sits at z-index 156 over
-  the Setup overlay.
+- **There is no help panel any more** (2026-10-22, the user's call: its text is kept outside the prototype). `ftHelpHTML`,
+  `ftHelpLoz`, `state.ftHelp` and the `ftHelp*` cases are gone; the Listings header's help icon is `todo` chrome like Print and
+  Refresh beside it, and Setup's **Learn More** opens nothing.
 
 *(Before 2026-10-20, later)* Setup was a two-step checklist with a register under each step (canvas
 <https://claude.ai/artifact/UDQid3WQcdTD1FoNXePwJS>, board A): step 1 listed short charge types and duplicates behind *Show
@@ -239,7 +240,7 @@ all removed with this design — the whole journey now runs through Setup. `pubO
 confirmation still exist and are still reached from the Marketing Setup overlay's property strip,
 which keeps its filled Convert button; nothing on Listings calls them.
 
-**The Listings help panel follows the current page** (`ftHelpHTML`, 2026-10-19, brief item 8): step 1 is **Add Marketing
+*(Removed 2026-10-22)* **The Listings help panel follows the current page** (`ftHelpHTML`, 2026-10-19, brief item 8): step 1 is **Add Marketing
 Details to Charge Types**, step 2 says both conditions and that activating runs through Fee Transparency Setup; the
 Status Key is Setup's own **Not Ready / Ready / Fee Transparent** (`ftHelpLoz` draws them as `ftPropRow` does; Complete
 and the other old rungs are gone); Column Descriptions are **Base Rent, Security Deposit, Total Monthly Price, Available,
