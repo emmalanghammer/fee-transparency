@@ -2397,8 +2397,11 @@ class Component extends DCLogic {
     const activated = !!(this.state.publishedProps || {})[this.state.property];
     const hit = this.chargeConflictFor({ mits: code, group: m.group, level: app, target: target || '', ils,
       desc: v('m-comment'), from: isOneNow ? '' : v('m-from'), to: isOneNow ? '' : v('m-to') }, this.state.property, m.edit ? m.edit.id : null);
-    const dup = hit && (!roleNow || activated) ? hit : null;
-    this._roleFlag = hit && roleNow && !activated ? { dup: hit, role: roleNow, where: this.dupWhere(app, target) } : null;
+    // Any duplicate — Base Rent / Security Deposit or an additional charge — is blocked only once the property has
+    // activated (2026-10-22, the user's call; an additional charge used to be blocked before activation too). Before that it
+    // saves, both charges read Duplicate Charge, and the property can't activate until it's resolved.
+    const dup = hit && activated ? hit : null;
+    this._roleFlag = hit && !activated ? { dup: hit, role: roleNow, where: roleNow ? this.dupWhere(app, target) : this.dupLevelWhere(app, target) } : null;
     // After activation, a Base Rent / Security Deposit conflict raises RMX's warning Pop Up over the form (Figma
     // 4110:114732, 2026-10-21) rather than the inline error. It is DOM-only, so the form keeps what was typed.
     // An additional charge that repeats another's charge type at that level raises the same Pop Up, titled Existing
@@ -2533,8 +2536,11 @@ class Component extends DCLogic {
   // What a save that made a Base Rent / Security Deposit conflict before activation adds to its toast.
   roleFlagNote(){
     const f = this._roleFlag; this._roleFlag = null; if (!f) return '';
+    const code = String(f.dup.mits || '').toUpperCase();
+    if (!f.role) return '. A charge using the ' + code + ' charge type already exists ' + f.where
+      + ', so both read Duplicate Charge and fee transparency can’t be activated until one is resolved.';
     const L = this.leaseRoleLabel(f.role);
-    return '. ' + String(f.dup.mits || '').toUpperCase() + (f.dup.desc ? ' – ' + f.dup.desc : '') + ' is also the ' + L + ' ' + f.where
+    return '. ' + code + (f.dup.desc ? ' – ' + f.dup.desc : '') + ' is also the ' + L + ' ' + f.where
       + ', so both read Duplicate Charge and fee transparency can’t be activated until one is resolved.';
   }
   tog(def, id){
@@ -10928,7 +10934,9 @@ class Component extends DCLogic {
     // header drops its status, its Not Sent count and its chevron, says so instead, and doesn't open.
     { const recheck = window.__mitsRecheck;
       window.__mitsRecheck = () => { recheck();
-        const code = String(((this.q('#m-ctype') || {}).value) || '').trim().toUpperCase();
+        // The NSF / Late form has no Charge Type field: its charge type is the charge's own (2026-10-22, the user's bug).
+        const el = this.q('#m-ctype'), ed = (this.state.modal || {}).edit;
+        const code = String((el ? el.value : ed && ed.mits) || '').trim().toUpperCase();
         const none = !code || !this.chargeTypeListAll().some(t => t[0] === code);
         const head = this.q('#m-mkt-head'), pick = this.q('#m-mkt-pick'), caret = this.q('#m-mkt-caret'), body = this.q('#m-mkt-body');
         const st = this.q('#m-lr-status'), cnt = this.q('#m-mkt-count');

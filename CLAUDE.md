@@ -37,7 +37,7 @@ listings* really clears it; and the charge form's **Missing Required Fields** do
 amber until a property activated). And a **new charge with no charge type yet** shows no status in its Marketing Details
 header — no Missing Required Fields, no *n Listings Not Sent* (the count used to read the property's whole listing set) —
 but *Select a charge type to view marketing details.* in grey italic (the full stop is the user's Figma wording), with no chevron and no toggle (`#m-mkt-head`
-`data-off`, set by a wrapper around `__mitsRecheck`); picking a charge type restores it.
+`data-off`, set by a wrapper around `__mitsRecheck`); picking a charge type restores it. The NSF / Late form, which has no Charge Type field, reads the charge's own code, so it never shows the prompt (2026-10-22).
 
 **Aligned with the Figma Zeplin screens (section `4130:152905`) on 2026-10-21.** What changed in the prototype:
 - **Setup's steps collapse**: each step header carries a chevron at the far right and toggles (`ftStepToggle`,
@@ -1440,6 +1440,13 @@ describes the design before that tag; the code for most of it is still in the fi
     lone **OK**. It is built in the DOM beside the app (`#m-roledup`, z-index 200), not through state, so the charge form
     behind it keeps what was typed; OK, the close or the scrim removes it. Additional-charge duplicates keep the inline
     error. Before activation nothing changed (the save goes through and both charges read Duplicate Charge).
+  - **Every duplicate saves before activation** (2026-10-22, the user's call): an additional charge repeating another of its
+    charge type at that level now follows the Base Rent rule — before the property activates the save goes through, both
+    charges read *Duplicate Charge* (a Fix Issues item; the property leaves `ftReadyProps`) and the toast adds *A charge using
+    the GARBAG charge type already exists at the property charge level, so both read Duplicate Charge and fee transparency
+    can’t be activated until one is resolved.* (`roleFlagNote`, `dupLevelWhere`); after activation it is still blocked by
+    Existing Charge Error. It used to be blocked either way. Checked in Mid Conversion: a second GARBAG saves at The Hamptons
+    and is blocked at Riverview.
   - **Deleting a Base Rent after activation asks first, but doesn't block** (2026-10-20, round 2 item 1). `rowDelete`
   checks `rentDelUnits(row)` — at an activated property, the listed units whose `ltChargeHits` include this Base Rent —
   and when there are any raises `rentDelHTML` (`state.rentDel = { id, units }`, z-index 160, modelled on the unit-type
