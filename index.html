@@ -6228,14 +6228,16 @@ class Component extends DCLogic {
     return list.some(x => x[0] === c);
   }
   tcsSystem(){
-    return { rec: [['RC','Flat Amount'],['DOGFEE','Pet Type Recurring Amount']],
-             one: [['DP','Flat Amount'],['FMR','Unit Market Rent']] };
+    // RC and DP came over as references (2026-10-22, the user's call: the property charges reference Unit Market Rent and
+    // the unit's default deposit, so the setup they came from says so).
+    return { rec: [['RC','Unit Market Rent'],['DOGFEE','Pet Type Recurring Amount']],
+             one: [['DP','Unit Default Security Deposit'],['FMR','Unit Market Rent']] };
   }
   // A property could override System Preferences with its own list. Riverview did, adding the
   // application fee, so the property overlay has both faces to show.
   tcsOverrides(){
-    return { 'Riverview Apartments': { rec: [['RC','Flat Amount'],['DOGFEE','Pet Recurring Amount']],
-                                       one: [['DP','Flat Amount'],['FMR','Unit Market Rent'],['APPFEE','Flat Amount']] } };
+    return { 'Riverview Apartments': { rec: [['RC','Unit Market Rent'],['DOGFEE','Pet Recurring Amount']],
+                                       one: [['DP','Unit Default Security Deposit'],['FMR','Unit Market Rent'],['APPFEE','Flat Amount']] } };
   }
   // What a Tenant Charge Setup source became on the property charge: a flat figure stays flat, a pet
   // type's amount stays with the pet type, and anything the charge read from elsewhere is now that
@@ -6269,7 +6271,7 @@ class Component extends DCLogic {
         <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c)">
           ${li(`${b('Edit them in the property&#39;s Charges.')} Rent quotes, Move In and Add Tenant add charges from there.`)}
           ${li(`${b('New tenants get their own copy.')} These charges have <em>Treat as tenant-level charge</em> ticked, so each tenant who moves in or is added gets a tenant-level charge they can edit.`)}
-          ${li(`${b('Charge Source is now the charge&#39;s Amount.')} Unit Market Rent became a Reference amount; flat and pet type amounts are unchanged.`)}
+          ${li(`${b('Charge Source is now the charge&#39;s Amount.')} Unit Market Rent and Unit Default Security Deposit became Reference amounts; flat and pet type amounts are unchanged.`)}
         </ul>
         ${prop
           ? `<button data-act="openFeeProfile" data-arg="${esc(prop)}" class="btn-pri" style="align-self:flex-start;margin-top:4px;height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Go to ${prop} Charges</button>`

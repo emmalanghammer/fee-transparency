@@ -110,7 +110,7 @@ one is clicked shut; unset, the first with work left opens: charge types short �
   activate, every activated one in scope (`ftSetupRows`' `converted`) gets a row with no action and RMX's **Brand** lozenge —
   `#cce8f7`, the filled `check_circle` in brand blue, *Fee Transparent* — blue so it isn't read as the green Ready. *n of m
   Ready* still counts only the properties to activate. Mid Conversion: The Estates, The Hamptons, then Riverview and The
-  Windermere. Figma: **Setup - Fee Transparent Properties** (`4218:79158`, under Ready to Activate), The Windermere activated.
+  Windermere. In Figma the Setup frames with the list open show it (a *Setup - Fee Transparent Properties* frame was added, then removed by the user the same day as redundant with them).
   Since 2026-10-22 the other Setup frames with the list open — Ready to Activate, both Activate confirmations and Bulk
   Activate Select Properties — end in an **Oakwood Manor** Fee Transparent row (the activated property their Listings
   backgrounds show, with Total Monthly Prices).
@@ -2478,6 +2478,11 @@ The property's note ends in a primary **Go to `<Property>` Charges** button. Sys
 points to the property links in its tables instead. Both tables gained **Amount** (*Amount on the Charge* until 2026-10-12)
 (`tcsAmountOf(src)`: *Flat*, *From the pet type*, or *Reference: `<source>`*), so the source and
 what it became sit side by side. System Preferences has no property column (2026-10-12): every property carries these charges, so the banner names only the ones that overrode the setup.
+
+**RC and DP came over as references too** (2026-10-22, the user's call: *more accurate*): `tcsSystem()` and Riverview's
+override list RC's Charge Source as **Unit Market Rent** and DP's as **Unit Default Security Deposit**, so their Amount reads
+*Reference: …*, matching the property charges they became; the banner's third bullet reads *Unit Market Rent and Unit Default
+Security Deposit became Reference amounts; flat and pet type amounts are unchanged.* APPFEE stays Flat. Both Figma frames match.
 
 **FMR (first month's rent) is the worked example of a referenced source.** Its Tenant Charge Setup
 source was **Unit Market Rent**, so it arrived as a required one-time Property charge with
