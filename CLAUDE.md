@@ -2291,6 +2291,16 @@ Unit Recurring Charge, Unit Market Rent, Asset Market Rent**), plus **Unit Defau
 (`depTypesFor`) opens on Unit Default Security Deposit, anything else on Unit Market Rent. RC now reads
 *Unit Market Rent* and COVPARK, an ORI charge, *Asset Market Rent*.
 
+**The property deposit references the unit's default deposit** (2026-10-22, the user's call, the way RC references Unit Market
+Rent): the seeded DP charge (id 7) is `amtMethod:'Reference'`, `amount:'Unit Default Security Deposit'` with no figure, so it
+prices per unit through `unitDeposit` (Studio $500, 1BR/1BA $600, 2BR/2BA $750, 3BR/2BA $900). Registers show the reference
+text; Listings' Security Deposit reads it per unit (`ltDeposit`, by `bedsDeposit(l.beds)` for a unit the prototype keeps no
+record of), so Listing Details reads *$500.00 – $900.00* at Riverview; rent quotes, the Pricing Preview and Move In price it for
+the unit (3B: $600, one-time total **$2,015.00**, was $1,915.00); the tenant's deposit and charges price for the tenant's unit
+(`tenantAmt` is `chargeAmt` now); and a property or unit type total adds *+ Default Deposit* / the type's figure
+(`chargeTotals`). The Berkshires' 3BR/2BA $750 DP stays flat. The Zeplin frames follow (register cells, the 1BR figures, the
+Listing Details range, the totals).
+
 **Every pricer reads a reference for the unit it's pricing** (2026-10-14): `chargeAmt(r, unit)` is the
 charge's figure, else `refAmount(r, unit)`, else its `est`, else 0 — so a reference now wins over an
 `est` (RC's `est:1350` no longer shows; it prices at the unit's market rent). `refAmount` reads **Unit

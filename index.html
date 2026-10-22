@@ -1200,7 +1200,8 @@ class Component extends DCLogic {
       Object.assign({ id:4,  group:'req-rec', mits:'GARBAGEFEE', name:'Trash valet',       desc:'Additional trash valet',       freq:'Every Month', from:'01/01/2026', to:'', amount:'$4.00',       amtMethod:'Flat',      ils:true  }, L('Unit','4C')),
       Object.assign({ id:5,  group:'req-one', mits:'ADMIN',      name:'Administrative fee',desc:'Administrative fee',           from:'01/01/2026', to:'', amount:'$150.00',   amtMethod:'Flat', ils:true  }, L('Property')),
       Object.assign({ id:6,  group:'req-one', mits:'APPFEE',     name:'Application fee',   desc:'Application fee, per applicant',from:'01/01/2026', to:'', amount:'$50.00',   amtMethod:'Flat', ils:true  }, L('Property')),
-      Object.assign({ id:7,  group:'req-one', mits:'DP',         name:'Security deposit',  desc:'Security deposit',             from:'01/01/2026', to:'', amount:'$500.00',   amtMethod:'Flat', ils:true }, L('Property')),
+      // The deposit references the unit's own default deposit (2026-10-22, the user's call), as RC references its Market Rent.
+      Object.assign({ id:7,  group:'req-one', mits:'DP',         name:'Security deposit',  desc:'Security deposit',             from:'01/01/2026', to:'', amount:'Unit Default Security Deposit', amtMethod:'Reference', ils:true }, L('Property')),
       // First month's rent came over from Tenant Charge Setup at rollout, charge source Unit Market
       // Rent: no figure and no estimate, so every preview and quote prices it from the unit's own
       // Market Rent — what the unit page's Market Rent tile shows.
@@ -2585,6 +2586,8 @@ class Component extends DCLogic {
   // on the same charge type written at its unit type or at the unit. Null where there's nothing to read.
   unitDeposit(unitNo){ const t = (this.unitInfo(unitNo) || {}).type;
     return ({ 'Studio': 500, '1BR/1BA': 600, '2BR/2BA': 750, '3BR/2BA': 900 })[t] || 600; }
+  // The same default deposit read off a listing's bedrooms, for a unit the prototype keeps no record of.
+  bedsDeposit(beds){ return [500, 600, 750, 900][Math.min(3, Math.max(0, Math.round(beds || 0)))]; }
   refAmount(r, unitNo){
     const a = String(r.amount || ''), u = unitNo ? this.unitInfo(unitNo) : null; if (!u) return null;
     if (/unit market rent/i.test(a)) return this.parseAmt(u.rent);
@@ -5973,7 +5976,8 @@ class Component extends DCLogic {
       || groups.filter(x => x.level === 'Unit Type' && types.indexOf(x.target) >= 0)[0]
       || groups.filter(x => x.level === 'Property')[0];
     if (!g || !g.chosen) return null;
-    const r = g.chosen, n = this.chargeAmt(r, ui && ui.u);
+    const r = g.chosen, known = this.units().some(u => u.u === l.unit);
+    const n = !known && /unit default security deposit/i.test(String(r.amount || '')) ? this.bedsDeposit(l.beds) : this.chargeAmt(r, ui && ui.u);
     return n || null;
   }
   ltUnitType(l){
@@ -8924,11 +8928,14 @@ class Component extends DCLogic {
   chargeTotals(scope, rec, one){
     const info = this.unitInfo(this.state.unit) || {};
     const sum = (list) => {
-      let n = 0, mr = false;
-      const utRent = scope === 'unittype' ? this.parseAmt(((this.units().find(u => u.type === (this.state.unitType || 'Studio')) || {}).rent)) : 0;
+      let n = 0, mr = false, dep = false;
+      const utUnit = scope === 'unittype' ? (this.units().find(u => u.type === (this.state.unitType || 'Studio')) || {}) : {};
       list.forEach(f => { if (scope === 'unit' && f.level !== 'Tenant') { n += this.chargeAmt(f, info.u); return; }
-        if (/unit market rent/i.test(String(f.amount || ''))) { if (scope === 'unittype') n += utRent; else mr = true; } else n += this.parseAmt(f.amount); });
-      return this.money(n) + (mr ? ' + Market Rent' : '');
+        const a = String(f.amount || '');
+        if (/unit market rent/i.test(a)) { if (scope === 'unittype') n += this.parseAmt(utUnit.rent); else mr = true; }
+        else if (/unit default security deposit/i.test(a)) { if (scope === 'unittype' && utUnit.u) n += this.unitDeposit(utUnit.u); else dep = true; }
+        else n += this.parseAmt(f.amount); });
+      return this.money(n) + (mr ? ' + Market Rent' : '') + (dep ? ' + Default Deposit' : '');
     };
     const part = (n, label, total) => `<span style="display:inline-flex;align-items:baseline;gap:8px;white-space:nowrap"><span style="font-weight:600">${n} ${label}${n === 1 ? '' : 's'}</span><span>${total}</span></span>`;
     return part(rec.length, 'Recurring Charge', sum(rec)) + part(one.length, 'One-Time Charge', sum(one));
@@ -9388,7 +9395,7 @@ class Component extends DCLogic {
   }
   tenantRent(){ const i = this.unitInfo(this.state.unit); return this.parseAmt(i && i.rent) || 0; }
   // A charge's figure, falling back to its estimate when the amount is calculated or referenced.
-  tenantAmt(f){ return this.parseAmt(f.amount) || f.est || 0; }
+  tenantAmt(f){ return this.chargeAmt(f, this.state.unit); }
   // What the tenant is billed each month, in the order the charges post.
   // A charge is named the way the Charges tab names it — its comment, with its charge type beside
   // it — so one charge doesn't read as three different things across the tenant's tiles.
