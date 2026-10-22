@@ -80,8 +80,9 @@ Fee Transparency* (16/24 SemiBold) left and *New to fee transparency? **Learn Mo
 an accordion — only one open at a time** (`ftStepToggle` sets `ftSetup.open` to `mkt` / `fix` / `act`, or null when the open
 one is clicked shut; unset, the first with work left opens: charge types short → `mkt`, else any Fix Issues → `fix`, else
 `act`). No numbered steps, no progress bar, and property rows no longer open.
-- **A section** is a white card, 1px `--rmx-line`, 4px radius, 16px padding. Collapsed: the label at 14/20 Regular (a filled
-  green 20px `check_circle` before it once the section is done) and a navy chevron. Open: the brand border and RMX
+- **A section** is a white card, 1px `--rmx-line`, 4px radius, 16px padding, its label **numbered** — *1.*, *2.*, *3.* (the
+  user's update the same day). Collapsed: the label at 14/20 Regular, a filled green 20px `check_circle` **after** it once the
+  section is done (it sat before the label for an hour), and a navy chevron. Open: the brand border and RMX
   dropshadow-sm, the label SemiBold with its dot status (`statusDot`) beside it, a 1px rule, then the body, 16px apart.
 - **Add Marketing Details to Charge Types** counts **missing marketing details only** (`ftSetupSteps` no longer counts a
   role conflict as a charge type short): *n of m Ready*, the copy *Set once on the charge type. Every charge that uses it, at
@@ -95,8 +96,8 @@ one is clicked shut; unset, the first with work left opens: charge types short �
   (listed under it), *Missing Base Rent Charge Type* with its RMX Tooltip · *Missing Base Rent* · **View Charge Types**. The
   lead: *Fix any outstanding issues, typically related to having multiple charges that use a base rent or security deposit
   assigned charge type. …* With none, the header reads *Fix Issues (0)* with the check.
-- **Activate Fee Transparency** (*Activate Properties* collapsed, as the Figma has it; *Activate <Property>* when opened from
-  Marketing Setup) — *n of m Ready*, *A property can activate once every charge type used is ready and all units have one
+- **Activate Fee Transparency** (collapsed too, since the user's update; *Activate <Property>* when opened from Marketing
+  Setup) — *n of m Ready*, *A property can activate once every charge type used is ready and all units have one
   Base Rent charge.* with **Bulk Activate Fee Transparency** beside it when more than one is ready, then one row per property
   still to activate (`ftPropRow(r, issues)`): house glyph, name, then *n issues* (its short charge types plus its Fix Issues
   items) and **Not Ready**, or **Activate Fee Transparency** and **Ready**. `ftSetupProp` and the per-property sub-rows are gone.

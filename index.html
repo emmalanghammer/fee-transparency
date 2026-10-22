@@ -5472,14 +5472,14 @@ class Component extends DCLogic {
     const okN = rows.filter(r => r.ready).length, doneN = all.length - rows.length;
     const allDone = !rows.length && doneN > 0;
     const open = st.open !== undefined ? st.open : (!S.done ? 'mkt' : fix.length ? 'fix' : 'act');
-    // A section: collapsed, a 16px-padded row — the green check once it's done, the label, the chevron; open, the brand
-    // border and dropshadow-sm, the SemiBold label and its status, a rule, then the body. The header toggles it.
-    const section = (key, label, openLabel, status, done, inner) => {
+    // A section: collapsed, a 16px-padded row — the numbered label, the green check after it once it's done (the user's
+    // update, 2026-10-22), the chevron; open, the brand border and dropshadow-sm, the SemiBold label and its status, a rule,
+    // then the body. The header toggles it.
+    const section = (key, n, label, status, done, inner) => {
       const on = open === key;
       const head = `<div data-act="ftStepToggle" data-arg="${key}" role="button" aria-expanded="${on ? 'true' : 'false'}" style="display:flex;align-items:center;gap:8px;cursor:pointer">
         <div style="flex:1;min-width:0;display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px">
-          ${!on && done ? this.filledIco('check_circle', 20, 'color:' + GREEN + ';flex:none') : ''}
-          <span style="min-width:0;font-size:14px;line-height:20px;${on ? 'font-weight:600;' : ''}${INK}">${on ? openLabel : label}</span>${on ? status : ''}
+          <span style="min-width:0;font-size:14px;line-height:20px;${on ? 'font-weight:600;' : ''}${INK}">${n}. ${label}</span>${on ? status : done ? this.filledIco('check_circle', 20, 'color:' + GREEN + ';flex:none') : ''}
         </div>
         ${this.ico(on ? 'keyboard_arrow_up' : 'keyboard_arrow_down', 24, 'color:var(--rmx-brand-dark, #13314c);flex:none')}
       </div>`;
@@ -5490,7 +5490,7 @@ class Component extends DCLogic {
 
     // ---- Add Marketing Details to Charge Types: missing marketing details only ----
     const shortCodes = Object.keys(S.miss).sort();
-    const mkt = section('mkt', 'Add Marketing Details to Charge Types', 'Add Marketing Details to Charge Types',
+    const mkt = section('mkt', 1, 'Add Marketing Details to Charge Types',
       this.statusDot(`${S.ready} of ${S.total} Ready`, S.done ? GREEN : AMBER), S.done,
       `${DESC('Set once on the charge type. Every charge that uses it, at every property, is advertised with those details. Make sure to select which charge type is used for Base Rent and Security Deposit.<br><br>Edit all charge types at once, or edit individually on the Charge Type details.')}
       <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
@@ -5507,13 +5507,13 @@ class Component extends DCLogic {
       </div>
       ${it.action}
     </div>`;
-    const fixSec = section('fix', `Fix Issues (${fix.length})`, `Fix Issues (${fix.length})`, '', !fix.length,
+    const fixSec = section('fix', 2, `Fix Issues (${fix.length})`, '', !fix.length,
       `${DESC('Fix any outstanding issues, typically related to having multiple charges that use a base rent or security deposit assigned charge type. Only one charge can be set as base rent or security deposit on each unit in a property to activate fee transparency.')}
       ${fix.length ? fix.map(item).join('') : DESC('Nothing to fix.')}`);
 
     // ---- Activate Fee Transparency: the properties still to activate, status only ----
     const bulk = canGo.length > 1 ? `<button data-act="ftActivateReady" class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px;white-space:nowrap;flex:none">Bulk Activate Fee Transparency</button>` : '';
-    const act = section('act', st.only ? 'Activate ' + esc(st.only) : 'Activate Properties', st.only ? 'Activate ' + esc(st.only) : 'Activate Fee Transparency',
+    const act = section('act', 3, st.only ? 'Activate ' + esc(st.only) : 'Activate Fee Transparency',
       all.length ? this.statusDot(`${okN} of ${rows.length} Ready`, allDone ? GREEN : AMBER) : '', allDone,
       `<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap"><div style="flex:1 1 240px;min-width:0">${DESC('A property can activate once every charge type used is ready and all units have one Base Rent charge.')}</div>${bulk}</div>
       ${rows.length ? `<div style="display:flex;flex-direction:column;gap:8px">${rows.map(r => this.ftPropRow(r, r.short.length + fix.filter(f => f.props.indexOf(r.p) >= 0).length)).join('')}</div>`
