@@ -1006,6 +1006,18 @@ listings carry feed errors (`ftErrOnly`). Each tints on hover and stays tinted w
 is showing what it counted; clicking a lit card takes the filter back off. A filter that matches
 nothing says so, with **Show all properties** (`ftFilterClear`) back out.
 
+**Four fixes on 2026-10-22** (the user's reports):
+- The Feed Status overlay's provider section is always **Listing Provider Errors** (it read *Zillow Errors (3)* when the listing
+  named a provider; `ltErrProviders` is no longer read for the title).
+- **A Flat charge needs an Amount to save** (`saveFee`: *Complete required fields: Amount*, the field outlined red), as
+  production does. A blank Amount used to save as $0.00, so the reopened charge raised the *$0.00 or negative* warning; the
+  warning itself still shows only for a typed zero or negative figure.
+- **A per-pet charge gets the pet stepper without a Pet category** (`isPetCharge`: the charge type's category is Pet, or the
+  charge carries a pet type amount's `attrs.petKind` / `petType`), so On Rollout's DOGFEE, whose type has no category yet, steps
+  on the rent quote and the Pricing Preview (max 2).
+- **Register headers wrap instead of truncating** in Pet Types (the grey header row grows to two lines; amount labels right
+  aligned) and Add Property › Copy From's two tables.
+
 **The prospect's Rent Quotes tile, empty, matches production** (2026-10-07): *Add a rent quote to
 get started.* over **+ Add Rent Quote**, centred text, sitting near the top of the tile (52px down)
 rather than in the middle of however tall the row makes it — `empty(t, extra, top)`. The tile's 4px

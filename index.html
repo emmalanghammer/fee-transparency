@@ -2380,6 +2380,10 @@ class Component extends DCLogic {
     // Recurring charges bill on a frequency, so that one is required too. Everything else —
     // marketing details included — can be filled in later; the charge just isn't listing ready.
     if (!/-one$/.test(m.group || '')) { const f = v('m-freq'); mark(this.q('#m-freq'), !f); if (!f) errs.push('Frequency'); }
+    // A Flat charge needs a figure (2026-10-22, the user's call, as production does): a blank Amount used to save as $0.00,
+    // which then raised the $0.00 or negative warning on a charge nobody had priced.
+    if ((v('m-source') || 'Flat') === 'Flat' && !specEd) { const a = v('m-amount'), amt = this.q('#m-amount');
+      mark(amt && amt.parentElement, !a); if (!a) errs.push('Amount'); }
     const ils = v('m-ils') === '1';
     if (errs.length) { const b = this.q('#m-err'); if (b) { const t = b.querySelector('#m-err-txt'); if (t) t.textContent = 'Complete required fields: ' + errs.join(', '); b.style.display = 'inline-flex'; } return false; }
     // Creating a charge that would conflict is blocked (2026-10-16, scenarios B-01, B-04, A-01, A-04): a
@@ -5925,8 +5929,8 @@ class Component extends DCLogic {
         <span style="flex:none;min-width:18px;font-size:14px;color:var(--ac,var(--rmx-brand, #008dd5))">${i+1}.</span>
         <span style="flex:1;min-width:0;font-size:14px;color:var(--rmx-brand-dark, #13314c);line-height:1.45">${t}</span>
       </div>`).join('')}</div>`;
-    const provNames = this.ltErrProviders(l);
-    const provTitle = provNames.length ? provNames.join(' / ') + ' Errors' : 'Listing Provider Errors';
+    // Always *Listing Provider Errors* (2026-10-22, the user's call; it read *Zillow Errors* when a provider was named).
+    const provTitle = 'Listing Provider Errors';
     // The charge section's own lead: what is wrong, and the one place it gets fixed, on the same row.
     // Each cause goes to its own fix (2026-10-15): missing details to Mass Edit, filtered to those
     // charge types; a duplicate pair to its Resolve dialog.
@@ -7020,7 +7024,9 @@ class Component extends DCLogic {
     const money = n => (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const colK = 'pettypes';
     const cols = this.colTracks(colK, 'minmax(140px,1fr) minmax(150px,1.1fr) 100fr 115fr 140fr 160fr 120fr 150fr 120fr 150fr 44px');
-    const hc = (t, first, right) => `<span style="display:flex;align-items:center;${right?'justify-content:flex-end;':''}height:28px;box-sizing:border-box;padding:4px ${first?'8px 4px 16px':'8px'};font-size:14px;font-weight:500;letter-spacing:0.5px;color:#fff;border-right:1px solid rgba(255,255,255,0.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>`;
+    // A label too long for its column wraps to a second line rather than cutting off (2026-10-22, the user's bug: at
+    // 1600px the amount headers were clipped); the header row grows with it.
+    const hc = (t, first, right) => `<span style="display:flex;align-items:center;${right?'justify-content:flex-end;text-align:right;':''}min-height:28px;box-sizing:border-box;padding:4px ${first?'8px 4px 16px':'8px'};font-size:14px;line-height:16px;font-weight:500;letter-spacing:0.5px;color:#fff;border-right:1px solid rgba(255,255,255,0.35);min-width:0;overflow-wrap:normal">${t}</span>`;
     const header = `<div ${this.colHead(colK)} style="display:grid;grid-template-columns:${cols};background:var(--rmx-register-header, #737373)">
       ${hc('Name', true)}${hc('Description')}${hc('Max Allowed')}${hc('Max Weight')}${hc('Recurring Charge Amount', false, true)}${hc('Max Recurring Charge Amount', false, true)}${hc('One-Time Charge Amount', false, true)}${hc('Max One-Time Charge Amount', false, true)}${hc('Pet Deposit Amount', false, true)}${hc('Max Pet Deposit Amount', false, true)}<span></span>
     </div>`;
@@ -8073,7 +8079,7 @@ class Component extends DCLogic {
         amount:amount(r), one:/-one$/.test(r.group),
         def:top && required(r), lock:null,
         listed:top && !!r.ils && !/-one$/.test(r.group) && (this.chargeRole(r) === 'rent' || required(r)),
-        pet:this.chargeCategoryFor(r.mits) === 'Pet', max:this.ppPetMax(r, q.prop), cap:this.petCapOf(r) }; });
+        pet:this.isPetCharge(r), max:this.ppPetMax(r, q.prop), cap:this.petCapOf(r) }; });
     // Charges added on the quote itself are the tenant's own, so they sit after the property's.
     (q.extra || []).forEach(x => rows.push(Object.assign({ def:true, lock:'tenant' }, x)));
     // A property with no rent charge to read has nothing to price from, so the quote
@@ -8124,6 +8130,11 @@ class Component extends DCLogic {
   rqQtyOf(r){ const v = ((this.state.rq || {}).qty || {})[r.id]; return r.pet ? Math.max(1, v || 1) : 1; }
   rqLineAmt(r){ const t = r.amount * this.rqQtyOf(r); return r.cap ? Math.min(t, r.cap) : t; }
   // The Max Charge Amount a pet type puts on a per-pet charge — the Pricing Preview's rule.
+  // A charge taken once per pet (2026-10-22, the user's bug): its charge type's category is Pet, or it came over from Tenant
+  // Charge Setup as a pet type amount (`attrs.petKind` / `petType` on the charge) — so On Rollout's DOGFEE, whose charge type has
+  // no category yet, still gets the rent quote's and the Pricing Preview's pet stepper.
+  isPetCharge(r){ const a = (r && r.attrs) || {};
+    return this.chargeCategoryFor(r.mits) === 'Pet' || !!(a.petKind || a.petType); }
   petCapOf(r){
     const t = this.petTypeByName(this.petTypeOf(r)); if (!t) return 0;
     const one = /-one$/.test(r.group || '');
@@ -8765,7 +8776,7 @@ class Component extends DCLogic {
     const chosenOpt = pickAll ? [] : optRows.filter(r => tick(r) && !/-one$/.test(r.group));
     const chosenOptOne = pickAll ? [] : optRows.filter(r => tick(r) && /-one$/.test(r.group));
     // Pet add-ons can be taken more than once — one line per pet — so they carry a quantity.
-    const isPet = r => this.chargeCategoryFor(r.mits) === 'Pet';
+    const isPet = r => this.isPetCharge(r);
     const qtyOf = r => { const v = tick(r); return v === true ? 1 : (v || 0); };
     // A per-pet charge can carry a Max Charge Amount, which caps what the resident pays however many
     // pets they add — four pets at $30 with a $100 max is $100, not $120.
@@ -9879,7 +9890,7 @@ class Component extends DCLogic {
       const allOn = rows.length && rows.every(r => a.sel[r.id]);
       const hc = (t,i) => i === 0
         ? `<span data-act="addPropAll" data-arg="${rec?'rec':'one'}" title="${allOn?'Clear all':'Select all'}" style="display:flex;align-items:center;justify-content:center;padding:6px 8px;cursor:pointer">${chk(!!allOn,'')}</span>`
-        : `<span style="padding:6px 8px;font-size:14px;font-weight:600;color:var(--rmx-brand-dark, #13314c);white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis;${/Amount/.test(t)?'display:flex;justify-content:flex-end;':''}">${t}</span>`;
+        : `<span style="display:flex;align-items:center;padding:6px 8px;font-size:14px;line-height:18px;font-weight:600;color:var(--rmx-brand-dark, #13314c);min-width:0;${/Amount/.test(t)?'justify-content:flex-end;text-align:right;':''}">${t}</span>`;
       const cell = (t, extra) => `<span style="display:flex;align-items:center;min-height:34px;padding:5px 8px;font-size:14px;color:var(--rmx-brand-dark, #13314c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${extra||''}">${t}</span>`;
       return `<div style="font-size:14px;color:var(--rmx-text, #666666);padding:8px 0 4px">${label} (${rows.length})</div>
         <div style="border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
