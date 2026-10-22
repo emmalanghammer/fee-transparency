@@ -2389,6 +2389,13 @@ Charges tile and overlay, Move In), the unit type scope of `chargeScope`, `rqRow
 the Pricing Preview, which also now offers only charges that reach the previewed unit
 (`chargeReachesUnit`, exceptions included) where it used to list every charge on the property.
 
+**Unticking a Required charge asks first** (2026-10-22, the user's call, rent quotes and Move In alike): `reqDropPopup(label,
+where, onOk)` raises an RMX Pop Up beside the app (`#m-reqdrop`, z-index 200, DOM-built like `roleDupPopup` so Move In keeps what
+was typed) — **Remove Required Charge**, the warning glyph, *“**GARBAG – Trash collection** is a required charge, so every
+resident pays it. Remove it from this quote?”* (*…this move-in?*), **Remove Charge** / Cancel. `rqTog` (rows carry `req`) and
+`__miPick` (`data-mi-req`, `data-mi-name`) call it only when a ticked charge on a Required charge type is being unticked; ticking,
+or unticking an optional charge, never asks. Figma: **Rent Quote - Remove Required Charge** (`4240:81436`, Pricing Tools).
+
 **The include rule, as the user specified it (2026-10-22), rent quotes and Move In alike** — Treat as tenant-level charge
 makes no difference:
 

@@ -1825,8 +1825,12 @@ class Component extends DCLogic {
           q.oris = (q.oris || []).filter((o, n) => n !== i); return { rq:q }; }); break; }
       case 'rqTog': { const row = this.rqAllRows().filter(r => r.id === arg)[0]; if (!row) break;
         const next = !this.rqOn(row);
-        this.setState(s => { const q = Object.assign({}, s.rq);
-          const sel = Object.assign({}, q.sel); sel[arg] = next; q.sel = sel; return { rq:q }; }); break; }
+        const apply = () => this.setState(s => { const q = Object.assign({}, s.rq);
+          const sel = Object.assign({}, q.sel); sel[arg] = next; q.sel = sel; return { rq:q }; });
+        // Taking a Required charge off the quote asks first (2026-10-22).
+        if (!next && row.req) { const code = String(row.type || '').toUpperCase();
+          this.reqDropPopup(code + ' – ' + (row.comment || this.chargeTypeDesc(code) || ''), 'quote', apply); break; }
+        apply(); break; }
       case 'rqQty': { const [id, d] = String(arg).split(':');
         const row = this.rqAllRows().filter(r => r.id === id)[0]; if (!row) break;
         this.setState(s => { const q = Object.assign({}, s.rq); const qty = Object.assign({}, q.qty);
@@ -4599,6 +4603,35 @@ class Component extends DCLogic {
     const lv = String(level || 'Property');
     return lv === 'Property' ? 'at the property charge level'
       : (lv === 'Unit' ? 'on unit ' + target : 'on ' + (target || this.levelLabel(lv))) + ' at the ' + this.levelLabel(lv).toLowerCase() + ' charge level';
+  }
+  // Unticking a Required charge on a rent quote or in the Move In wizard asks first (2026-10-22, the user's call): an RMX
+  // Pop Up built beside the app, like roleDupPopup, so Move In's typed fields survive. Remove Charge runs `onOk`.
+  reqDropPopup(label, where, onOk){
+    const root = document.querySelector('.rmx'); if (!root) return;
+    const old = document.getElementById('m-reqdrop'); if (old) old.remove();
+    const esc = t => String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    const el = document.createElement('div');
+    el.id = 'm-reqdrop';
+    el.setAttribute('style', 'position:fixed;inset:0;background:rgba(19,49,76,0.5);display:flex;align-items:center;justify-content:center;z-index:200');
+    el.innerHTML = `<div role="alertdialog" aria-labelledby="m-reqdrop-h" aria-describedby="m-reqdrop-d" style="width:500px;max-width:94vw;background:#fff;border-radius:4px;box-shadow:0 3px 3px rgba(0,0,0,0.1);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;height:48px;box-sizing:border-box;padding:8px 16px;border-bottom:1px solid var(--rmx-line, #cedbe7)">
+          <span id="m-reqdrop-h" style="font:400 20px/28px Roboto,sans-serif;color:var(--rmx-brand-dark, #13314c)">Remove Required Charge</span>
+          <span data-x role="button" aria-label="Close" style="display:flex;cursor:pointer">${this.ico('close', 24, 'color:var(--ac,var(--rmx-brand, #008dd5))')}</span>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:16px;min-height:124px;box-sizing:border-box;padding:24px 8px 16px 16px">
+          <svg width="48" height="48" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" style="color:var(--ac,var(--rmx-brand, #008dd5));flex:none"><path d="M40-120 480-880l440 760H40Zm440-120q17 0 28.5-11.5T520-280q0-17-11.5-28.5T480-320q-17 0-28.5 11.5T440-280q0 17 11.5 28.5T480-240Zm-40-120h80v-200h-80v200Z"/></svg>
+          <span id="m-reqdrop-d" style="flex:1;min-width:0;max-width:400px;padding-right:8px;font-size:14px;line-height:20px;color:var(--rmx-text, #666666)"><strong style="font-weight:600;color:var(--rmx-brand-dark, #13314c)">${esc(label)}</strong> is a required charge, so every resident pays it. Remove it from this ${esc(where)}?</span>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:16px;background:var(--rmx-bg-subtle, #f5f8fa);border-top:1px solid var(--rmx-line, #cedbe7);padding:8px 16px">
+          <button data-ok class="btn-pri" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Remove Charge</button>
+          <button data-x class="btn-out" style="height:36px;min-height:36px;padding:0 16px;border-radius:4px;font-size:14px">Cancel</button>
+        </div>
+      </div>`;
+    el.addEventListener('click', (e) => { e.stopPropagation();
+      if (e.target.closest('[data-ok]')) { el.remove(); onOk(); }
+      else if (e.target === el || e.target.closest('[data-x]')) el.remove(); });
+    root.appendChild(el);
+    const ok = el.querySelector('[data-x].btn-out'); if (ok) ok.focus();
   }
   roleDupPopup(code, role, where, levelWhere){
     const root = document.querySelector('.rmx'); if (!root) return;
@@ -8087,7 +8120,7 @@ class Component extends DCLogic {
     const rows = reach
       .map(r => { const top = primary.indexOf(r) >= 0; return { id:'c' + r.id, level:top && this.tenantLevelOf(r, q.prop) ? 'Tenant' : (r.level || 'Property'), type:r.mits, comment:r.desc || '',
         amount:amount(r), one:/-one$/.test(r.group),
-        def:top && required(r), lock:null,
+        def:top && required(r), lock:null, req:required(r),
         listed:top && !!r.ils && !/-one$/.test(r.group) && (this.chargeRole(r) === 'rent' || required(r)),
         pet:this.isPetCharge(r), max:this.ppPetMax(r, q.prop), cap:this.petCapOf(r) }; });
     // Charges added on the quote itself are the tenant's own, so they sit after the property's.
@@ -8342,10 +8375,13 @@ class Component extends DCLogic {
     const SEL = this._miSel || (this._miSel = {});
     const on = (f) => fixed(f) || (f.id in SEL ? SEL[f.id] : (this.resolvedListing(f).requirement || '') === 'Required');
     if (!window.__miPick) window.__miPick = (el) => { const id = el.getAttribute('data-mi-id'), cur = el.getAttribute('aria-checked') === 'true';
-      (this._miSel || (this._miSel = {}))[id] = !cur;
-      const host = document.getElementById('mi-charges'); if (host) host.innerHTML = this.miChargeTilesHTML(this._miUnit || ''); };
+      const apply = () => { (this._miSel || (this._miSel = {}))[id] = !cur;
+        const host = document.getElementById('mi-charges'); if (host) host.innerHTML = this.miChargeTilesHTML(this._miUnit || ''); };
+      // Taking a Required charge off the move-in asks first (2026-10-22).
+      if (cur && el.getAttribute('data-mi-req') === '1') { this.reqDropPopup(el.getAttribute('data-mi-name') || '', 'move-in', apply); return; }
+      apply(); };
     const box = (f) => fixed(f) ? `<span style="display:flex;align-items:center;justify-content:center;height:44px;border-bottom:1px solid var(--rmx-line-soft, #ebf1f5)">${this.rmxCheckbox(true, true)}</span>`
-      : `<span style="display:flex;align-items:center;justify-content:center;height:44px;border-bottom:1px solid var(--rmx-line-soft, #ebf1f5)">${this.rmxCheckbox(on(f), false, ` data-mi-id="${f.id}" aria-label="Include ${String(f.mits || '').replace(/"/g, '&quot;')}" onclick="window.__miPick(this)"`)}</span>`;
+      : `<span style="display:flex;align-items:center;justify-content:center;height:44px;border-bottom:1px solid var(--rmx-line-soft, #ebf1f5)">${this.rmxCheckbox(on(f), false, ` data-mi-id="${f.id}"${(this.resolvedListing(f).requirement || '') === 'Required' ? ` data-mi-req="1" data-mi-name="${(String(f.mits || '').toUpperCase() + ' – ' + (f.desc || this.chargeTypeDesc(String(f.mits || '').toUpperCase()) || '')).replace(/"/g, '&quot;')}"` : ''} aria-label="Include ${String(f.mits || '').replace(/"/g, '&quot;')}" onclick="window.__miPick(this)"`)}</span>`;
     const RC = '40px minmax(90px,1fr) minmax(130px,1.3fr) minmax(110px,1fr) minmax(60px,119px) minmax(96px,120px) minmax(96px,119px) minmax(96px,120px) 40px';
     const OC = '40px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 120px 40px';
     const msg = 'Select a unit to fill its charges.';
