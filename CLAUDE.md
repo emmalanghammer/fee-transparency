@@ -1505,6 +1505,13 @@ describes the design before that tag; the code for most of it is still in the fi
 - **Scenarios pick their short type** (`mktDefShort`): Happy Path and Post Conversion none; Mid
   Conversion **DOGFEE** (Riverview activated and drifted, The Estates short, The Windermere complete, The
   Hamptons ready); No ILS **GARBAG**.
+- **On Rollout opens with Oakwood Manor already live** (2026-10-22, the user's story for every Figma frame: *Oakwood already
+  live*). Oakwood Manor lists online (`scenarioMarketed('on')`) and is fee transparent (`scenarioPlan`), so the charge types it
+  runs — RC (Base Rent), GARBAG, APPFEE, DP (Security Deposit), FMR (`rolloutLive()`) — are complete from the start; every
+  other type is as below (blank but for NSF / LATE). Setup opens on **7 of 10 Ready** (COVPARK, DOGFEE, MTM short), Fix Issues
+  (0), Riverview / The Berkshires / The Windermere Not Ready and Oakwood Manor Fee Transparent; Listings shows Oakwood's
+  $924 / $1,184 and every other listing Sent with —. What follows was the rule before; it still holds for the types Oakwood
+  doesn't use.
 - **On Rollout has no marketing details at all** (2026-10-20, the user's calls: "truly on rollout", then the defaults).
   `mktDefAll` gives every charge type an entry with Marketing Description, Charge Requirement, Charge Schedule, Charge
   Timing and Refundability blank, the **Name defaulting to the charge type's description** (*Rent*, *Garbage Fee*), the

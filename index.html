@@ -775,6 +775,9 @@ class Component extends DCLogic {
     //   · On Rollout (and No ILS): Garbage, which every property runs.
     if (k === 'happy' || k === 'post') return {};
     if (k === 'mid') return { DOGFEE:1 };
+    // On Rollout's live Oakwood Manor runs Garbage, so nothing it uses is short (2026-10-22); its other types start
+    // blank in `mktDefAll` instead.
+    if (k === 'on') return {};
     return { GARBAG:1 };
   }
   mktDefAll(){
@@ -800,7 +803,8 @@ class Component extends DCLogic {
       // marketing details yet. The Name starts as the charge type's description, the Charge Role as Additional
       // Charge, and Charge Category empty.
       // NSF and Late are the exception (2026-10-20, the user's call): Violation, Situational, due During Term.
-      out[code] = this.scenarioKey() === 'on'
+      // On Rollout's live property's charge types are the exception: complete, the way Oakwood Manor activated them.
+      out[code] = this.scenarioKey() === 'on' && !this.rolloutLive()[code]
         ? { name: desc, category: SITUATIONAL[code] ? 'Violation' : '', marketing:'', requirement: SITUATIONAL[code] ? 'Situational' : '',
             schedule:'', feeDue: SITUATIONAL[code] ? 'During Term' : '', refundable:'', role:'' }
         : d;
@@ -3317,11 +3321,18 @@ class Component extends DCLogic {
   }
   // Properties that advertise on online listings. Every other property is marketing-off, so nothing
   // about publishing complete pricing is surfaced for it.
-  scenarioMarketed(){
-    return ['Riverview Apartments','The Berkshires','The Windermere','The Estates','Willow Creek',
+  scenarioMarketed(key){
+    const list = ['Riverview Apartments','The Berkshires','The Windermere','The Estates','Willow Creek',
       'Greenbriar Village','Pinewood Place','The Highlands','Stonegate Village','The Hamptons',
       'Clearcreek Condominiums'];
+    // On Rollout's Oakwood Manor already lists online and is fee transparent (2026-10-22, the user's story for every
+    // Figma frame: an early property is live before the rest begin).
+    if (key === 'on') list.push('Oakwood Manor');
+    return list;
   }
+  // The charge types On Rollout's live property uses: complete from the start, since Oakwood Manor couldn't have
+  // activated without them (RC the Base Rent, DP the Security Deposit). Every other type starts with nothing.
+  rolloutLive(){ return { RC:1, GARBAG:1, APPFEE:1, DP:1, FMR:1 }; }
   // Charges for a converted property: either every marketing detail filled in, or the same charges
   // with details still missing. Built from the property's own charge set,
   // so a seeded scenario varies by property the same way a real portfolio does.
@@ -3346,7 +3357,7 @@ class Component extends DCLogic {
     const ils = {};
     // Every Happy Path property advertises online, so fee transparency is on the table for all of them.
     if (key === 'happy') this.propertiesData().forEach(x => { ils[x.name] = true; });
-    else if (key !== 'noils') this.scenarioMarketed().forEach(n => { ils[n] = true; });
+    else if (key !== 'noils') this.scenarioMarketed(key).forEach(n => { ils[n] = true; });
     const plan = { ils, status:{}, fees:{}, published:{} };
     const convert = (n, complete, published, drift) => {
       plan.status[n] = 'active';
@@ -3377,7 +3388,8 @@ class Component extends DCLogic {
       // Steady state: every property is converted, and every marketed one publishes complete pricing.
       names.forEach(n => convert(n, true, !!ils[n] && !this.mhOn(n)));
     }
-    // 'on' and 'noils' are launch day — nothing is converted yet.
+    // 'noils' is launch day — nothing is converted yet. On Rollout has one live property (2026-10-22): Oakwood Manor.
+    else if (key === 'on') convert('Oakwood Manor', true, true);
     // In C the Listings page **is** the `feetrans` view: `'listings'` is not a view key and falls
     // through to the Unit page, which is where Post Conversion had been landing.
     plan.view = (key === 'mid' || key === 'post') ? 'feetrans' : 'register';
