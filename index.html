@@ -8048,8 +8048,9 @@ class Component extends DCLogic {
       return true;
     };
     // Move In's rule (2026-10-21, the user's call): a Required charge starts ticked and the agent can untick it; any
-    // other starts unticked. A tenant-level charge always applies, so its checkbox is disabled and checked
-    // (`lock:'tenant'`) and it wears the Tenant tag, as Move In's Source reads Tenant. Required charges used to be locked on.
+    // other starts unticked. A charge treated as tenant-level follows the same rule (2026-10-22, the user's call; it was
+    // disabled and checked), so a quote with no pet matches the listing — it still wears the Tenant tag, as Move In's
+    // Source reads Tenant. Only a charge added on the quote itself is locked on (`lock:'tenant'`): it has no charge type to ask.
     const required = (r) => this.resolvedListing(r).requirement === 'Required';
     // A pet charge is taken once per pet, as in the Pricing Preview: it carries the most pets the
     // pet type allows and, where the pet type sets one, the most the resident pays however many.
@@ -8060,7 +8061,7 @@ class Component extends DCLogic {
     const rows = reach
       .map(r => { const top = primary.indexOf(r) >= 0; return { id:'c' + r.id, level:top && this.tenantLevelOf(r, q.prop) ? 'Tenant' : (r.level || 'Property'), type:r.mits, comment:r.desc || '',
         amount:amount(r), one:/-one$/.test(r.group),
-        def:top && required(r), lock:top && this.tenantLevelOf(r, q.prop) ? 'tenant' : null,
+        def:top && required(r), lock:null,
         listed:top && !!r.ils && !/-one$/.test(r.group) && (this.chargeRole(r) === 'rent' || required(r)),
         pet:this.chargeCategoryFor(r.mits) === 'Pet', max:this.ppPetMax(r, q.prop), cap:this.petCapOf(r) }; });
     // Charges added on the quote itself are the tenant's own, so they sit after the property's.
@@ -8303,10 +8304,10 @@ class Component extends DCLogic {
     const one = (info ? this.unitOneTime(unit) : []).concat(ten.filter(x => x.one));
     // A charge treated as tenant-level arrives on the tenant as their own, so Source reads Tenant.
     const src = (f) => f.level === 'Tenant' || this.tenantLevelOf(f) ? 'Tenant' : this.levelLabel(f.level || 'Property');
-    // Which charges the move in takes (2026-10-21, the user's call). A tenant-level charge — treated as one, or added
-    // here — always applies, so its checkbox is disabled and checked; any other is a checkbox, ticked to start when its charge type makes
-    // it Required. What's been ticked lives in \`this._miSel\` (by charge id) until the unit changes or the wizard closes.
-    const fixed = (f) => f.level === 'Tenant' || this.tenantLevelOf(f);
+    // Which charges the move in takes (2026-10-21, the user's call). Every charge is a checkbox, ticked to start when its
+    // charge type makes it Required — one treated as tenant-level too (2026-10-22, the user's call; it was disabled and
+    // checked). Only a charge added here, which has no charge type to ask, is disabled and checked. What's been ticked lives in \`this._miSel\` (by charge id) until the unit changes or the wizard closes.
+    const fixed = (f) => f.level === 'Tenant';
     const SEL = this._miSel || (this._miSel = {});
     const on = (f) => fixed(f) || (f.id in SEL ? SEL[f.id] : (this.resolvedListing(f).requirement || '') === 'Required');
     if (!window.__miPick) window.__miPick = (el) => { const id = el.getAttribute('data-mi-id'), cur = el.getAttribute('aria-checked') === 'true';

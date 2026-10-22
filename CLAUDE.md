@@ -2325,6 +2325,14 @@ Charges tile and overlay, Move In), the unit type scope of `chargeScope`, `rqRow
 the Pricing Preview, which also now offers only charges that reach the previewed unit
 (`chargeReachesUnit`, exceptions included) where it used to list every charge on the property.
 
+**Tenant-level charges follow their Charge Requirement** (2026-10-22, the user's call, rent quote and Move In alike): a charge
+treated as tenant-level is an ordinary checkbox — ticked to start when its charge type is *Required*, unticked otherwise, and
+either way the agent's to change — where it was the Disabled checked variant. It keeps the **T** tag / *Tenant* Source. Only a
+charge added on the quote or in the wizard, which has no charge type to ask, stays disabled and checked; an ORI-brought one
+too. Riverview 3B in Mid Conversion: the quote opens at **$1,403.00/mo** (Dog rent unticked), matching the listing, and Move
+In's Recurring total reads 1,403.00. Notes below that call tenant-level charges locked on describe what came before. Figma's
+*Add Charges*, *Add Tenant-Level Charge* and *Move In Wizard* match.
+
 **The rent quote's price card reads the way the listing does** (2026-10-22, the user's call): *Monthly total* over the
 figure (it read *Total Monthly Price*), then one SemiBold line, **Listed Total Monthly Price** — the ticked Base Rent and
 required charges on listings (`rqRows`' `listed`), the figure the unit's listing advertises — then every other ticked
