@@ -1200,7 +1200,8 @@ describes the design before that tag; the code for most of it is still in the fi
   *Charge Role* dropdown cell): **Base Rent** and **Security Deposit** (`window.__meRole`, DOM-only), one or the other —
   ticking one clears the other — and neither ticked is an Additional Charge; the row's Name and Category repaint, since a role
   fixes them Each column is as narrow as its header allows (84px and 128px: the label plus 8px either side),
-  label and checkbox centred. A 1px rule runs down the right of **Properties** (white at 70% in the header,
+  label and checkbox centred. The register is at least as wide as its columns' minimums (`minW`, 1512px; it was a fixed
+  1400px, which cut the grey header off before Refundability once those two columns came in). A 1px rule runs down the right of **Properties** (white at 70% in the header,
   `--rmx-line` in the rows), between what identifies a row and what can be edited (2026-10-15). **Charge Type and Properties are frozen** when the register scrolls sideways (2026-10-20):
   `position:sticky` at `left:0` / `left:100px`, the row's background inherited so hover still tints, the header row at z-index 3. **Properties** reads *All Properties*, one property's
   code, or the first code then RMX's dropdown Pill *+n* (`morePill`, 2026-10-15) whose panel lists every

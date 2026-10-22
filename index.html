@@ -6564,6 +6564,9 @@ class Component extends DCLogic {
     // allows (the label plus 8px either side), with the label and the checkbox centred in it.
     const RC = [{ f:'rent', h:'Base Rent', w:'84px' }, { f:'deposit', h:'Security Deposit', w:'128px' }];
     const tracks = '100px 120px ' + RC.map(c => c.w).join(' ') + ' ' + COLS.map(c => c.w).join(' ');
+    // The register is at least as wide as its columns' minimums (2026-10-22): a fixed 1400px fell short once Base Rent and
+    // Security Deposit came in, so the grey header stopped before Refundability.
+    const minW = tracks.split(/ (?![^(]*\))/).reduce((n, t) => n + (parseFloat((t.match(/\d+(?:\.\d+)?px/) || ['0'])[0]) || 0), 0);
     const head = (t, extra) => `<span style="${extra || ''}display:flex;align-items:center;height:28px;box-sizing:border-box;padding:0 8px;font:500 12.6px Roboto,sans-serif;letter-spacing:1.134px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t}</span>`;
     // An empty required field (2026-10-15, the user's call; it was an amber *Missing* lozenge, then the
     // glyph with red words): the filled red error glyph alone, *Required for listings* on hover.
@@ -6680,7 +6683,7 @@ class Component extends DCLogic {
             <label data-act="ctMassOnly" style="display:inline-flex;align-items:center;gap:8px;font-size:14px;line-height:20px;color:var(--rmx-brand-dark, #13314c);cursor:pointer;white-space:nowrap">${this.rmxCheckbox(!!only, false)}Only show charge types with missing required fields</label>
           </div>
           <div data-rreg-me onmousedown="window.__meOutside(event)" onscroll="window.__meClose(true);window.__pillReset()" style="flex:1;min-height:0;overflow:auto;border:1px solid var(--rmx-line, #cedbe7)">
-            <div style="min-width:1400px">
+            <div style="min-width:${minW}px">
               <div style="display:grid;grid-template-columns:${tracks};background:var(--rmx-register-header, #737373);position:sticky;top:0;z-index:3">
                 ${head('Charge Type', 'position:sticky;left:0;z-index:1;background:var(--rmx-register-header, #737373);')}${head('Properties', 'border-right:1px solid rgba(255,255,255,0.7);position:sticky;left:100px;z-index:1;background:var(--rmx-register-header, #737373);')}${RC.map(c => head(c.h, 'justify-content:center;')).join('')}${COLS.map(c => head(c.h)).join('')}
               </div>
