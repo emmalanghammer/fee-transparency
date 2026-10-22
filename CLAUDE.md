@@ -279,7 +279,7 @@ call; they were fixed seed figures): `listingsData` sets `l.base` to `ltUnitRent
 reaches the unit (its own, else its unit type's, else the property's, through `ltChargeHits`), a Unit Market Rent reference
 reading the unit's rent or, for a unit the prototype has no record of, the seed figure (kept as `l.seed`) — and `l.total` to
 that plus `ltUnitFees(l)`, the required recurring charges on listings reaching the unit. No Base Rent reaching it reads `—` in
-both. Edit Floor Plan's ranges read the same two helpers. Before activation the seed figures stand. **Total Monthly Price reads `-` until the property has actually converted** (`publishedProps`): a
+both. Edit Floor Plan's ranges read the same two helpers. Before activation the seed figures stand. Figma's **Listings - Grouped** / **Not Grouped** follow it since 2026-10-22: Riverview 3B, 5A and 4C (not activated) read **Sent** with Total Monthly Price **—** (they read Not Sent with $1,403 / $1,018 / $2,078). **Total Monthly Price reads `-` until the property has actually converted** (`publishedProps`): a
 property that hasn't still advertises rent alone, so it has no total to show — finishing its
 charges is not the same as publishing them. Where fee transparency can't apply (`ftApplicable` is
 false, e.g. Clearcreek on MH Village) it reads **N/A** instead (2026-10-08), since that property
