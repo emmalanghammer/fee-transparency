@@ -74,7 +74,36 @@ without the Base Rent condition, *Pet Details* without *(Optional)*, Tenant Char
 frames' prospect (now Jordan Ellis). The Sent, Incomplete overlay's *General Marketing Errors* / *Zillow Errors* were renamed in Figma to the prototype's
 **Marketing Errors** / **Listing Provider Errors** (the user's call).
 
-**Fee Transparency Setup is Figma `4102:195176`** (2026-10-20, the user's new design; three frames: nothing ready
+**Fee Transparency Setup is Figma `4177:83065`** (2026-10-22, the user's design; not yet on the Zeplin page — the user
+asked to hold Figma). A 735px dialog: the 48px header with the close alone; one intro row, *Get Your Properties Ready for
+Fee Transparency* (16/24 SemiBold) left and *New to fee transparency? **Learn More*** (`todo`) right; then **three sections as
+an accordion — only one open at a time** (`ftStepToggle` sets `ftSetup.open` to `mkt` / `fix` / `act`, or null when the open
+one is clicked shut; unset, the first with work left opens: charge types short → `mkt`, else any Fix Issues → `fix`, else
+`act`). No numbered steps, no progress bar, and property rows no longer open.
+- **A section** is a white card, 1px `--rmx-line`, 4px radius, 16px padding. Collapsed: the label at 14/20 Regular (a filled
+  green 20px `check_circle` before it once the section is done) and a navy chevron. Open: the brand border and RMX
+  dropshadow-sm, the label SemiBold with its dot status (`statusDot`) beside it, a 1px rule, then the body, 16px apart.
+- **Add Marketing Details to Charge Types** counts **missing marketing details only** (`ftSetupSteps` no longer counts a
+  role conflict as a charge type short): *n of m Ready*, the copy *Set once on the charge type. Every charge that uses it, at
+  every property, is advertised with those details. Make sure to select which charge type is used for Base Rent and Security
+  Deposit.* / *Edit all charge types at once, or edit individually on the Charge Type details.*, **Mass Edit Marketing**
+  (primary) and **View Charge Types**.
+- **Fix Issues (n)** is every other blocker (`ftFixItems(rows)`), each a numbered item — the number in brand blue, the title
+  SemiBold with a red dot status, the property (brand house glyph + name) under it, the fix on the right: *2 Charge Types
+  labeled as Base Rent* (*2 RC charges labeled as …* for one type) · *Duplicate Charge* · **How do I resolve this?**
+  (`dupOpen`); *Base Rent Missing: n units* · *Missing Base Rent* · **View Charges**; and, once for every property it stops
+  (listed under it), *Missing Base Rent Charge Type* with its RMX Tooltip · *Missing Base Rent* · **View Charge Types**. The
+  lead: *Fix any outstanding issues, typically related to having multiple charges that use a base rent or security deposit
+  assigned charge type. …* With none, the header reads *Fix Issues (0)* with the check.
+- **Activate Fee Transparency** (*Activate Properties* collapsed, as the Figma has it; *Activate <Property>* when opened from
+  Marketing Setup) — *n of m Ready*, *A property can activate once every charge type used is ready and all units have one
+  Base Rent charge.* with **Bulk Activate Fee Transparency** beside it when more than one is ready, then one row per property
+  still to activate (`ftPropRow(r, issues)`): house glyph, name, then *n issues* (its short charge types plus its Fix Issues
+  items) and **Not Ready**, or **Activate Fee Transparency** and **Ready**. `ftSetupProp` and the per-property sub-rows are gone.
+- On Rollout: *2 of 10 Ready* (NSF, LATE), Fix Issues (1) — *Missing Base Rent Charge Type* under all three properties — and
+  Riverview *8 issues*. Mid Conversion: *7 of 8 Ready*, Fix Issues (0), The Estates *1 issue*, The Hamptons Ready.
+
+*(2026-10-20 – 10-21, replaced by the above)* **Fee Transparency Setup is Figma `4102:195176`** (2026-10-20, the user's new design; three frames: nothing ready
 `4097:82767`, charge types 8 of 9 `4100:85395`, charge types done `4102:194717`). An 800px dialog: the 48px header with
 the close alone (its **help** icon came off on 2026-10-21, the user's call); an intro, *2 Steps to Fee Transparent Listings* over *New to fee
 transparency? **Learn More*** (`todo` since 2026-10-21: in the product it opens a help article outside the prototype, so it
