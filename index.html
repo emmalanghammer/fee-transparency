@@ -8061,6 +8061,7 @@ class Component extends DCLogic {
       .map(r => { const top = primary.indexOf(r) >= 0; return { id:'c' + r.id, level:top && this.tenantLevelOf(r, q.prop) ? 'Tenant' : (r.level || 'Property'), type:r.mits, comment:r.desc || '',
         amount:amount(r), one:/-one$/.test(r.group),
         def:top && required(r), lock:top && this.tenantLevelOf(r, q.prop) ? 'tenant' : null,
+        listed:top && !!r.ils && !/-one$/.test(r.group) && (this.chargeRole(r) === 'rent' || required(r)),
         pet:this.chargeCategoryFor(r.mits) === 'Pet', max:this.ppPetMax(r, q.prop), cap:this.petCapOf(r) }; });
     // Charges added on the quote itself are the tenant's own, so they sit after the property's.
     (q.extra || []).forEach(x => rows.push(Object.assign({ def:true, lock:'tenant' }, x)));
@@ -8523,6 +8524,12 @@ class Component extends DCLogic {
     const chosen = (g) => g.rows.filter(r => r.lock || this.rqOn(r));
     const recChosen = chosen(rec.primary).concat(rec.oris.reduce((a, g) => a.concat(chosen(g)), []));
     const oneChosen = chosen(one.primary).concat(one.oris.reduce((a, g) => a.concat(chosen(g)), []));
+    // The summary reads the way the listing does (2026-10-22, the user's call): *Monthly total* over one line for the
+    // Listed Total Monthly Price — the Base Rent and the required charges on listings, the figure the unit's listing
+    // advertises (`listed`, from rqRows) — with every other ticked recurring charge grouped under it as optional.
+    const listedRec = recChosen.filter(r => r.listed), optRec = recChosen.filter(r => !r.listed);
+    const listedSum = listedRec.reduce((n, r) => n + this.rqLineAmt(r), 0);
+    const listedLine = !listedRec.length ? '' : `<div style="padding:12px 0;border-top:1px solid var(--rmx-bg-subtle, #f5f8fa)">${line('Listed Total Monthly Price', money(listedSum), true)}</div>`;
 
     return `<div style="margin:-16px;display:flex;flex-wrap:wrap;align-items:stretch">
       <div style="flex:3 1 360px;min-width:300px;padding:16px 20px;display:flex;flex-direction:column;gap:14px;box-sizing:border-box">
@@ -8534,14 +8541,14 @@ class Component extends DCLogic {
         <div style="background:#fff;border:1px solid var(--rmx-line, #cedbe7);border-radius:4px;overflow:hidden">
           <div style="padding:14px 16px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
             <div style="display:flex;flex-direction:column">
-              <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b)">Total Monthly Price</span>
+              <span style="font-size:14px;color:var(--rmx-ink-2, #424e5b)">Monthly total</span>
               <span style="font-size:20px;font-weight:600;color:var(--rmx-brand-dark, #13314c)">${money(monthly)}<span style="font-size:14px;font-weight:400;color:var(--rmx-text-muted, #b3b3b3)">/mo</span></span>
             </div>
             <span style="display:inline-flex;align-items:center;gap:10px;flex:none">${chip('home', this.rqShort(q.prop))}${q.unit ? chip('apartment', q.unit) : ''}</span>
           </div>
           <div style="padding:8px 16px 0">
             ${(recChosen.length || oneChosen.length)
-              ? `${grp('Recurring Charges', recChosen)}${grp('One-Time Charges', oneChosen, '', oneChosen.length > 1 ? 'One-time total' : '')}`
+              ? `${listedLine}${grp('Optional Charges', optRec)}${grp('One-Time Charges', oneChosen, '', oneChosen.length > 1 ? 'One-time total' : '')}`
               : `<div style="padding:14px 0;border-top:1px solid var(--rmx-bg-subtle, #f5f8fa);font-size:14px;font-style:italic;color:var(--rmx-text-muted, #b3b3b3);line-height:1.5">Tick a charge on the left to build the price.</div>`}
           </div>
           <div style="margin:12px 16px 16px;background:var(--rmx-brand-dark, #13314c);border-radius:4px;padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">

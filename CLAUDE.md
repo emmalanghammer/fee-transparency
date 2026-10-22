@@ -2325,6 +2325,13 @@ Charges tile and overlay, Move In), the unit type scope of `chargeScope`, `rqRow
 the Pricing Preview, which also now offers only charges that reach the previewed unit
 (`chargeReachesUnit`, exceptions included) where it used to list every charge on the property.
 
+**The rent quote's price card reads the way the listing does** (2026-10-22, the user's call): *Monthly total* over the
+figure (it read *Total Monthly Price*), then one SemiBold line, **Listed Total Monthly Price** — the ticked Base Rent and
+required charges on listings (`rqRows`' `listed`), the figure the unit's listing advertises — then every other ticked
+recurring charge under **Optional Charges** (it was one *Recurring Charges* group), then One-Time Charges as before. Riverview
+3B in Mid Conversion: Monthly total $1,428.00, Listed $1,403.00 (Listings' figure), Optional Dog rent $25.00. Figma's *Add
+Charges* and *Add Tenant-Level Charge* (Pricing Tools) match.
+
 **The rent quote's charge step follows Move In's include rule** (2026-10-21, the user's call): a charge whose type is
 *Required* starts ticked and can be unticked (Required charges used to be locked on), any other starts unticked, and a
 tenant-level charge — treated as one (`tenantLevelOf`), or added on the quote — always counts: its checkbox is the RMX
